@@ -162,10 +162,10 @@ loop:
     ; FIXME: we should memory map this rom!
 
     .include utils.s
-    .include fixed_ram_tests.s
-    .include banked_ram_tests.s
-    .include banked_rom_tests.s
-    .include vera_tests.s
+    .include tests/fixed_ram_tests.s
+    .include tests/banked_ram_tests.s
+    .include tests/banked_rom_tests.s
+    .include tests/vera_tests.s
   
   
 ok_message: 
