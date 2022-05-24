@@ -1,8 +1,18 @@
 ; This sets up VERA for a petscii tile map (8x8) in layer 0
 ; It uses no RAM (ROM only)
 
-    ; -- Show first sign of live by enabling VGA as soon as possible
+    ; -- First wait until VERA is ready
     
+wait_for_vera:
+    lda #42
+    sta VERA_ADDR_LOW
+
+    lda VERA_ADDR_LOW
+    cmp #42
+    bne wait_for_vera
+    
+    ; -- Show first sign of live by enabling VGA as soon as possible
+  
     lda #%00010001           ; Enable Layer 0, Enable VGA
     sta VERA_DC_VIDEO
 
