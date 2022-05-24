@@ -53,10 +53,10 @@ reset:
     ; We enable VERA as soon as possible (and set it up), to give a sign of life
     .include "rom_only/setup_vera_for_tile_map.s"  
 
-    ; Setup initial (rom only) screen...
+    ; Setup initial (rom only) screen and title
     .include "rom_only/setup_screen.s"
 
-    ; Test Zero Page and Stack RAM once (this also prints to screen in a crude way)
+    ; Test Zero Page and Stack RAM once
     .include "rom_only/test_zp_and_stack_ram_once.s"
 
     ; These are separate test if VERA is not working properly. They make errors visible on screen.
