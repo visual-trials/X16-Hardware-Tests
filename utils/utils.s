@@ -1,4 +1,9 @@
 
+ok_message: 
+    .asciiz "OK"
+not_ok_message: 
+    .asciiz "NOT OK"
+
 move_cursor_to_next_line:
     pha
 

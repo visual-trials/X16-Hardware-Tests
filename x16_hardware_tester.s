@@ -151,27 +151,20 @@ reset:
 
     ; Use V-sync irqs to measure CPU speed
     jsr measure_cpu_speed
+
     
-
-  
-
 loop:
     ; TODO: wait for (keyboard) input
     jmp loop
 
-    ; FIXME: we should memory map this rom!
-
+    
+    ; === Included files ===
+    
     .include utils/utils.s
     .include tests/fixed_ram_tests.s
     .include tests/banked_ram_tests.s
     .include tests/banked_rom_tests.s
     .include tests/vera_tests.s
-  
-  
-ok_message: 
-    .asciiz "OK"
-not_ok_message: 
-    .asciiz "NOT OK"
   
     ; ======== PETSCII CHARSET =======
 
