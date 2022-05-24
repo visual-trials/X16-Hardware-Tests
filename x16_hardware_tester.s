@@ -161,7 +161,7 @@ loop:
 
     ; FIXME: we should memory map this rom!
 
-    .include utils.s
+    .include utils/utils.s
     .include tests/fixed_ram_tests.s
     .include tests/banked_ram_tests.s
     .include tests/banked_rom_tests.s
@@ -176,7 +176,7 @@ not_ok_message:
     ; ======== PETSCII CHARSET =======
 
     .org $F700
-    .include "petscii.s"
+    .include "utils/petscii.s"
 
     ; ======== NMI / IRQ =======
 nmi:
