@@ -44,7 +44,7 @@ done_print_testing_message:
     jmp test_zp_stack_ram_start
     
 testing_message: 
-    .asciiz "Testing Zero page and stack memory ($0002 - $01FF) ... "
+    .asciiz "Testing zero page and stack memory ($0002 - $01FF) ... "
 
 test_zp_stack_ram_start:
 

@@ -3,24 +3,8 @@
 ; === X16 Hardware Tester ===
 ; ===========================
 
-; TODO: use ca65/cl65 instead of vasm6502_oldstyle
 
-TILE_MAP_WIDTH = 128
-TILE_MAP_HEIGHT = 64
-
-NR_OF_ROM_BANKS = 32
-
-MARGIN          = 2
-INDENT_SIZE     = 2
-
-; Colors
-COLOR_TITLE        = $43 ; Background color = 4, foreground color 3 (cyan)
-COLOR_NORMAL       = $41 ; Background color = 4, foreground color 1 (white)
-COLOR_HEADER       = $47 ; Background color = 4, foreground color 7 (yellow)
-COLOR_OK           = $45 ; Background color = 4, foreground color 5 (green)
-COLOR_ERROR        = $42 ; Background color = 4, foreground color 2 (red)
-
-; == Zero point addresses
+; == Zero page addresses
 
 ; Bank switching
 RAM_BANK            = $00
@@ -39,21 +23,21 @@ CURSOR_X            = $09
 CURSOR_Y            = $0A
 INDENTATION         = $0B
 BYTE_TO_PRINT       = $0C
-DECIMAL_STRING      = $0D ; $0E ; $0F
+DECIMAL_STRING      = $0D ; 0E ; 0F
 
 ; Memory testing
 START_ADDR_HIGH     = $10
 END_ADDR_HIGH       = $11
 BANK_TESTING        = $12
 MEMORY_ADDR_TESTING = $14 ; 15
-NR_OF_WORKING_RAM_BANKS = $16 ; $17
-NR_OF_UNIQUE_RAM_BANKS  = $18 ; $19
+NR_OF_WORKING_RAM_BANKS = $16 ; 17
+NR_OF_UNIQUE_RAM_BANKS  = $18 ; 19
 
-TIMING_COUNTER      = $20 ; $21
+TIMING_COUNTER      = $20 ; 21
 COUNTER_IS_RUNNING  = $22
 ESTIMATED_CPU_SPEED = $23
 
-; Some RAM address location we use
+; Some RAM address locations we use
 IRQ_RAM_ADDRES = $1000
 ROM_TEST_CODE  = $4000
 

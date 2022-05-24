@@ -1,4 +1,18 @@
 
+; Screen size and margins
+TILE_MAP_WIDTH = 128
+TILE_MAP_HEIGHT = 64
+
+MARGIN          = 2
+INDENT_SIZE     = 2
+
+; Colors
+COLOR_TITLE        = $43 ; Background color = 4, foreground color 3 (cyan)
+COLOR_NORMAL       = $41 ; Background color = 4, foreground color 1 (white)
+COLOR_HEADER       = $47 ; Background color = 4, foreground color 7 (yellow)
+COLOR_OK           = $45 ; Background color = 4, foreground color 5 (green)
+COLOR_ERROR        = $42 ; Background color = 4, foreground color 2 (red)
+
 ok_message: 
     .asciiz "OK"
 not_ok_message: 

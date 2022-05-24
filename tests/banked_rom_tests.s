@@ -2,6 +2,7 @@
 ; Note: these start and end addresses need to end with 00
 BANKED_ROM_START_ADDR = $C000
 BANKED_ROM_END_ADDR   = $0000
+NR_OF_ROM_BANKS       = 32
 
 banked_rom_header: 
     .asciiz "Banked ROM:"
