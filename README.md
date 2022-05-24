@@ -1,3 +1,20 @@
+## Introduction
+
+The [X16 Commander](https://www.commanderx16.com/forum/index.php?/home/) is a modern retro computer that is currently in (hardware) development. This new hardware requires testing. This repository aims to supply a tool for testing X16 (compatible) hardware. It comes in the form of asm-source that can compiled into a ROM image. That image can be flashed onto the EEPROM of the X16 hardware and will run immediatly after power on.
+
+The tester currently consists of the following tests:
+
+  * Initialization of VERA VGA output as first sign of life (rom-only mode)
+  * Setup of a tiled screen and upload of petscii character set to VRAM (rom-only mode)
+  * Testing of zero page and stack RAM (rom-only mode)
+  * Testing of Fixed RAM
+  * Testing of Banked RAM
+  * Testing of Banked ROM
+  * Testing of VERA
+
+The above tests are all in a state of Work-In-Progress and are destined to changed, extended and improved.
+
+Note: 'rom-only mode' means that no stack, zero page or any other RAM is used.
 
 ## To compile into a .rom file
 
