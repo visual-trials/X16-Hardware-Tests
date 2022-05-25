@@ -16,7 +16,7 @@ mhz_message:
 too_high_message:
      .asciiz "too high"
 too_low_message:
-     .asciiz "too high"
+     .asciiz "too low"
 no_buffer_fill_message:
      .asciiz "no buffer fill"
    
