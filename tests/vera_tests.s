@@ -15,6 +15,8 @@ mhz_message:
     .asciiz "MHz"
 too_high_message:
      .asciiz "too high"
+too_low_message:
+     .asciiz "too high"
 no_buffer_fill_message:
      .asciiz "no buffer fill"
    
@@ -524,14 +526,14 @@ copy_irq_cpu_speed_measurment_code:
     sta VERA_IEN
     
     ; We wait for the V-SYNC interrupt to start the counter (COUNTER_IS_RUNNING: 0 -> 1)
-waiting_to_start_counter:
+waiting_to_start_counter_vsync:
     inc TIMING_COUNTER
-    bne waiting_no_increment
+    bne waiting_no_increment_vsync
     inc TIMING_COUNTER+1
-    beq waiting_too_long
-waiting_no_increment:
+    beq waiting_too_long_vsync
+waiting_no_increment_vsync:
     lda COUNTER_IS_RUNNING
-    beq waiting_to_start_counter
+    beq waiting_to_start_counter_vsync
 
     lda #0
     sta TIMING_COUNTER
@@ -579,20 +581,24 @@ no_increment:
     
 ; FIXME: if out of bounds (either too low or too high) we should make this an ERROR!
     
-    lda #8              ; We start at 8 MHz
-    cpx #$1C            ; Value between 8 and 4 MHz: 7200 == $1C20 == $1C
-    bcs cpu_speed_done  ; We got more counts so we are at 8MHz
-    lda #4              ; We assume 4 MHz now
-    cpx #$0E            ; Value between 4 and 2 MHz: 3600 == $0E10 == $0E
-    bcs cpu_speed_done  ; We got more counts so we are at 4MHz
-    lda #2              ; We assume 2 MHz now
-    cpx #$0E            ; Value between 2 and 1 MHz: 1800 == $0708 == $07
-    bcs cpu_speed_done  ; We got more counts so we are at 4MHz
-    lda #1              ; We assume 1 MHz now
-cpu_speed_done:
+    lda #8                    ; We start at 8 MHz
+    cpx #$1C                  ; Value between 8 and 4 MHz: 7200 == $1C20 == $1C
+    bcs cpu_speed_done_vsync  ; We got more counts so we are at 8MHz
+    lda #4                    ; We assume 4 MHz now
+    cpx #$0E                  ; Value between 4 and 2 MHz: 3600 == $0E10 == $0E
+    bcs cpu_speed_done_vsync  ; We got more counts so we are at 4MHz
+    lda #2                    ; We assume 2 MHz now
+    cpx #$07                  ; Value between 2 and 1 MHz: 1800 == $0708 == $07
+    bcs cpu_speed_done_vsync  ; We got more counts so we are at 2MHz
+    lda #1                    ; We assume 1 MHz now
+    cpx #$03                  ; Value between 1 and 0.5 MHz: 900 == $0384 == $03
+    bcs cpu_speed_done_vsync  ; We got more counts so we are at 1MHz
+    jmp cpu_speed_too_low_vsync
+
+cpu_speed_done_vsync:
     sta ESTIMATED_CPU_SPEED_VSYNC
     
-measured_ok_cpu_speed:
+measured_ok_cpu_speed_vsync:
     ; We measure the CPU speed, so we are reporting it here
     lda #COLOR_OK
     sta TEXT_COLOR
@@ -607,9 +613,24 @@ measured_ok_cpu_speed:
     
     jsr print_text_zero
 
-    jmp done_measuring_cpu_speed
+    jmp done_measuring_cpu_speed_vsync
 
-waiting_too_long:
+cpu_speed_too_low_vsync:
+
+    ; We have a cpu speed that is too low
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+
+    lda #<too_low_message
+    sta TEXT_TO_PRINT
+    lda #>too_low_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    jmp done_measuring_cpu_speed_vsync
+    
+waiting_too_long_vsync:
     ; We waited for the interrupt to start the counter, but it took too long, Vsync interrupt must have failed
     lda #COLOR_ERROR
     sta TEXT_COLOR
@@ -621,7 +642,7 @@ waiting_too_long:
     
     jsr print_text_zero
     
-done_measuring_cpu_speed:
+done_measuring_cpu_speed_vsync:
 
     jsr move_cursor_to_next_line
     ; Disable interrupts 

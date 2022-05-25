@@ -133,6 +133,8 @@ loop:
     ; ======== NMI / IRQ =======
 nmi:
     ; TODO: implement this
+    ; FIXME: ugly hack!
+    jmp reset
     rti
    
 irq:
