@@ -519,6 +519,8 @@ copy_irq_cpu_speed_measurment_code:
     sta TIMING_COUNTER+1
     sta COUNTER_IS_RUNNING
 
+    lda #%00000111 ; ACK any existing IRQs in VERA
+    sta VERA_ISR
     ; Enable interupts
     cli
     
