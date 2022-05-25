@@ -600,18 +600,7 @@ cpu_speed_done_vsync:
     
 measured_ok_cpu_speed_vsync:
     ; We measure the CPU speed, so we are reporting it here
-    lda #COLOR_OK
-    sta TEXT_COLOR
-
-    lda ESTIMATED_CPU_SPEED_VSYNC
-    jsr print_byte_as_decimal        
-
-    lda #<mhz_message
-    sta TEXT_TO_PRINT
-    lda #>mhz_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
+    jsr print_cpu_speed_vsync
 
     jmp done_measuring_cpu_speed_vsync
 
@@ -650,6 +639,28 @@ done_measuring_cpu_speed_vsync:
     
     rts
 
+print_cpu_speed_vsync:
+    cmp ESTIMATED_CPU_SPEED_PCM
+    bne cpu_speeds_differ
+    lda #COLOR_OK
+    jmp color_cpu_speed_done
+cpu_speeds_differ:
+    lda #COLOR_ERROR
+color_cpu_speed_done:
+    sta TEXT_COLOR
+
+    lda ESTIMATED_CPU_SPEED_VSYNC
+    jsr print_byte_as_decimal        
+
+    lda #<mhz_message
+    sta TEXT_TO_PRINT
+    lda #>mhz_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+    rts
+    
 irq_cpu_speed_measurment:
     pha
     
