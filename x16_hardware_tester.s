@@ -35,7 +35,8 @@ NR_OF_UNIQUE_RAM_BANKS  = $18 ; 19
 
 TIMING_COUNTER      = $20 ; 21
 COUNTER_IS_RUNNING  = $22
-ESTIMATED_CPU_SPEED = $23
+ESTIMATED_CPU_SPEED_PCM   = $23
+ESTIMATED_CPU_SPEED_VSYNC = $24
 
 ; Some RAM address locations we use
 IRQ_RAM_ADDRES = $1000
@@ -103,8 +104,11 @@ reset:
     ; Test VRAM (read/write)
     jsr test_vram
 
+    ; Use PCM FIFO buffer to measure CPU speed
+    jsr measure_cpu_speed_using_pcm
+    
     ; Use V-sync irqs to measure CPU speed
-    jsr measure_cpu_speed
+    jsr measure_cpu_speed_using_vsync
 
     
 loop:
