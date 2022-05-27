@@ -45,8 +45,8 @@ print_vera_header:
     
     rts
     
-vram_not_ok_jmp:
-    jmp vram_not_ok
+lower_vram_not_ok_jmp:
+    jmp lower_vram_not_ok
     
 test_vram:
 
@@ -81,7 +81,7 @@ next_vram_byte_FF:
     
     lda VERA_DATA0           ; Read byte
     cmp #$FF
-    bne vram_not_ok_jmp
+    bne lower_vram_not_ok_jmp
     
     iny
     bne next_vram_byte_FF
@@ -104,7 +104,7 @@ next_vram_byte_00:
 
     lda VERA_DATA0           ; Read byte
     cmp #$00
-    bne vram_not_ok_jmp
+    bne lower_vram_not_ok_jmp
     
     iny
     bne next_vram_byte_00
@@ -135,7 +135,7 @@ next_vram_byte_high_FF:
 
     lda VERA_DATA0           ; Read byte
     cmp #$FF
-    bne vram_not_ok_after_copy
+    bne upper_vram_not_ok
     
     iny
     bne next_vram_byte_high_FF
@@ -144,7 +144,6 @@ next_vram_byte_high_FF:
     bne next_vram_block_high_FF
     
     jsr setup_vram_address_10000
-    
     ldx #0
 next_vram_block_high_00:
 
@@ -159,7 +158,7 @@ next_vram_byte_high_00:
 
     lda VERA_DATA0           ; Read byte
     cmp #$00
-    bne vram_not_ok_after_copy
+    bne upper_vram_not_ok
     
     iny
     bne next_vram_byte_high_00
@@ -191,18 +190,28 @@ next_vram_byte_high_00:
     
     jmp done_vram_test
     
-vram_not_ok_after_copy:
+upper_vram_not_ok:
 
+    ; We want to keep x and y, so we put them on the stack
+    txa
+    pha
+    tya
+    pha
+    
+    ; Since we were testing the upper vram, we must have copied our tiles and map, so we need to restore that first
     jsr copy_back_tiles_and_map_to_high_vram
     
-vram_not_ok:
+    pla
+    tay
+    pla
+    tax
+    
     lda #($1B0 >> 1)         ; Set mapbase for layer 0 to 0x1B000. This also sets the tile width and height to 8 px
     sta VERA_L0_MAPBASE
     
     lda #($1F0 >> 1)         ; Set tilebase for layer 0 to 0x1F000. This also sets the tile width and height to 8 px
     sta VERA_L0_TILEBASE
     
-; FIXME: also add VRAM address!
     lda #COLOR_ERROR
     sta TEXT_COLOR
     
@@ -212,6 +221,31 @@ vram_not_ok:
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
+    
+    ; This uses x as high byte and y as low byte of the address to print    
+    jsr print_upper_vram_address
+    
+    jmp done_vram_test
+
+lower_vram_not_ok:
+    lda #($1B0 >> 1)         ; Set mapbase for layer 0 to 0x1B000. This also sets the tile width and height to 8 px
+    sta VERA_L0_MAPBASE
+    
+    lda #($1F0 >> 1)         ; Set tilebase for layer 0 to 0x1F000. This also sets the tile width and height to 8 px
+    sta VERA_L0_TILEBASE
+    
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<not_ok_message
+    sta TEXT_TO_PRINT
+    lda #>not_ok_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    ; This uses x as high byte and y as low byte of the address to print    
+    jsr print_lower_vram_address
     
 done_vram_test:
     jsr move_cursor_to_next_line

@@ -279,6 +279,101 @@ print_banked_address:
 
     rts
     
+
+
+; -- Prints an 16-byte address as an hexidecimal string to screen (including a space and parentheses)
+; y contains the low byte of the address
+; x contains the high byte of the address
+; 
+print_lower_vram_address:
+
+    jsr setup_cursor
+    
+    lda #' '
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda #'('
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda #'$'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+
+    ; Since this is the lower part of vram, we first print a 0 here
+    lda #'0'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    stx BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    sty BYTE_TO_PRINT
+    jsr print_byte_as_hex
+
+    lda #')'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0           
+    inc CURSOR_X
+
+    rts
+
+; -- Prints an 16-byte address as an hexidecimal string to screen (including a space and parentheses)
+; y contains the low byte of the address
+; x contains the high byte of the address
+; 
+print_upper_vram_address:
+
+    jsr setup_cursor
+    
+    lda #' '
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda #'('
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda #'$'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+
+    ; Since this is the upper part of vram, we first print a 1 here
+    lda #'1'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    stx BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    sty BYTE_TO_PRINT
+    jsr print_byte_as_hex
+
+    lda #')'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0           
+    inc CURSOR_X
+
+    rts
+
+
 ; BYTE_TO_PRINT : contains the byte to print as hex
 print_byte_as_hex:
     
