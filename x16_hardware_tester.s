@@ -60,10 +60,6 @@ reset:
     ; Test Zero Page and Stack RAM once
     .include "tests/rom_only_test_zp_and_stack_ram_once.s"
 
-    ; These are separate test if VERA is not working properly. They make errors visible on screen.
-    ; .include "special_tests/test_vera_write_and_read_continuously.s"
-    ; .include "special_tests/test_vera_write_only_continuously.s"
-
     ; === Zero page and stack memory checks out OK, we can now use it ===
 
     ; Setup stack
