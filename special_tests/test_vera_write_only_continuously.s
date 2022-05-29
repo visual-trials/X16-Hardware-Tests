@@ -51,11 +51,6 @@ vera_wr_fill_tile_map_row:
     
     .include utils/x16.s
 
-    ; ======== PETSCII CHARSET =======
-
-    .org $F700
-    .include "utils/petscii.s"
-
     ; ======== NMI / IRQ =======
 nmi:
     rti
