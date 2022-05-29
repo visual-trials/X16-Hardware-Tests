@@ -1,8 +1,5 @@
 
-; Screen size and margins
-TILE_MAP_WIDTH = 128
-TILE_MAP_HEIGHT = 64
-
+; Print margins
 MARGIN          = 2
 INDENT_SIZE     = 2
 

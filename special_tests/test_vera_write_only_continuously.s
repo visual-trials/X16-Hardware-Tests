@@ -6,7 +6,16 @@
 ; for the viewer that there is an error (an 8x8 pixel change is much more
 ; visible than a single pixel change).
 
-; Requires tile setup (8x8) for layer 0
+    .org $C000
+
+reset:
+    ; === Important: we start running using ROM only here, so there is no RAN/stack usage initially (no jsr, rts, or vars) ===
+
+    ; Disable interrupts 
+    sei
+
+    ; Requires tile setup (8x8) for layer 0
+    .include "../utils/rom_only_setup_vera_for_tile_map.s"
 
     ; -- Fill tilemap into VRAM at $1B000-$1EBFF
 
@@ -37,3 +46,24 @@ vera_wr_fill_tile_map_row:
     ; TODO: pause between each fill!
     
     jmp vera_wr_keep_filling
+
+    ; === Included files ===
+    
+    .include utils/x16.s
+
+    ; ======== PETSCII CHARSET =======
+
+    .org $F700
+    .include "utils/petscii.s"
+
+    ; ======== NMI / IRQ =======
+nmi:
+    rti
+   
+irq:
+    rti
+
+    .org $fffa
+    .word nmi
+    .word reset
+    .word irq
