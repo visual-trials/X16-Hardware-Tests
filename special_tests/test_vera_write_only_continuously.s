@@ -41,6 +41,17 @@ vera_wr_fill_tile_map_row:
     dey
     bne vera_wr_fill_tile_map
     
+
+    lda #$EB
+    sta VERA_ADDR_HIGH
+    lda #$9F
+    sta VERA_ADDR_LOW
+    ldx #10
+    stx VERA_DATA0           ; character index = x
+    lda #$11
+    sta VERA_DATA0           ; Fill Foreground and background color
+    
+    
     ; TODO: pause between each fill!
     ; TODO: pause between each fill!
     ; TODO: pause between each fill!

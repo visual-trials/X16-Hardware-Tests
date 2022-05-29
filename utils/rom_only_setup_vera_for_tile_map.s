@@ -1,4 +1,4 @@
-; This sets up VERA for a petscii tile map (8x8) in layer 0
+; This sets up VERA for a tile map (8x8) in layer 0
 ; It uses no RAM (ROM only)
 
 TILE_MAP_WIDTH = 128
