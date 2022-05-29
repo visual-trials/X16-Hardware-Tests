@@ -52,10 +52,10 @@ reset:
     sei
 
     ; We enable VERA as soon as possible (and set it up), to give a sign of life (rom only)
-    .include "utils/setup_vera_for_tile_map.s"  
+    .include "utils/rom_only_setup_vera_for_tile_map.s"  
 
     ; Setup initial (rom only) screen and title
-    .include "utils/setup_screen.s"
+    .include "utils/rom_only_setup_screen.s"
 
     ; Test Zero Page and Stack RAM once
     .include "tests/rom_only_test_zp_and_stack_ram_once.s"
