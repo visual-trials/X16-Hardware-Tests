@@ -96,6 +96,9 @@ zp_stack_done_checking_ram:
     jmp zp_stack_ram_is_ok
     
 zp_stack_ram_is_not_ok:
+    ; Currently used to trigger an LA
+    lda IO3_BASE_ADDRESS
+
     lda #('N'-64)
     sta VERA_DATA0
     lda #$42                 ; Background color 4, foreground color 2
@@ -186,9 +189,6 @@ zp_stack_low_nibble_ready:
     lda #$42                 ; Background color 4, foreground color 2
     sta VERA_DATA0           
     
-    ; Currently used to trigger an LA
-    lda IO3_BASE_ADDRESS
-
     ; TODO: we should probably move on after this somehow. For now we are halting.
     
 zp_stack_loop_ram_not_ok:
