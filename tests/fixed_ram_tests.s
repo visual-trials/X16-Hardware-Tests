@@ -57,6 +57,9 @@ fixed_ram_is_not_ok:
     ; This uses x as high byte and y as low byte of the address to print    
     jsr print_address
     
+    ; Currently used to trigger an LA
+    lda IO3_BASE_ADDRESS
+
 done_testing_fixed_ram:
     jsr move_cursor_to_next_line
 

@@ -51,3 +51,6 @@ VIA1_PORTA        = $9F01
 VIA1_DDRB         = $9F02
 VIA1_DDRA         = $9F03
 
+; This is currently used to trigger an LA
+IO3_BASE_ADDRESS  = $9F60
+

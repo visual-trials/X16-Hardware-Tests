@@ -116,6 +116,9 @@ banked_rom_is_not_ok:
     ; This uses x as high byte and y as low byte of the address to print    
     jsr print_banked_address
     
+    ; Currently used to trigger an LA
+    lda IO3_BASE_ADDRESS
+
 done_testing_banked_rom:
     jsr move_cursor_to_next_line
 
