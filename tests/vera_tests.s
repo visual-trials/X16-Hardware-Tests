@@ -191,6 +191,8 @@ next_vram_byte_high_00:
     jmp done_vram_test
     
 upper_vram_not_ok:
+    ; We preserve the bad value into a ZP register
+    sta BAD_VALUE
 
     ; We want to keep x and y, so we put them on the stack
     txa
@@ -228,6 +230,9 @@ upper_vram_not_ok:
     jmp done_vram_test
 
 lower_vram_not_ok:
+    ; We preserve the bad value into a ZP register
+    sta BAD_VALUE
+    
     lda #($1B0 >> 1)         ; Set mapbase for layer 0 to 0x1B000. This also sets the tile width and height to 8 px
     sta VERA_L0_MAPBASE
     

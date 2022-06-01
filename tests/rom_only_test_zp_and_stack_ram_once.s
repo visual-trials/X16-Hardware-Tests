@@ -97,7 +97,12 @@ zp_stack_done_checking_ram:
     
 zp_stack_ram_is_not_ok:
     ; Currently used to trigger an LA
-    lda IO3_BASE_ADDRESS
+    sta IO3_BASE_ADDRESS
+
+    ; WORKAROUND: when testing Fixed RAM we do NOT want to use Fixed RAM for running the test itself (like the Stack or ZP).
+    ; But in this case want want to preserve all CPU registers: X, Y and A. We want to print them to screen. We somehow need to store A to do that. 
+    ; So for now, we put it into a VERA-register we are not using (VERA_L1_HSCROLL_L in this case).
+    sta VERA_L1_HSCROLL_L
 
     lda #('N'-64)
     sta VERA_DATA0
@@ -149,7 +154,7 @@ zp_stack_ram_is_not_ok:
     sta VERA_DATA0           
 
 
-    ; Show high nibble
+    ; Show high address nibble
     txa
     lsr
     lsr
@@ -168,7 +173,7 @@ zp_stack_high_nibble_ready:
     lda #$42                 ; Background color 4, foreground color 2
     sta VERA_DATA0
     
-    ; Show low nibble
+    ; Show low address nibble
     txa
     and #$0f
     cmp #10
@@ -180,6 +185,51 @@ zp_stack_low_nibble_is_larger_than_or_equal_to_10:
     sec
     sbc #9
 zp_stack_low_nibble_ready:
+    sta VERA_DATA0
+    lda #$42                 ; Background color 4, foreground color 2
+    sta VERA_DATA0
+
+
+    lda #'='
+    sta VERA_DATA0
+    lda #$42                 ; Background color 4, foreground color 2
+    sta VERA_DATA0           
+    lda #'$'
+    sta VERA_DATA0
+    lda #$42                 ; Background color 4, foreground color 2
+    sta VERA_DATA0           
+
+    ; Show high data nibble
+    lda VERA_L1_HSCROLL_L    ; See comment above regarding WORKAROUND
+    lsr
+    lsr
+    lsr
+    lsr
+    cmp #10
+    bpl zp_stack_high_data_nibble_is_larger_than_or_equal_to_10
+    clc
+    adc #'0'
+    jmp zp_stack_high_data_nibble_ready
+zp_stack_high_data_nibble_is_larger_than_or_equal_to_10:
+    sec
+    sbc #9
+zp_stack_high_data_nibble_ready:
+    sta VERA_DATA0
+    lda #$42                 ; Background color 4, foreground color 2
+    sta VERA_DATA0
+    
+    ; Show low data nibble
+    lda VERA_L1_HSCROLL_L    ; See comment above regarding WORKAROUND
+    and #$0f
+    cmp #10
+    bpl zp_stack_low_data_nibble_is_larger_than_or_equal_to_10
+    clc
+    adc #'0'
+    jmp zp_stack_low_data_nibble_ready
+zp_stack_low_data_nibble_is_larger_than_or_equal_to_10:
+    sec
+    sbc #9
+zp_stack_low_data_nibble_ready:
     sta VERA_DATA0
     lda #$42                 ; Background color 4, foreground color 2
     sta VERA_DATA0

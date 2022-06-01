@@ -103,8 +103,8 @@ banked_rom_is_ok:
     jmp done_testing_banked_rom
     
 banked_rom_is_not_ok:
-    ; Currently used to trigger an LA
-    lda IO3_BASE_ADDRESS
+    ; We preserve the bad value into a ZP register
+    sta BAD_VALUE
 
     lda #COLOR_ERROR
     sta TEXT_COLOR
@@ -166,6 +166,9 @@ check_rom_block:
     nop
     rts
 rom_is_not_ok:
+    ; Currently used to trigger an LA
+    sta IO3_BASE_ADDRESS
+
     clc    ; We clear the carry flag: 'not ok'
     
     ; Switching bank to ROM bank 0

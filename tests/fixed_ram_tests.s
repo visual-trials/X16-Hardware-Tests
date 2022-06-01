@@ -44,8 +44,8 @@ fixed_ram_is_ok:
     jmp done_testing_fixed_ram
     
 fixed_ram_is_not_ok:
-    ; Currently used to trigger an LA
-    lda IO3_BASE_ADDRESS
+    ; We preserve the bad value into a ZP register
+    sta BAD_VALUE
 
     lda #COLOR_ERROR
     sta TEXT_COLOR
@@ -58,7 +58,7 @@ fixed_ram_is_not_ok:
     jsr print_text_zero
 
     ; This uses x as high byte and y as low byte of the address to print    
-    jsr print_address
+    jsr print_fixed_ram_address
     
 done_testing_fixed_ram:
     jsr move_cursor_to_next_line

@@ -130,8 +130,8 @@ banked_ram_is_ok:
     jmp done_testing_banked_ram
     
 banked_ram_is_not_ok:
-    ; Currently used to trigger an LA
-    lda IO3_BASE_ADDRESS
+    ; We preserve the bad value into a ZP register
+    sta BAD_VALUE
 
     lda #COLOR_ERROR
     sta TEXT_COLOR
@@ -240,9 +240,6 @@ done_nr_of_banks:
     
     ; Giving a 'WARNING/ERROR' is not all 256 ram banks are working
     
-    ; Currently used to trigger an LA
-    lda IO3_BASE_ADDRESS
-
     lda #COLOR_ERROR
     sta TEXT_COLOR
     
@@ -287,9 +284,6 @@ done_printing_working_banks:
     ; Giving a 'WARNING/ERROR' if you unique bank count is other than 64 or 128 (note that 1 bank means that your bank switching is not working/disbled)
 
 print_unique_banks_not_ok:
-    ; Currently used to trigger an LA
-    lda IO3_BASE_ADDRESS
-
     lda #COLOR_ERROR
     sta TEXT_COLOR
     jmp print_unique_banks

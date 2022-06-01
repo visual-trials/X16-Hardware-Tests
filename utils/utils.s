@@ -192,8 +192,9 @@ mod10:
 ; -- Prints an 16-byte address as an hexidecimal string to screen (including a space and parentheses)
 ; y contains the low byte of the address
 ; x contains the high byte of the address
-; 
-print_address:
+; BAD_VALUE contains value that was read from RAM but was not equal to what was stored into RAM
+;
+print_fixed_ram_address:
 
     jsr setup_cursor
     
@@ -220,6 +221,22 @@ print_address:
     sty BYTE_TO_PRINT
     jsr print_byte_as_hex
 
+    lda #'='
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda #'$'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda BAD_VALUE
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+
     lda #')'
     sta VERA_DATA0
     lda TEXT_COLOR
@@ -231,6 +248,7 @@ print_address:
 ; -- Prints an 16-byte address as an hexidecimal string to screen (including a space and parentheses)
 ; y contains the low byte of the address
 ; x contains the high byte of the address
+; BAD_VALUE contains value that was read from RAM but was not equal to what was stored into RAM
 ; 
 print_banked_address:
 
@@ -268,6 +286,22 @@ print_banked_address:
     sty BYTE_TO_PRINT
     jsr print_byte_as_hex
 
+    lda #'='
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda #'$'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda BAD_VALUE
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+
     lda #')'
     sta VERA_DATA0
     lda TEXT_COLOR
@@ -281,6 +315,7 @@ print_banked_address:
 ; -- Prints an 16-byte address as an hexidecimal string to screen (including a space and parentheses)
 ; y contains the low byte of the address
 ; x contains the high byte of the address
+; BAD_VALUE contains value that was read from RAM but was not equal to what was stored into RAM
 ; 
 print_lower_vram_address:
 
@@ -316,6 +351,22 @@ print_lower_vram_address:
     sty BYTE_TO_PRINT
     jsr print_byte_as_hex
 
+    lda #'='
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda #'$'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda BAD_VALUE
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+
     lda #')'
     sta VERA_DATA0
     lda TEXT_COLOR
@@ -327,6 +378,7 @@ print_lower_vram_address:
 ; -- Prints an 16-byte address as an hexidecimal string to screen (including a space and parentheses)
 ; y contains the low byte of the address
 ; x contains the high byte of the address
+; BAD_VALUE contains value that was read from RAM but was not equal to what was stored into RAM
 ; 
 print_upper_vram_address:
 
@@ -360,6 +412,22 @@ print_upper_vram_address:
     stx BYTE_TO_PRINT
     jsr print_byte_as_hex
     sty BYTE_TO_PRINT
+    jsr print_byte_as_hex
+
+    lda #'='
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda #'$'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda BAD_VALUE
+    sta BYTE_TO_PRINT
     jsr print_byte_as_hex
 
     lda #')'
@@ -453,6 +521,9 @@ check_ram_block_00:
     sec   ; We set the carry flag: 'ok'
     jmp done_testing_ram
 ram_is_not_ok:
+    ; Currently used to trigger an LA
+    sta IO3_BASE_ADDRESS
+    
     clc    ; We clear the carry flag: 'not ok'
 done_testing_ram:
     rts
