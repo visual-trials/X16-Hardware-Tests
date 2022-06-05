@@ -18,6 +18,9 @@ reset:
     ; Requires tile setup (8x8) for layer 0
     .include "../utils/rom_only_setup_vera_for_tile_map.s"
 
+    ; Copy petscii charset to VRAM
+    .include "../utils/rom_only_copy_petscii_charset.s"
+    
     ; -- Fill tilemap into VRAM at $1B000-$1EBFF
     
 vera_rdwr_start:
@@ -92,6 +95,11 @@ vera_rdwr_fill_tile_map_row:
     bne vera_rdwr_fill_tile_map
     
     jmp vera_rdwr_keep_reading_and_writing
+
+    ; ======== PETSCII CHARSET =======
+
+    .org $F700
+    .include "utils/petscii.s"
 
     ; === Included files ===
     
