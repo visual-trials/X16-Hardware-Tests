@@ -112,9 +112,14 @@ reset:
     
     ; Try to detect/reset the SD card
     jsr vera_reset_sd_card
+    bcc done_with_sd_checks   ; If card was not detected (or there was some error) we do not proceed with SD Card tests
     
     ; TODO: read MBR sector and test/show results!
 
+    
+    
+done_with_sd_checks:
+    
     
 loop:
     ; TODO: wait for (keyboard) input

@@ -17,6 +17,10 @@ vera_sd_reset_message:
     .asciiz "Detecting and resetting SD Card ... "
 vera_sd_no_card_detected: 
     .asciiz "No card detected"
+vera_sd_command0_error: 
+    .asciiz "NOT OK (CMD0:$"
+vera_sd_command0_error_end: 
+    .asciiz ")"
    
 print_vera_sd_header:
     lda #MARGIN
@@ -89,20 +93,9 @@ spi_dummy_clock_loop:
     lda #SPI_CHIP_SELECT_AND_SLOW
     sta VERA_SPI_CTRL
     
-; FIXME: maybe we have to read adter the select?
+    ; TODO: do we have to read adter the select?
     jsr spi_read_byte
     jsr spi_read_byte
-; FIXME: maybe we have to wait for the card to be ready?
-;    ldx #0
-;    tmp_loop_x:
-;    ldy #0
-;    tmp_loop_y:
-;    jsr spi_read_byte
-;    iny
-;    bne tmp_loop_y
-;    inx
-;    bne tmp_loop_x
-
     
     ; We send command 0 to do a software reset
     jsr spi_send_command0
@@ -121,11 +114,11 @@ command0_timed_out:
     
     jsr print_text_zero
 
-    jmp done_with_command0
+    jmp done_with_command0_do_not_proceed
 command0_success:
-    pha
-
-    ; FIXME: if carry is set we get a byte of response. We should print that in hex. -> in green if there are no errors and we are in idle state
+    ; We got a byte of response. We check if the SD Card is not in an IDLE state (which is expected)
+    cmp #%0000001   ; IDLE state
+    bne command0_not_in_idle_state
     
     lda #COLOR_OK
     sta TEXT_COLOR
@@ -136,17 +129,43 @@ command0_success:
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
-
-    pla
+    
+    jmp done_with_command0_proceed
+    
+command0_not_in_idle_state:
+    ; The reponse says we are not in an IDLE state, which means there is an error;
+    ; We print that in hex here
+    pha
+    
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<vera_sd_command0_error
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_command0_error
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
     
     ; FIXME: for now we are simply printing the value we received from the SD card
     ; if the value is #$01 we should say 'OK', otherwise we should print the byte as error
+    pla
     sta BYTE_TO_PRINT
     jsr print_byte_as_hex
 
+    lda #<vera_sd_command0_error_end
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_command0_error_end
+    sta TEXT_TO_PRINT + 1
     
-done_with_command0:
+    jsr print_text_zero
+    
+done_with_command0_do_not_proceed:
+    clc
+    rts
 
+done_with_command0_proceed:
+    sec
     rts
 
 
