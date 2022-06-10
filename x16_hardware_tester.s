@@ -106,7 +106,9 @@ reset:
     jsr vera_check_sdc_version
     bcc done_with_sd_checks   ; If card was SDC Ver.2+ we do not proceed with SD Card tests
     
-    ; TODO: initialize card
+    ; Initialize SD card
+    jsr vera_initialize_sd_card
+    bcc done_with_sd_checks   ; If card was not propely initialized we do not proceed with SD Card tests
     
     ; TODO: read MBR sector and test/show results!
     
