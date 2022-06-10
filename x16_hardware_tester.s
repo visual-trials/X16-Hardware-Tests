@@ -109,6 +109,11 @@ reset:
     
     ; === VERA SD ===
     jsr print_vera_sd_header
+    
+    ; Try to detect/reset the SD card
+    jsr vera_reset_sd_card
+    
+    ; TODO: read MBR sector and test/show results!
 
     
 loop:

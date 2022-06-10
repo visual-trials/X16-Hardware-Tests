@@ -26,6 +26,16 @@
     lda #$0F                 ; -r
     sta VERA_DATA0
     
+    lda #$FA
+    sta VERA_ADDR_HIGH
+    lda #$10                 ; We use color 8 in the pallete (each color takes 2 bytes)
+    sta VERA_ADDR_LOW
+
+    lda #$80                 ; gb
+    sta VERA_DATA0
+    lda #$0F                 ; -r
+    sta VERA_DATA0
+    
     ; Copy petscii charset to VRAM
     .include "utils/rom_only_copy_petscii_charset.s"
     
