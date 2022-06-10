@@ -95,8 +95,8 @@ reset:
     ; We filled all ROM banks with incrementing numbers and check these with a program in RAM
     jsr test_rom_banks
 
-    ; === VERA ===
-    jsr print_vera_header
+    ; === VERA Video ===
+    jsr print_vera_video_header
     
     ; Test VRAM (read/write)
     jsr test_vram
@@ -106,6 +106,9 @@ reset:
     
     ; Use V-sync irqs to measure CPU speed
     jsr measure_cpu_speed_using_vsync
+    
+    ; === VERA SD ===
+    jsr print_vera_sd_header
 
     
 loop:
@@ -120,7 +123,8 @@ loop:
     .include tests/fixed_ram_tests.s
     .include tests/banked_ram_tests.s
     .include tests/banked_rom_tests.s
-    .include tests/vera_tests.s
+    .include tests/vera_video_tests.s
+    .include tests/vera_sd_tests.s
   
     ; ======== PETSCII CHARSET =======
 

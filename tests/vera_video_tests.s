@@ -1,7 +1,7 @@
-; Tests for checking functionality of VERA
+; Tests for checking functionality of VERA Video
 
-vera_header: 
-    .asciiz "VERA:"
+vera_video_header: 
+    .asciiz "VERA - Video:"
 testing_vram_message: 
 ; FIXME: extend this range!
     .asciiz "Testing VRAM ($00000 - $1F8FF) ... "
@@ -20,7 +20,7 @@ too_low_message:
 no_buffer_fill_message:
      .asciiz "no buffer fill"
    
-print_vera_header:
+print_vera_video_header:
     lda #MARGIN
     sta INDENTATION
     sta CURSOR_X
@@ -31,9 +31,9 @@ print_vera_header:
     
     lda #COLOR_HEADER
     sta TEXT_COLOR
-    lda #<vera_header
+    lda #<vera_video_header
     sta TEXT_TO_PRINT
-    lda #>vera_header
+    lda #>vera_video_header
     sta TEXT_TO_PRINT + 1
 
     jsr print_text_zero
