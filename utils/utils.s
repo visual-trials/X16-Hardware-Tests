@@ -15,6 +15,8 @@ ok_message:
     .asciiz "OK"
 not_ok_message: 
     .asciiz "NOT OK"
+spi_command_error: 
+    .asciiz "NOT OK (CMD"
 
 move_cursor_to_next_line:
     pha
@@ -439,6 +441,52 @@ print_upper_vram_address:
 
     rts
 
+; x = command number (to print as decimal)
+; a = error byte to print in hex
+print_spi_cmd_error:
+    pha
+    txa
+    pha
+    
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<spi_command_error
+    sta TEXT_TO_PRINT
+    lda #>spi_command_error
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    pla ; contains command number
+    jsr print_byte_as_decimal
+
+    lda #':'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda #'$'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    ; FIXME: for now we are simply printing the value we received from the SD card
+    ; if the value is #$01 we should say 'OK', otherwise we should print the byte as error
+    pla
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+
+    lda #')'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    rts
+    
 
 ; BYTE_TO_PRINT : contains the byte to print as hex
 print_byte_as_hex:

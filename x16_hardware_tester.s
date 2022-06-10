@@ -89,11 +89,30 @@ reset:
     ; Based on the number of unique ram banks, we check those ram banks (every byte in it)
     jsr test_banked_ram 
     
-    ; === Banked RAM ===
+    ; === Banked ROM ===
     jsr print_banked_rom_header
     
     ; We filled all ROM banks with incrementing numbers and check these with a program in RAM
     jsr test_rom_banks
+
+    ; === VERA SD ===
+    jsr print_vera_sd_header
+    
+    ; Try to detect/reset the SD card
+    jsr vera_reset_sd_card
+    bcc done_with_sd_checks   ; If card was not detected (or there was some error) we do not proceed with SD Card tests
+    
+    ; Check if card is SDC Ver.2+
+    jsr vera_check_sdc_version
+    bcc done_with_sd_checks   ; If card was SDC Ver.2+ we do not proceed with SD Card tests
+    
+    ; TODO: initialize card
+    
+    ; TODO: read MBR sector and test/show results!
+    
+done_with_sd_checks:
+
+; FIXME: there is something VERY WEIRD: when I put the VERA Video code BEFORE the VERA SD code the pcm speed test will fail!
 
     ; === VERA Video ===
     jsr print_vera_video_header
@@ -107,18 +126,6 @@ reset:
     ; Use V-sync irqs to measure CPU speed
     jsr measure_cpu_speed_using_vsync
     
-    ; === VERA SD ===
-    jsr print_vera_sd_header
-    
-    ; Try to detect/reset the SD card
-    jsr vera_reset_sd_card
-    bcc done_with_sd_checks   ; If card was not detected (or there was some error) we do not proceed with SD Card tests
-    
-    ; TODO: read MBR sector and test/show results!
-
-    
-    
-done_with_sd_checks:
     
     
 loop:

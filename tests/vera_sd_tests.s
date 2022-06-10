@@ -15,12 +15,13 @@ vera_sd_header:
     
 vera_sd_reset_message:
     .asciiz "Detecting and resetting SD Card ... "
+vera_check_sdc_version_message:
+    .asciiz "Checking if card is SDC Ver.2+ ... "
 vera_sd_no_card_detected: 
     .asciiz "No card detected"
-vera_sd_command0_error: 
-    .asciiz "NOT OK (CMD0:$"
-vera_sd_command0_error_end: 
-    .asciiz ")"
+vera_sd_timeout_message:    
+    .asciiz "Timeout"
+
    
 print_vera_sd_header:
     lda #MARGIN
@@ -48,6 +49,8 @@ print_vera_sd_header:
     rts
 
     
+; ======= Reset SD Card ========    
+
 vera_reset_sd_card:
 
     lda #COLOR_NORMAL
@@ -133,43 +136,109 @@ command0_success:
     jmp done_with_command0_proceed
     
 command0_not_in_idle_state:
-    ; The reponse says we are not in an IDLE state, which means there is an error;
-    ; We print that in hex here
-    pha
-    
-    lda #COLOR_ERROR
-    sta TEXT_COLOR
-    
-    lda #<vera_sd_command0_error
-    sta TEXT_TO_PRINT
-    lda #>vera_sd_command0_error
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
-    
-    ; FIXME: for now we are simply printing the value we received from the SD card
-    ; if the value is #$01 we should say 'OK', otherwise we should print the byte as error
-    pla
-    sta BYTE_TO_PRINT
-    jsr print_byte_as_hex
-
-    lda #<vera_sd_command0_error_end
-    sta TEXT_TO_PRINT
-    lda #>vera_sd_command0_error_end
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
+    ; The reponse says we are not in an IDLE state, which means there is an error
+    ldx #0 ; command number to print
+    jsr print_spi_cmd_error
     
 done_with_command0_do_not_proceed:
+    jsr move_cursor_to_next_line
+
+    ; We unselect the card
+    lda #SPI_CHIP_DESELECT_AND_SLOW
+    sta VERA_SPI_CTRL
+
+    ; TODO: Can we further 'POWER OFF' the card?
     clc
     rts
 
 done_with_command0_proceed:
+    jsr move_cursor_to_next_line
     sec
     rts
 
+; ======= Check SDC Ver.2+ ========    
 
+vera_check_sdc_version:
+    
+    lda #COLOR_NORMAL
+    sta TEXT_COLOR
+    
+    lda #<vera_check_sdc_version_message
+    sta TEXT_TO_PRINT
+    lda #>vera_check_sdc_version_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    ; We send command 8 (with $01AA) to check for SDC Ver2.+
+    jsr spi_send_command8
+    
+    bcs command8_success
+command8_timed_out:
+    
+    ; If carry is unset, we timed out. We print 'Timeout' as an error
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<vera_sd_timeout_message
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_timeout_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
 
+    jmp done_with_command8_do_not_proceed
+    
+command8_success:
+
+    ; We got our first byte of response. We check if the SD Card is not in an IDLE state (which is expected)
+    cmp #%0000001   ; IDLE state
+    bne command8_not_in_idle_state
+    
+    ; Retrieve the additional 4 bytes of the R7 response
+	jsr spi_read_byte
+	jsr spi_read_byte
+	jsr spi_read_byte
+	jsr spi_read_byte
+    
+    ; FIXME: shouldnt we do something with those 4 bytes? (look at schematic)
+
+    lda #COLOR_OK
+    sta TEXT_COLOR
+    
+    lda #<ok_message
+    sta TEXT_TO_PRINT
+    lda #>ok_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    jmp done_with_command8_proceed
+    
+command8_not_in_idle_state:
+    ; The reponse says we are not in an IDLE state, which means there is an error
+    ldx #8 ; command number to print
+    jsr print_spi_cmd_error
+    
+done_with_command8_do_not_proceed:
+    jsr move_cursor_to_next_line
+
+    ; We unselect the card
+    lda #SPI_CHIP_DESELECT_AND_SLOW
+    sta VERA_SPI_CTRL
+
+    ; TODO: Can we further 'POWER OFF' the card?
+    clc
+    rts
+
+done_with_command8_proceed:
+    jsr move_cursor_to_next_line
+    sec
+    rts
+    
+    
+
+    
 spi_send_command0:
 
     ; The command index requires the highest bit to be 0 and the bit after that to be 1 = $40
@@ -208,6 +277,49 @@ spi_command0_timeout:
     clc  ; clear the carry: we did not succeed
     rts
 
+    
+    
+spi_send_command8:
+
+    ; The command index requires the highest bit to be 0 and the bit after that to be 1 = $40
+    lda #(8 | $40)      
+    jsr spi_write_byte
+    
+    ; Command 8 has two bytes of argument, so sending two bytes with value 0 and then the 2 bytes as argument ($01AA) 
+    lda #0
+    jsr spi_write_byte
+    jsr spi_write_byte
+    
+    lda #$01
+    jsr spi_write_byte
+    lda #$AA
+    jsr spi_write_byte
+    
+    ; Command 0 requires an CRC. Since everything is fixed for this command, the CRC is already known
+    lda #$87            ; CRC for command8
+    jsr spi_write_byte
+
+    ; We wait for a response (which should be R1 + 32 bits = R7)
+    ldx #20                   ; TODO: how many retries do we want to do?
+spi_wait_command8:
+    dex
+    beq spi_command8_timeout
+    jsr spi_read_byte
+    tay                       ; we want to keep the original value (so we put it in y for now)
+    ; FIXME: Use 65C02 processor so we can use "bit #$80" here
+    and #$80
+    cmp #$80
+    beq spi_wait_command8
+    
+    tya                       ; we restore the original value (stored in y)
+
+    sec  ; set the carry: we succeeded
+    rts
+
+spi_command8_timeout:
+    clc  ; clear the carry: we did not succeed
+    rts
+    
 
 
 spi_read_byte:
