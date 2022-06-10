@@ -89,6 +89,20 @@ spi_dummy_clock_loop:
     lda #SPI_CHIP_SELECT_AND_SLOW
     sta VERA_SPI_CTRL
     
+; FIXME: maybe we have to read adter the select?
+    jsr spi_read_byte
+    jsr spi_read_byte
+; FIXME: maybe we have to wait for the card to be ready?
+;    ldx #0
+;    tmp_loop_x:
+;    ldy #0
+;    tmp_loop_y:
+;    jsr spi_read_byte
+;    iny
+;    bne tmp_loop_y
+;    inx
+;    bne tmp_loop_x
+
     
     ; We send command 0 to do a software reset
     jsr spi_send_command0
@@ -161,8 +175,10 @@ spi_wait_command0:
     beq spi_command0_timeout
     jsr spi_read_byte
     tay                       ; we want to keep the original value (so we put it in y for now)
+    ; FIXME: Use 65C02 processor so we can use "bit #$80" here
     and #$80
-    bne spi_wait_command0
+    cmp #$80
+    beq spi_wait_command0
     
     tya                       ; we restore the original value (stored in y)
 
@@ -188,9 +204,8 @@ spi_read_byte:
     
     ; VERA is sending the data using SPI to the SD card. This takes some time. We wait until VERA says it has done the sending (and receiving a response).
 wait_spi_read_busy:
-    lda VERA_SPI_CTRL
-    and #%1000000
-    bne wait_spi_read_busy
+    bit VERA_SPI_CTRL
+    bmi wait_spi_read_busy
     
     ; Read the byte of data VERA got back from the card
     lda VERA_SPI_DATA
@@ -203,9 +218,8 @@ spi_write_byte:
     
     ; VERA is sending the data using SPI to the SD card. This takes some time. We wait until VERA says it has done the sending (and receiving a response).
 wait_spi_write_busy:
-    lda VERA_SPI_CTRL
-    and #%1000000
-    bne wait_spi_write_busy  ; if bit 7 is high (Busy bit) we keep waiting
+    bit VERA_SPI_CTRL
+    bmi wait_spi_write_busy  ; if bit 7 is high (Busy bit) we keep waiting
     
     rts
 
