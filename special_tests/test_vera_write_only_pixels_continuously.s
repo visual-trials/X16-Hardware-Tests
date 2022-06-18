@@ -84,9 +84,18 @@ vera_wr_fill_bitmap:
     ; We use A as color
     lda #BACKGROUND_COLOR
     
-    ldy #200                 ; IMPORTANT: we only have columns of 200 pixels here, so we will notice if there are writes into the border below
+    ldy #29                 ; IMPORTANT: we only have columns of 29*8=232 pixels here, so we will notice if there are writes into the border below
 vera_wr_fill_bitmap_col:
     stx VERA_DATA0           ; store pixel with x as color
+    stx VERA_DATA0           ; store pixel with x as color
+    stx VERA_DATA0           ; store pixel with x as color
+    stx VERA_DATA0           ; store pixel with x as color
+
+    stx VERA_DATA0           ; store pixel with x as color
+    stx VERA_DATA0           ; store pixel with x as color
+    stx VERA_DATA0           ; store pixel with x as color
+    stx VERA_DATA0           ; store pixel with x as color
+
     dey
     bne vera_wr_fill_bitmap_col
     inx
