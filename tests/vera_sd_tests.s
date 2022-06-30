@@ -66,6 +66,7 @@ vera_initialize_sd_card:
     jsr print_text_zero
 
 
+retry_initialization:
     ; We send command 55 to prepare for command ACMD41
     jsr spi_send_command55
     
@@ -117,7 +118,8 @@ command41_success:
 
     ; We got our byte of response. We check if the SD Card is not in an IDLE state (which is expected)
     cmp #%0000000   ; NOT in IDLE state! (we just initialized, so we should not be in IDLE state anymore!)
-    bne command41_still_in_idle_state
+; FIXME    bne command41_still_in_idle_state
+    bne retry_initialization
     
     lda #COLOR_OK
     sta TEXT_COLOR

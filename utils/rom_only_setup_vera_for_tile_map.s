@@ -5,15 +5,32 @@ TILE_MAP_WIDTH = 128
 TILE_MAP_HEIGHT = 64
 
     ; -- First wait until VERA is ready
-    
+
+    ldx #$A5
 wait_for_vera:
     lda #42
     sta VERA_ADDR_LOW
 
     lda VERA_ADDR_LOW
     cmp #42
+    beq vera_ready
+    
+    ldy #0
+vera_boot_snooze:
+    nop
+    nop
+    iny
+    bne vera_boot_snooze
+    
+    dex
     bne wait_for_vera
     
+vera_not_working:
+
+    ; TODO: VERA is not responding, we should fall back into outputting to VIA and/or maybe the YM2151
+    
+vera_ready:    
+
     ; -- Show first sign of live by enabling VGA as soon as possible
   
     lda #%00010001           ; Enable Layer 0, Enable VGA
