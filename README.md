@@ -20,7 +20,7 @@ Note: 'rom-only mode' means that no stack, zero page or any other RAM is used.
 
 Right now the hardware tester is best compiled with vasm6502 (oldstyle). This is how you can generate a .rom file:
 
-  `vasm6502_oldstyle.exe -Fbin -dotdir -wdc02 x16_hardware_tester.s -o x16_hardware_tester.rom -L x16_hardware_tester.lst`
+  `vasm6502_oldstyle.exe -Fbin -dotdir -wdc02 x16_hardware_tester.s -o x16_hardware_tester.rom`
 
 VASM manual: http://sun.hasenbraten.de/vasm/release/vasm_6.html
 
