@@ -131,8 +131,8 @@ done_testing_banked_rom:
 test_rom_bank:
 
     ; Switching ROM BANK
-    ldx BANK_TESTING
-    stx ROM_BANK
+    lda BANK_TESTING
+    sta ROM_BANK
 ; FIXME: remove nop!
     nop
 
@@ -160,10 +160,13 @@ check_rom_block:
     sec   ; We set the carry flag: 'ok'
     
     ; Switching bank to ROM bank 0
-    ldx #$00
-    stx ROM_BANK
+    pha
+    lda #$00
+    sta ROM_BANK
 ; FIXME: remove nop!
     nop
+    pla
+    
     rts
 rom_is_not_ok:
     ; Currently used to trigger an LA
@@ -172,9 +175,12 @@ rom_is_not_ok:
     clc    ; We clear the carry flag: 'not ok'
     
     ; Switching bank to ROM bank 0
-    ldx #$00
-    stx ROM_BANK
+    pha
+    lda #$00
+    sta ROM_BANK
 ; FIXME: remove nop!
     nop
+    pla
+    
     rts
 end_of_test_rom_bank:
