@@ -80,7 +80,8 @@ reset:
     ; Test Fixed RAM
     jsr test_fixed_ram
     
-jmp after_sound_test
+; FIMXE: clean this up!
+    jmp after_sound_test
 ; FIXME: very crude PSG test
     lda #0
     sta VERA_CTRL

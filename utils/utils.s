@@ -269,8 +269,18 @@ print_banked_address:
     sta VERA_DATA0
     inc CURSOR_X
     
+    txa
+    pha
+    tya
+    pha
+    
     lda BANK_TESTING
     jsr print_byte_as_decimal
+    
+    pla
+    tay
+    pla
+    tax
     
     lda #':'
     sta VERA_DATA0
