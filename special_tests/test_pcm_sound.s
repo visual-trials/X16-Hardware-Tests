@@ -10,6 +10,9 @@ RAM_BANK          = $00
 ROM_BANK          = $01
 
 AUDIO_COPY_ADDR   = $02 ; $03
+PLAYING_BANK      = $04
+
+RANDOM_SEED       = $05
 
 PLAY_PCM_CODE  = $4000
 PCM_AUDIO_DATA = $C000   ; BANK 1+
@@ -40,16 +43,55 @@ copy_play_pcm_audio_code:
     cpy #(end_of_play_pcm_audio-play_pcm_audio)
     bne copy_play_pcm_audio_code
 
-    jsr PLAY_PCM_CODE
+    lda #$CD
+    sta RANDOM_SEED
     
 loop:
+    jsr PLAY_PCM_CODE
+    jsr wait_random_time
     jmp loop
   
+  
+wait_random_time:
+    lda RANDOM_SEED
+    
+wait_random_64k:
+    ldx #128
+wait_random_256:
+    ldy #0
+wait_random_1:
+    iny
+    bne wait_random_1
+    dex
+    bne wait_random_256
+    dec
+    bne wait_random_64k
+    
+    jsr pseudo_random_byte
+    
+    rts
+    
+; Taken from here: https://codebase64.org/doku.php?id=base:small_fast_8-bit_prng
+pseudo_random_byte:
+    lda RANDOM_SEED
+    beq doEor
+    asl
+    beq noEor ;if the input was $80, skip the EOR
+    bcc noEor
+doEor:
+    eor #$1d
+noEor:
+    sta RANDOM_SEED
+
+    rts
     
 ; Note: this routine is COPIED to RAM and run there!    
 play_pcm_audio:
-    ; Switching ROM BANK
     lda #1
+    sta PLAYING_BANK
+
+    ; Switching ROM BANK
+    lda PLAYING_BANK
     sta ROM_BANK
 ; FIXME: remove nop!
     nop
@@ -117,9 +159,28 @@ audio_buffer_is_not_full:
     ; Next 256 bytes of audio data
     inx
     stx AUDIO_COPY_ADDR+1
-    ; We check if we reached the end of the audio data
-    cpx #(>PCM_AUDIO_DATA+40)                ; 40 * 256 bytes = 10kB
+    ; We check if we reached the end of the ROM BANK
+    beq next_rom_bank
+    
+    bra keep_filling_fifo_buffer
+    
+next_rom_bank:
+    ; Incerement BANK
+    inc PLAYING_BANK
+    
+    ldx #>PCM_AUDIO_DATA
+    stx AUDIO_COPY_ADDR+1
+    
+    ; Note that y should already be 0 here
+    
+    ; Switching ROM BANK (if end is not reached)
+    lda PLAYING_BANK
+    cmp #32                 ; we only play 31 banks
     beq done_with_filling
+
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
     
     bra keep_filling_fifo_buffer
     
