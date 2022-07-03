@@ -68,7 +68,7 @@ loop:
   
     .org $C800
 pcm_audio_data:  
-    .binary "chirp_audio.pcm"
+    .binary "chirp_audio.signed.pcm"  ; This should be signed 16-bit little endian (raw) pcm (hint: Audacity can export this!)
     
 
     .org $fffc
