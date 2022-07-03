@@ -6,8 +6,13 @@ VERA_AUDIO_CTRL   = $9F3B
 VERA_AUDIO_RATE   = $9F3C
 VERA_AUDIO_DATA   = $9F3D
 
+RAM_BANK          = $00
+ROM_BANK          = $01
+
 AUDIO_COPY_ADDR   = $02 ; $03
 
+PLAY_PCM_CODE  = $4000
+PCM_AUDIO_DATA = $C000   ; BANK 1+
     
     .org $C000
 
@@ -18,16 +23,37 @@ reset:
 wait_for_vera:
     lda #42
     sta VERA_ADDR_LOW
-
     lda VERA_ADDR_LOW
     cmp #42
     bne wait_for_vera
     
-
     lda #%00010001 ; Enable Layer 0, Enable VGA (just to show we are running)
     sta VERA_DC_VIDEO
     
+    ; Copying play_pcm_audio -> PLAY_PCM_CODE
+    
+    ldy #0
+copy_play_pcm_audio_code:
+    lda play_pcm_audio, y
+    sta PLAY_PCM_CODE, y
+    iny 
+    cpy #(end_of_play_pcm_audio-play_pcm_audio)
+    bne copy_play_pcm_audio_code
 
+    jsr PLAY_PCM_CODE
+    
+loop:
+    jmp loop
+  
+    
+; Note: this routine is COPIED to RAM and run there!    
+play_pcm_audio:
+    ; Switching ROM BANK
+    lda #1
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+    
     ; This is a very crude PCM test
     
     lda #$BF    ; reset, 16 bit, stereo + max volume
@@ -37,10 +63,10 @@ wait_for_vera:
     
     ; Copy audio data to VERA FIFO buffer
     
-    lda #<pcm_audio_data
+    lda #<PCM_AUDIO_DATA
     sta AUDIO_COPY_ADDR
     
-    ldx #>pcm_audio_data
+    ldx #>PCM_AUDIO_DATA
 next_256_bytes:
     stx AUDIO_COPY_ADDR+1
 
@@ -52,23 +78,18 @@ next_byte:
     bne next_byte
     
     inx
-;    cpx #(>pcm_audio_data+16)                ; 16 * 256 bytes = 4kB
-    cpx #(>pcm_audio_data+8)                ; 8 * 256 bytes = 2kB
+;    cpx #(>PCM_AUDIO_DATA+16)                ; 16 * 256 bytes = 4kB
+    cpx #(>PCM_AUDIO_DATA+8)                ; 8 * 256 bytes = 2kB
     bne next_256_bytes
     
     ; Start PCM playback
     
     lda #116    ; 44250 Hz sample rate (roughly 44100 Hz)
-;    lda #58 
-;    lda #5
     sta VERA_AUDIO_RATE
 
-;tmp_loop:
-;    jmp tmp_loop
-
     ; We start at the point we ended with last time
-;    ldx #(>pcm_audio_data+16)                ; 16 * 256 bytes = 4kB
-    ldx #(>pcm_audio_data+8)                ; 8 * 256 bytes = 2kB
+;    ldx #(>PCM_AUDIO_DATA+16)                ; 16 * 256 bytes = 4kB
+    ldx #(>PCM_AUDIO_DATA+8)                ; 8 * 256 bytes = 2kB
     stx AUDIO_COPY_ADDR+1
     ldy #0
     sty AUDIO_COPY_ADDR
@@ -76,6 +97,7 @@ next_byte:
 keep_filling_fifo_buffer:
     lda VERA_AUDIO_CTRL
     bpl audio_buffer_is_not_full 
+    
     
     lda #0
 wait_for_a_while:
@@ -93,28 +115,32 @@ audio_buffer_is_not_full:
     bne keep_filling_fifo_buffer        ; We assume our audio data ends in a chunk of 256 bytes (so we can safely move on here)
 
     ; Next 256 bytes of audio data
-;    stp
     inx
     stx AUDIO_COPY_ADDR+1
     ; We check if we reached the end of the audio data
-    cpx #(>pcm_audio_data+40)                ; 40 * 256 bytes = 10kB
+    cpx #(>PCM_AUDIO_DATA+40)                ; 40 * 256 bytes = 10kB
     beq done_with_filling
     
     bra keep_filling_fifo_buffer
     
 done_with_filling:
-    
-loop:
-    jmp loop
-  
-    .org $C200
-pcm_audio_data:  
-    .binary "chirp_audio.signed.pcm"  ; This should be signed 16-bit little endian (raw) pcm (hint: Audacity can export this!)
-    
 
+    ; Switching back to ROM bank 0
+    lda #0
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+    
+    rts
+end_of_play_pcm_audio:
+    
+    
     .org $fffc
     .word reset
     .word reset
   
+    .binary "chirp_audio.signed.pcm"  ; This should be signed 16-bit little endian (raw) pcm (hint: Audacity can export this!)
+    
+
   
   
