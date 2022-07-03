@@ -31,6 +31,7 @@ AUDIO_COPY_ADDR   = $0C ; $0D
 PLAYING_BANK      = $0E
 
 RANDOM_SEED       = $0F
+RANDOM_SEED_SMALL = $10
 
 PLAY_PCM_CODE     = $4000
 PCM_AUDIO_DATA    = $C000   ; BANK 1+
@@ -49,7 +50,7 @@ reset:
   
     jsr copy_play_pcm_audio_code
   
-    lda #$CD
+    lda #96               ; We want to start with a play rate of 116 (~44.1KHz). So we do: 128 - RANDOM_SEED/8 = 116 -> RANDOM_SEED = 96
     sta RANDOM_SEED
     
 loop:
@@ -284,7 +285,17 @@ next_byte:
     
     ; Start PCM playback
     
-    lda #116    ; 44250 Hz sample rate (roughly 44100 Hz)
+    lda RANDOM_SEED
+    lsr
+    lsr
+    lsr
+    sta RANDOM_SEED_SMALL    ; = RANDOM_SEED / 8
+    
+    lda #128
+    sec
+    sbc RANDOM_SEED_SMALL    ; We take a lower random tone
+    
+;    lda #116    ; 44250 Hz sample rate (roughly 44100 Hz)
     sta VERA_AUDIO_RATE
 
     ; We start at the point we ended with last time
