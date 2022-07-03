@@ -3,8 +3,7 @@
 vera_video_header: 
     .asciiz "VERA - Video:"
 testing_vram_message: 
-; FIXME: extend this range!
-    .asciiz "Testing VRAM ($00000 - $1F8FF) ... "
+    .asciiz "Testing VRAM ($00000 - $1F9BF) ... "
 testing_vsync_irq_message: 
     .asciiz "Testing VSync interrupts ... "
 testing_measure_cpu_speed_using_vsync_message: 
@@ -137,10 +136,22 @@ next_vram_byte_high_FF:
     cmp #$FF
     bne upper_vram_not_ok
     
+    cpx #$F9
+    bne next_y_FF
+    
+    ; When we are at $1F9xx we should check the lower part of the VRAM address too, since we go until $1F9BF
+    
+    iny
+    cpy #$C0
+    bne next_vram_byte_high_FF
+    bra next_x_FF
+    
+next_y_FF:    
     iny
     bne next_vram_byte_high_FF
+next_x_FF:
     inx
-    cpx #$F9
+    cpx #$FA  ; TODO: we never reach this point, might as well remove this check
     bne next_vram_block_high_FF
     
     jsr setup_vram_address_10000
@@ -160,13 +171,24 @@ next_vram_byte_high_00:
     cmp #$00
     bne upper_vram_not_ok
     
+    cpx #$F9
+    bne next_y_00
+    
+    ; When we are at $1F9xx we should check the lower part of the VRAM address too, since we go until $1F9BF
+    
+    iny
+    cpy #$C0
+    bne next_vram_byte_high_00
+    bra next_x_00
+    
+next_y_00    
     iny
     bne next_vram_byte_high_00
+next_x_00:
     inx
-    cpx #$F9
+    cpx #$FA   ; TODO: we never reach this point, might as well remove this check
     bne next_vram_block_high_00
-    
-    ; FIXME: also check $1F900 - $1F9BF!!
+
     
     jsr copy_back_tiles_and_map_to_high_vram
     
