@@ -10,6 +10,7 @@ COLOR_HEADER       = $47 ; Background color = 4, foreground color 7 (yellow)
 COLOR_OK           = $45 ; Background color = 4, foreground color 5 (green)
 COLOR_ERROR        = $42 ; Background color = 4, foreground color 2 (red)
 COLOR_WARNING      = $48 ; Background color = 4, foreground color 8 (orange)
+COLOR_LISTEN       = $4F ; Background color = 4, foreground color F (light grey)
 
 ok_message: 
     .asciiz "OK"
@@ -17,6 +18,13 @@ not_ok_message:
     .asciiz "NOT OK"
 spi_command_error: 
     .asciiz "NOT OK (CMD"
+
+too_low_message:
+     .asciiz "too low"
+too_high_message:
+     .asciiz "too high"
+mhz_message:
+    .asciiz "MHz"
 
 move_cursor_to_next_line:
     pha

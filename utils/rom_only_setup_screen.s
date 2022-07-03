@@ -72,7 +72,7 @@ print_title:
     sta VERA_ADDR_BANK
     lda #$B1
     sta VERA_ADDR_HIGH
-    lda #$30
+    lda #$2E
     sta VERA_ADDR_LOW
     
     ldx #0
@@ -103,7 +103,7 @@ title_char_convert_done:
     jmp print_title_message
     
 title_message:
-    .asciiz "*** X16 Hardware Tester v0.3.4 ***"
+    .asciiz "*** X16 Hardware Tester v0.3.5 ***"
 
 done_print_title_message:
     

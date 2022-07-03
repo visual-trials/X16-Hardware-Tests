@@ -7,35 +7,35 @@
 ; == Zero page addresses
 
 ; Bank switching
-RAM_BANK            = $00
-ROM_BANK            = $01
+RAM_BANK                  = $00
+ROM_BANK                  = $01
 
 ; Temp vars
-TMP1                = $02
-TMP2                = $03
-TMP3                = $04
-TMP4                = $05
+TMP1                      = $02
+TMP2                      = $03
+TMP3                      = $04
+TMP4                      = $05
 
 ; Printing
-TEXT_TO_PRINT       = $06 ; 07
-TEXT_COLOR          = $08
-CURSOR_X            = $09
-CURSOR_Y            = $0A
-INDENTATION         = $0B
-BYTE_TO_PRINT       = $0C
-DECIMAL_STRING      = $0D ; 0E ; 0F
+TEXT_TO_PRINT             = $06 ; 07
+TEXT_COLOR                = $08
+CURSOR_X                  = $09
+CURSOR_Y                  = $0A
+INDENTATION               = $0B
+BYTE_TO_PRINT             = $0C
+DECIMAL_STRING            = $0D ; 0E ; 0F
 
 ; Memory testing
-START_ADDR_HIGH     = $10
-END_ADDR_HIGH       = $11
-BANK_TESTING        = $12
-MEMORY_ADDR_TESTING = $14 ; 15
-NR_OF_WORKING_RAM_BANKS = $16 ; 17
-NR_OF_UNIQUE_RAM_BANKS  = $18 ; 19
-BAD_VALUE           = $1A
+START_ADDR_HIGH           = $10
+END_ADDR_HIGH             = $11
+BANK_TESTING              = $12
+MEMORY_ADDR_TESTING       = $14 ; 15
+NR_OF_WORKING_RAM_BANKS   = $16 ; 17
+NR_OF_UNIQUE_RAM_BANKS    = $18 ; 19
+BAD_VALUE                 = $1A
 
-TIMING_COUNTER      = $20 ; 21
-COUNTER_IS_RUNNING  = $22
+TIMING_COUNTER            = $20 ; 21
+COUNTER_IS_RUNNING        = $22
 ESTIMATED_CPU_SPEED_PCM   = $23
 ESTIMATED_CPU_SPEED_VSYNC = $24
 
@@ -80,41 +80,6 @@ reset:
     ; Test Fixed RAM
     jsr test_fixed_ram
     
-; FIMXE: clean this up!
-    jmp after_sound_test
-; FIXME: very crude PSG test
-    lda #0
-    sta VERA_CTRL
-    
-    ; Setting $1F9CO as VRAM address (start of PSG registers)
-    
-    lda #%00010001     ; bit16 = 1, increment = 1
-    sta VERA_ADDR_BANK
-    
-    lda #$F9
-    sta VERA_ADDR_HIGH
-    
-    lda #$C0
-    sta VERA_ADDR_LOW
-    
-    ; 1kHz = $0A7C
-    lda #$7C       ; frequency low byte first
-    sta VERA_DATA0
-    
-    lda #$0A       ; frequency high byte second
-    sta VERA_DATA0
-    
-    lda #(%11000000 | 63) ; left and right speaker, volume is 63/63 ~ 100%
-    sta VERA_DATA0
-    
-    lda #(%10000000 | 32) ; triangle, duty cycle = 32/64 (25%?) 
-    sta VERA_DATA0
-    
-; FIXME!
-tmp_loop:
-    jmp tmp_loop
-after_sound_test:    
-
     ; === Banked RAM ===
     jsr print_banked_ram_header
     
@@ -130,6 +95,34 @@ after_sound_test:
     ; We filled all ROM banks with incrementing numbers and check these with a program in RAM
     jsr test_rom_banks
 
+    ; FIXME: there is something VERY WEIRD: when I put the VERA Video code BEFORE the VERA SD code the pcm speed test will fail!
+
+    ; === VERA Audio ===
+    jsr print_vera_audio_header
+    
+    ; Use PCM FIFO buffer to measure CPU speed
+    jsr measure_cpu_speed_using_pcm
+    
+    ; --> TODO: play a (generated) simple sound using PCM
+    
+    ; Play a sound using the PSG
+    jsr test_psg
+    
+    ; --> TODO: add a test that check whether the AFLOW-interrupt is working!
+    
+    ; === VERA Video ===
+    jsr print_vera_video_header
+    
+    ; Test VRAM (read/write)
+    jsr test_vram
+
+    ; Use V-sync irqs to measure CPU speed
+    jsr measure_cpu_speed_using_vsync
+    
+    ; --> TODO: add a test showing the sprites working!
+    
+    ; --> TODO: add a test showing the line interrupts working!
+    
     ; === VERA SD ===
     jsr print_vera_sd_header
     
@@ -145,25 +138,10 @@ after_sound_test:
     jsr vera_initialize_sd_card
     bcc done_with_sd_checks   ; If card was not propely initialized we do not proceed with SD Card tests
     
-    ; TODO: read MBR sector and test/show results!
+    ; --> TODO: read MBR sector and test/show results!
     
 done_with_sd_checks:
 
-; FIXME: there is something VERY WEIRD: when I put the VERA Video code BEFORE the VERA SD code the pcm speed test will fail!
-
-    ; === VERA Video ===
-    jsr print_vera_video_header
-    
-    ; Test VRAM (read/write)
-    jsr test_vram
-
-    ; Use PCM FIFO buffer to measure CPU speed
-    jsr measure_cpu_speed_using_pcm
-    
-    ; Use V-sync irqs to measure CPU speed
-    jsr measure_cpu_speed_using_vsync
-    
-    
     
 loop:
     ; TODO: wait for (keyboard) input
@@ -177,6 +155,7 @@ loop:
     .include tests/fixed_ram_tests.s
     .include tests/banked_ram_tests.s
     .include tests/banked_rom_tests.s
+    .include tests/vera_audio_tests.s
     .include tests/vera_video_tests.s
     .include tests/vera_sd_tests.s
   
