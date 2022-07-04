@@ -78,7 +78,7 @@ reset:
 
     ; === Fixed RAM ===
     ; Note: We already printed the header in rom-only mode
-    
+
     ; Test Fixed RAM
     jsr test_fixed_ram
     
@@ -150,6 +150,13 @@ done_with_sd_checks:
     ; We are trying to determine the CPU clock speed based on the counter 1 of VIA #1 and VIA #2
     jsr measure_cpu_speed_using_via1_counter1
     jsr measure_cpu_speed_using_via2_counter1
+
+    ; === YM2151 ===
+    jsr print_ym_header
+    
+    ; Do a very simple check if the YM gives a busy flag after writing to it
+    jsr ym_busy_flag_test
+    
     
 loop:
     ; TODO: wait for (keyboard) input
@@ -167,6 +174,7 @@ loop:
     .include tests/vera_video_tests.s
     .include tests/vera_sd_tests.s
     .include tests/via_tests.s
+    .include tests/ym_tests.s
   
     ; ======== PETSCII CHARSET =======
 

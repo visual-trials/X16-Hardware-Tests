@@ -92,7 +92,8 @@ VERA_SPI_CTRL     = $9F3F
 
 VERA_PALETTE      = $1FA00
 
-; TODO: add YM2151 addresses and info
+YM_REG            = $9F40
+YM_DATA           = $9F41
 
 ; This is currently used to trigger an LA
 IO3_BASE_ADDRESS  = $9F60

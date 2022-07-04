@@ -273,7 +273,7 @@ make_psg_sound_1:
     
     ; Printing "result" : a human being has to listen to the sound, so this is neither an error nor an ok
     
-    lda #COLOR_LISTEN
+    lda #COLOR_UNKNOWN
     sta TEXT_COLOR
     
     lda #<listen_message
