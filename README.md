@@ -11,6 +11,7 @@ The tester currently consists of the following tests:
   * Testing of Banked RAM
   * Testing of Banked ROM
   * Testing of VERA
+  * Testing of VIAs
 
 The above tests are all in a state of Work-In-Progress and are destined to changed, extended and improved.
 
