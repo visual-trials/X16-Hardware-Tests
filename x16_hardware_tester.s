@@ -38,6 +38,7 @@ TIMING_COUNTER            = $20 ; 21
 COUNTER_IS_RUNNING        = $22
 ESTIMATED_CPU_SPEED_PCM   = $23
 ESTIMATED_CPU_SPEED_VSYNC = $24
+ESTIMATED_CPU_SPEED_VIA1  = $25
 
 ; Some RAM address locations we use
 IRQ_RAM_ADDRES = $1000
@@ -60,7 +61,7 @@ reset:
 
     ; Test Zero Page and Stack RAM once
     .include "tests/rom_only_test_zp_and_stack_ram_once.s"
-
+    
     ; === Zero page and stack memory checks out OK, we can now use it ===
 
     ; Setup stack
@@ -142,6 +143,12 @@ reset:
     
 done_with_sd_checks:
 
+    ; === VIA ===
+    jsr print_via_header
+    
+    ; We are trying to determine the CPU clock speed based on the counter 1 of VIA #1
+    jsr measure_cpu_speed_using_via1_counter1
+    
     
 loop:
     ; TODO: wait for (keyboard) input
@@ -158,6 +165,7 @@ loop:
     .include tests/vera_audio_tests.s
     .include tests/vera_video_tests.s
     .include tests/vera_sd_tests.s
+    .include tests/via_tests.s
   
     ; ======== PETSCII CHARSET =======
 
