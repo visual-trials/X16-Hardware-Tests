@@ -313,6 +313,9 @@ print_via_ok:
     
     jsr print_text_zero
 
+    ; TODO: remove this?
+    jsr print_via_counter_value
+
     rts
     
 print_via_not_ok:

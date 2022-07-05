@@ -12,6 +12,10 @@ ym_header:
    
 testing_busy_flag_message: 
     .asciiz "Testing busy flag ... "
+testing_ym_clock_stretch_message: 
+    .asciiz "Testing if clock is streched for YM ... "
+versus:
+    .asciiz " vs "
 busy_loops:
     .asciiz " loops"
 busy_waited_for:
@@ -131,37 +135,176 @@ done_ym_busy:
 
     rts
 
-
+test_ym_clock_strech:
+    ; We are trying to determine whether the (CPU) clock is stretched when accessing the YM
     
-; FIXME: this was copied from the via check code, refactor it for measuring clock stretch!
+    lda #COLOR_NORMAL
+    sta TEXT_COLOR
     
-calculate_cpu_speed_based_on_via_high_byte:
-    ; High byte of via is in x, this returns the CPU, carry is clear if nothing was counted
+    lda #<testing_ym_clock_stretch_message
+    sta TEXT_TO_PRINT
+    lda #>testing_ym_clock_stretch_message
+    sta TEXT_TO_PRINT + 1
     
-    ; Approx expected values of counter:
-    ; $EBD6 : 8MHz (65536 - 60374 = 5162 counts)
-    ; $D7AC : 4MHz (65536 - 55212 = 10324 counts)
-    ; $AF58 : 2MHz (65536 - 44888 = 20648 counts)
-    ; $5EB0 : 1MHz (65536 - 24240 = 41296 counts)
+    jsr print_text_zero
 
-    cpx #$FF                  ; Value that is too high, so counter wasn't running?
-    beq nothing_counted_via
-    lda #8                    ; We start at 8 MHz
-    cpx #$E1                  ; Value between 8 and 4 MHz: 57793 = $E1C1
-    bcs cpu_speed_done_via   ; We got more uncounted so we are at 8MHz
-    lda #4                    ; We assume 4 MHz now
-    cpx #$C3                  ; Value between 4 and 2 MHz: 50050 = $C382
-    bcs cpu_speed_done_via   ; We got more uncounted so we are at 4MHz
-    lda #2                    ; We assume 2 MHz now
-    cpx #$87                  ; Value between 2 and 1 MHz: 34564 = $8704
-    bcs cpu_speed_done_via   ; We got more uncounted so we are at 2MHz
-    lda #1                    ; We assume 1 MHz now
-    bra cpu_speed_done_via
+    ; FIXME: Make sure to disable all interrupts (IER) for the VIA
 
-cpu_speed_done_via:
-    sec
+    ; Using Timer 1 in one-shot mode on VIA to determine speed of CPU
+    
+    ; We fill the counter with it max 16-bit value ($FFFF)
+    lda #$FF
+    sta VIA1_T1C_L
+    lda #$FF
+    sta VIA1_T1C_H
+    
+    lda #VIA_T1_MODE0  ; One shot mode
+    sta VIA1_ACR
+
+    ; We wait for a while (while doing nothing meanwhile)
+    jsr wait_during_via_counting_and_doing_nothing_meanwhile
+    
+    ; Read the Interrupt flags into a
+    lda VIA1_IFR
+    
+    ; Then read the high byte of the counter into x
+    ldx VIA1_T1C_H
+    
+    ; Then read the low byte of the counter into y
+    ldy VIA1_T1C_L
+
+    ; Check bit 6: if its 1 then we got an interrupt for this counter
+    and #$40
+    bne counter_speed_ran_out_ym_nothing  ; We got an interrupt, so we counted down (ran out) completely. 
+
+    sty YM_STRECH_DOING_NOTHING
+    stx YM_STRECH_DOING_NOTHING+1
+
+
+    ; We fill the counter with it max 16-bit value ($FFFF)
+    lda #$FF
+    sta VIA1_T1C_L
+    lda #$FF
+    sta VIA1_T1C_H
+    
+    lda #VIA_T1_MODE0  ; One shot mode
+    sta VIA1_ACR
+
+    ; We wait for a while (while reading from ym meanwhile)
+    jsr wait_during_via_counting_and_reading_from_ym_meanwhile
+    
+    ; Read the Interrupt flags into a
+    lda VIA1_IFR
+    
+    ; Then read the high byte of the counter into x
+    ldx VIA1_T1C_H
+    
+    ; Then read the low byte of the counter into y
+    ldy VIA1_T1C_L
+
+    ; Check bit 6: if its 1 then we got an interrupt for this counter
+    and #$40
+    bne counter_speed_ran_out_ym_read  ; We got an interrupt, so we counted down (ran out) completely. 
+    
+    sty YM_STRECH_READING_FROM_YM
+    stx YM_STRECH_READING_FROM_YM+1
+
+    jsr print_ym_strech_result
+
+    jmp done_testing_ym_stretch
+counter_speed_ran_out_ym_read:
+    jsr print_via_ran_out
+    
+    jmp done_testing_ym_stretch
+counter_speed_ran_out_ym_nothing:
+    jsr print_via_ran_out
+done_testing_ym_stretch:
+
+    ; TODO: unset interrupts?
+
+    jsr move_cursor_to_next_line
+
     rts
 
-nothing_counted_via:
-    clc
+    
+    
+wait_during_via_counting_and_doing_nothing_meanwhile:
+    
+    ; We loop 2*256 times  
+    ldy #2
+wait_during_via_counter_and_doing_nothing_256:
+    ldx #0
+wait_during_via_counter_and_doing_nothing_1:
+    nop ; doing nothing
+    nop ; doing nothing
+    inx
+    bne wait_during_via_counter_and_doing_nothing_1
+    dey
+    bne wait_during_via_counter_and_doing_nothing_256
+    
+    rts
+
+wait_during_via_counting_and_reading_from_ym_meanwhile:
+    
+    ; We loop 2*256 times  
+    ldy #2
+wait_during_via_counter_and_reading_from_ym_256:
+    ldx #0
+wait_during_via_counter_and_reading_from_ym_1:
+    lda YM_DATA ; reading from YM while via is counting 
+    inx
+    bne wait_during_via_counter_and_reading_from_ym_1
+    dey
+    bne wait_during_via_counter_and_reading_from_ym_256
+    
+    rts
+
+    
+print_ym_strech_result:
+    ; Printing the result
+    
+    lda #COLOR_UNKNOWN
+    sta TEXT_COLOR
+
+    jsr setup_cursor
+    
+    lda #' '
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda #'$'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    ldy YM_STRECH_DOING_NOTHING
+    ldx YM_STRECH_DOING_NOTHING+1
+    stx BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    sty BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    
+    lda #<versus
+    sta TEXT_TO_PRINT
+    lda #>versus
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+    lda #'$'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    ldy YM_STRECH_READING_FROM_YM
+    ldx YM_STRECH_READING_FROM_YM+1
+    stx BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    sty BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    
     rts

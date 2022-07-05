@@ -39,6 +39,9 @@ COUNTER_IS_RUNNING        = $22
 ESTIMATED_CPU_SPEED_PCM   = $23
 ESTIMATED_CPU_SPEED_VSYNC = $24
 
+YM_STRECH_DOING_NOTHING   = $25 ; 26
+YM_STRECH_READING_FROM_YM = $27 ; 28
+    
 ; Some RAM address locations we use
 IRQ_RAM_ADDRES = $1000
 ROM_TEST_CODE  = $4000
@@ -162,6 +165,9 @@ done_with_sd_checks:
     
     ; Do a very simple check if the YM gives a busy flag after writing to it
     jsr ym_busy_flag_test
+    
+    ; Test whether there is a clock stretch when accessing the YM
+    jsr test_ym_clock_strech
     
     
 loop:
