@@ -131,3 +131,37 @@ done_ym_busy:
 
     rts
 
+
+    
+; FIXME: this was copied from the via check code, refactor it for measuring clock stretch!
+    
+calculate_cpu_speed_based_on_via_high_byte:
+    ; High byte of via is in x, this returns the CPU, carry is clear if nothing was counted
+    
+    ; Approx expected values of counter:
+    ; $EBD6 : 8MHz (65536 - 60374 = 5162 counts)
+    ; $D7AC : 4MHz (65536 - 55212 = 10324 counts)
+    ; $AF58 : 2MHz (65536 - 44888 = 20648 counts)
+    ; $5EB0 : 1MHz (65536 - 24240 = 41296 counts)
+
+    cpx #$FF                  ; Value that is too high, so counter wasn't running?
+    beq nothing_counted_via
+    lda #8                    ; We start at 8 MHz
+    cpx #$E1                  ; Value between 8 and 4 MHz: 57793 = $E1C1
+    bcs cpu_speed_done_via   ; We got more uncounted so we are at 8MHz
+    lda #4                    ; We assume 4 MHz now
+    cpx #$C3                  ; Value between 4 and 2 MHz: 50050 = $C382
+    bcs cpu_speed_done_via   ; We got more uncounted so we are at 4MHz
+    lda #2                    ; We assume 2 MHz now
+    cpx #$87                  ; Value between 2 and 1 MHz: 34564 = $8704
+    bcs cpu_speed_done_via   ; We got more uncounted so we are at 2MHz
+    lda #1                    ; We assume 1 MHz now
+    bra cpu_speed_done_via
+
+cpu_speed_done_via:
+    sec
+    rts
+
+nothing_counted_via:
+    clc
+    rts

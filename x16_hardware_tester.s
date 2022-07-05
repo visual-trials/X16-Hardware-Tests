@@ -38,8 +38,6 @@ TIMING_COUNTER            = $20 ; 21
 COUNTER_IS_RUNNING        = $22
 ESTIMATED_CPU_SPEED_PCM   = $23
 ESTIMATED_CPU_SPEED_VSYNC = $24
-ESTIMATED_CPU_SPEED_VIA1  = $25
-ESTIMATED_CPU_SPEED_VIA2  = $26
 
 ; Some RAM address locations we use
 IRQ_RAM_ADDRES = $1000
@@ -151,13 +149,13 @@ done_with_sd_checks:
     jsr test_writing_and_reading_via1_latch_1
     
     ; We are trying to determine the CPU clock speed based on the counter 1 of VIA #1
-    jsr measure_cpu_speed_using_via1_counter1
+    jsr test_via1_counter1_speed
     
     ; We are writing to and reading from latch 1 of VIA #2
     jsr test_writing_and_reading_via2_latch_1
     
     ; We are trying to determine the CPU clock speed based on the counter 1 of VIA #2
-    jsr measure_cpu_speed_using_via2_counter1
+    jsr test_via2_counter1_speed
 
     ; === YM2151 ===
     jsr print_ym_header
