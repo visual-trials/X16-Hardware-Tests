@@ -19,6 +19,10 @@ wait_for_vera:
 vera_boot_snooze:
     nop
     nop
+    nop
+    nop
+    nop
+    nop
     iny
     bne vera_boot_snooze
     
