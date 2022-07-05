@@ -169,7 +169,9 @@ measure_cpu_speed_using_via1_counter1:
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
-    
+
+    ; FIXME: Disabling all interrupts (IER) for the VIA
+
     ; Using Timer 1 in one-shot mode on VIA to determine speed of CPU
     
     ; We fill the counter with it max 16-bit value ($FFFF)
@@ -186,9 +188,10 @@ measure_cpu_speed_using_via1_counter1:
     
     ; Then read the high byte of the counter
     ldx VIA1_T1C_H
-    
-    ; FIXME: check if we actually got the *counter1* interrupt!
+
     lda VIA1_IFR
+    ; Check bit 6: if its 1 then we got an interrupt for this counter
+    and #$40
     bne cpu_speed_too_low_via1  ; We got an interrupt, so we counted down completely. We are too slow.
 
     ; High byte of via is in x, this returns the CPU, carry is clear if nothing was counted
@@ -237,6 +240,10 @@ measure_cpu_speed_using_via2_counter1:
     
     jsr print_text_zero
     
+    ; FIXME: Disabling all interrupts (IER) for the VIA
+
+    ; Using Timer 1 in one-shot mode on VIA to determine speed of CPU
+    
     ; We fill the counter with it max 16-bit value ($FFFF)
     lda #$FF
     sta VIA2_T1C_L
@@ -252,8 +259,9 @@ measure_cpu_speed_using_via2_counter1:
     ; Then read the high byte of the counter
     ldx VIA2_T1C_H
     
-    ; FIXME: check if we actually got the *counter1* interrupt!
     lda VIA2_IFR
+    ; Check bit 6: if its 1 then we got an interrupt for this counter
+    and #$40
     bne cpu_speed_too_low_via2  ; We got an interrupt, so we counted down completely. We are too slow.
 
     ; High byte of via is in x, this returns the CPU, carry is clear if nothing was counted
