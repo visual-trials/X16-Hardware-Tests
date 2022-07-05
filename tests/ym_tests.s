@@ -77,11 +77,19 @@ ym_still_busy:
     bit YM_DATA
     bmi ym_still_busy
     
-    lda #COLOR_UNKNOWN
+    cpx #1
+    beq ym_too_few_loops
+    
+    lda #COLOR_OK
+    sta TEXT_COLOR
+    bra ym_print_how_many_loops_waited
+    
+ym_too_few_loops:
+    lda #COLOR_ERROR
     sta TEXT_COLOR
     
-    ; FIXME: we should have some kind of criteria here to determine whether the value is any good!
-
+ym_print_how_many_loops_waited:
+    
     lda #<busy_waited_for
     sta TEXT_TO_PRINT
     lda #>busy_waited_for
