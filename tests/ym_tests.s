@@ -77,6 +77,11 @@ ym_still_busy:
     bit YM_DATA
     bmi ym_still_busy
     
+    ; Right now at 8MHz its 12 loops
+    ; Right now at 4MHz its 6 loops
+    ; Right now at 2MHz its 3 loops
+    ; Our guess it that 1MHz its 2 loops
+    ; So for now 1 loop is NOT good, everything else (apart from >255) is OK
     cpx #1
     beq ym_too_few_loops
     

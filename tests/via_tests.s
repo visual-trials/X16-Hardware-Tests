@@ -1,7 +1,14 @@
 ; Tests for checking functionality of VERA Audio
 
+; https://www.reddit.com/r/beneater/comments/horcks/utilizing_65c22_features_t1_timer/
+; https://eater.net/datasheets/w65c22.pdf
+
 via_header: 
     .asciiz "Versatile Interface Adapters:"
+testing_via1_latch1_message: 
+    .asciiz "Testing writing and reading VIA #1 latch 1 ... "
+testing_via2_latch1_message: 
+    .asciiz "Testing writing and reading VIA #2 latch 1 ... "
 testing_measure_cpu_speed_using_via1_counter1: 
     .asciiz "Measuring CPU clock speed using VIA #1 counter 1 ... "
 testing_measure_cpu_speed_using_via2_counter1: 
@@ -35,13 +42,122 @@ print_via_header:
     rts
 
         
-; Using Timer 1 in one-shot mode on VIA to determine speed of CPU
+test_writing_and_reading_via1_latch_1:
 
-; https://www.reddit.com/r/beneater/comments/horcks/utilizing_65c22_features_t1_timer/
-; https://eater.net/datasheets/w65c22.pdf
+    ; We are trying to write to and reac from latch 1 of VIA #1
+    
+    lda #COLOR_NORMAL
+    sta TEXT_COLOR
+    
+    lda #<testing_via1_latch1_message
+    sta TEXT_TO_PRINT
+    lda #>testing_via1_latch1_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    ; We fill the latch with a value
+    lda #$A5
+    sta VIA1_T1L_L
+    ; Reading back the latch value
+    lda VIA1_T1L_L
+    cmp #$A5
+    beq writing_and_reading_via1_latch_1_ok
+    
+    sta BAD_VALUE
+    
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+
+    lda #<not_ok_message
+    sta TEXT_TO_PRINT
+    lda #>not_ok_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    ldy #<VIA1_T1L_L
+    ldx #>VIA1_T1L_L
+    jsr print_fixed_ram_address
+    
+    bra done_writing_and_reading_via1_latch_1
+
+writing_and_reading_via1_latch_1_ok:
+    lda #COLOR_OK
+    sta TEXT_COLOR
+
+    lda #<ok_message
+    sta TEXT_TO_PRINT
+    lda #>ok_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+done_writing_and_reading_via1_latch_1:
+    jsr move_cursor_to_next_line
+    
+    rts
+    
+    
+test_writing_and_reading_via2_latch_1:
+
+    ; We are trying to write to and reac from latch 1 of VIA #2
+    
+    lda #COLOR_NORMAL
+    sta TEXT_COLOR
+    
+    lda #<testing_via2_latch1_message
+    sta TEXT_TO_PRINT
+    lda #>testing_via2_latch1_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    ; We fill the latch with a value
+    lda #$A5
+    sta VIA2_T1L_L
+    ; Reading back the latch value
+    lda VIA2_T1L_L
+    cmp #$A5
+    beq writing_and_reading_via2_latch_1_ok
+    
+    sta BAD_VALUE
+    
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+
+    lda #<not_ok_message
+    sta TEXT_TO_PRINT
+    lda #>not_ok_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    ldy #<VIA2_T1L_L
+    ldx #>VIA2_T1L_L
+    jsr print_fixed_ram_address
+    
+    bra done_writing_and_reading_via2_latch_1
+
+writing_and_reading_via2_latch_1_ok:
+    lda #COLOR_OK
+    sta TEXT_COLOR
+
+    lda #<ok_message
+    sta TEXT_TO_PRINT
+    lda #>ok_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+done_writing_and_reading_via2_latch_1:
+    jsr move_cursor_to_next_line
+    
+    rts
+
+    
 
 measure_cpu_speed_using_via1_counter1:
-
     ; We are trying to determine the CPU clock speed based on the counter 1 of VIA #1
     
     lda #COLOR_NORMAL
@@ -53,6 +169,8 @@ measure_cpu_speed_using_via1_counter1:
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
+    
+    ; Using Timer 1 in one-shot mode on VIA to determine speed of CPU
     
     ; We fill the counter with it max 16-bit value ($FFFF)
     lda #$FF

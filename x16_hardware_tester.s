@@ -147,8 +147,16 @@ done_with_sd_checks:
     ; === VIA ===
     jsr print_via_header
     
-    ; We are trying to determine the CPU clock speed based on the counter 1 of VIA #1 and VIA #2
+    ; We are writing to and reading from latch 1 of VIA #1
+    jsr test_writing_and_reading_via1_latch_1
+    
+    ; We are trying to determine the CPU clock speed based on the counter 1 of VIA #1
     jsr measure_cpu_speed_using_via1_counter1
+    
+    ; We are writing to and reading from latch 1 of VIA #2
+    jsr test_writing_and_reading_via2_latch_1
+    
+    ; We are trying to determine the CPU clock speed based on the counter 1 of VIA #2
     jsr measure_cpu_speed_using_via2_counter1
 
     ; === YM2151 ===
