@@ -10,6 +10,9 @@
 SPI_CHIP_DESELECT_AND_SLOW =   %00000010
 SPI_CHIP_SELECT_AND_SLOW   =   %00000011
 
+; SPI_CHIP_DESELECT_AND_FAST =   %00000000
+; SPI_CHIP_SELECT_AND_FAST   =   %00000001
+
 vera_sd_header: 
     .asciiz "VERA - SD:"
     
@@ -21,6 +24,12 @@ vera_sd_initialize_message:
     .asciiz "Initializing SD Card ... "
 vera_sd_block_addressing_message:
     .asciiz "Checking if card supports block addressing ... "
+vera_sd_read_sector_message_slow:
+    .asciiz "Reading Master Boot Record from SD card (slow) ... "
+vera_sd_read_sector_message_fast:
+    .asciiz "Reading Master Boot Record from SD card (fast) ... "
+vera_sd_malformed_msb:
+    .asciiz "MBR malformed"
 vera_sd_no_card_detected: 
     .asciiz "No card detected"
 vera_sd_timeout_message:    
@@ -449,6 +458,366 @@ done_with_block_addressing_proceed:
     jsr move_cursor_to_next_line
     sec
     rts
+    
+    
+    
+; ============== Read sector from SD Card ===========     
+
+vera_read_sector:
+
+; FIXME: when should we set the speed?    
+;	lda #SPI_CHIP_SELECT_AND_FAST
+;	sta VERA_SPI_CTRL
+    
+    lda #COLOR_NORMAL
+    sta TEXT_COLOR
+
+    lda VERA_SPI_CTRL
+    and #%00000010
+    bne print_slow_read_sector
+    
+    lda #<vera_sd_read_sector_message_fast
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_read_sector_message_fast
+    sta TEXT_TO_PRINT + 1
+
+    bra end_print_read_sector
+print_slow_read_sector:
+    lda #<vera_sd_read_sector_message_slow
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_read_sector_message_slow
+    sta TEXT_TO_PRINT + 1
+end_print_read_sector:
+    
+    jsr print_text_zero
+
+    ; We send command 17 to read single sector
+    jsr spi_send_command17
+    
+    bcs command17_success
+command17_timed_out:
+    
+    ; If carry is unset, we timed out. We print 'Timeout' as an error
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<vera_sd_timeout_message
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_timeout_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+    jmp done_reading_sector_do_not_proceed
+    
+command17_success:
+
+    ; We got our byte of response. We check if the SD Card is not in an IDLE state (which is expected)
+    cmp #%0000000   ; NOT in IDLE state! (we initialized earlier, so we should NOT be in IDLE state anymore!)
+    bne command17_in_idle_state
+
+	; Wait for start of data packet
+	ldx #0
+wait_for_data_packet_start_256:
+	ldy #0
+wait_for_data_packet_start_1:
+    jsr spi_read_byte
+	cmp #%11111110    ; Data token for CMD17
+	beq start_reading_sector_data
+	dey
+	bne wait_for_data_packet_start_1
+	dex
+	bne wait_for_data_packet_start_256
+    
+    jmp wait_for_data_packet_start_timeout
+    
+start_reading_sector_data:
+
+    ; Retrieve the additional 512 bytes 
+    
+read_slow_read_sector:
+    ldx #0
+reading_sector_byte_L:
+	jsr spi_read_byte
+    sta MBR_SLOW_L, x
+    inx
+    bne reading_sector_byte_L
+    
+    ldx #0
+reading_sector_byte_H:
+	jsr spi_read_byte
+    sta MBR_SLOW_H, x
+    inx
+    bne reading_sector_byte_H
+    
+    ; The last two bytes of the MBR should always be $55AA
+    lda MBR_SLOW_H+254
+    cmp #$55
+    bne mbr_malformed
+    
+    lda MBR_SLOW_H+255
+    cmp #$AA
+    bne mbr_malformed
+    
+    lda #COLOR_OK
+    sta TEXT_COLOR
+    
+    lda #<ok_message
+    sta TEXT_TO_PRINT
+    lda #>ok_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    jmp done_reading_sector_proceed
+    
+mbr_malformed:
+
+    ; The MBR is not correctly formed
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<vera_sd_malformed_msb
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_malformed_msb
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+    jmp done_reading_sector_do_not_proceed
+    
+    
+command17_in_idle_state:
+    ; The reponse says we are in an IDLE state, which means there is an error
+    ldx #17 ; command number to print
+    jsr print_spi_cmd_error
+    
+    jmp done_reading_sector_do_not_proceed
+    
+wait_for_data_packet_start_timeout:
+    
+    ; If carry is unset, we timed out. We print 'Timeout' as an error
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<vera_sd_timeout_message
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_timeout_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+    jmp done_reading_sector_do_not_proceed
+    
+    
+done_reading_sector_do_not_proceed:
+    jsr move_cursor_to_next_line
+
+    ; We unselect the card
+    lda #SPI_CHIP_DESELECT_AND_SLOW
+    sta VERA_SPI_CTRL
+
+    ; TODO: Can we further 'POWER OFF' the card?
+    clc
+    rts
+    
+done_reading_sector_proceed:
+    jsr move_cursor_to_next_line
+    sec
+    rts
+    
+    
+
+; ====== Printing MBR ========
+    
+print_mbr_slow:
+
+    lda #COLOR_NORMAL
+    sta TEXT_COLOR
+    
+    lda INDENTATION
+    sta CURSOR_X
+    sta CURSOR_Y
+    jsr setup_cursor
+
+    lda #<MBR_SLOW_L
+    sta SD_DUMP_ADDR
+    lda #>MBR_SLOW_L
+    sta SD_DUMP_ADDR+1
+    
+    ldx #0
+printing_sector_slow_16_L:
+    ldy #0
+printing_sector_slow_1_L:
+
+    lda (SD_DUMP_ADDR)
+    
+    ; FIXME: do something with this data!!
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    
+    inc SD_DUMP_ADDR
+    
+    iny
+    cpy #16
+    bne printing_sector_slow_1_L
+
+    jsr move_cursor_to_next_line
+    jsr setup_cursor
+
+    inx
+    cpx #16
+    bne printing_sector_slow_16_L
+
+
+    lda #<MBR_SLOW_H
+    sta SD_DUMP_ADDR
+    lda #>MBR_SLOW_H
+    sta SD_DUMP_ADDR+1
+    
+    ldx #0
+printing_sector_slow_16_H:
+    ldy #0
+printing_sector_slow_1_H:
+
+    lda (SD_DUMP_ADDR)
+    
+    ; FIXME: do something with this data!!
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    
+    inc SD_DUMP_ADDR
+    
+    iny
+    cpy #16
+    bne printing_sector_slow_1_H
+
+    jsr move_cursor_to_next_line
+    jsr setup_cursor
+
+    inx
+    cpx #16
+    bne printing_sector_slow_16_H
+
+    rts
+    
+    
+print_mbr_fast:
+
+    lda #COLOR_NORMAL
+    sta TEXT_COLOR
+    
+    lda INDENTATION
+    adc #40
+    sta CURSOR_X
+    sta CURSOR_Y
+    jsr setup_cursor
+
+    lda #<MBR_FAST_L
+    sta SD_DUMP_ADDR
+    lda #>MBR_FAST_L
+    sta SD_DUMP_ADDR+1
+    
+    ldx #0
+printing_sector_fast_16_L:
+    ldy #0
+printing_sector_fast_1_L:
+
+    lda (SD_DUMP_ADDR)
+    
+    ; FIXME: do something with this data!!
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    
+    inc SD_DUMP_ADDR
+    
+    iny
+    cpy #16
+    bne printing_sector_fast_1_L
+
+    jsr move_cursor_to_next_line
+    jsr setup_cursor
+
+    inx
+    cpx #16
+    bne printing_sector_fast_16_L
+
+
+    lda #<MBR_FAST_H
+    sta SD_DUMP_ADDR
+    lda #>MBR_FAST_H
+    sta SD_DUMP_ADDR+1
+    
+    ldx #0
+printing_sector_fast_16_H:
+    ldy #0
+printing_sector_fast_1_H:
+
+    lda (SD_DUMP_ADDR)
+    
+    ; FIXME: do something with this data!!
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    
+    inc SD_DUMP_ADDR
+    
+    iny
+    cpy #16
+    bne printing_sector_fast_1_H
+
+    jsr move_cursor_to_next_line
+    jsr setup_cursor
+
+    inx
+    cpx #16
+    bne printing_sector_fast_16_H
+
+    rts
+    
+    
+spi_send_command17:
+
+    ; The command index requires the highest bit to be 0 and the bit after that to be 1 = $40
+    lda #(17 | $40)      
+    jsr spi_write_byte
+    
+    ; Command 17 has four bytes of argument, so sending four bytes with their as argument
+    
+    ; FIXME: allow for choice of sector!
+    lda #0
+    jsr spi_write_byte
+    lda #0
+    jsr spi_write_byte
+    lda #0
+    jsr spi_write_byte
+    lda #0
+    jsr spi_write_byte
+    
+    ; Command 17 requires no CRC. So we send 0
+    lda #0
+    jsr spi_write_byte
+
+    ; We wait for a response (which should be R1 + data bytes)
+    ldx #20                   ; TODO: how many retries do we want to do?
+spi_wait_command17:
+    dex
+    beq spi_command17_timeout
+    jsr spi_read_byte
+    tay                       ; we want to keep the original value (so we put it in y for now)
+    ; FIXME: Use 65C02 processor so we can use "bit #$80" here
+    and #$80
+    cmp #$80
+    beq spi_wait_command17
+    
+    tya                       ; we restore the original value (stored in y)
+    
+    sec  ; set the carry: we succeeded
+    rts
+
+spi_command17_timeout:
+    clc  ; clear the carry: we did not succeed
+    rts
+    
     
     
 spi_send_command0:

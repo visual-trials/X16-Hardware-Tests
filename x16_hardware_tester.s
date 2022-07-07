@@ -34,6 +34,8 @@ NR_OF_WORKING_RAM_BANKS   = $16 ; 17
 NR_OF_UNIQUE_RAM_BANKS    = $18 ; 19
 BAD_VALUE                 = $1A
 
+SD_DUMP_ADDR              = $1C ; 1D
+
 TIMING_COUNTER            = $20 ; 21
 COUNTER_IS_RUNNING        = $22
 ESTIMATED_CPU_SPEED_PCM   = $23
@@ -44,6 +46,10 @@ YM_STRECH_READING_FROM_YM = $27 ; 28
     
 ; Some RAM address locations we use
 IRQ_RAM_ADDRES = $1000
+MBR_SLOW_L     = $2000
+MBR_SLOW_H     = $2100
+MBR_FAST_L     = $2200
+MBR_FAST_H     = $2300
 ROM_TEST_CODE  = $4000
 
 
@@ -144,7 +150,11 @@ reset:
     jsr vera_check_block_addressing_mode
     bcc done_with_sd_checks   ; If card does not support block addrssing mode so we do not proceed with SD Card tests
     
-    ; --> TODO: read MBR sector and test/show results!
+    jsr vera_read_sector
+    ; bcc show_differences   ; We could not read a sector so we do not proceed with SD Card tests
+
+    ; Show results:
+    ; jsr print_mbr
     
 done_with_sd_checks:
 
