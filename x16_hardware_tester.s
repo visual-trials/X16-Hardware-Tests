@@ -141,6 +141,9 @@ reset:
     jsr vera_initialize_sd_card
     bcc done_with_sd_checks   ; If card was not propely initialized we do not proceed with SD Card tests
     
+    jsr vera_check_block_addressing_mode
+    bcc done_with_sd_checks   ; If card does not support block addrssing mode so we do not proceed with SD Card tests
+    
     ; --> TODO: read MBR sector and test/show results!
     
 done_with_sd_checks:

@@ -19,6 +19,8 @@ vera_check_sdc_version_message:
     .asciiz "Checking if card is SDC Ver.2+ ... "
 vera_sd_initialize_message:
     .asciiz "Initializing SD Card ... "
+vera_sd_block_addressing_message:
+    .asciiz "Checking if card supports block addressing ... "
 vera_sd_no_card_detected: 
     .asciiz "No card detected"
 vera_sd_timeout_message:    
@@ -50,117 +52,7 @@ print_vera_sd_header:
     
     rts
 
-    
-; ======= Initialize SD Card ========    
 
-vera_initialize_sd_card:
-
-    lda #COLOR_NORMAL
-    sta TEXT_COLOR
-    
-    lda #<vera_sd_initialize_message
-    sta TEXT_TO_PRINT
-    lda #>vera_sd_initialize_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
-
-
-retry_initialization:
-    ; We send command 55 to prepare for command ACMD41
-    jsr spi_send_command55
-    
-    bcs command55_success
-command55_timed_out:
-    
-    ; If carry is unset, we timed out. We print 'Timeout' as an error
-    lda #COLOR_ERROR
-    sta TEXT_COLOR
-    
-    lda #<vera_sd_timeout_message
-    sta TEXT_TO_PRINT
-    lda #>vera_sd_timeout_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
-
-    jmp done_with_initialize_do_not_proceed
-    
-command55_success:
-
-    ; We got our byte of response. We check if the SD Card is not in an IDLE state (which is expected)
-    cmp #%0000001   ; IDLE state
-    bne command55_not_in_idle_state
-    
-
-    ; --- ACMD41 ---
-    
-    ; We send command ACMD41 to "initiate initialization with ACMD41 with HCS[bit30] flag in the argument"
-    jsr spi_send_command41
-    
-    bcs command41_success
-command41_timed_out:
-    
-    ; If carry is unset, we timed out. We print 'Timeout' as an error
-    lda #COLOR_ERROR
-    sta TEXT_COLOR
-    
-    lda #<vera_sd_timeout_message
-    sta TEXT_TO_PRINT
-    lda #>vera_sd_timeout_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
-
-    jmp done_with_initialize_do_not_proceed
-    
-command41_success:
-
-    ; We got our byte of response. We check if the SD Card is not in an IDLE state (which is expected)
-    cmp #%0000000   ; NOT in IDLE state! (we just initialized, so we should not be in IDLE state anymore!)
-; FIXME    bne command41_still_in_idle_state
-    bne retry_initialization
-    
-    lda #COLOR_OK
-    sta TEXT_COLOR
-    
-    lda #<ok_message
-    sta TEXT_TO_PRINT
-    lda #>ok_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
-    
-    jmp done_with_initialize_proceed
-    
-command41_still_in_idle_state:
-    ; The reponse says we are STILL in an IDLE state, which means there is an error
-    ldx #41 ; command number to print
-    jsr print_spi_cmd_error
-    
-    jmp done_with_initialize_do_not_proceed
-    
-command55_not_in_idle_state:
-    ; The reponse says we are not in an IDLE state, which means there is an error
-    ldx #55 ; command number to print
-    jsr print_spi_cmd_error
-    
-done_with_initialize_do_not_proceed:
-    jsr move_cursor_to_next_line
-
-    ; We unselect the card
-    lda #SPI_CHIP_DESELECT_AND_SLOW
-    sta VERA_SPI_CTRL
-
-    ; TODO: Can we further 'POWER OFF' the card?
-    clc
-    rts
-
-done_with_initialize_proceed:
-    jsr move_cursor_to_next_line
-    sec
-    rts
-    
 ; ======= Reset SD Card ========    
 
 vera_reset_sd_card:
@@ -349,7 +241,215 @@ done_with_command8_proceed:
     rts
     
     
+    
+; ======= Initialize SD Card ========    
 
+vera_initialize_sd_card:
+
+    lda #COLOR_NORMAL
+    sta TEXT_COLOR
+    
+    lda #<vera_sd_initialize_message
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_initialize_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+
+retry_initialization:
+    ; We send command 55 to prepare for command ACMD41
+    jsr spi_send_command55
+    
+    bcs command55_success
+command55_timed_out:
+    
+    ; If carry is unset, we timed out. We print 'Timeout' as an error
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<vera_sd_timeout_message
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_timeout_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+    jmp done_with_initialize_do_not_proceed
+    
+command55_success:
+
+    ; We got our byte of response. We check if the SD Card is not in an IDLE state (which is expected)
+    cmp #%0000001   ; IDLE state
+    bne command55_not_in_idle_state
+    
+
+    ; --- ACMD41 ---
+    
+    ; We send command ACMD41 to "initiate initialization with ACMD41 with HCS[bit30] flag in the argument"
+    jsr spi_send_command41
+    
+    bcs command41_success
+command41_timed_out:
+    
+    ; If carry is unset, we timed out. We print 'Timeout' as an error
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<vera_sd_timeout_message
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_timeout_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+    jmp done_with_initialize_do_not_proceed
+    
+command41_success:
+
+    ; We got our byte of response. We check if the SD Card is not in an IDLE state (which is expected)
+    cmp #%0000000   ; NOT in IDLE state! (we just initialized, so we should not be in IDLE state anymore!)
+; FIXME    bne command41_still_in_idle_state
+    bne retry_initialization
+    
+    lda #COLOR_OK
+    sta TEXT_COLOR
+    
+    lda #<ok_message
+    sta TEXT_TO_PRINT
+    lda #>ok_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    jmp done_with_initialize_proceed
+    
+command41_still_in_idle_state:
+    ; The reponse says we are STILL in an IDLE state, which means there is an error
+    ldx #41 ; command number to print
+    jsr print_spi_cmd_error
+    
+    jmp done_with_initialize_do_not_proceed
+    
+command55_not_in_idle_state:
+    ; The reponse says we are not in an IDLE state, which means there is an error
+    ldx #55 ; command number to print
+    jsr print_spi_cmd_error
+    
+done_with_initialize_do_not_proceed:
+    jsr move_cursor_to_next_line
+
+    ; We unselect the card
+    lda #SPI_CHIP_DESELECT_AND_SLOW
+    sta VERA_SPI_CTRL
+
+    ; TODO: Can we further 'POWER OFF' the card?
+    clc
+    rts
+
+done_with_initialize_proceed:
+    jsr move_cursor_to_next_line
+    sec
+    rts
+    
+    
+; ============== Check if this card supports block addressing mode ===========     
+
+vera_check_block_addressing_mode:
+
+    lda #COLOR_NORMAL
+    sta TEXT_COLOR
+    
+    lda #<vera_sd_block_addressing_message
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_block_addressing_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    
+    ; We send command 58 to read OCR
+    jsr spi_send_command58
+    
+    bcs command58_success
+command58_timed_out:
+    
+    ; If carry is unset, we timed out. We print 'Timeout' as an error
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<vera_sd_timeout_message
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_timeout_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+    jmp done_with_block_addressing_do_not_proceed
+    
+command58_success:
+
+    ; We got our byte of response. We check if the SD Card is not in an IDLE state (which is expected)
+    cmp #%0000000   ; NOT in IDLE state! (we initialized earlier, so we should NOT be in IDLE state anymore!)
+    bne command58_in_idle_state
+
+    ; Retrieve the additional 4 bytes of the R3 response
+	jsr spi_read_byte
+	and #$40	       ; Check if this card supports block addressing mode (bit 30)
+	beq command58_does_not_support_block_addressing
+	jsr spi_read_byte
+	jsr spi_read_byte
+	jsr spi_read_byte
+    
+
+    lda #COLOR_OK
+    sta TEXT_COLOR
+    
+    lda #<ok_message
+    sta TEXT_TO_PRINT
+    lda #>ok_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    jmp done_with_block_addressing_proceed
+    
+command58_in_idle_state:
+    ; The reponse says we are in an IDLE state, which means there is an error
+    ldx #58 ; command number to print
+    jsr print_spi_cmd_error
+    
+    jmp done_with_block_addressing_do_not_proceed
+    
+command58_does_not_support_block_addressing:
+
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<not_ok_message
+    sta TEXT_TO_PRINT
+    lda #>not_ok_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+
+done_with_block_addressing_do_not_proceed:
+    jsr move_cursor_to_next_line
+
+    ; We unselect the card
+    lda #SPI_CHIP_DESELECT_AND_SLOW
+    sta VERA_SPI_CTRL
+
+    ; TODO: Can we further 'POWER OFF' the card?
+    clc
+    rts
+    
+done_with_block_addressing_proceed:
+    jsr move_cursor_to_next_line
+    sec
+    rts
+    
     
 spi_send_command0:
 
@@ -433,6 +533,43 @@ spi_command8_timeout:
     rts
 
 
+spi_send_command58:
+
+    ; The command index requires the highest bit to be 0 and the bit after that to be 1 = $40
+    lda #(58 | $40)      
+    jsr spi_write_byte
+
+    ; Command 0 has no arguments, so sending 4 bytes with value 0
+    lda #0
+    jsr spi_write_byte
+    jsr spi_write_byte
+    jsr spi_write_byte
+    jsr spi_write_byte
+
+    ; Command 58 requires no CRC. So we send another 0
+    jsr spi_write_byte
+
+    ; We wait for a response
+    ldx #20                   ; TODO: how many retries do we want to do?
+spi_wait_command58:
+    dex
+    beq spi_command58_timeout
+    jsr spi_read_byte
+    tay                       ; we want to keep the original value (so we put it in y for now)
+    ; FIXME: Use 65C02 processor so we can use "bit #$80" here
+    and #$80
+    cmp #$80
+    beq spi_wait_command58
+    
+    tya                       ; we restore the original value (stored in y)
+
+    sec  ; set the carry: we succeeded
+    rts
+
+spi_command58_timeout:
+    clc  ; clear the carry: we did not succeed
+    rts
+
 
 spi_send_command55:
 
@@ -447,7 +584,7 @@ spi_send_command55:
     jsr spi_write_byte
     jsr spi_write_byte
     
-    ; Command 0 requires no CRC. So we send another 0
+    ; Command 55 requires no CRC. So we send another 0
     jsr spi_write_byte
 
     ; We wait for a response
