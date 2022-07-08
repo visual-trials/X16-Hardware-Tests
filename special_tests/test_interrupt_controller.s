@@ -196,7 +196,7 @@ setup_via1_counter1_in_single_shot_mode:
     ; We fill the counter with it specific 16-bit value
     lda #$00
     sta VIA1_T1C_L
-    lda #$40
+    lda #$80
     sta VIA1_T1C_H
     
     lda #VIA_T1_MODE0  ; single-shot mode
