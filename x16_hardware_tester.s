@@ -150,7 +150,14 @@ reset:
     jsr vera_check_block_addressing_mode
     bcc done_with_sd_checks   ; If card does not support block addrssing mode so we do not proceed with SD Card tests
     
+    ; Reading the MBR in slow speed
     jsr vera_read_sector
+    
+    ; Reading the MBR in fast speed
+	lda #SPI_CHIP_SELECT_AND_FAST
+	sta VERA_SPI_CTRL
+    jsr vera_read_sector
+    
     ; bcc show_differences   ; We could not read a sector so we do not proceed with SD Card tests
 
     ; Show results:
