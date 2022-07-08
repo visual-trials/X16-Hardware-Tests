@@ -14,6 +14,8 @@ COLOR_UNKNOWN      = $4F ; Background color = 4, foreground color F (light grey)
 
 ok_message: 
     .asciiz "OK"
+done_message: 
+    .asciiz "DONE"
 not_ok_message: 
     .asciiz "NOT OK"
 spi_command_error: 

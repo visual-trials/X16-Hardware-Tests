@@ -97,5 +97,9 @@ YM_DATA           = $9F41
 
 ; This is currently used to trigger an LA
 IO3_BASE_ADDRESS  = $9F60
+IO4_BASE_ADDRESS  = $9F80
+IO5_BASE_ADDRESS  = $9FA0
+IO6_BASE_ADDRESS  = $9FC0
+IO7_BASE_ADDRESS  = $9FE0
 
 
