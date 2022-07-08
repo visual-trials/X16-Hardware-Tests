@@ -1,11 +1,8 @@
-; This code reads and writes tile data to VERA contiuously. 
-; Is is meant to show erros in reading and write and let the 
-; errors be cumulative. Meaning when an error occurs in either reading or writing
-; what error will be the new tile and stay on screen
-
-; The reason for using tiles is to make it easier/more apparent
-; for the viewer that there is an error (an 8x8 pixel change is much more
-; visible than a single pixel change).
+; This code generates interrupts (that is: lets chips assert their output irq pins)
+: If an interrupt controller is installed the source of these interrupts
+; can be seen in the address space of IO7. 
+: The code below records an shows the progression of interrupt registers over time
+: it also shows the corresponding IO7 data.
 
 ; Bank switching
 RAM_BANK                  = $00
