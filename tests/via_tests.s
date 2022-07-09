@@ -65,6 +65,8 @@ test_writing_and_reading_via1_latch_1:
     cmp #$A5
     beq writing_and_reading_via1_latch_1_ok
     
+    sta IO3_BASE_ADDRESS
+    
     sta BAD_VALUE
     
     lda #COLOR_ERROR
@@ -121,6 +123,8 @@ test_writing_and_reading_via2_latch_1:
     lda VIA2_T1L_L
     cmp #$A5
     beq writing_and_reading_via2_latch_1_ok
+    
+    sta IO3_BASE_ADDRESS
     
     sta BAD_VALUE
     

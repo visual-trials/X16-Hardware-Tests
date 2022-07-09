@@ -7,6 +7,9 @@
 ram_block_0 = $0000
 ram_block_1 = $0100
 
+; This is currently used to trigger an LA
+IO3_BASE_ADDRESS  = $9F60
+
     .org $C000
 
 reset:
@@ -63,6 +66,9 @@ zp_stack_done_checking_ram:
     jmp zp_stack_ram_is_ok
     
 zp_stack_ram_is_not_ok:
+    ; Currently used to trigger an LA
+    sta IO3_BASE_ADDRESS
+    
     lda #'N'
     jmp zp_stack_ram_is_not_ok
     

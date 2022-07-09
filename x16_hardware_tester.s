@@ -189,6 +189,7 @@ done_with_sd_checks:
     ; Test whether there is a clock stretch when accessing the YM
     jsr test_ym_clock_strech
     
+    ; --> TODO: add a test generating an interrupt using a YM-counter (see https://discord.com/channels/547559626024157184/547560914744901644/995079548502822982 )
     
 loop:
     ; TODO: wait for (keyboard) input
