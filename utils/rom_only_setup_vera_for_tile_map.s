@@ -33,7 +33,6 @@ vera_not_working:
 
     ; TODO: VERA is not responding, we should fall back into outputting to VIA and/or maybe the YM2151
     ; Currently used to trigger an LA
-    lda #42
     sta IO3_BASE_ADDRESS
     
 vera_ready:    
