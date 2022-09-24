@@ -56,15 +56,37 @@ test_writing_and_reading_via1_latch_1:
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
+
+    lda #0
+    sta TMP1
+    
+    ldy #0
+write_to_and_read_to_via1_latch1_next_256:
+    ldx #0
+write_to_and_read_to_via1_latch1_next_1:
     
     ; We fill the latch with a value
-    lda #$A5
+    lda TMP1
     sta VIA1_T1L_L
+    
     ; Reading back the latch value
     lda VIA1_T1L_L
-    cmp #$A5
-    beq writing_and_reading_via1_latch_1_ok
+    cmp TMP1
+    bne writing_and_reading_via1_latch_1_not_ok
     
+    ; Flip bits in TMP1
+    lda TMP1
+    eor #$FF
+    sta TMP1
+    
+    inx
+    bne write_to_and_read_to_via1_latch1_next_1
+    iny
+    bne write_to_and_read_to_via1_latch1_next_256
+    
+    bra writing_and_reading_via1_latch_1_ok
+    
+writing_and_reading_via1_latch_1_not_ok:
     sta IO3_BASE_ADDRESS
     
     sta BAD_VALUE
@@ -79,6 +101,10 @@ test_writing_and_reading_via1_latch_1:
     
     jsr print_text_zero
     
+; FIXME: say $A5!=$A4
+; FIXME: say $A5!=$A4
+; FIXME: say $A5!=$A4
+
     ldy #<VIA1_T1L_L
     ldx #>VIA1_T1L_L
     jsr print_fixed_ram_address
@@ -116,13 +142,36 @@ test_writing_and_reading_via2_latch_1:
     
     jsr print_text_zero
     
+    lda #0
+    sta TMP1
+    
+    ldy #0
+write_to_and_read_to_via2_latch1_next_256:
+    ldx #0
+write_to_and_read_to_via2_latch1_next_1:
+    
     ; We fill the latch with a value
-    lda #$A5
+    lda TMP1
     sta VIA2_T1L_L
+    
     ; Reading back the latch value
     lda VIA2_T1L_L
-    cmp #$A5
-    beq writing_and_reading_via2_latch_1_ok
+    cmp TMP1
+    bne writing_and_reading_via2_latch_1_not_ok
+    
+    ; Flip bits in TMP1
+    lda TMP1
+    eor #$FF
+    sta TMP1
+    
+    inx
+    bne write_to_and_read_to_via2_latch1_next_1
+    iny
+    bne write_to_and_read_to_via2_latch1_next_256
+    
+    bra writing_and_reading_via2_latch_1_ok
+    
+writing_and_reading_via2_latch_1_not_ok:
     
     sta IO3_BASE_ADDRESS
     
