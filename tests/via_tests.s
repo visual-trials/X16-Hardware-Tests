@@ -1,4 +1,4 @@
-; Tests for checking functionality of VERA Audio
+; Tests for checking functionality of Versatile Interface Adapters
 
 ; https://www.reddit.com/r/beneater/comments/horcks/utilizing_65c22_features_t1_timer/
 ; https://eater.net/datasheets/w65c22.pdf

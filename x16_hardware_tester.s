@@ -179,6 +179,13 @@ done_with_sd_checks:
     
     ; We are trying to determine the CPU clock speed based on the counter 1 of VIA #2
     jsr test_via2_counter1_speed
+    
+    ; === SMC ===
+    ; FIXME: Maybe only do the SMC tests if VIA1 has no errors?
+    jsr print_smc_header
+    
+    ; We are echoing towards the SMC
+    jsr test_echoing_towards_smc
 
     ; === YM2151 ===
     jsr print_ym_header
@@ -200,6 +207,7 @@ loop:
     
     .include utils/x16.s
     .include utils/utils.s
+    .include utils/i2c.s
     .include tests/fixed_ram_tests.s
     .include tests/banked_ram_tests.s
     .include tests/banked_rom_tests.s
@@ -207,6 +215,7 @@ loop:
     .include tests/vera_video_tests.s
     .include tests/vera_sd_tests.s
     .include tests/via_tests.s
+    .include tests/smc_tests.s
     .include tests/ym_tests.s
   
     ; ======== PETSCII CHARSET =======
