@@ -36,7 +36,7 @@ vera_not_working:
     
 vera_ready:    
 
-    lda #%00010001 ; Enable Layer 0, Enable VGA
+    lda #%00010001           ; Enable Layer 0, Enable VGA
     sta VERA_DC_VIDEO
 
     lda #0                   ; Set Horizontal and vertical scoll to 0
@@ -52,25 +52,14 @@ vera_ready:
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
-    ; TODO: use TILE_MAP_HEIGHT and TILE_MAP_WIDTH to determine this value!
-;    lda #%10100000           ; Set map height/width to 64/128, and Tile mode 1 bpp (16 color text mode)
-    ; enable tilemap mode: (64 tiles wide, 32 tiles high) and color depth = 2bpp on layer 0
-    lda #%00010001
+    lda #%00010001           ; enable tilemap mode: (64 tiles wide, 32 tiles high) and color depth = 2bpp on layer 0
     sta VERA_L0_CONFIG
     
     lda #($1B0 >> 1)         ; Set mapbase for layer 0 to 0x1B000. This also sets the tile width and height to 8 px
     sta VERA_L0_MAPBASE
     
-
-;    lda #($1F0 >> 1)         ; Set tilebase for layer 0 to 0x1F000. This also sets the tile width and height to 8 px
-
-
-; FIXME: BUG IN HARDWARE??? When running this setting on real HW you can see that pixels become 2 high and 1 wide!!
-; FIXME: BUG IN HARDWARE??? When running this setting on real HW you can see that pixels become 2 high and 1 wide!!
-; FIXME: BUG IN HARDWARE??? When running this setting on real HW you can see that pixels become 2 high and 1 wide!!
-
     ; // set new tilebase for layer 0 (0x00000) and set TileWidth and TileHeight to 16px (=3)
-    lda #%00000011
+    lda #%00000001
     sta VERA_L0_TILEBASE
   
   
