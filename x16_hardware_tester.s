@@ -186,6 +186,13 @@ done_with_sd_checks:
     
     ; We are echoing towards the SMC
     jsr test_echoing_towards_smc
+    
+    ; === RTC ===
+    ; FIXME: Maybe only do the RTC tests if VIA1 has no errors?
+    jsr print_rtc_header
+    
+    ; We are writing and reading from the SRAM of the RTC
+    jsr test_rtc_sram
 
     ; === YM2151 ===
     jsr print_ym_header
@@ -216,6 +223,7 @@ loop:
     .include tests/vera_sd_tests.s
     .include tests/via_tests.s
     .include tests/smc_tests.s
+    .include tests/rtc_tests.s
     .include tests/ym_tests.s
   
     ; ======== PETSCII CHARSET =======

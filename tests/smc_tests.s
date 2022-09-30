@@ -40,7 +40,7 @@ print_smc_header:
 
 test_echoing_towards_smc:
 
-    ; We are trying to write to and reac from latch 1 of VIA #1
+    ; We are trying to write to and read one byte to the 'echo' register of the SMC
     
     lda #COLOR_NORMAL
     sta TEXT_COLOR
