@@ -7,7 +7,7 @@ ECHO_REGISTER = $08
 smc_header: 
     .asciiz "System Management Controller:"
 testing_smc_echoing_message: 
-    .asciiz "Testing echoing towards SMC ... "
+    .asciiz "Testing echoing towards SMC ($08) ... "
 error_while_writing_to_smc_message: 
     .asciiz "error while writing to SMC"
 error_while_reading_from_smc_message: 
