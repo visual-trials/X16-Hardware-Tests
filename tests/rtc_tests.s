@@ -57,6 +57,12 @@ test_rtc_sram:
     ldy #START_OF_SRAM_REGISTER
     
 rtc_sram_next:
+    ; - First read the original value (we want to restore this later on!) -
+    jsr i2c_read_byte
+    bcs rtc_sram_read_error
+    sta TMP1
+
+    ; - Write $FF and read it back -
     lda #$FF
     jsr i2c_write_byte
     bcs rtc_sram_write_error
@@ -68,6 +74,7 @@ rtc_sram_next:
     cmp #$FF   ; Check if its the same number
     bne rtc_sram_not_the_same_value
     
+    ; - Write $00 and read it back -
     lda #$00
     jsr i2c_write_byte
     bcs rtc_sram_write_error
@@ -78,6 +85,11 @@ rtc_sram_next:
     
     cmp #$00   ; Check if its the same number
     bne rtc_sram_not_the_same_value
+
+    ; - Lastly write back original value (we want to keep the SRAM intact!) -
+    lda TMP1
+    jsr i2c_write_byte
+    bcs rtc_sram_write_error
 
     iny
     cpy #$60             ; the SRAM memory runs up to register 5F
