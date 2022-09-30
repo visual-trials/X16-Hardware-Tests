@@ -7,7 +7,7 @@ START_OF_SRAM_REGISTER = $20
 rtc_header: 
     .asciiz "Real Time Clock:"
 testing_rtc_sram_message: 
-    .asciiz "Testing SRAM of the RTC (64 bytes) ... "
+    .asciiz "Testing 64 bytes of SRAM in the RTC ($20 - $5F) ... "
 error_while_writing_to_rtc_sram_message: 
     .asciiz "error while writing to RTC SRAM"
 error_while_reading_from_rtc_sram_message: 
