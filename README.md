@@ -30,6 +30,9 @@ VASM manual: http://sun.hasenbraten.de/vasm/release/vasm_6.html
 In order to run the hardware tester using the emulator you can set the rom-file like this:
 
   `x16emu.exe -rom "x16_hardware_tester.rom" -debug`
+  
+NOTE: to get the latest build of the X16 emulator, go to https://github.com/commanderx16/x16-emulator/actions/workflows/build.yml
+      there you can find the binaries of the latest build of the emulator
 
 ## To run using X16 hardware
 
