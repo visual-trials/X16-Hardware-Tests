@@ -187,6 +187,9 @@ done_with_sd_checks:
     ; We are echoing towards the SMC
     jsr test_echoing_towards_smc
     
+    ; We are trying to receive keyboard scancode from the SMC
+    jsr test_receiving_keyboard_scancode_smc
+    
     ; === RTC ===
     ; FIXME: Maybe only do the RTC tests if VIA1 has no errors?
     jsr print_rtc_header

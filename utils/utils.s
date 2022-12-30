@@ -10,6 +10,7 @@ COLOR_HEADER       = $47 ; Background color = 4, foreground color 7 (yellow)
 COLOR_OK           = $45 ; Background color = 4, foreground color 5 (green)
 COLOR_ERROR        = $42 ; Background color = 4, foreground color 2 (red)
 COLOR_WARNING      = $48 ; Background color = 4, foreground color 8 (orange)
+COLOR_ACTION       = $43 ; Background color = 4, foreground color 3 (cyan)
 COLOR_UNKNOWN      = $4F ; Background color = 4, foreground color F (light grey)
 
 ok_message: 
