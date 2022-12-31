@@ -1,4 +1,4 @@
-; This i2c source code is from the x16-rom repository (and is slightly adapted to make it work in the HW tester using vasm):
+; IMPORTANT NOTE: This i2c source code is from the x16-rom repository (and is slightly adapted to make it work in the HW tester using vasm):
 ;   https://github.com/commanderx16/x16-rom
 
 ;----------------------------------------------------------------------
