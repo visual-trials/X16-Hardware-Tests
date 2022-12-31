@@ -197,6 +197,7 @@ test_receiving_keyboard_scancode_smc:
     sta TMP1   ; we store the expected value in TMP1
     
 ; FIXME: we need to test this on real hardware: how much iterations do we need here? Maybe pause a bit in between i2c read bytes?
+; FIXME: we need to *BLINK* the text so it is more clear that the user has to perform an action!
     lda #0
     sta TMP2 ; we use TMP2 as a simple counter (low byte)
     lda #30
