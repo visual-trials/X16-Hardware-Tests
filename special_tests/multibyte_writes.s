@@ -6,6 +6,7 @@ TOP_MARGIN = 20
 LEFT_MARGIN = 32
 VSPACING = 10
 
+
   .org $C000
 
 reset:
@@ -18,8 +19,16 @@ reset:
 
   
     jsr clear_screen
+    
+    jsr draw_test_pattern
+    
+  
+loop:
+  jmp loop
 
-
+  
+  
+draw_test_pattern:
     ; Experiment 1: draw a single pixel several times (with increment to 4)
   
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
@@ -149,9 +158,7 @@ reset:
     ldx VERA_DATA0
     sta VERA_DATA0           ; store pixel
     
-  
-loop:
-  jmp loop
+    rts
 
   
 clear_screen:
@@ -201,7 +208,6 @@ vera_wr_fill_bitmap_col_once2:
     bne vera_wr_fill_bitmap_once2
     
     rts
-  
   
 
     ; === Included files ===
