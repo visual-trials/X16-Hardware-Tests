@@ -2,7 +2,7 @@
 ; It uses no RAM (ROM only)
 
 BITMAP_WIDTH = 320
-BITMAP_HEIGHT = 320
+BITMAP_HEIGHT = 240
 
     ; -- First wait until VERA is ready
     
