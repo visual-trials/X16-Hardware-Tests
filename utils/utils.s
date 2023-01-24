@@ -6,6 +6,7 @@ INDENT_SIZE     = 2
 ; Colors
 COLOR_TITLE        = $43 ; Background color = 4, foreground color 3 (cyan)
 COLOR_NORMAL       = $41 ; Background color = 4, foreground color 1 (white)
+COLOR_TRANSPARANT  = $01 ; Background color = 0, foreground color 1 (white)
 COLOR_HEADER       = $47 ; Background color = 4, foreground color 7 (yellow)
 COLOR_OK           = $45 ; Background color = 4, foreground color 5 (green)
 COLOR_ERROR        = $42 ; Background color = 4, foreground color 2 (red)
@@ -552,48 +553,3 @@ low_nibble_ready:
     rts
     
 
-    
-    
-    ; --- Testing a range of RAM (one block of 256 bytes at a time)
-test_ram_block:
-
-    lda #0
-    sta MEMORY_ADDR_TESTING
-    ldx START_ADDR_HIGH
-    
-check_next_ram_block:
-    stx MEMORY_ADDR_TESTING+1
-    
-    ldy #0
-check_ram_block_FF:
-    lda #$FF
-    sta (MEMORY_ADDR_TESTING), y
-    lda (MEMORY_ADDR_TESTING), y
-    cmp #$FF
-    bne ram_is_not_ok
-    iny
-    bne check_ram_block_FF
-    
-    ldy #0
-check_ram_block_00:
-    lda #$00
-    sta (MEMORY_ADDR_TESTING), y
-    lda (MEMORY_ADDR_TESTING), y
-    cmp #$00
-    bne ram_is_not_ok
-    iny
-    bne check_ram_block_00
-    
-    inx
-    cpx END_ADDR_HIGH
-    bne check_next_ram_block
-    
-    sec   ; We set the carry flag: 'ok'
-    jmp done_testing_ram
-ram_is_not_ok:
-    ; Currently used to trigger an LA
-    sta IO3_BASE_ADDRESS
-    
-    clc    ; We clear the carry flag: 'not ok'
-done_testing_ram:
-    rts

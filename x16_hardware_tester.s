@@ -218,6 +218,7 @@ loop:
     .include utils/x16.s
     .include utils/utils.s
     .include utils/i2c.s
+    .include utils/memory.s
     .include tests/fixed_ram_tests.s
     .include tests/banked_ram_tests.s
     .include tests/banked_rom_tests.s
