@@ -1,11 +1,21 @@
 
-BACKGROUND_COLOR = $02
-FOREGROUND_COLOR = $01
-; FIXME
-TOP_MARGIN = 13
+BACKGROUND_COLOR = 225  ; 225 = Blue in this palette
+; BACKGROUND_COLOR = 34  ; 34 = Red in this palette
+FOREGROUND_COLOR = 1
+
+TOP_MARGIN = 12
 LEFT_MARGIN = 16
 VSPACING = 10
 
+ORIGINAL_PICTURE_POS_X = (320 - 100) / 2 ; Picture (100 x 75) in middle of screen
+ORIGINAL_PICTURE_POS_Y = 30
+
+COPY1_PICTURE_POS_X = 5
+COPY1_PICTURE_POS_Y = 135
+COPY2_PICTURE_POS_X = (320 - 100) / 2 ; Picture (100 x 75) in middle of screen
+COPY2_PICTURE_POS_Y = 135
+COPY3_PICTURE_POS_X = 320-5-100
+COPY3_PICTURE_POS_Y = 135
 
 
 ; === Zero page addresses ===
@@ -20,13 +30,14 @@ TMP2                      = $03
 TMP3                      = $04
 TMP4                      = $05
 
-DATA_PTR_ZP               = $06
-PALLETE_PTR_ZP            = $07
-VERA_ADDR_ZP              = $08
+DATA_PTR_ZP               = $06 ; 07
+PALLETE_PTR_ZP            = $08 ; 09
+VERA_ADDR_ZP_FROM         = $0A ; 0B
+VERA_ADDR_ZP_TO           = $0C ; 0D
 
-RED                       = $09
-GREEN                     = $0A
-BLUE                      = $0B
+RED                       = $0E
+GREEN                     = $0F
+BLUE                      = $10
 
 
 ; FIXME: these are leftovers of memory tests in the general hardware tester (needed by utils.s atm). We dont use them, but cant remove them right now
@@ -51,10 +62,7 @@ TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
 
 
 ; RAM addresses
-; FIXME: we need COPY_COLUMN_CODE instead!
-; FIXME: we need COPY_COLUMN_CODE instead!
-; FIXME: we need COPY_COLUMN_CODE instead!
-CLEAR_COLUMN_CODE        = $7E00    ; 152 * 3 bytes + 1 byte = 457 bytes
+COPY_COLUMN_CODE        = $7E00    ; 152 * 3 bytes + 1 byte = 457 bytes
 
 
 ; ROM addresses
@@ -80,16 +88,26 @@ reset:
     jsr init_timer
 
 ;    jsr clear_screen_slow
-;    lda #$10                 ; 8:1 scale (320 x 240 pixels on screen)
+;    lda #$10                 ; 8:1 scale, so we can clearly see the pixels
 ;    sta VERA_DC_HSCALE
 ;    sta VERA_DC_VSCALE
 ;    jsr blit_some_bytes
     
-    
+    ; Put orginal picture on screen (slow)
     jsr clear_screen_slow
     jsr copy_palette
+    ; Copy bitmap image to VRAM from ROM
+    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO
+    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO+1
     jsr copy_pixels
     
+    
+    ; Test speed of copying the picture from VRAM to VRAM
+    
+;    jsr test_speed_of_copying_bitmap_1_byte_per_copy
+    jsr test_speed_of_copying_bitmap_4_bytes_per_copy
     
   
 loop:
@@ -160,136 +178,322 @@ blit_some_bytes:
     
     rts
   
-; FIXME: implement a bitmap blitter routine here!
-; FIXME: implement a bitmap blitter routine here!
-; FIXME: implement a bitmap blitter routine here!
-test_speed_of_clearing_screen:
+  
+  
+  
+; ====================================== COPY SPEED TESTS ========================================
+  
+test_speed_of_copying_bitmap_1_byte_per_copy:
 
-    jsr generate_clear_column_code
+    jsr generate_copy_column_code
 
     jsr start_timer
 
-; FIXME: use a fast clear screen method!
-;    jsr clear_bitmap_screen
-    jsr clear_screen_fast
+    ; Setup FROM and TO VRAM addresses
+    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_FROM
+    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_FROM+1
+    lda #<(COPY1_PICTURE_POS_X+COPY1_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO
+    lda #>(COPY1_PICTURE_POS_X+COPY1_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO+1
+    
+    jsr copy_bitmap_fast_1_byte_per_copy
+
+    ; Setup FROM and TO VRAM addresses
+    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_FROM
+    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_FROM+1
+    lda #<(COPY2_PICTURE_POS_X+COPY1_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO
+    lda #>(COPY2_PICTURE_POS_X+COPY1_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO+1
+    
+    jsr copy_bitmap_fast_1_byte_per_copy
+
+    
+    ; Setup FROM and TO VRAM addresses
+    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_FROM
+    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_FROM+1
+    lda #<(COPY3_PICTURE_POS_X+COPY1_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO
+    lda #>(COPY3_PICTURE_POS_X+COPY1_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO+1
+    
+    jsr copy_bitmap_fast_1_byte_per_copy
     
     jsr stop_timer
 
-
-    lda #COLOR_NORMAL
+    lda #COLOR_TRANSPARANT
     sta TEXT_COLOR
     
     lda #5
     sta CURSOR_X
+    lda #2
+    sta CURSOR_Y
+
+    lda #<copy_bitmap_3x100x75_8bpp_message
+    sta TEXT_TO_PRINT
+    lda #>copy_bitmap_3x100x75_8bpp_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
     lda #8
-    sta CURSOR_Y
-
-    lda #<clear_screen_320x240_8bpp_message
-    sta TEXT_TO_PRINT
-    lda #>clear_screen_320x240_8bpp_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
-    
-    
-    lda #7
     sta CURSOR_X
-    lda #12
+    lda #15
     sta CURSOR_Y
 
-    lda #<clear_screen_1_byte_message
+    lda #<copy_bitmap_1_byte_message
     sta TEXT_TO_PRINT
-    lda #>clear_screen_1_byte_message
+    lda #>copy_bitmap_1_byte_message
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
     
-    
-    lda #COLOR_NORMAL
+    lda #COLOR_TRANSPARANT
     sta TEXT_COLOR
     
     lda #9
     sta CURSOR_X
-    lda #24
+    lda #27
     sta CURSOR_Y
     
     jsr print_time_elapsed
 
     rts
     
-clear_screen_320x240_8bpp_message: 
-    .asciiz "Cleared screen 320x240 (8bpp) "
-clear_screen_1_byte_message: 
-    .asciiz "Method: 4 bytes per write"
+
+
+test_speed_of_copying_bitmap_4_bytes_per_copy:
+
+    jsr generate_copy_column_code
+
+    jsr start_timer
+
+    ; Setup FROM and TO VRAM addresses
+    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_FROM
+    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_FROM+1
+    lda #<(COPY1_PICTURE_POS_X+COPY1_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO
+    lda #>(COPY1_PICTURE_POS_X+COPY1_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO+1
+
+    
+    jsr copy_bitmap_fast_4_bytes_per_copy
+
+    ; Setup FROM and TO VRAM addresses
+    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_FROM
+    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_FROM+1
+    lda #<(COPY2_PICTURE_POS_X+COPY1_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO
+    lda #>(COPY2_PICTURE_POS_X+COPY1_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO+1
+
+    jsr copy_bitmap_fast_4_bytes_per_copy
+
+    ; Setup FROM and TO VRAM addresses
+    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_FROM
+    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_FROM+1
+    lda #<(COPY3_PICTURE_POS_X+COPY1_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO
+    lda #>(COPY3_PICTURE_POS_X+COPY1_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO+1
+    
+    jsr copy_bitmap_fast_4_bytes_per_copy
+
+    jsr stop_timer
+
+    lda #COLOR_TRANSPARANT
+    sta TEXT_COLOR
+    
+    lda #5
+    sta CURSOR_X
+    lda #2
+    sta CURSOR_Y
+
+    lda #<copy_bitmap_3x100x75_8bpp_message
+    sta TEXT_TO_PRINT
+    lda #>copy_bitmap_3x100x75_8bpp_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    lda #8
+    sta CURSOR_X
+    lda #15
+    sta CURSOR_Y
+
+    lda #<copy_bitmap_4_bytes_message
+    sta TEXT_TO_PRINT
+    lda #>copy_bitmap_4_bytes_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    lda #COLOR_TRANSPARANT
+    sta TEXT_COLOR
+    
+    lda #9
+    sta CURSOR_X
+    lda #27
+    sta CURSOR_Y
+    
+    jsr print_time_elapsed
+
+    rts
+
+copy_bitmap_3x100x75_8bpp_message: 
+    .asciiz "Copy bitmap 3 * 100x75 (8bpp) "
+copy_bitmap_1_byte_message: 
+    .asciiz "Method: 1 byte per copy"
+copy_bitmap_4_bytes_message: 
+    .asciiz "Method: 4 bytes per copy"
 
     
     
-; FIXME: implement a bitmap blitter routine here!
-; FIXME: implement a bitmap blitter routine here!
-; FIXME: implement a bitmap blitter routine here!
-clear_screen_fast:
-
-    ; Left part of the screen (256 columns)
+copy_bitmap_fast_1_byte_per_copy:
 
     ldx #0
     
-clear_next_column_left:
-    lda #%11100110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
-    sta VERA_ADDR_BANK
-    lda #$00
-    sta VERA_ADDR_HIGH
-    stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
-    
-    ; Color for clearing screen
-    lda #02
-    jsr CLEAR_COLUMN_CODE
-    
-    inx
-    inx
-    inx
-    inx
-    bne clear_next_column_left
-    
-    ; Right part of the screen (64 columns)
+copy_next_column_1:
+    lda #%00000001           ; DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
 
-    ldx #0
-
-clear_next_column_right:
-    lda #%11100110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
     sta VERA_ADDR_BANK
-    lda #$01
+    lda VERA_ADDR_ZP_FROM+1
     sta VERA_ADDR_HIGH
-    stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
+    lda VERA_ADDR_ZP_FROM
+    sta VERA_ADDR_LOW
     
-    ; Color for clearing screen
-    lda #02
-    jsr CLEAR_COLUMN_CODE
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
     
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    sta VERA_ADDR_BANK
+    lda VERA_ADDR_ZP_TO+1
+    sta VERA_ADDR_HIGH
+    lda VERA_ADDR_ZP_TO
+    sta VERA_ADDR_LOW
+
+    ; Copy one column of 75 pixels
+    jsr COPY_COLUMN_CODE
+    
+    ; We increment our VERA_ADDR_FROM with 1
+    clc
+    lda VERA_ADDR_ZP_FROM
+    adc #1
+    sta VERA_ADDR_ZP_FROM
+    lda VERA_ADDR_ZP_FROM+1
+    adc #0
+    sta VERA_ADDR_ZP_FROM+1
+
+    ; We increment our VERA_ADDR_TO with 1
+    clc
+    lda VERA_ADDR_ZP_TO
+    adc #1
+    sta VERA_ADDR_ZP_TO
+    lda VERA_ADDR_ZP_TO+1
+    adc #0
+    sta VERA_ADDR_ZP_TO+1
+
     inx
-    inx
-    inx
-    inx
-    cpx #64
-    bne clear_next_column_right
+    cpx #100             ; we do 100 columns
+    bne copy_next_column_1
     
     rts
     
-    
-; FIXME: implement a bitmap blitter routine here!
-; FIXME: implement a bitmap blitter routine here!
-; FIXME: implement a bitmap blitter routine here!
-generate_clear_column_code:
 
-    lda #<CLEAR_COLUMN_CODE
+
+
+copy_bitmap_fast_4_bytes_per_copy:
+
+    ldx #0
+    
+copy_next_column_4:
+    lda #%00000001           ; DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+
+    lda #%11100110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+                             ; We also set the write pattern bytes to 11, indicating we are going to fill the blit-cache with reads from DATA1
+    sta VERA_ADDR_BANK
+    lda VERA_ADDR_ZP_FROM+1
+    sta VERA_ADDR_HIGH
+    lda VERA_ADDR_ZP_FROM
+    sta VERA_ADDR_LOW
+    
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%11100110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+                             ; We also set the write pattern bytes to 11, indicating we are going to use the blit-cache to write to VRAM (ignoring the byte of data stored into DATA0)
+    sta VERA_ADDR_BANK
+    lda VERA_ADDR_ZP_TO+1
+    sta VERA_ADDR_HIGH
+    lda VERA_ADDR_ZP_TO
+    sta VERA_ADDR_LOW
+
+    ; Copy one column of 75 pixels
+    jsr COPY_COLUMN_CODE
+    
+    ; We increment our VERA_ADDR_FROM with 4
+    clc
+    lda VERA_ADDR_ZP_FROM
+    adc #4
+    sta VERA_ADDR_ZP_FROM
+    lda VERA_ADDR_ZP_FROM+1
+    adc #0
+    sta VERA_ADDR_ZP_FROM+1
+
+    ; We increment our VERA_ADDR_TO with 4
+    clc
+    lda VERA_ADDR_ZP_TO
+    adc #4
+    sta VERA_ADDR_ZP_TO
+    lda VERA_ADDR_ZP_TO+1
+    adc #0
+    sta VERA_ADDR_ZP_TO+1
+
+    inx
+    cpx #25             ; we do 25 * 4 = 100 columns
+    bne copy_next_column_4
+
+    rts
+    
+    
+generate_copy_column_code:
+
+    lda #<COPY_COLUMN_CODE
     sta CODE_ADDRESS
-    lda #>CLEAR_COLUMN_CODE
+    lda #>COPY_COLUMN_CODE
     sta CODE_ADDRESS+1
     
     ldy #0                 ; generated code byte counter
     
     ldx #0                 ; counts nr of clear instructions
 
-next_clear_instruction:
+next_copy_instruction:
+
+    ; -- lda VERA_DATA1 ($9F24)
+    lda #$AD               ; lda ....
+    jsr add_code_byte
+    
+    lda #$24               ; VERA_DATA1
+    jsr add_code_byte
+    
+    lda #$9F         
+    jsr add_code_byte
 
     ; -- sta VERA_DATA0 ($9F23)
     lda #$8D               ; sta ....
@@ -302,9 +506,8 @@ next_clear_instruction:
     jsr add_code_byte
     
     inx
-; FIXME: this will overflow into KEYBOARD_SCANCODE_BUFFER!!
-    cpx #240               ; 240 clear pixels written to VERA
-    bne next_clear_instruction
+    cpx #75               ; 75 copy pixels written to VERA
+    bne next_copy_instruction
 
     ; -- rts --
     lda #$60
@@ -340,7 +543,7 @@ vera_wr_fill_bitmap_once:
     ldy #240
 vera_wr_fill_bitmap_col_once:
 ; FIXME: now drawing a pattern!
-    tya
+;    tya
     sta VERA_DATA0           ; store pixel
     dey
     bne vera_wr_fill_bitmap_col_once
@@ -364,7 +567,7 @@ vera_wr_fill_bitmap_once2:
     ldy #240
 vera_wr_fill_bitmap_col_once2:
 ; FIXME: now drawing a pattern!
-    tya
+;    tya
     sta VERA_DATA0           ; store pixel
     dey
     bne vera_wr_fill_bitmap_col_once2
@@ -375,7 +578,7 @@ vera_wr_fill_bitmap_col_once2:
     rts
 
 
-; ================================== bitmap blitting =====================================
+; ================================== loading picture data from ROM =====================================
 
 
 copy_palette:
@@ -406,11 +609,10 @@ next_packed_color2:
 
     rts
 
+
+
+; Note: Destination VRAM address (lower 16 bits, bit 16 is assumed to be 0) should be put in VERA_ADDR_ZP_TO before calling this function
 copy_pixels:  
-    ; Starting at VRAM address 0
-;  lda #0
-;  sta VERA_ADDR_ZP
-;  sta VERA_ADDR_ZP+1
 
     lda #<PIXELS
     sta DATA_PTR_ZP
@@ -427,10 +629,10 @@ copy_pixels:
     ldx #0
 next_pixel_row:  
     ; Loading VRAM address into VERA  
-;  lda VERA_ADDR_ZP
-;  sta VERA_ADDR_LOW
-;  lda VERA_ADDR_ZP+1
-;  sta VERA_ADDR_HIGH
+    lda VERA_ADDR_ZP_TO
+    sta VERA_ADDR_LOW
+    lda VERA_ADDR_ZP_TO+1
+    sta VERA_ADDR_HIGH
 
   ldy #0
 next_horizontal_pixel:
@@ -454,22 +656,13 @@ next_horizontal_pixel:
     sta DATA_PTR_ZP+1
 
     ; Adding 64 + 1*256 (=320) to the previous VRAM address
-;    clc
-;    lda VERA_ADDR_ZP
-;    adc #64
-;    sta VERA_ADDR_ZP
-;    lda VERA_ADDR_ZP+1
-;    adc #1
-;    sta VERA_ADDR_ZP+1
-
-    ; Storing 220 black pixels
-    lda #0
-    ldy #220
-next_black_pixel:
-    sta VERA_DATA0
-
-    dey
-    bne next_black_pixel
+    clc
+    lda VERA_ADDR_ZP_TO
+    adc #64
+    sta VERA_ADDR_ZP_TO
+    lda VERA_ADDR_ZP_TO+1
+    adc #1
+    sta VERA_ADDR_ZP_TO+1
 
     cpx #75
     bne jmp_next_pixel_row 
@@ -482,12 +675,6 @@ jmp_next_pixel_row:
     jmp next_pixel_row
 
 
-
-
-
-    
-    
-    
     
     
     ; === Included files ===
