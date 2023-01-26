@@ -106,18 +106,14 @@ reset:
     
     ; Test speed of copying the picture from VRAM to VRAM
     
-;    jsr test_speed_of_copying_bitmap_1_byte_per_copy
-    jsr test_speed_of_copying_bitmap_4_bytes_per_copy
+    jsr test_speed_of_copying_bitmap_1_byte_per_copy
+;    jsr test_speed_of_copying_bitmap_4_bytes_per_copy
     
   
 loop:
   jmp loop
 
 blit_some_bytes:
-
-; FIXME: test this *WITH* increments!!
-; FIXME: test this *WITH* increments!!
-; FIXME: test this *WITH* increments!!
 
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
@@ -135,17 +131,6 @@ blit_some_bytes:
     lda #06
     sta VERA_DATA0           ; store single pixel
 
-    ; Setting wrpattern to 11b and address % 4 = 01b
-    lda #%00000110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 byte increment (=%0000)
-    sta VERA_ADDR_BANK
-    lda #>(320*TOP_MARGIN+LEFT_MARGIN+VSPACING*320*1 + 1)
-    sta VERA_ADDR_HIGH
-    lda #<(320*TOP_MARGIN+LEFT_MARGIN+VSPACING*320*1 + 1)
-    sta VERA_ADDR_LOW
-    
-    lda #07
-; FIXME    sta VERA_DATA0           ; store pixel (this actually writes 4 bytes -with the same value- inside of VERA!)
-    
     ; Setting wrpattern to 11b and address % 4 = 00b
     lda #%00000110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 byte increment (=%0000)
     sta VERA_ADDR_BANK
@@ -155,10 +140,17 @@ blit_some_bytes:
     sta VERA_ADDR_LOW
 
     lda VERA_DATA0           ; read pixel (we ignore the result, it should now be in the 32-bit VERA cache)
+    
+    ; Test if reading from the palette WONT fill the cache
+    lda #%00000111           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 0 byte increment (=%0000)
+    sta VERA_ADDR_BANK
+    lda #<VERA_PALETTE
+    sta VERA_ADDR_LOW
+    lda #>VERA_PALETTE
+    sta VERA_ADDR_HIGH
+    
+    lda VERA_DATA0           ; read pixel (we ignore the result, it should now be in the 32-bit VERA cache)
 
-; FIXME: when setting up this address it is likely VERA is *fetching ahead* the data at these (partial) addresses, therfore corrupting our cache!!
-;   In fact: setting the to-be-written address will amount to reading at the address you want to write, therefore filling the cache with
-;   the *same* value of the vram address you are writing to!!!
     ; Setting wrpattern to 11b and address % 4 = 00b
     lda #%00110110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 4 byte increment (=%0011)
     sta VERA_ADDR_BANK
@@ -172,9 +164,56 @@ blit_some_bytes:
     sta VERA_DATA0           ; store pixel (this actually blits 4 bytes inside of VERA!)
     sta VERA_DATA0           ; store pixel (this actually blits 4 bytes inside of VERA!)
     sta VERA_DATA0           ; store pixel (this actually blits 4 bytes inside of VERA!)
-    sta VERA_DATA0           ; store pixel (this actually blits 4 bytes inside of VERA!)
-    sta VERA_DATA0           ; store pixel (this actually blits 4 bytes inside of VERA!)
-    sta VERA_DATA0           ; store pixel (this actually blits 4 bytes inside of VERA!)
+    
+    
+    
+    ; Test if writing to the palette WONT be 4 bytes at the time
+    lda #%00000011           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 0 byte increment (=%0000)
+    sta VERA_ADDR_BANK
+    lda #<VERA_PALETTE
+    sta VERA_ADDR_LOW
+    lda #>VERA_PALETTE
+    sta VERA_ADDR_HIGH
+    
+    lda #7
+    sta VERA_DATA0           ; write 1 or 4 pixel?
+    
+    
+    
+    ; Reading first 4 bytes of the palette one-by-one and show them on screen
+    
+    lda #%00000001           ; DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+
+    lda #%00010001           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
+    lda #<VERA_PALETTE
+    sta VERA_ADDR_LOW
+    lda #>VERA_PALETTE
+    sta VERA_ADDR_HIGH
+    
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+
+    ; Setting wrpattern to 11b and address % 4 = 00b
+    lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
+    lda #>(320*TOP_MARGIN+LEFT_MARGIN+VSPACING*320*3)
+    sta VERA_ADDR_HIGH
+    lda #<(320*TOP_MARGIN+LEFT_MARGIN+VSPACING*320*3)
+    sta VERA_ADDR_LOW
+    
+    lda VERA_DATA1           ; read palette byte
+    sta VERA_DATA0           ; store single pixel
+    
+    lda VERA_DATA1           ; read palette byte
+    sta VERA_DATA0           ; store single pixel
+    
+    lda VERA_DATA1           ; read palette byte
+    sta VERA_DATA0           ; store single pixel
+    
+    lda VERA_DATA1           ; read palette byte
+    sta VERA_DATA0           ; store single pixel
     
     rts
   
