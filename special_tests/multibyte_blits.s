@@ -106,8 +106,8 @@ reset:
     
     ; Test speed of copying the picture from VRAM to VRAM
     
-    jsr test_speed_of_copying_bitmap_1_byte_per_copy
-;    jsr test_speed_of_copying_bitmap_4_bytes_per_copy
+;    jsr test_speed_of_copying_bitmap_1_byte_per_copy
+    jsr test_speed_of_copying_bitmap_4_bytes_per_copy
     
   
 loop:
