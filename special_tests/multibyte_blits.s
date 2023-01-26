@@ -1,20 +1,20 @@
 
-BACKGROUND_COLOR = 225  ; 225 = Blue in this palette
-; BACKGROUND_COLOR = 34  ; 34 = Red in this palette
+; BACKGROUND_COLOR = 225  ; 225 = Blue in this palette
+BACKGROUND_COLOR = 34  ; 34 = Red in this palette
 FOREGROUND_COLOR = 1
 
 TOP_MARGIN = 12
 LEFT_MARGIN = 16
 VSPACING = 10
 
-ORIGINAL_PICTURE_POS_X = (320 - 100) / 2 ; Picture (100 x 75) in middle of screen
+ORIGINAL_PICTURE_POS_X = 108 ; roughly: (320 - 100) / 2 ; Picture (100 x 75) in middle of screen
 ORIGINAL_PICTURE_POS_Y = 30
 
-COPY1_PICTURE_POS_X = 5
+COPY1_PICTURE_POS_X = 4
 COPY1_PICTURE_POS_Y = 135
-COPY2_PICTURE_POS_X = (320 - 100) / 2 ; Picture (100 x 75) in middle of screen
+COPY2_PICTURE_POS_X = 108 ; roughly: (320 - 100) / 2 ; Picture (100 x 75) in middle of screen
 COPY2_PICTURE_POS_Y = 135
-COPY3_PICTURE_POS_X = 320-5-100
+COPY3_PICTURE_POS_X = 212
 COPY3_PICTURE_POS_Y = 135
 
 
