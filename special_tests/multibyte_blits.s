@@ -1,6 +1,11 @@
 
-; BACKGROUND_COLOR = 225  ; 225 = Blue in this palette
+DO_4_BYTES_PER_COPY = 1
+
+    .if (DO_4_BYTES_PER_COPY)
 BACKGROUND_COLOR = 34  ; 34 = Red in this palette
+    .else
+BACKGROUND_COLOR = 225  ; 225 = Blue in this palette
+    .endif
 FOREGROUND_COLOR = 1
 
 TOP_MARGIN = 12
@@ -106,8 +111,11 @@ reset:
     
     ; Test speed of copying the picture from VRAM to VRAM
     
-;    jsr test_speed_of_copying_bitmap_1_byte_per_copy
-    jsr test_speed_of_copying_bitmap_4_bytes_per_copy
+    .if(DO_4_BYTES_PER_COPY)
+      jsr test_speed_of_copying_bitmap_4_bytes_per_copy
+    .else
+      jsr test_speed_of_copying_bitmap_1_byte_per_copy
+    .endif
     
   
 loop:
@@ -534,9 +542,17 @@ next_copy_instruction:
     lda #$9F         
     jsr add_code_byte
 
-    ; -- sta VERA_DATA0 ($9F23)
-    lda #$8D               ; sta ....
-    jsr add_code_byte
+    
+    .if(DO_4_BYTES_PER_COPY)
+      ; -- stz VERA_DATA0 ($9F23)
+      lda #$9C               ; stz ....  ; During full blit, we need to send 00 to DATA0, so no nibbles are masked
+      jsr add_code_byte
+    .else
+      ; -- sta VERA_DATA0 ($9F23)
+      lda #$8D               ; sta ....
+      jsr add_code_byte
+    .endif
+
 
     lda #$23               ; $23
     jsr add_code_byte

@@ -1,6 +1,8 @@
 
-BACKGROUND_COLOR = $02
-FOREGROUND_COLOR = $01
+DO_4_BYTES_PER_WRITE = 1
+
+BACKGROUND_COLOR = 57  ; We use color 57 (instead of 2), since it 57 contains both a high nibble and low nibble values (used for testing blit nibble masks)
+FOREGROUND_COLOR = 1
 ; FIXME
 ;TOP_MARGIN = 12
 TOP_MARGIN = 13
@@ -72,8 +74,11 @@ reset:
 ;    sta VERA_DC_VSCALE
 ;    jsr draw_test_pattern
     
-;    jsr test_speed_of_clearing_screen_1_byte_per_write
-    jsr test_speed_of_clearing_screen_4_bytes_per_write
+    .if(DO_4_BYTES_PER_WRITE)
+      jsr test_speed_of_clearing_screen_4_bytes_per_write
+    .else
+      jsr test_speed_of_clearing_screen_1_byte_per_write
+    .endif
     
   
 loop:
@@ -260,9 +265,11 @@ next_blue_pixel_4:
     sta VERA_CTRL
     lda #%00110110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 4 byte increment (=%0011)
     sta VERA_ADDR_BANK
-    lda #>(320*TOP_MARGIN+LEFT_MARGIN+VSPACING*320*0)
+    lda #>(0)                ; Top left position of screen (containing background color)
+;    lda #>(320*TOP_MARGIN+LEFT_MARGIN+VSPACING*320*0)
     sta VERA_ADDR_HIGH
-    lda #<(320*TOP_MARGIN+LEFT_MARGIN+VSPACING*320*0)
+    lda #<(0)                ; Top left position of screen (containing background color)
+;    lda #<(320*TOP_MARGIN+LEFT_MARGIN+VSPACING*320*0)
     sta VERA_ADDR_LOW
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
@@ -272,7 +279,8 @@ next_blue_pixel_4:
 
 ; FIXME: just testing the blitter!!
     ldx VERA_DATA1
-    sta VERA_DATA0           ; store pixel --> blit!
+    ldy #%00110011
+    sty VERA_DATA0           ; store pixel --> blit!
     
     ldx VERA_DATA0
     ldx VERA_DATA0
@@ -404,7 +412,7 @@ clear_screen_fast_1_byte:
     ldx #0
     
 clear_next_column_left_1_byte:
-    lda #%11100110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
     sta VERA_ADDR_BANK
     lda #$00
     sta VERA_ADDR_HIGH
@@ -422,7 +430,7 @@ clear_next_column_left_1_byte:
     ldx #0
 
 clear_next_column_right_1_byte:
-    lda #%11100110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
     sta VERA_ADDR_BANK
     lda #$01
     sta VERA_ADDR_HIGH
@@ -445,11 +453,10 @@ clear_screen_fast_4_bytes:
     ; Left part of the screen (256 columns)
 
     
-    ; NOTE: we start with x=1,since copying 4 bytes requires an address % 4 == 1!
-    ldx #1
+    ldx #0
     
 clear_next_column_left_4_bytes:
-    lda #%11100110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%11100100           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
     sta VERA_ADDR_BANK
     lda #$00
     sta VERA_ADDR_HIGH
@@ -462,18 +469,15 @@ clear_next_column_left_4_bytes:
     inx
     inx
     inx
-    beq done_with_clearing_left_4_bytes    ; we check this at the third inx, since we start at index = 1
-    inx                                    ; we need to add 4 total each time
-    bra clear_next_column_left_4_bytes
+    inx
+    bne clear_next_column_left_4_bytes
     
-done_with_clearing_left_4_bytes:
     ; Right part of the screen (64 columns)
 
-    ; NOTE: we start with x=1,since copying 4 bytes requires an address % 4 == 1!
-    ldx #1
+    ldx #0
 
 clear_next_column_right_4_bytes:
-    lda #%11100110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%11100100           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
     sta VERA_ADDR_BANK
     lda #$01
     sta VERA_ADDR_HIGH
@@ -486,12 +490,10 @@ clear_next_column_right_4_bytes:
     inx
     inx
     inx
+    inx
     cpx #64
-    beq done_with_clearing_right_4_bytes    ; we check this at the third inx, since we start at index = 1
-    inx                                     ; we need to add 4 total each time
-    bra clear_next_column_right_4_bytes
+    bne clear_next_column_right_4_bytes
 
-done_with_clearing_right_4_bytes:
     rts
 
 
