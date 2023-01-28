@@ -1,5 +1,5 @@
 
-DO_SPEED_TEST = 0
+DO_SPEED_TEST = 1
 DO_4_BYTES_PER_WRITE = 1
 
 BACKGROUND_COLOR = 57  ; We use color 57 (instead of 2), since it 57 contains both a high nibble and low nibble values (used for testing blit nibble masks)
