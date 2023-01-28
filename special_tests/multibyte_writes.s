@@ -1,4 +1,5 @@
 
+DO_SPEED_TEST = 0
 DO_4_BYTES_PER_WRITE = 1
 
 BACKGROUND_COLOR = 57  ; We use color 57 (instead of 2), since it 57 contains both a high nibble and low nibble values (used for testing blit nibble masks)
@@ -64,20 +65,18 @@ reset:
     jsr init_cursor
     jsr init_timer
 
-    ; Requires bitmap setup for layer 0
-
-; FIXME: TEST if the unstable result can be reproduced (sometimes clear red, sometimes it works, when resetting)
-; FIXME: make this draw a pattern again?
-;    jsr clear_screen_slow
-;    lda #$10                 ; 8:1 scale (320 x 240 pixels on screen)
-;    sta VERA_DC_HSCALE
-;    sta VERA_DC_VSCALE
-;    jsr draw_test_pattern
-    
+    .if(DO_SPEED_TEST)
     .if(DO_4_BYTES_PER_WRITE)
       jsr test_speed_of_clearing_screen_4_bytes_per_write
     .else
       jsr test_speed_of_clearing_screen_1_byte_per_write
+    .endif
+    .else
+      jsr clear_screen_slow
+      lda #$10                 ; 8:1 scale (320 x 240 pixels on screen)
+      sta VERA_DC_HSCALE
+      sta VERA_DC_VSCALE
+      jsr draw_test_pattern
     .endif
     
   
@@ -88,7 +87,7 @@ loop:
 draw_test_pattern:
 
 
-; FIXME: creating some specific background pixels, to see if the cache contains general background or this new background
+    ; creating some specific background pixels, to see if the cache contains general background or this new background
 
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
@@ -277,9 +276,8 @@ next_blue_pixel_4:
     ; We use A as color
     lda #FOREGROUND_COLOR
 
-; FIXME: just testing the blitter!!
     ldx VERA_DATA1
-    ldy #%00110011
+    ldy #%00101101           ; all kinds of nible combinations
     sty VERA_DATA0           ; store pixel --> blit!
     
     ldx VERA_DATA0
