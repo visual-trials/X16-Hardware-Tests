@@ -19,6 +19,10 @@ TOP_MARGIN = 13
 LEFT_MARGIN = 16
 VSPACING = 10
 
+SLOPE_INCREMENT_HOR = 16
+SLOPE_INCREMENT_VER = 16
+NR_OF_LINES_TO_DRAW_HOR = 16
+NR_OF_LINES_TO_DRAW_VER = 16
 
 ; === Zero page addresses ===
 
@@ -54,17 +58,15 @@ TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
 
 ; Line drawing
 START_ADDRESS              = $20 ; 21
-X_START                    = $22 ; 23
-X_END                      = $24 ; 25
-Y_START                    = $26
-Y_END                      = $27
-SLOPE                      = $28  ; TODO: do we want a more precise SLOPE?
-LINE_LENGTH                = $2A ; 2B ; This is the length of the line in the axis we are essentially drawing
-LINE_COLOR                 = $2C
+NR_OF_LINES_TO_DRAW        = $22
+SLOPE                      = $23 ; 24? TODO: do we want a more precise SLOPE?
+LINE_LENGTH                = $25 ; 26 ; This is the length of the line in the axis we are essentially drawing
+LINE_COLOR                 = $27
 
 
 ; RAM addresses
-LINE_DRAW_CODE        = $7E00
+CLEAR_COLUMN_CODE     = $7000
+LINE_DRAW_CODE        = $7800
 
 
   .org $C000
@@ -84,7 +86,9 @@ reset:
     jsr init_cursor
     jsr init_timer
 
-    jsr clear_screen_slow
+    jsr generate_clear_column_code
+    jsr clear_screen_fast_4_bytes
+;    jsr clear_screen_slow
     
     .if(DO_SPEED_TEST)
     .if(USE_LINKED_MODE)
@@ -288,7 +292,7 @@ test_speed_of_drawing_lines_using_linked_mode:
 
     
 draw_lines_320x240_8bpp_message: 
-    .asciiz "Drew 256 lines 320x240 (8bpp) "
+    .asciiz "Drew 32 lines 320x240 (8bpp) "
 draw_lines_without_linked_mode_message: 
 ; FIXME: maybe specify what method exactly is used!
 ; FIXME: maybe specify what method exactly is used!
@@ -313,59 +317,39 @@ draw_lines_with_linked_mode:
 
 ; FIXME: implement each direction!
 
-    ; == Draw line to the *right* ==
+
+    ; ====================== Drawing mainly left to right and then down ===================
+
+    lda #0
+    sta SLOPE
     
-; FIXME: get a random number between 0 and 319!
-    lda #<(20)
-    sta X_START
-    lda #>(20)
-    sta X_START+1
-; FIXME: get a random number between 0 and 239!
-    lda #30
-    sta Y_START
-; FIXME: get a random number between 0 and 319!
-    lda #<(280)
-    sta X_END
-    lda #>(280)
-    sta X_END+1
-; FIXME: get a random number between 0 and 239!
-    lda #220
-    sta Y_END
-; FIXME: get a random number between 0 and 255!
-    lda #42
+    lda #0
     sta LINE_COLOR
     
+    lda #NR_OF_LINES_TO_DRAW_HOR
+    sta NR_OF_LINES_TO_DRAW
     
-    ; Since we draw from left to right, our "length" (nr of pixels we step to the right) is X_END - X_START
-    sec
-    lda X_END
-    sbc X_START
-    sta LINE_LENGTH
-    lda X_END+1
-    sbc X_START+1
-    sta LINE_LENGTH+1
+draw_line_to_the_right_from_left_top_corner_next:
     
-
-; FIXME: we need a table that gives us the SLOPE given a delta_x and delta_y
-    lda #20
-    sta SLOPE
-
-; FIXME: we need a table that gives us the VRAM address for each Y postion (Wold 3D has one)
-    lda #<(320*20+30)
+    lda #<(320*0+0)
     sta START_ADDRESS
-    lda #>(320*20+30)
+    lda #>(320*0+0)
     sta START_ADDRESS+1
-    
+
+    ldy LINE_COLOR           ; We use y as color
+    sty VERA_DATA0           ; we always draw the first pixel
+    clc
 
     ; Setting ADDR1 to START_ADDRESS
     lda #%00000001           ; DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
-    sta VERA_ADDR_BANK
     lda START_ADDRESS+1
     sta VERA_ADDR_HIGH
     lda START_ADDRESS
     sta VERA_ADDR_LOW
+
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
+    sta VERA_ADDR_BANK
     
     ; Entering *Linked mode*: this will copy ADDR1 to ADDR0
     lda #%01000000           ; Linked Mode=1, DCSEL=0, ADDRSEL=0
@@ -374,12 +358,113 @@ draw_lines_with_linked_mode:
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
 
+    clc
+    lda SLOPE
+    adc #SLOPE_INCREMENT_HOR
+    sta SLOPE
+    
+    inc LINE_COLOR
+    ldy LINE_COLOR
+
+    lda #<(320)
+    sta LINE_LENGTH
+    ; lda #>(320)
+    ; sta LINE_LENGTH+1
+    jsr draw_256_line_pixels_first
+    
+    dec NR_OF_LINES_TO_DRAW
+    bne draw_line_to_the_right_from_left_top_corner_next
+    
+    ; ====================== / Drawing mainly left to right and then down ===================
+
+
+    ; ====================== Drawing mainly left to right and then down ===================
+
+    lda #0
+    sta SLOPE
+    
+    lda #1
+    sta LINE_COLOR
+    
+    lda #NR_OF_LINES_TO_DRAW_VER
+    sta NR_OF_LINES_TO_DRAW
+    
+draw_line_to_the_bottom_from_left_top_corner_next:
+    
+    lda #<(320*0+0)
+    sta START_ADDRESS
+    lda #>(320*0+0)
+    sta START_ADDRESS+1
+
     ldy LINE_COLOR           ; We use y as color
     sty VERA_DATA0           ; we always draw the first pixel
     clc
+
+    ; Setting ADDR1 to START_ADDRESS
+    lda #%00000001           ; DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    lda START_ADDRESS+1
+    sta VERA_ADDR_HIGH
+    lda START_ADDRESS
+    sta VERA_ADDR_LOW
+
+    lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
     
-    ldx LINE_LENGTH          ; Number of pixels to draw
+    ; Entering *Linked mode*: this will copy ADDR1 to ADDR0
+    lda #%01000000           ; Linked Mode=1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
+    sta VERA_ADDR_BANK
+
+    clc
+    lda SLOPE
+    adc #SLOPE_INCREMENT_VER
+    sta SLOPE
+    
+    inc LINE_COLOR
+    ldy LINE_COLOR
+
+    lda #<(240)
+    sta LINE_LENGTH
+    ; lda #>(240)
+    ; sta LINE_LENGTH+1
+    jsr draw_less_than_256_line_pixels
+    
+    dec NR_OF_LINES_TO_DRAW
+    bne draw_line_to_the_bottom_from_left_top_corner_next
+    
+    ; ====================== / Drawing mainly left to right and then down ===================
+
+    
+    
+    
+    
+    rts
+
+    
+    
+draw_256_line_pixels_first:
     lda #TEST_LINE_MIDDLE    ; a contains the sub pixel y position, we start at half the pixel (vertically)
+    ldx #255                   ; We first draw 255 pixels (one less than 256, since the next loop will always draw 1!)
+next_line_pixel_to_draw_256:
+    adc SLOPE                ; we add the sub pixel we moved down each pixel (SLOPE)
+    bcc draw_next_line_pixel_256
+    bit VERA_DATA1           ; we have carried over to the next row, so move down (+320 bytes)
+    clc                      ; this may be ommited, if you allow a little bit of inaccuracy
+draw_next_line_pixel_256:
+    sty VERA_DATA0           ; draw pixel and move right (+1 byte)
+    dex
+    bne next_line_pixel_to_draw_256
+    bra draw_remaining_line_pixels  ; we have drawn 255 pixels, we move on to the remaining pixels
+    
+    ; TODO: we assume LINE_LENGTH != 0. Is this assured right now?
+    
+draw_less_than_256_line_pixels:
+    lda #TEST_LINE_MIDDLE    ; a contains the sub pixel y position, we start at half the pixel (vertically)
+draw_remaining_line_pixels:
+    ldx LINE_LENGTH          ; Number of pixels to draw
 next_line_pixel_to_draw:
     adc SLOPE                ; we add the sub pixel we moved down each pixel (SLOPE)
     bcc draw_next_line_pixel
@@ -393,9 +478,60 @@ draw_next_line_pixel:
 
     rts
 
+    
+    
+    
+clear_screen_fast_4_bytes:
+
+    ; Left part of the screen (256 columns)
 
     
-generate_clear_column_code:
+    ldx #0
+    
+clear_next_column_left_4_bytes:
+    lda #%11100100           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    sta VERA_ADDR_BANK
+    lda #$00
+    sta VERA_ADDR_HIGH
+    stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
+    
+    ; Color for clearing screen
+    lda #BACKGROUND_COLOR
+    jsr CLEAR_COLUMN_CODE
+    
+    inx
+    inx
+    inx
+    inx
+    bne clear_next_column_left_4_bytes
+    
+    ; Right part of the screen (64 columns)
+
+    ldx #0
+
+clear_next_column_right_4_bytes:
+    lda #%11100100           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    sta VERA_ADDR_BANK
+    lda #$01
+    sta VERA_ADDR_HIGH
+    stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
+    
+    ; Color for clearing screen
+    lda #BACKGROUND_COLOR
+    jsr CLEAR_COLUMN_CODE
+    
+    inx
+    inx
+    inx
+    inx
+    cpx #64
+    bne clear_next_column_right_4_bytes
+
+    rts
+
+
+    
+generate_draw_line_code:
 
     lda #<LINE_DRAW_CODE
     sta CODE_ADDRESS
@@ -430,6 +566,41 @@ next_line_draw_instruction:
 
     rts
 
+generate_clear_column_code:
+
+    lda #<CLEAR_COLUMN_CODE
+    sta CODE_ADDRESS
+    lda #>CLEAR_COLUMN_CODE
+    sta CODE_ADDRESS+1
+    
+    ldy #0                 ; generated code byte counter
+    
+    ldx #0                 ; counts nr of clear instructions
+
+next_clear_instruction:
+
+    ; -- sta VERA_DATA0 ($9F23)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$23               ; $23
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    inx
+; FIXME: this will overflow into KEYBOARD_SCANCODE_BUFFER!!
+    cpx #240               ; 240 clear pixels written to VERA
+    bne next_clear_instruction
+
+    ; -- rts --
+    lda #$60
+    jsr add_code_byte
+
+    rts
+    
+    
 add_code_byte:
     sta (CODE_ADDRESS),y   ; store code byte at address (located at CODE_ADDRESS) + y
     iny                    ; increase y
