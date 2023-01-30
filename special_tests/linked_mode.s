@@ -1,5 +1,5 @@
 
-DO_SPEED_TEST = 0
+DO_SPEED_TEST = 1
 USE_LINKED_MODE = 1
 
 BACKGROUND_COLOR = 57  ; Nice red color
@@ -51,6 +51,16 @@ DECIMAL_STRING            = $0D ; 0E ; 0F
 TIMING_COUNTER            = $14 ; 15
 TIME_ELAPSED_MS           = $16
 TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
+
+; Line drawing
+START_ADDRESS              = $20 ; 21
+X_START                    = $22 ; 23
+X_END                      = $24 ; 25
+Y_START                    = $26
+Y_END                      = $27
+SLOPE                      = $28  ; TODO: do we want a more precise SLOPE?
+LINE_LENGTH                = $2A ; 2B ; This is the length of the line in the axis we are essentially drawing
+LINE_COLOR                 = $2C
 
 
 ; RAM addresses
@@ -143,10 +153,6 @@ draw_test_pixels:
 
 draw_test_line:
 
-; FIXME: we should start at half Y *and* half X?
-; FIXME: we should start at half Y *and* half X?
-; FIXME: we should start at half Y *and* half X?
-    
     ; Experiment: draw a line from the top left to the bottom right of the (small) screen
   
     lda #%00000001           ; DCSEL=0, ADDRSEL=1
@@ -303,7 +309,87 @@ draw_lines_without_linked_mode:
 
 draw_lines_with_linked_mode:
 
-; FIXME: implement this!
+; FIXME: iterate through all 4 directions!
+
+; FIXME: implement each direction!
+
+    ; == Draw line to the *right* ==
+    
+; FIXME: get a random number between 0 and 319!
+    lda #<(20)
+    sta X_START
+    lda #>(20)
+    sta X_START+1
+; FIXME: get a random number between 0 and 239!
+    lda #30
+    sta Y_START
+; FIXME: get a random number between 0 and 319!
+    lda #<(280)
+    sta X_END
+    lda #>(280)
+    sta X_END+1
+; FIXME: get a random number between 0 and 239!
+    lda #220
+    sta Y_END
+; FIXME: get a random number between 0 and 255!
+    lda #42
+    sta LINE_COLOR
+    
+    
+    ; Since we draw from left to right, our "length" (nr of pixels we step to the right) is X_END - X_START
+    sec
+    lda X_END
+    sbc X_START
+    sta LINE_LENGTH
+    lda X_END+1
+    sbc X_START+1
+    sta LINE_LENGTH+1
+    
+
+; FIXME: we need a table that gives us the SLOPE given a delta_x and delta_y
+    lda #20
+    sta SLOPE
+
+; FIXME: we need a table that gives us the VRAM address for each Y postion (Wold 3D has one)
+    lda #<(320*20+30)
+    sta START_ADDRESS
+    lda #>(320*20+30)
+    sta START_ADDRESS+1
+    
+
+    ; Setting ADDR1 to START_ADDRESS
+    lda #%00000001           ; DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
+    sta VERA_ADDR_BANK
+    lda START_ADDRESS+1
+    sta VERA_ADDR_HIGH
+    lda START_ADDRESS
+    sta VERA_ADDR_LOW
+    
+    ; Entering *Linked mode*: this will copy ADDR1 to ADDR0
+    lda #%01000000           ; Linked Mode=1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
+
+    ldy LINE_COLOR           ; We use y as color
+    sty VERA_DATA0           ; we always draw the first pixel
+    clc
+    
+    ldx LINE_LENGTH          ; Number of pixels to draw
+    lda #TEST_LINE_MIDDLE    ; a contains the sub pixel y position, we start at half the pixel (vertically)
+next_line_pixel_to_draw:
+    adc SLOPE                ; we add the sub pixel we moved down each pixel (SLOPE)
+    bcc draw_next_line_pixel
+    bit VERA_DATA1           ; we have carried over to the next row, so move down (+320 bytes)
+    clc                      ; this may be ommited, if you allow a little bit of inaccuracy
+draw_next_line_pixel:
+    sty VERA_DATA0           ; draw pixel and move right (+1 byte)
+    dex
+    bne next_line_pixel_to_draw
+
 
     rts
 
