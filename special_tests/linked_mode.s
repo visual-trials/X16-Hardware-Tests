@@ -2,7 +2,12 @@
 DO_SPEED_TEST = 1
 USE_LINKED_MODE = 1
 
+    .if (USE_LINKED_MODE)
 BACKGROUND_COLOR = 57  ; Nice red color
+    .else
+BACKGROUND_COLOR = 06  ; Blue 
+    .endif
+
 ;FOREGROUND_COLOR = 1
 DATA0_UNLINKED_COLOR = 1
 DATA0_LINKED_COLOR = 5
@@ -37,24 +42,25 @@ TMP3                      = $04
 TMP4                      = $05
 
 ; FIXME: these are leftovers of memory tests in the general hardware tester (needed by utils.s atm). We dont use them, but cant remove them right now
-BANK_TESTING              = $12   
-BAD_VALUE                 = $1A
-
-CODE_ADDRESS              = $1D ; 1E ; TODO: this can probably share the address of LOAD_ADDRESS
+BANK_TESTING              = $06   
+BAD_VALUE                 = $07
 
 ; Printing
-TEXT_TO_PRINT             = $06 ; 07
-TEXT_COLOR                = $08
-CURSOR_X                  = $09
-CURSOR_Y                  = $0A
-INDENTATION               = $0B
-BYTE_TO_PRINT             = $0C
-DECIMAL_STRING            = $0D ; 0E ; 0F
+TEXT_TO_PRINT             = $07 ; 08
+TEXT_COLOR                = $09
+CURSOR_X                  = $0A
+CURSOR_Y                  = $0B
+INDENTATION               = $0C
+BYTE_TO_PRINT             = $0D
+DECIMAL_STRING            = $0E ; 0F ; 10
 
 ; Timing
 TIMING_COUNTER            = $14 ; 15
 TIME_ELAPSED_MS           = $16
 TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
+
+; For geneating code
+CODE_ADDRESS              = $1D ; 1E
 
 ; Line drawing
 START_ADDRESS              = $20 ; 21
@@ -88,22 +94,10 @@ reset:
 
     jsr generate_clear_column_code
     jsr clear_screen_fast_4_bytes
-;    jsr clear_screen_slow
     
     .if(DO_SPEED_TEST)
-    .if(USE_LINKED_MODE)
-; FIXME: implement this!
-      jsr test_speed_of_drawing_lines_using_linked_mode
+      jsr test_speed_of_drawing_lines
     .else
-; FIXME: implement this!
-; FIXME: maybe do three version: 
-;   - one with re-setup of increment: 320, then 1 again
-;   - one with keeping track of the vram address ourselved and incrementing ourselved
-;   - one with reading addr0 and writing into addr1 each time, so we can easely increment 320
-      jsr test_speed_of_drawing_lines_not_using_linked_mode
-    .endif
-    .else
-;      jsr clear_screen_slow ; TODO: this is already done!
       lda #$10                 ; 8:1 scale (320 x 240 pixels on screen)
       sta VERA_DC_HSCALE
       sta VERA_DC_VSCALE
@@ -194,18 +188,17 @@ draw_next_test_pixel:
     rts
 
     
-  
-  
-test_speed_of_drawing_lines_not_using_linked_mode:
 
-; FIXME: do we want to unroll the loop when doing a comparison?
-;    jsr generate_clear_column_code
+test_speed_of_drawing_lines:
+        
+    ; TODO: do we want to unroll the loop when doing a comparison? Probably.
+;    jsr generate_draw_line_code
 
     jsr start_timer
-    jsr draw_lines_without_linked_mode
+    jsr draw_lines
     jsr stop_timer
 
-; FIXME: we probably want non-transparent text here!! (due to all the lines)
+    ; TODO: do we want non-transparent text here? (due to all the lines)
     lda #COLOR_TRANSPARANT
     sta TEXT_COLOR
     
@@ -226,57 +219,17 @@ test_speed_of_drawing_lines_not_using_linked_mode:
     lda #12
     sta CURSOR_Y
 
-    lda #<draw_lines_without_linked_mode_message
-    sta TEXT_TO_PRINT
-    lda #>draw_lines_without_linked_mode_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
-    
-    lda #9
-    sta CURSOR_X
-    lda #24
-    sta CURSOR_Y
-    
-    jsr print_time_elapsed
-
-    rts
-
-
-test_speed_of_drawing_lines_using_linked_mode:
-
-; FIXME: do we want to unroll the loop when doing a comparison?
-;    jsr generate_clear_column_code
-
-    jsr start_timer
-    jsr draw_lines_with_linked_mode
-    jsr stop_timer
-
-; FIXME: we probably want non-transparent text here!! (due to all the lines)
-    lda #COLOR_TRANSPARANT
-    sta TEXT_COLOR
-    
-    lda #5
-    sta CURSOR_X
-    lda #8
-    sta CURSOR_Y
-
-    lda #<draw_lines_320x240_8bpp_message
-    sta TEXT_TO_PRINT
-    lda #>draw_lines_320x240_8bpp_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
-    
-    lda #7
-    sta CURSOR_X
-    lda #12
-    sta CURSOR_Y
-
+    .if(USE_LINKED_MODE)
     lda #<draw_lines_with_linked_mode_message
     sta TEXT_TO_PRINT
     lda #>draw_lines_with_linked_mode_message
     sta TEXT_TO_PRINT + 1
+    .else
+    lda #<draw_lines_without_linked_mode_message
+    sta TEXT_TO_PRINT
+    lda #>draw_lines_without_linked_mode_message
+    sta TEXT_TO_PRINT + 1
+    .endif
     
     jsr print_text_zero
     
@@ -289,34 +242,17 @@ test_speed_of_drawing_lines_using_linked_mode:
 
     rts
 
-
-    
 draw_lines_320x240_8bpp_message: 
     .asciiz "Drew 32 lines 320x240 (8bpp) "
 draw_lines_without_linked_mode_message: 
-; FIXME: maybe specify what method exactly is used!
-; FIXME: maybe specify what method exactly is used!
-; FIXME: maybe specify what method exactly is used!
+    ; TODO: maybe specify what method exactly is used!
     .asciiz "Method: not using linked mode"
 draw_lines_with_linked_mode_message: 
     .asciiz "Method: using linked mode"
-
     
     
-draw_lines_without_linked_mode:
 
-; FIXME: implement this!
-    
-    rts
-
-
-
-draw_lines_with_linked_mode:
-
-; FIXME: iterate through all 4 directions!
-
-; FIXME: implement each direction!
-
+draw_lines:
 
     ; ====================== Drawing mainly left to right and then down ===================
 
@@ -336,27 +272,36 @@ draw_line_to_the_right_from_left_top_corner_next:
     lda #>(320*0+0)
     sta START_ADDRESS+1
 
-    ldy LINE_COLOR           ; We use y as color
-    sty VERA_DATA0           ; we always draw the first pixel
-    clc
-
-    ; Setting ADDR1 to START_ADDRESS
-    lda #%00000001           ; DCSEL=0, ADDRSEL=1
-    sta VERA_CTRL
-    lda START_ADDRESS+1
-    sta VERA_ADDR_HIGH
-    lda START_ADDRESS
-    sta VERA_ADDR_LOW
-
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
-    sta VERA_ADDR_BANK
+    .if(USE_LINKED_MODE)
     
-    ; Entering *Linked mode*: this will copy ADDR1 to ADDR0
-    lda #%01000000           ; Linked Mode=1, DCSEL=0, ADDRSEL=0
-    sta VERA_CTRL
+        ; Setting ADDR1 to START_ADDRESS
+        lda #%00000001           ; DCSEL=0, ADDRSEL=1
+        sta VERA_CTRL
+        lda START_ADDRESS+1
+        sta VERA_ADDR_HIGH
+        lda START_ADDRESS
+        sta VERA_ADDR_LOW
+
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
+        sta VERA_ADDR_BANK
+        
+        ; Entering *Linked mode*: this will copy ADDR1 to ADDR0
+        lda #%01000000           ; Linked Mode=1, DCSEL=0, ADDRSEL=0
+        sta VERA_CTRL
+        
+        lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+        
+    .else
     
-    lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
-    sta VERA_ADDR_BANK
+        lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+        lda START_ADDRESS+1
+        sta VERA_ADDR_HIGH
+        lda START_ADDRESS
+        sta VERA_ADDR_LOW
+    
+    .endif
 
     clc
     lda SLOPE
@@ -370,7 +315,16 @@ draw_line_to_the_right_from_left_top_corner_next:
     sta LINE_LENGTH
     ; lda #>(320)
     ; sta LINE_LENGTH+1
+
+    ldy LINE_COLOR           ; We use y as color
+    sty VERA_DATA0           ; we always draw the first pixel
+    clc
+
+    .if(USE_LINKED_MODE)
     jsr draw_256_line_pixels_first
+    .else
+    jsr draw_256_right_line_pixels_first
+    .endif
     
     dec NR_OF_LINES_TO_DRAW
     bne draw_line_to_the_right_from_left_top_corner_next
@@ -378,7 +332,7 @@ draw_line_to_the_right_from_left_top_corner_next:
     ; ====================== / Drawing mainly left to right and then down ===================
 
 
-    ; ====================== Drawing mainly left to right and then down ===================
+    ; ====================== Drawing mainly top to bottom and then right ===================
 
     lda #0
     sta SLOPE
@@ -396,27 +350,36 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     lda #>(320*0+0)
     sta START_ADDRESS+1
 
-    ldy LINE_COLOR           ; We use y as color
-    sty VERA_DATA0           ; we always draw the first pixel
-    clc
-
-    ; Setting ADDR1 to START_ADDRESS
-    lda #%00000001           ; DCSEL=0, ADDRSEL=1
-    sta VERA_CTRL
-    lda START_ADDRESS+1
-    sta VERA_ADDR_HIGH
-    lda START_ADDRESS
-    sta VERA_ADDR_LOW
-
-    lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
-    sta VERA_ADDR_BANK
+    .if(USE_LINKED_MODE)
     
-    ; Entering *Linked mode*: this will copy ADDR1 to ADDR0
-    lda #%01000000           ; Linked Mode=1, DCSEL=0, ADDRSEL=0
-    sta VERA_CTRL
+        ; Setting ADDR1 to START_ADDRESS
+        lda #%00000001           ; DCSEL=0, ADDRSEL=1
+        sta VERA_CTRL
+        lda START_ADDRESS+1
+        sta VERA_ADDR_HIGH
+        lda START_ADDRESS
+        sta VERA_ADDR_LOW
+
+        lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+        
+        ; Entering *Linked mode*: this will copy ADDR1 to ADDR0
+        lda #%01000000           ; Linked Mode=1, DCSEL=0, ADDRSEL=0
+        sta VERA_CTRL
+        
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
+        sta VERA_ADDR_BANK
+        
+    .else
+
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
+        sta VERA_ADDR_BANK
+        lda START_ADDRESS+1
+        sta VERA_ADDR_HIGH
+        lda START_ADDRESS
+        sta VERA_ADDR_LOW
     
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
-    sta VERA_ADDR_BANK
+    .endif
 
     clc
     lda SLOPE
@@ -430,21 +393,27 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     sta LINE_LENGTH
     ; lda #>(240)
     ; sta LINE_LENGTH+1
+    
+    ldy LINE_COLOR           ; We use y as color
+    sty VERA_DATA0           ; we always draw the first pixel
+    clc
+
+    .if(USE_LINKED_MODE)
     jsr draw_less_than_256_line_pixels
+    .else
+    jsr draw_256_right_line_pixels_first
+    .endif
     
     dec NR_OF_LINES_TO_DRAW
     bne draw_line_to_the_bottom_from_left_top_corner_next
     
-    ; ====================== / Drawing mainly left to right and then down ===================
-
-    
-    
-    
+    ; ====================== / Drawing mainly top to bottom and then right ===================
     
     rts
 
     
-    
+    .if(USE_LINKED_MODE)
+
 draw_256_line_pixels_first:
     lda #TEST_LINE_MIDDLE    ; a contains the sub pixel y position, we start at half the pixel (vertically)
     ldx #255                   ; We first draw 255 pixels (one less than 256, since the next loop will always draw 1!)
@@ -475,9 +444,68 @@ draw_next_line_pixel:
     dex
     bne next_line_pixel_to_draw
 
-
     rts
 
+    .else
+
+    ; TODO: maybe do three alternative versions: 
+    ;   - one with re-setup of increment: 320, then 1 again
+    ;   - one with keeping track of the vram address ourselved and incrementing ourselved
+    ;   - one with reading addr0 and writing into addr1 each time, so we can easely increment 320
+    
+draw_256_right_line_pixels_first:
+    lda #TEST_LINE_MIDDLE    ; a contains the sub pixel y position, we start at half the pixel (vertically)
+    ldx #255                   ; We first draw 255 pixels (one less than 256, since the next loop will always draw 1!)
+next_line_pixel_to_draw_256_right:
+    adc SLOPE                ; we add the sub pixel we moved down each pixel (SLOPE)
+    bcc draw_next_line_pixel_256_right
+    
+    pha
+    lda VERA_ADDR_BANK
+    eor #%11110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
+    sta VERA_ADDR_BANK
+    lda VERA_DATA0           ; we have carried over to the next row, so move down (+320 bytes)
+    lda VERA_ADDR_BANK
+    eor #%11110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
+    pla
+    
+    clc                      ; this may be ommited, if you allow a little bit of inaccuracy
+draw_next_line_pixel_256_right:
+    sty VERA_DATA0           ; draw pixel and move right (+1 byte)
+    dex
+    bne next_line_pixel_to_draw_256_right
+    bra draw_remaining_line_pixels_right  ; we have drawn 255 pixels, we move on to the remaining pixels
+    
+    ; TODO: we assume LINE_LENGTH != 0. Is this assured right now?
+    
+draw_less_than_256_right_line_pixels:
+    lda #TEST_LINE_MIDDLE    ; a contains the sub pixel y position, we start at half the pixel (vertically)
+draw_remaining_line_pixels_right:
+    ldx LINE_LENGTH          ; Number of pixels to draw
+next_line_pixel_to_draw_right:
+    adc SLOPE                ; we add the sub pixel we moved down each pixel (SLOPE)
+    bcc draw_next_line_pixel_right
+    
+    pha
+    lda VERA_ADDR_BANK
+    eor #%11110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
+    sta VERA_ADDR_BANK
+    lda VERA_DATA0           ; we have carried over to the next row, so move down (+320 bytes)
+    lda VERA_ADDR_BANK
+    eor #%11110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
+    pla
+    
+    clc                      ; this may be ommited, if you allow a little bit of inaccuracy
+draw_next_line_pixel_right:
+    sty VERA_DATA0           ; draw pixel and move right (+1 byte)
+    dex
+    bne next_line_pixel_to_draw_right
+
+    rts
+    
+    .endif
     
     
     
@@ -610,59 +638,6 @@ add_code_byte:
 done_adding_code_byte:
     rts
 
-  
-clear_screen_slow:
-  
-vera_wr_start:
-    ldx #0
-vera_wr_fill_bitmap_once:
-
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
-    sta VERA_ADDR_BANK
-    lda #$00
-    sta VERA_ADDR_HIGH
-    stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
-    
-    ; We use A as color
-    lda #BACKGROUND_COLOR
-    
-    ldy #240
-vera_wr_fill_bitmap_col_once:
-; FIXME: now drawing a pattern!
-;    tya
-    sta VERA_DATA0           ; store pixel
-    dey
-    bne vera_wr_fill_bitmap_col_once
-    inx
-    bne vera_wr_fill_bitmap_once
-
-    ; Right part of the screen
-
-    ldx #0
-vera_wr_fill_bitmap_once2:
-
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
-    sta VERA_ADDR_BANK
-    lda #$01                ; The right side part of the screen has a start byte starting at address 256 and up
-    sta VERA_ADDR_HIGH
-    stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
-    
-    ; We use A as color
-    lda #BACKGROUND_COLOR
-    
-    ldy #240
-vera_wr_fill_bitmap_col_once2:
-; FIXME: now drawing a pattern!
-;    tya
-    sta VERA_DATA0           ; store pixel
-    dey
-    bne vera_wr_fill_bitmap_col_once2
-    inx
-    cpx #64                  ; The right part of the screen is 320 - 256 = 64 pixels
-    bne vera_wr_fill_bitmap_once2
-    
-    rts
-  
 
     ; === Included files ===
     

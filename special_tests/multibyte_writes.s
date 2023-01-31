@@ -2,8 +2,13 @@
 DO_SPEED_TEST = 1
 DO_4_BYTES_PER_WRITE = 1
 
+    .if (DO_4_BYTES_PER_WRITE)
 BACKGROUND_COLOR = 57  ; We use color 57 (instead of 2), since it 57 contains both a high nibble and low nibble values (used for testing blit nibble masks)
+    .else
+BACKGROUND_COLOR = 06; Blue 
+    .endif
 FOREGROUND_COLOR = 1
+
 ; FIXME
 ;TOP_MARGIN = 12
 TOP_MARGIN = 13
@@ -417,7 +422,7 @@ clear_next_column_left_1_byte:
     stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
     
     ; Color for clearing screen
-    lda #06
+    lda #BACKGROUND_COLOR
     jsr CLEAR_COLUMN_CODE
     
     inx
@@ -435,7 +440,7 @@ clear_next_column_right_1_byte:
     stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
     
     ; Color for clearing screen
-    lda #06
+    lda #BACKGROUND_COLOR
     jsr CLEAR_COLUMN_CODE
     
     inx
