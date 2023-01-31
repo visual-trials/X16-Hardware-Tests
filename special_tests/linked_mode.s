@@ -202,7 +202,7 @@ test_speed_of_drawing_lines:
     lda #COLOR_TRANSPARANT
     sta TEXT_COLOR
     
-    lda #5
+    lda #7
     sta CURSOR_X
     lda #8
     sta CURSOR_Y
@@ -214,21 +214,23 @@ test_speed_of_drawing_lines:
     
     jsr print_text_zero
     
-    lda #7
-    sta CURSOR_X
     lda #12
     sta CURSOR_Y
 
     .if(USE_LINKED_MODE)
-    lda #<draw_lines_with_linked_mode_message
-    sta TEXT_TO_PRINT
-    lda #>draw_lines_with_linked_mode_message
-    sta TEXT_TO_PRINT + 1
+        lda #7
+        sta CURSOR_X
+        lda #<draw_lines_with_linked_mode_message
+        sta TEXT_TO_PRINT
+        lda #>draw_lines_with_linked_mode_message
+        sta TEXT_TO_PRINT + 1
     .else
-    lda #<draw_lines_without_linked_mode_message
-    sta TEXT_TO_PRINT
-    lda #>draw_lines_without_linked_mode_message
-    sta TEXT_TO_PRINT + 1
+        lda #6
+        sta CURSOR_X
+        lda #<draw_lines_without_linked_mode_message
+        sta TEXT_TO_PRINT
+        lda #>draw_lines_without_linked_mode_message
+        sta TEXT_TO_PRINT + 1
     .endif
     
     jsr print_text_zero
@@ -401,7 +403,7 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     .if(USE_LINKED_MODE)
     jsr draw_less_than_256_line_pixels
     .else
-    jsr draw_256_right_line_pixels_first
+    jsr draw_less_than_256_right_line_pixels
     .endif
     
     dec NR_OF_LINES_TO_DRAW
@@ -461,11 +463,11 @@ next_line_pixel_to_draw_256_right:
     bcc draw_next_line_pixel_256_right
     
     pha
-    lda VERA_ADDR_BANK
+    lda VERA_ADDR_BANK       ; We cannot simply set the VERA_ADDR_BANK because we dont know the value of bit16!
     eor #%11110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
     sta VERA_ADDR_BANK
     lda VERA_DATA0           ; we have carried over to the next row, so move down (+320 bytes)
-    lda VERA_ADDR_BANK
+    lda VERA_ADDR_BANK       ; We cannot simply set the VERA_ADDR_BANK because we dont know the value of bit16!
     eor #%11110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
     pla
@@ -488,11 +490,11 @@ next_line_pixel_to_draw_right:
     bcc draw_next_line_pixel_right
     
     pha
-    lda VERA_ADDR_BANK
+    lda VERA_ADDR_BANK       ; We cannot simply set the VERA_ADDR_BANK because we dont know the value of bit16!
     eor #%11110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
     sta VERA_ADDR_BANK
     lda VERA_DATA0           ; we have carried over to the next row, so move down (+320 bytes)
-    lda VERA_ADDR_BANK
+    lda VERA_ADDR_BANK       ; We cannot simply set the VERA_ADDR_BANK because we dont know the value of bit16!
     eor #%11110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
     pla
