@@ -1,7 +1,7 @@
 
 DO_SPEED_TEST = 1
 USE_LINKED_MODE = 1
-USE_AFFINE_HELPER = 0  ; this exludes/overrules USE_LINKED_MODE
+USE_AFFINE_HELPER = 1  ; this exludes/overrules USE_LINKED_MODE
 
     .if (USE_AFFINE_HELPER)
 BACKGROUND_COLOR = 251  ; Nice purple
@@ -124,46 +124,18 @@ loop:
 
 test_sub_pixel_increments:
 
-    ; We need to fill the 32 bit cache with two sub pixel increments.
-    
-    ; We want this: 01 00 00 60 : $0100 (= 1.0)for x, $0060 for (= 96/256 for y)
-    
-    ; We store this value in VRAM at $18000 for now
-    
     ; Experiment: draw a line from the top left to the bottom right of the (small) screen
-    
+
+    ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
     lda #%00000000           ; DCSEL=0, ADDRSEL=0, no linked mode, no affine helper
     sta VERA_CTRL
-    lda #%00010001           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 1 byte increment (=%0001)
-    sta VERA_ADDR_BANK
-    lda #$80
-    sta VERA_ADDR_HIGH
-    lda #0
-    sta VERA_ADDR_LOW
-    
-    lda #00                  ; X increment low
-    sta VERA_DATA0
-    lda #01                  ; X increment high (only 1 bit is used)
-    sta VERA_DATA0
-    lda #80
-    sta VERA_DATA0           ; Y increment low
-    lda #00
-    sta VERA_DATA0           ; Y increment high (only 1 bit is used)
-    
-    ; Setup for loading into cache
-    lda #%00000111           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 0 byte increment (=%0000)
-    sta VERA_ADDR_BANK
-    lda #0
-    sta VERA_ADDR_LOW        ; Resetting back to $18000
-    
-    lda VERA_DATA0           ; this will load the 32-bit value at VRAM address $18000 into the cache
-    
-    ; Unset write pattern to 0, reset to increment to 1
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
+
     
-    ; Setting up for drawing
+    ; Setting up for drawing a new line
     
+    ; Note that this *exits* the affine helper. This is needed since the sub pixel position will be reset only when we turn *on* affine helper
     lda #%00000001           ; DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
     lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
@@ -173,30 +145,39 @@ test_sub_pixel_increments:
     lda #0
     sta VERA_ADDR_LOW        ; Resetting back to $00000
     
-    ; Entering *Linked mode + affine helper mode*: this will copy ADDR1 to ADDR0
-    lda #%01100000           ; Linked Mode=1, Affine helper = 1, DCSEL=0, ADDRSEL=0
+    ; Entering *affine helper mode*: this should copy ADDR1_INCR(and DECR) to ADDR0_INCR(and DECR)
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
 
-    ; Note that ADDR0 has an increment of 1 and its bit16 has just been set to 0 (copy from addr1) by entering linked mode
+    lda #00                  ; X increment low
+    sta $9F29
+    lda #01                  ; X increment high (only 1 bit is used)
+    sta $9F2A
+    lda #80
+    sta $9F2B           ; Y increment low
+    lda #00
+    sta $9F2C           ; Y increment high (only 1 bit is used)
+    
+    ; Note that ADDR0 had an increment of 1 and this increment is now the secondary incrementer for ADDR1
     
     ldy #TEST_LINE_COLOR     ; We use y as color
-    sty VERA_DATA0
-    sty VERA_DATA0
-    sty VERA_DATA0
-    sty VERA_DATA0
-    sty VERA_DATA0
-    sty VERA_DATA0
-    sty VERA_DATA0
-    sty VERA_DATA0
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
 
-    sty VERA_DATA0
-    sty VERA_DATA0
-    sty VERA_DATA0
-    sty VERA_DATA0
-    sty VERA_DATA0
-    sty VERA_DATA0
-    sty VERA_DATA0
-    sty VERA_DATA0
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
 
     rts
   
@@ -360,8 +341,21 @@ draw_lines_with_affine_helper_message:
 
 draw_lines:
 
+    lda #<(320*0+0)
+    sta START_ADDRESS
+    lda #>(320*0+0)
+    sta START_ADDRESS+1
+
     ; ====================== Drawing mainly left to right and then down ===================
 
+    .if(USE_AFFINE_HELPER)
+        ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
+        lda #%00000000           ; DCSEL=0, ADDRSEL=0, no linked mode, no affine helper
+        sta VERA_CTRL
+        lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+    .endif
+    
     lda #0
     sta SLOPE
     
@@ -373,49 +367,15 @@ draw_lines:
     
 draw_line_to_the_right_from_left_top_corner_next:
     
-    lda #<(320*0+0)
-    sta START_ADDRESS
-    lda #>(320*0+0)
-    sta START_ADDRESS+1
-
     clc
     lda SLOPE
     adc #SLOPE_INCREMENT_HOR
     sta SLOPE
     
     .if(USE_AFFINE_HELPER)
-        lda #%00000000           ; DCSEL=0, ADDRSEL=0, no linked mode, no affine helper
-        sta VERA_CTRL
-        lda #%00010001           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 1 byte increment (=%0001)
-        sta VERA_ADDR_BANK
-        lda #$80
-        sta VERA_ADDR_HIGH
-        lda #0
-        sta VERA_ADDR_LOW
+        ; Setting up for drawing a new line
         
-        lda #00                  ; X increment low
-        sta VERA_DATA0
-        lda #01                  ; X increment high (only 1 bit is used)
-        sta VERA_DATA0
-        lda SLOPE
-        sta VERA_DATA0           ; Y increment low
-        lda #00
-        sta VERA_DATA0           ; Y increment high (only 1 bit is used)
-        
-        ; Setup for loading into cache
-        lda #%00000111           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 0 byte increment (=%0000)
-        sta VERA_ADDR_BANK
-        lda #0
-        sta VERA_ADDR_LOW        ; Resetting back to $18000
-        
-        lda VERA_DATA0           ; this will load the 32-bit value at VRAM address $18000 into the cache
-        
-        ; Unset write pattern to 0, reset to increment to 1
-        lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
-        sta VERA_ADDR_BANK
-        
-        ; Setting up for drawing
-        
+        ; Note that this *exits* the affine helper. This is needed since the sub pixel position will be reset only when we turn *on* affine helper
         lda #%00000001           ; DCSEL=0, ADDRSEL=1
         sta VERA_CTRL
         lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
@@ -425,11 +385,21 @@ draw_line_to_the_right_from_left_top_corner_next:
         lda #0
         sta VERA_ADDR_LOW        ; Resetting back to $00000
         
-        ; Entering *Linked mode + affine helper mode*: this will copy ADDR1 to ADDR0
-        lda #%01100000           ; Linked Mode=1, Affine helper = 1, DCSEL=0, ADDRSEL=0
+        ; Entering *affine helper mode*: this should copy ADDR1_INCR(and DECR) to ADDR0_INCR(and DECR)
+        lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
         sta VERA_CTRL
 
-        ; Note that ADDR0 has an increment of 1 and its bit16 has just been set to 0 (copy from addr1) by entering linked mode
+; TODO: we only have to set 1 byte each iteration!
+        lda #00                  ; X increment low
+        sta $9F29
+        lda #01                  ; X increment high (only 1 bit is used)
+        sta $9F2A
+        lda SLOPE
+        sta $9F2B                ; Y increment low
+        lda #00
+        sta $9F2C                ; Y increment high (only 1 bit is used)
+        
+        ; Note that ADDR0 had an increment of 1 and this increment is now the secondary incrementer for ADDR1
         
     .else
     .if(USE_LINKED_MODE)
@@ -467,29 +437,30 @@ draw_line_to_the_right_from_left_top_corner_next:
     inc LINE_COLOR
     ldy LINE_COLOR
 
-    lda #<(320)
-    sta LINE_LENGTH
-    ; lda #>(320)
-    ; sta LINE_LENGTH+1
-
-    ldy LINE_COLOR           ; We use y as color
-    sty VERA_DATA0           ; we always draw the first pixel
-    clc
-
     .if(USE_AFFINE_HELPER)
         ; FIXME: we can make a single routines for 320 pixels instead
         jsr AFFINE_DRAW_256_CODE
         jsr AFFINE_DRAW_64_CODE
         
+; FIXME: is this needed??
         ; Exit *Linked mode + affine helper mode*
         lda #%00000000           ; Linked Mode=1, Affine helper = 1, DCSEL=0, ADDRSEL=0
         sta VERA_CTRL
     .else
-    .if(USE_LINKED_MODE)
-    jsr draw_256_line_pixels_first
-    .else
-    jsr draw_256_right_line_pixels_first
-    .endif
+        lda #<(320)
+        sta LINE_LENGTH
+        ; lda #>(320)
+        ; sta LINE_LENGTH+1
+
+        ldy LINE_COLOR           ; We use y as color
+        sty VERA_DATA0           ; we always draw the first pixel
+        clc
+
+        .if(USE_LINKED_MODE)
+            jsr draw_256_line_pixels_first
+        .else
+            jsr draw_256_right_line_pixels_first
+        .endif
     .endif
     
     dec NR_OF_LINES_TO_DRAW
@@ -499,6 +470,14 @@ draw_line_to_the_right_from_left_top_corner_next:
 
     ; ====================== Drawing mainly top to bottom and then right ===================
 
+    .if(USE_AFFINE_HELPER)
+        ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
+        lda #%00000000           ; DCSEL=0, ADDRSEL=0, no linked mode, no affine helper
+        sta VERA_CTRL
+        lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+    .endif
+    
     lda #0
     sta SLOPE
     
@@ -510,49 +489,16 @@ draw_line_to_the_right_from_left_top_corner_next:
     
 draw_line_to_the_bottom_from_left_top_corner_next:
     
-    lda #<(320*0+0)
-    sta START_ADDRESS
-    lda #>(320*0+0)
-    sta START_ADDRESS+1
-
     clc
     lda SLOPE
     adc #SLOPE_INCREMENT_VER
     sta SLOPE
     
     .if(USE_AFFINE_HELPER)
-        lda #%00000000           ; DCSEL=0, ADDRSEL=0, no linked mode, no affine helper
-        sta VERA_CTRL
-        lda #%00010001           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 1 byte increment (=%0001)
-        sta VERA_ADDR_BANK
-        lda #$80
-        sta VERA_ADDR_HIGH
-        lda #0
-        sta VERA_ADDR_LOW
+    
+        ; Setting up for drawing a new line
         
-        lda SLOPE                ; X increment low
-        sta VERA_DATA0
-        lda #00                  ; X increment high (only 1 bit is used)
-        sta VERA_DATA0
-        lda #00
-        sta VERA_DATA0           ; Y increment low
-        lda #01
-        sta VERA_DATA0           ; Y increment high (only 1 bit is used)
-        
-        ; Setup for loading into cache
-        lda #%00000111           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 0 byte increment (=%0000)
-        sta VERA_ADDR_BANK
-        lda #0
-        sta VERA_ADDR_LOW        ; Resetting back to $18000
-        
-        lda VERA_DATA0           ; this will load the 32-bit value at VRAM address $18000 into the cache
-        
-        ; Unset write pattern to 0, reset to increment to 1
-        lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
-        sta VERA_ADDR_BANK
-        
-        ; Setting up for drawing
-        
+        ; Note that this *exits* the affine helper. This is needed since the sub pixel position will be reset only when we turn *on* affine helper
         lda #%00000001           ; DCSEL=0, ADDRSEL=1
         sta VERA_CTRL
         lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
@@ -562,11 +508,22 @@ draw_line_to_the_bottom_from_left_top_corner_next:
         lda #0
         sta VERA_ADDR_LOW        ; Resetting back to $00000
         
-        ; Entering *Linked mode + affine helper mode*: this will copy ADDR1 to ADDR0
-        lda #%01100000           ; Linked Mode=1, Affine helper = 1, DCSEL=0, ADDRSEL=0
+        ; Entering *affine helper mode*: this should copy ADDR1_INCR(and DECR) to ADDR0_INCR(and DECR)
+        lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
         sta VERA_CTRL
 
-        ; Note that ADDR0 has an increment of 1 and its bit16 has just been set to 0 (copy from addr1) by entering linked mode
+; TODO: we only have to set 1 byte each iteration!
+        lda SLOPE                ; X increment low
+        sta $9F29
+        lda #00                  ; X increment high (only 1 bit is used)
+        sta $9F2A
+        lda #00
+        sta $9F2B                ; Y increment low
+        lda #01
+        sta $9F2C                ; Y increment high (only 1 bit is used)
+        
+        ; Note that ADDR0 had an increment of 1 and this increment is now the secondary incrementer for ADDR1
+
     .else
     .if(USE_LINKED_MODE)
     
@@ -603,26 +560,27 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     inc LINE_COLOR
     ldy LINE_COLOR
 
-    lda #<(240)
-    sta LINE_LENGTH
-    ; lda #>(240)
-    ; sta LINE_LENGTH+1
-    
-    ldy LINE_COLOR           ; We use y as color
-    sty VERA_DATA0           ; we always draw the first pixel
-    clc
-
     .if(USE_AFFINE_HELPER)
         jsr AFFINE_DRAW_240_CODE
+; FIXME: is this needed??
         ; Exit *Linked mode + affine helper mode*
         lda #%00000000           ; Linked Mode=1, Affine helper = 1, DCSEL=0, ADDRSEL=0
         sta VERA_CTRL
     .else
-    .if(USE_LINKED_MODE)
-    jsr draw_less_than_256_line_pixels
-    .else
-    jsr draw_less_than_256_right_line_pixels
-    .endif
+        lda #<(240)
+        sta LINE_LENGTH
+        ; lda #>(240)
+        ; sta LINE_LENGTH+1
+        
+        ldy LINE_COLOR           ; We use y as color
+        sty VERA_DATA0           ; we always draw the first pixel
+        clc
+
+        .if(USE_LINKED_MODE)
+            jsr draw_less_than_256_line_pixels
+        .else
+            jsr draw_less_than_256_right_line_pixels
+        .endif
     .endif
     
     dec NR_OF_LINES_TO_DRAW
@@ -789,11 +747,11 @@ generate_affine_draw_line_code:
     ldx #0                 ; counts nr of clear instructions
 next_affine_line_draw_instruction_256:
 
-    ; -- sty VERA_DATA0 ($9F23)
+    ; -- sty VERA_DATA1 ($9F24)
     lda #$8C               ; sty ....
     jsr add_code_byte
 
-    lda #$23               ; $23
+    lda #$24               ; $24
     jsr add_code_byte
     
     lda #$9F               ; $9F
@@ -818,11 +776,11 @@ next_affine_line_draw_instruction_256:
     ldx #0                 ; counts nr of clear instructions
 next_affine_line_draw_instruction_240:
 
-    ; -- sty VERA_DATA0 ($9F23)
+    ; -- sty VERA_DATA1 ($9F24)
     lda #$8C               ; sty ....
     jsr add_code_byte
 
-    lda #$23               ; $23
+    lda #$24               ; $24
     jsr add_code_byte
     
     lda #$9F               ; $9F
@@ -848,11 +806,11 @@ next_affine_line_draw_instruction_240:
     ldx #0                 ; counts nr of clear instructions
 next_affine_line_draw_instruction_64:
 
-    ; -- sty VERA_DATA0 ($9F23)
+    ; -- sty VERA_DATA1 ($9F24)
     lda #$8C               ; sty ....
     jsr add_code_byte
 
-    lda #$23               ; $23
+    lda #$24               ; $24
     jsr add_code_byte
     
     lda #$9F               ; $9F
