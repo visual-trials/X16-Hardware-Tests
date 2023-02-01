@@ -1,5 +1,5 @@
 
-DO_SPEED_TEST = 1
+DO_SPEED_TEST = 0
 USE_LINKED_MODE = 1
 
     .if (USE_LINKED_MODE)
@@ -95,14 +95,18 @@ reset:
     jsr generate_clear_column_code
     jsr clear_screen_fast_4_bytes
     
+    
     .if(DO_SPEED_TEST)
       jsr test_speed_of_drawing_lines
     .else
+    
       lda #$10                 ; 8:1 scale (320 x 240 pixels on screen)
       sta VERA_DC_HSCALE
       sta VERA_DC_VSCALE
       ; jsr draw_test_pixels
-      jsr draw_test_line
+      ; jsr draw_test_line
+;FIXME: is this name correct?
+      jsr test_sub_pixel_increments
     .endif
     
   
@@ -110,6 +114,84 @@ loop:
   jmp loop
 
 
+test_sub_pixel_increments:
+
+    ; We need to fill the 32 bit cache with two sub pixel increments.
+    
+    ; We want this: 01 00 00 60 : $0100 (= 1.0)for x, $0060 for (= 96/256 for y)
+    
+    ; We store this value in VRAM at $18000 for now
+    
+    ; Experiment: draw a line from the top left to the bottom right of the (small) screen
+    
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0, no linked mode, no affine helper
+    sta VERA_CTRL
+    lda #%00010001           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
+    lda #$80
+    sta VERA_ADDR_HIGH
+    lda #0
+    sta VERA_ADDR_LOW
+    
+    lda #00                  ; X increment low
+    sta VERA_DATA0
+    lda #01                  ; X increment high (only 1 bit is used)
+    sta VERA_DATA0
+    lda #80
+    sta VERA_DATA0           ; Y increment low
+    lda #00
+    sta VERA_DATA0           ; Y increment high (only 1 bit is used)
+    
+    ; Setup for loading into cache
+    lda #%00000111           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 0 byte increment (=%0000)
+    sta VERA_ADDR_BANK
+    lda #0
+    sta VERA_ADDR_LOW        ; Resetting back to $18000
+    
+    lda VERA_DATA0           ; this will load the 32-bit value at VRAM address $18000 into the cache
+    
+    ; Unset write pattern to 0, reset to increment to 1
+    lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
+    
+    ; Setting up for drawing
+    
+    lda #%00000001           ; DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
+    sta VERA_ADDR_BANK
+    lda #0
+    sta VERA_ADDR_HIGH       ; Resetting back to $00000
+    lda #0
+    sta VERA_ADDR_LOW        ; Resetting back to $00000
+    
+    ; Entering *Linked mode + affine helper mode*: this will copy ADDR1 to ADDR0
+    lda #%01100000           ; Linked Mode=1, Affine helper = 1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+
+    ; Note that ADDR0 has an increment of 1 and its bit16 has just been set to 0 (copy from addr1) by entering linked mode
+    
+    ldy #TEST_LINE_COLOR     ; We use y as color
+    sty VERA_DATA0
+    sty VERA_DATA0
+    sty VERA_DATA0
+    sty VERA_DATA0
+    sty VERA_DATA0
+    sty VERA_DATA0
+    sty VERA_DATA0
+    sty VERA_DATA0
+
+    sty VERA_DATA0
+    sty VERA_DATA0
+    sty VERA_DATA0
+    sty VERA_DATA0
+    sty VERA_DATA0
+    sty VERA_DATA0
+    sty VERA_DATA0
+    sty VERA_DATA0
+
+    rts
+  
 draw_test_pixels:
 
     ; Experiment: setup ADDR1, then setup ADDR0 (differently) and enable Linked Mode -> ADDR0 should now be equal to ADDR1
