@@ -133,7 +133,6 @@ test_sub_pixel_increments:
     
     ; Setting up for drawing a new line
     
-    ; Note that this *exits* the affine helper. This is needed since the sub pixel position will be reset only when we turn *on* affine helper
     lda #%00000001           ; DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
