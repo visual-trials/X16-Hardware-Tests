@@ -124,12 +124,10 @@ loop:
 
 test_sub_pixel_increments:
 
-    ; Experiment: draw a line from the top left to the bottom right of the (small) screen
-
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0, no linked mode, no affine helper
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
     sta VERA_CTRL
-    lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
 
     
@@ -138,14 +136,14 @@ test_sub_pixel_increments:
     ; Note that this *exits* the affine helper. This is needed since the sub pixel position will be reset only when we turn *on* affine helper
     lda #%00000001           ; DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
+    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     sta VERA_ADDR_BANK
     lda #0
-    sta VERA_ADDR_HIGH       ; Resetting back to $00000
+    sta VERA_ADDR_HIGH       ; Setting $00000
     lda #0
-    sta VERA_ADDR_LOW        ; Resetting back to $00000
+    sta VERA_ADDR_LOW        ; Setting $00000
     
-    ; Entering *affine helper mode*: this should copy ADDR1_INCR(and DECR) to ADDR0_INCR(and DECR)
+    ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
 
@@ -154,11 +152,11 @@ test_sub_pixel_increments:
     lda #01                  ; X increment high (only 1 bit is used)
     sta $9F2A
     lda #80
-    sta $9F2B           ; Y increment low
+    sta $9F2B                ; Y increment low
     lda #00
-    sta $9F2C           ; Y increment high (only 1 bit is used)
+    sta $9F2C                ; Y increment high (only 1 bit is used)
     
-    ; Note that ADDR0 had an increment of 1 and this increment is now the secondary incrementer for ADDR1
+    ; Starting to draw: 4 cpu cycles per pixel
     
     ldy #TEST_LINE_COLOR     ; We use y as color
     sty VERA_DATA1
