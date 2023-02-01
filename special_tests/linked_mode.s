@@ -1,11 +1,16 @@
 
-DO_SPEED_TEST = 0
+DO_SPEED_TEST = 1
 USE_LINKED_MODE = 1
+USE_AFFINE_HELPER = 0  ; this exludes/overrules USE_LINKED_MODE
 
+    .if (USE_AFFINE_HELPER)
+BACKGROUND_COLOR = 251  ; Nice purple
+    .else
     .if (USE_LINKED_MODE)
 BACKGROUND_COLOR = 57  ; Nice red color
     .else
 BACKGROUND_COLOR = 06  ; Blue 
+    .endif
     .endif
 
 ;FOREGROUND_COLOR = 1
@@ -73,6 +78,9 @@ LINE_COLOR                 = $27
 ; RAM addresses
 CLEAR_COLUMN_CODE     = $7000
 LINE_DRAW_CODE        = $7800
+AFFINE_DRAW_256_CODE  = $7C00
+AFFINE_DRAW_240_CODE  = $8000
+AFFINE_DRAW_64_CODE   = $8400
 
 
   .org $C000
@@ -274,7 +282,9 @@ draw_next_test_pixel:
 test_speed_of_drawing_lines:
         
     ; TODO: do we want to unroll the loop when doing a comparison? Probably.
-;    jsr generate_draw_line_code
+    .if(USE_AFFINE_HELPER)
+        jsr generate_affine_draw_line_code
+    .endif
 
     jsr start_timer
     jsr draw_lines
@@ -299,6 +309,15 @@ test_speed_of_drawing_lines:
     lda #12
     sta CURSOR_Y
 
+    .if(USE_AFFINE_HELPER)
+    
+        lda #6
+        sta CURSOR_X
+        lda #<draw_lines_with_affine_helper_message
+        sta TEXT_TO_PRINT
+        lda #>draw_lines_with_affine_helper_message
+        sta TEXT_TO_PRINT + 1
+    .else
     .if(USE_LINKED_MODE)
         lda #7
         sta CURSOR_X
@@ -313,6 +332,7 @@ test_speed_of_drawing_lines:
         sta TEXT_TO_PRINT
         lda #>draw_lines_without_linked_mode_message
         sta TEXT_TO_PRINT + 1
+    .endif
     .endif
     
     jsr print_text_zero
@@ -333,6 +353,8 @@ draw_lines_without_linked_mode_message:
     .asciiz "Method: not using linked mode"
 draw_lines_with_linked_mode_message: 
     .asciiz "Method: using linked mode"
+draw_lines_with_affine_helper_message: 
+    .asciiz "Method: using affine helper"
     
     
 
@@ -356,6 +378,60 @@ draw_line_to_the_right_from_left_top_corner_next:
     lda #>(320*0+0)
     sta START_ADDRESS+1
 
+    clc
+    lda SLOPE
+    adc #SLOPE_INCREMENT_HOR
+    sta SLOPE
+    
+    .if(USE_AFFINE_HELPER)
+        lda #%00000000           ; DCSEL=0, ADDRSEL=0, no linked mode, no affine helper
+        sta VERA_CTRL
+        lda #%00010001           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+        lda #$80
+        sta VERA_ADDR_HIGH
+        lda #0
+        sta VERA_ADDR_LOW
+        
+        lda #00                  ; X increment low
+        sta VERA_DATA0
+        lda #01                  ; X increment high (only 1 bit is used)
+        sta VERA_DATA0
+        lda SLOPE
+        sta VERA_DATA0           ; Y increment low
+        lda #00
+        sta VERA_DATA0           ; Y increment high (only 1 bit is used)
+        
+        ; Setup for loading into cache
+        lda #%00000111           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 0 byte increment (=%0000)
+        sta VERA_ADDR_BANK
+        lda #0
+        sta VERA_ADDR_LOW        ; Resetting back to $18000
+        
+        lda VERA_DATA0           ; this will load the 32-bit value at VRAM address $18000 into the cache
+        
+        ; Unset write pattern to 0, reset to increment to 1
+        lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+        
+        ; Setting up for drawing
+        
+        lda #%00000001           ; DCSEL=0, ADDRSEL=1
+        sta VERA_CTRL
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
+        sta VERA_ADDR_BANK
+        lda #0
+        sta VERA_ADDR_HIGH       ; Resetting back to $00000
+        lda #0
+        sta VERA_ADDR_LOW        ; Resetting back to $00000
+        
+        ; Entering *Linked mode + affine helper mode*: this will copy ADDR1 to ADDR0
+        lda #%01100000           ; Linked Mode=1, Affine helper = 1, DCSEL=0, ADDRSEL=0
+        sta VERA_CTRL
+
+        ; Note that ADDR0 has an increment of 1 and its bit16 has just been set to 0 (copy from addr1) by entering linked mode
+        
+    .else
     .if(USE_LINKED_MODE)
     
         ; Setting ADDR1 to START_ADDRESS
@@ -386,12 +462,8 @@ draw_line_to_the_right_from_left_top_corner_next:
         sta VERA_ADDR_LOW
     
     .endif
+    .endif
 
-    clc
-    lda SLOPE
-    adc #SLOPE_INCREMENT_HOR
-    sta SLOPE
-    
     inc LINE_COLOR
     ldy LINE_COLOR
 
@@ -404,17 +476,26 @@ draw_line_to_the_right_from_left_top_corner_next:
     sty VERA_DATA0           ; we always draw the first pixel
     clc
 
+    .if(USE_AFFINE_HELPER)
+        ; FIXME: we can make a single routines for 320 pixels instead
+        jsr AFFINE_DRAW_256_CODE
+        jsr AFFINE_DRAW_64_CODE
+        
+        ; Exit *Linked mode + affine helper mode*
+        lda #%00000000           ; Linked Mode=1, Affine helper = 1, DCSEL=0, ADDRSEL=0
+        sta VERA_CTRL
+    .else
     .if(USE_LINKED_MODE)
     jsr draw_256_line_pixels_first
     .else
     jsr draw_256_right_line_pixels_first
+    .endif
     .endif
     
     dec NR_OF_LINES_TO_DRAW
     bne draw_line_to_the_right_from_left_top_corner_next
     
     ; ====================== / Drawing mainly left to right and then down ===================
-
 
     ; ====================== Drawing mainly top to bottom and then right ===================
 
@@ -434,6 +515,59 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     lda #>(320*0+0)
     sta START_ADDRESS+1
 
+    clc
+    lda SLOPE
+    adc #SLOPE_INCREMENT_VER
+    sta SLOPE
+    
+    .if(USE_AFFINE_HELPER)
+        lda #%00000000           ; DCSEL=0, ADDRSEL=0, no linked mode, no affine helper
+        sta VERA_CTRL
+        lda #%00010001           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+        lda #$80
+        sta VERA_ADDR_HIGH
+        lda #0
+        sta VERA_ADDR_LOW
+        
+        lda SLOPE                ; X increment low
+        sta VERA_DATA0
+        lda #00                  ; X increment high (only 1 bit is used)
+        sta VERA_DATA0
+        lda #00
+        sta VERA_DATA0           ; Y increment low
+        lda #01
+        sta VERA_DATA0           ; Y increment high (only 1 bit is used)
+        
+        ; Setup for loading into cache
+        lda #%00000111           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 0 byte increment (=%0000)
+        sta VERA_ADDR_BANK
+        lda #0
+        sta VERA_ADDR_LOW        ; Resetting back to $18000
+        
+        lda VERA_DATA0           ; this will load the 32-bit value at VRAM address $18000 into the cache
+        
+        ; Unset write pattern to 0, reset to increment to 1
+        lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+        
+        ; Setting up for drawing
+        
+        lda #%00000001           ; DCSEL=0, ADDRSEL=1
+        sta VERA_CTRL
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
+        sta VERA_ADDR_BANK
+        lda #0
+        sta VERA_ADDR_HIGH       ; Resetting back to $00000
+        lda #0
+        sta VERA_ADDR_LOW        ; Resetting back to $00000
+        
+        ; Entering *Linked mode + affine helper mode*: this will copy ADDR1 to ADDR0
+        lda #%01100000           ; Linked Mode=1, Affine helper = 1, DCSEL=0, ADDRSEL=0
+        sta VERA_CTRL
+
+        ; Note that ADDR0 has an increment of 1 and its bit16 has just been set to 0 (copy from addr1) by entering linked mode
+    .else
     .if(USE_LINKED_MODE)
     
         ; Setting ADDR1 to START_ADDRESS
@@ -464,12 +598,8 @@ draw_line_to_the_bottom_from_left_top_corner_next:
         sta VERA_ADDR_LOW
     
     .endif
+    .endif
 
-    clc
-    lda SLOPE
-    adc #SLOPE_INCREMENT_VER
-    sta SLOPE
-    
     inc LINE_COLOR
     ldy LINE_COLOR
 
@@ -482,10 +612,17 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     sty VERA_DATA0           ; we always draw the first pixel
     clc
 
+    .if(USE_AFFINE_HELPER)
+        jsr AFFINE_DRAW_240_CODE
+        ; Exit *Linked mode + affine helper mode*
+        lda #%00000000           ; Linked Mode=1, Affine helper = 1, DCSEL=0, ADDRSEL=0
+        sta VERA_CTRL
+    .else
     .if(USE_LINKED_MODE)
     jsr draw_less_than_256_line_pixels
     .else
     jsr draw_less_than_256_right_line_pixels
+    .endif
     .endif
     
     dec NR_OF_LINES_TO_DRAW
@@ -495,7 +632,6 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     
     rts
 
-    
     .if(USE_LINKED_MODE)
 
 draw_256_line_pixels_first:
@@ -643,38 +779,93 @@ clear_next_column_right_4_bytes:
 
 
     
-generate_draw_line_code:
-
-    lda #<LINE_DRAW_CODE
+generate_affine_draw_line_code:
+    lda #<AFFINE_DRAW_256_CODE
     sta CODE_ADDRESS
-    lda #>LINE_DRAW_CODE
+    lda #>AFFINE_DRAW_256_CODE
     sta CODE_ADDRESS+1
     
     ldy #0                 ; generated code byte counter
-    
     ldx #0                 ; counts nr of clear instructions
+next_affine_line_draw_instruction_256:
 
-next_line_draw_instruction:
+    ; -- sty VERA_DATA0 ($9F23)
+    lda #$8C               ; sty ....
+    jsr add_code_byte
 
-; FIXME: do we want to implement unrolled line drawing?
-
-    ; -- sta VERA_DATA0 ($9F23)
-;    lda #$8D               ; sta ....
-;    jsr add_code_byte
-
-;    lda #$23               ; $23
-;    jsr add_code_byte
+    lda #$23               ; $23
+    jsr add_code_byte
     
-;    lda #$9F               ; $9F
-;    jsr add_code_byte
+    lda #$9F               ; $9F
+    jsr add_code_byte
     
-;    inx
-;    cpx #240               ; 240 clear pixels written to VERA
-;    bne next_line_draw_instruction
+    inx
+    cpx #0                 ; 256 draw pixels written to VERA
+    bne next_affine_line_draw_instruction_256
 
     ; -- rts --
-;    lda #$60
-;    jsr add_code_byte
+    lda #$60
+    jsr add_code_byte
+    
+
+
+    lda #<AFFINE_DRAW_240_CODE
+    sta CODE_ADDRESS
+    lda #>AFFINE_DRAW_240_CODE
+    sta CODE_ADDRESS+1
+    
+    ldy #0                 ; generated code byte counter
+    ldx #0                 ; counts nr of clear instructions
+next_affine_line_draw_instruction_240:
+
+    ; -- sty VERA_DATA0 ($9F23)
+    lda #$8C               ; sty ....
+    jsr add_code_byte
+
+    lda #$23               ; $23
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    inx
+    cpx #240                 ; 256 draw pixels written to VERA
+    bne next_affine_line_draw_instruction_240
+
+    ; -- rts --
+    lda #$60
+    jsr add_code_byte
+    
+
+
+
+    lda #<AFFINE_DRAW_64_CODE
+    sta CODE_ADDRESS
+    lda #>AFFINE_DRAW_64_CODE
+    sta CODE_ADDRESS+1
+    
+    ldy #0                 ; generated code byte counter
+    ldx #0                 ; counts nr of clear instructions
+next_affine_line_draw_instruction_64:
+
+    ; -- sty VERA_DATA0 ($9F23)
+    lda #$8C               ; sty ....
+    jsr add_code_byte
+
+    lda #$23               ; $23
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    inx
+    cpx #64                 ; 64 draw pixels written to VERA
+    bne next_affine_line_draw_instruction_64
+
+    ; -- rts --
+    lda #$60
+    jsr add_code_byte
+    
 
     rts
 
