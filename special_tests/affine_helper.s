@@ -1,4 +1,7 @@
 
+DO_SHEAR = 0
+DO_ROTATE = 1
+
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 FOREGROUND_COLOR = 1
 
@@ -59,6 +62,9 @@ TIMING_COUNTER            = $14 ; 15
 TIME_ELAPSED_MS           = $16
 TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
 
+; Affine transformation
+X_SUB_PIXEL               = $20
+Y_SUB_PIXEL               = $21
 
 ; RAM addresses
 COPY_ROW_CODE             = $7E00    ; 152 * 3 bytes + 1 byte = 457 bytes
@@ -103,8 +109,8 @@ reset:
     jsr copy_pixels
     
     
-    ; Test speed of affine transforming (shearing) the picture from VRAM (to CPU) to VRAM
-    jsr test_speed_of_shearing_bitmap_1_byte_per_pixel
+    ; Test speed of affine transforming (shearing/rotating) the picture from VRAM (to CPU) to VRAM
+    jsr test_speed_of_affine_transforming_bitmap_1_byte_per_pixel
     
   
 loop:
@@ -223,7 +229,7 @@ affine_transform_some_bytes:
   
 ; ====================================== SHEAR SPEED TEST ========================================
   
-test_speed_of_shearing_bitmap_1_byte_per_pixel:
+test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
 
     jsr generate_copy_row_code
 
@@ -239,7 +245,12 @@ test_speed_of_shearing_bitmap_1_byte_per_pixel:
     lda #>(SHEAR_PICTURE_POS_X+SHEAR_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_TO+1
     
+    .if(DO_SHEAR)
     jsr shear_bitmap_fast_1_byte_per_copy
+    .endif
+    .if(DO_ROTATE)
+    jsr rotate_bitmap_fast_1_byte_per_copy
+    .endif
 
     
     jsr stop_timer
@@ -252,10 +263,19 @@ test_speed_of_shearing_bitmap_1_byte_per_pixel:
     lda #2
     sta CURSOR_Y
 
+    .if(DO_SHEAR)
     lda #<shear_bitmap_3x100x75_8bpp_message
     sta TEXT_TO_PRINT
     lda #>shear_bitmap_3x100x75_8bpp_message
     sta TEXT_TO_PRINT + 1
+    .endif
+
+    .if(DO_ROTATE)
+    lda #<rotate_bitmap_3x100x75_8bpp_message
+    sta TEXT_TO_PRINT
+    lda #>rotate_bitmap_3x100x75_8bpp_message
+    sta TEXT_TO_PRINT + 1
+    .endif
     
     jsr print_text_zero
     
@@ -287,6 +307,8 @@ test_speed_of_shearing_bitmap_1_byte_per_pixel:
 
 shear_bitmap_3x100x75_8bpp_message: 
     .asciiz "Shearing bitmap 100x75 (8bpp) "
+rotate_bitmap_3x100x75_8bpp_message: 
+    .asciiz "Rotating bitmap 100x75 (8bpp) "
 shear_bitmap_1_byte_message: 
     .asciiz "Method: using affine helper"
 
@@ -322,7 +344,7 @@ shear_bitmap_fast_1_byte_per_copy:
 
     ldx #0
     
-copy_next_row_1:
+shear_copy_next_row_1:
     lda #%00000100           ; DCSEL=0, ADDRSEL=0, with affine helper
     sta VERA_CTRL
 
@@ -366,7 +388,7 @@ copy_next_row_1:
 
     inx
     cpx #75             ; we do 75 rows
-    bne copy_next_row_1
+    bne shear_copy_next_row_1
     
 done_shear_copy: 
 
@@ -376,6 +398,134 @@ done_shear_copy:
     
     rts
 
+
+
+COSINE_ROTATE = 247
+SINE_ROTATE = 67
+
+rotate_bitmap_fast_1_byte_per_copy:
+
+    ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
+    sta VERA_CTRL
+    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
+    
+    ; Setting up for reading from a new line from a texture/bitmap
+    
+    lda #%00000001           ; DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    sta VERA_ADDR_BANK
+    
+    ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+
+; FIXME: we should scan the source diagonally and write straight into the destination! (to prevent "holes" in the result)
+; FIXME: we should scan the source diagonally and write straight into the destination! (to prevent "holes" in the result)
+; FIXME: we should scan the source diagonally and write straight into the destination! (to prevent "holes" in the result)
+
+    ; Maybe do 15.2 degrees: 
+    ;   cos(15.2 degrees)*256 = 247.0  -> +247 = x_delta for row, -67  x_delta for column (start of row)
+    ;   sin(15.2 degrees)*256 = 67.1   -> +67  = y_delta for row, +247  x_delta for column (start or row)
+    
+    lda #128
+    sta Y_SUB_PIXEL
+    lda #128
+    sta X_SUB_PIXEL
+
+    lda #247                 ; X increment low
+    sta $9F29
+    lda #00                  ; X increment high (only 1 bit is used)
+    sta $9F2A
+    lda #67
+    sta $9F2B                ; Y increment low
+    lda #00
+    sta $9F2C                ; Y increment high (only 1 bit is used)
+
+    ldx #0
+    
+rotate_copy_next_row_1:
+    lda #%00000100           ; DCSEL=0, ADDRSEL=0, with affine helper
+    sta VERA_CTRL
+
+    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
+    lda VERA_ADDR_ZP_FROM+1
+    sta VERA_ADDR_HIGH
+    lda VERA_ADDR_ZP_FROM
+    sta VERA_ADDR_LOW
+    
+    lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
+    sta VERA_CTRL
+    
+    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    sta VERA_ADDR_BANK
+    lda VERA_ADDR_ZP_TO+1
+    sta VERA_ADDR_HIGH
+    lda VERA_ADDR_ZP_TO
+    sta VERA_ADDR_LOW
+
+    ; Copy one row of 100 pixels
+    jsr COPY_ROW_CODE
+    
+    ; We increment our VERA_ADDR_FROM with 320
+    clc
+    lda VERA_ADDR_ZP_FROM
+    adc #<(320)
+    sta VERA_ADDR_ZP_FROM
+    lda VERA_ADDR_ZP_FROM+1
+    adc #>(320)
+    sta VERA_ADDR_ZP_FROM+1
+
+    clc
+    lda Y_SUB_PIXEL
+    adc #COSINE_ROTATE
+    sta Y_SUB_PIXEL
+    
+    bcc rotate_correct_pixel_row  ; if we have no overflow, we are at the correct pixel row
+
+    ; We increment our VERA_ADDR_TO with 1 if we should proceed to the next pixel column 
+    clc
+    lda VERA_ADDR_ZP_TO
+    adc #<(320)
+    sta VERA_ADDR_ZP_TO
+    lda VERA_ADDR_ZP_TO+1
+    adc #>(320)
+    sta VERA_ADDR_ZP_TO+1
+    
+rotate_correct_pixel_row:
+
+    sec
+    lda X_SUB_PIXEL
+    sbc #SINE_ROTATE
+    sta X_SUB_PIXEL
+    
+    bcs rotate_correct_pixel_column  ; if we have the carry still set (no borrow), we are at the correct pixel column
+
+    ; We decrement our VERA_ADDR_FROM with 1 if we should proceed to the next pixel row (one to the left)
+    sec
+    lda VERA_ADDR_ZP_TO
+    sbc #<(1)
+    sta VERA_ADDR_ZP_TO
+    lda VERA_ADDR_ZP_TO+1
+    sbc #>(1)
+    sta VERA_ADDR_ZP_TO+1
+
+rotate_correct_pixel_column:
+
+    inx
+    cpx #75             ; we do 75 rows
+    bne rotate_copy_next_row_1
+    
+done_rotate_copy: 
+
+    ; Exiting affine helper mode
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    rts
 
 
 
