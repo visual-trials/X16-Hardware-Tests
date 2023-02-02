@@ -1,5 +1,5 @@
 
-DO_SHEAR = 0
+DO_SHEAR = 0  ; FIXME: broken atm (the copier is now the other way around!)
 DO_ROTATE = 1
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
@@ -9,15 +9,11 @@ TOP_MARGIN = 12
 LEFT_MARGIN = 16
 VSPACING = 10
 
-ORIGINAL_PICTURE_POS_X = 108 ; roughly: (320 - 100) / 2 ; Picture (100 x 75) in middle of screen
-ORIGINAL_PICTURE_POS_Y = 30
+ORIGINAL_PICTURE_POS_X = 32 ; roughly: (320 - 100) / 2 ; Picture (100 x 75) in middle of screen
+ORIGINAL_PICTURE_POS_Y = 80
 
-;ROTATE_PICTURE_POS_X = 4
-;ROTATE_PICTURE_POS_Y = 135
-SHEAR_PICTURE_POS_X = 108 ; roughly: (320 - 100) / 2 ; Picture (100 x 75) in middle of screen
-SHEAR_PICTURE_POS_Y = 115
-;MODE7_PICTURE_POS_X = 212
-;MODE7_PICTURE_POS_Y = 135
+DESTINATION_PICTURE_POS_X = 160 ; roughly: (320 - 100) / 2 ; Picture (100 x 75) in middle of screen
+DESTINATION_PICTURE_POS_Y = 66
 
 
 ; === Zero page addresses ===
@@ -240,9 +236,9 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     sta VERA_ADDR_ZP_FROM
     lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_FROM+1
-    lda #<(SHEAR_PICTURE_POS_X+SHEAR_PICTURE_POS_Y*320)
+    lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_TO
-    lda #>(SHEAR_PICTURE_POS_X+SHEAR_PICTURE_POS_Y*320)
+    lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_TO+1
     
     .if(DO_SHEAR)
@@ -260,7 +256,7 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     
     lda #5
     sta CURSOR_X
-    lda #2
+    lda #4
     sta CURSOR_Y
 
     .if(DO_SHEAR)
@@ -296,7 +292,7 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     
     lda #9
     sta CURSOR_X
-    lda #27
+    lda #25
     sta CURSOR_Y
     
     jsr print_time_elapsed
@@ -422,6 +418,12 @@ rotate_bitmap_fast_1_byte_per_copy:
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
 
+    ; HACK: adjusting the source start point a bit, to make sure we catch the whole picture!
+    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320-28*320)
+    sta VERA_ADDR_ZP_FROM
+    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320-28*320)
+    sta VERA_ADDR_ZP_FROM+1
+    
 ; FIXME: we should scan the source diagonally and write straight into the destination! (to prevent "holes" in the result)
 ; FIXME: we should scan the source diagonally and write straight into the destination! (to prevent "holes" in the result)
 ; FIXME: we should scan the source diagonally and write straight into the destination! (to prevent "holes" in the result)
@@ -452,9 +454,9 @@ rotate_copy_next_row_1:
 
     lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
-    lda VERA_ADDR_ZP_FROM+1
+    lda VERA_ADDR_ZP_TO+1
     sta VERA_ADDR_HIGH
-    lda VERA_ADDR_ZP_FROM
+    lda VERA_ADDR_ZP_TO
     sta VERA_ADDR_LOW
     
     lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
@@ -462,9 +464,9 @@ rotate_copy_next_row_1:
     
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     sta VERA_ADDR_BANK
-    lda VERA_ADDR_ZP_TO+1
+    lda VERA_ADDR_ZP_FROM+1
     sta VERA_ADDR_HIGH
-    lda VERA_ADDR_ZP_TO
+    lda VERA_ADDR_ZP_FROM
     sta VERA_ADDR_LOW
 
     ; Copy one row of 100 pixels
@@ -472,12 +474,12 @@ rotate_copy_next_row_1:
     
     ; We increment our VERA_ADDR_FROM with 320
     clc
-    lda VERA_ADDR_ZP_FROM
+    lda VERA_ADDR_ZP_TO
     adc #<(320)
-    sta VERA_ADDR_ZP_FROM
-    lda VERA_ADDR_ZP_FROM+1
+    sta VERA_ADDR_ZP_TO
+    lda VERA_ADDR_ZP_TO+1
     adc #>(320)
-    sta VERA_ADDR_ZP_FROM+1
+    sta VERA_ADDR_ZP_TO+1
 
     clc
     lda Y_SUB_PIXEL
@@ -488,12 +490,12 @@ rotate_copy_next_row_1:
 
     ; We increment our VERA_ADDR_TO with 1 if we should proceed to the next pixel column 
     clc
-    lda VERA_ADDR_ZP_TO
+    lda VERA_ADDR_ZP_FROM
     adc #<(320)
-    sta VERA_ADDR_ZP_TO
-    lda VERA_ADDR_ZP_TO+1
+    sta VERA_ADDR_ZP_FROM
+    lda VERA_ADDR_ZP_FROM+1
     adc #>(320)
-    sta VERA_ADDR_ZP_TO+1
+    sta VERA_ADDR_ZP_FROM+1
     
 rotate_correct_pixel_row:
 
@@ -506,17 +508,18 @@ rotate_correct_pixel_row:
 
     ; We decrement our VERA_ADDR_FROM with 1 if we should proceed to the next pixel row (one to the left)
     sec
-    lda VERA_ADDR_ZP_TO
+    lda VERA_ADDR_ZP_FROM
     sbc #<(1)
-    sta VERA_ADDR_ZP_TO
-    lda VERA_ADDR_ZP_TO+1
+    sta VERA_ADDR_ZP_FROM
+    lda VERA_ADDR_ZP_FROM+1
     sbc #>(1)
-    sta VERA_ADDR_ZP_TO+1
+    sta VERA_ADDR_ZP_FROM+1
 
 rotate_correct_pixel_column:
 
     inx
-    cpx #75             ; we do 75 rows
+;    cpx #75             ; we do 75 rows
+    cpx #100             ; we do 75 rows diagonally ~= 100
     bne rotate_copy_next_row_1
     
 done_rotate_copy: 
@@ -544,29 +547,34 @@ generate_copy_row_code:
 
 next_copy_instruction:
 
-    ; -- lda VERA_DATA0 ($9F23)
+    ; -- lda VERA_DATA1 ($9F24)
     lda #$AD               ; lda ....
     jsr add_code_byte
     
-    lda #$23               ; VERA_DATA0
+    lda #$24               ; VERA_DATA1
     jsr add_code_byte
     
     lda #$9F         
     jsr add_code_byte
 
     
-    ; -- sta VERA_DATA1 ($9F24)
+    ; -- sta VERA_DATA0 ($9F23)
     lda #$8D               ; sta ....
     jsr add_code_byte
 
-    lda #$24               ; $24
+    lda #$23               ; $23
     jsr add_code_byte
     
     lda #$9F               ; $9F
     jsr add_code_byte
     
     inx
-    cpx #100               ; 75 copy pixels written to VERA
+    .if(DO_ROTATE)
+        ; HACK!
+        cpx #125               ; 130 copy pixels written to VERA (due to diagonal)
+    .else
+        cpx #100               ; 100 copy pixels written to VERA
+    .endif
     bne next_copy_instruction
 
     ; -- rts --
