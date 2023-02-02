@@ -12,7 +12,7 @@ ORIGINAL_PICTURE_POS_Y = 30
 ;ROTATE_PICTURE_POS_X = 4
 ;ROTATE_PICTURE_POS_Y = 135
 SHEAR_PICTURE_POS_X = 108 ; roughly: (320 - 100) / 2 ; Picture (100 x 75) in middle of screen
-SHEAR_PICTURE_POS_Y = 135
+SHEAR_PICTURE_POS_Y = 115
 ;MODE7_PICTURE_POS_X = 212
 ;MODE7_PICTURE_POS_Y = 135
 
@@ -61,7 +61,7 @@ TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
 
 
 ; RAM addresses
-COPY_COLUMN_CODE        = $7E00    ; 152 * 3 bytes + 1 byte = 457 bytes
+COPY_ROW_CODE             = $7E00    ; 152 * 3 bytes + 1 byte = 457 bytes
 
 
 ; ROM addresses
@@ -225,7 +225,7 @@ affine_transform_some_bytes:
   
 test_speed_of_shearing_bitmap_1_byte_per_pixel:
 
-    jsr generate_copy_column_code
+    jsr generate_copy_row_code
 
     jsr start_timer
 
@@ -259,17 +259,17 @@ test_speed_of_shearing_bitmap_1_byte_per_pixel:
     
     jsr print_text_zero
     
-    lda #8
-    sta CURSOR_X
-    lda #15
-    sta CURSOR_Y
+;    lda #8
+;    sta CURSOR_X
+;    lda #15
+;    sta CURSOR_Y
 
-    lda #<shear_bitmap_1_byte_message
-    sta TEXT_TO_PRINT
-    lda #>shear_bitmap_1_byte_message
-    sta TEXT_TO_PRINT + 1
+;    lda #<shear_bitmap_1_byte_message
+;    sta TEXT_TO_PRINT
+;    lda #>shear_bitmap_1_byte_message
+;    sta TEXT_TO_PRINT + 1
     
-    jsr print_text_zero
+;    jsr print_text_zero
     
     lda #COLOR_TRANSPARANT
     sta TEXT_COLOR
@@ -286,7 +286,7 @@ test_speed_of_shearing_bitmap_1_byte_per_pixel:
 
 
 shear_bitmap_3x100x75_8bpp_message: 
-    .asciiz "Shearing bitmap 3 * 100x75 (8bpp) "
+    .asciiz "Shearing bitmap 100x75 (8bpp) "
 shear_bitmap_1_byte_message: 
     .asciiz "Method: using affine helper"
 
@@ -294,96 +294,129 @@ shear_bitmap_1_byte_message:
     
 shear_bitmap_fast_1_byte_per_copy:
 
-    ldx #0
+    ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
+    sta VERA_CTRL
+    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
     
-copy_next_column_1:
+    ; Setting up for reading from a new line from a texture/bitmap
+    
     lda #%00000001           ; DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
+    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    sta VERA_ADDR_BANK
+    
+    ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
 
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #00                  ; X increment low
+    sta $9F29
+    lda #01                  ; X increment high (only 1 bit is used)
+    sta $9F2A
+    lda #60
+    sta $9F2B                ; Y increment low
+    lda #00
+    sta $9F2C                ; Y increment high (only 1 bit is used)
+
+    ldx #0
+    
+copy_next_row_1:
+    lda #%00000100           ; DCSEL=0, ADDRSEL=0, with affine helper
+    sta VERA_CTRL
+
+    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
     lda VERA_ADDR_ZP_FROM+1
     sta VERA_ADDR_HIGH
     lda VERA_ADDR_ZP_FROM
     sta VERA_ADDR_LOW
     
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
     sta VERA_CTRL
     
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     sta VERA_ADDR_BANK
     lda VERA_ADDR_ZP_TO+1
     sta VERA_ADDR_HIGH
     lda VERA_ADDR_ZP_TO
     sta VERA_ADDR_LOW
 
-    ; Copy one column of 75 pixels
-    jsr COPY_COLUMN_CODE
+    ; Copy one row of 100 pixels
+    jsr COPY_ROW_CODE
     
     ; We increment our VERA_ADDR_FROM with 1
     clc
     lda VERA_ADDR_ZP_FROM
-    adc #1
+    adc #<(320)
     sta VERA_ADDR_ZP_FROM
     lda VERA_ADDR_ZP_FROM+1
-    adc #0
+    adc #>(320)
     sta VERA_ADDR_ZP_FROM+1
 
     ; We increment our VERA_ADDR_TO with 1
     clc
     lda VERA_ADDR_ZP_TO
-    adc #1
+    adc #<(320)
     sta VERA_ADDR_ZP_TO
     lda VERA_ADDR_ZP_TO+1
-    adc #0
+    adc #>(320)
     sta VERA_ADDR_ZP_TO+1
 
     inx
-    cpx #100             ; we do 100 columns
-    bne copy_next_column_1
+    cpx #75             ; we do 75 rows
+    bne copy_next_row_1
+    
+done_shear_copy: 
+
+    ; Exiting affine helper mode
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
     
     rts
 
-shear_
+
+
 
 
     
-generate_copy_column_code:
+generate_copy_row_code:
 
-    lda #<COPY_COLUMN_CODE
+    lda #<COPY_ROW_CODE
     sta CODE_ADDRESS
-    lda #>COPY_COLUMN_CODE
+    lda #>COPY_ROW_CODE
     sta CODE_ADDRESS+1
     
     ldy #0                 ; generated code byte counter
     
-    ldx #0                 ; counts nr of clear instructions
+    ldx #0                 ; counts nr of copy instructions
 
 next_copy_instruction:
 
-    ; -- lda VERA_DATA1 ($9F24)
+    ; -- lda VERA_DATA0 ($9F23)
     lda #$AD               ; lda ....
     jsr add_code_byte
     
-    lda #$24               ; VERA_DATA1
+    lda #$23               ; VERA_DATA0
     jsr add_code_byte
     
     lda #$9F         
     jsr add_code_byte
 
     
-    ; -- sta VERA_DATA0 ($9F23)
+    ; -- sta VERA_DATA1 ($9F24)
     lda #$8D               ; sta ....
     jsr add_code_byte
 
-    lda #$23               ; $23
+    lda #$24               ; $24
     jsr add_code_byte
     
     lda #$9F               ; $9F
     jsr add_code_byte
     
     inx
-    cpx #75               ; 75 copy pixels written to VERA
+    cpx #100               ; 75 copy pixels written to VERA
     bne next_copy_instruction
 
     ; -- rts --
