@@ -16,6 +16,11 @@ DESTINATION_PICTURE_POS_X = 160 ; roughly: (320 - 100) / 2 ; Picture (100 x 75) 
 DESTINATION_PICTURE_POS_Y = 66
 
 
+; Mode7 projection: 
+;   https://www.coranac.com/tonc/text/mode7.htm
+;   https://gamedev.stackexchange.com/questions/24957/doing-an-snes-mode-7-affine-transform-effect-in-pygame
+
+
 ; === Zero page addresses ===
 
 ; Bank switching
