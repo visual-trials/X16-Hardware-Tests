@@ -1,6 +1,7 @@
 
 DO_SHEAR = 0  ; FIXME: broken atm (the copier is now the other way around!)
 DO_ROTATE = 1
+USE_CACHE_FOR_WRITING = 1
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 FOREGROUND_COLOR = 1
@@ -9,11 +10,11 @@ TOP_MARGIN = 12
 LEFT_MARGIN = 16
 VSPACING = 10
 
-ORIGINAL_PICTURE_POS_X = 32 ; roughly: (320 - 100) / 2 ; Picture (100 x 75) in middle of screen
-ORIGINAL_PICTURE_POS_Y = 80
+ORIGINAL_PICTURE_POS_X = 32
+ORIGINAL_PICTURE_POS_Y = 65
 
-DESTINATION_PICTURE_POS_X = 160 ; roughly: (320 - 100) / 2 ; Picture (100 x 75) in middle of screen
-DESTINATION_PICTURE_POS_Y = 66
+DESTINATION_PICTURE_POS_X = 160
+DESTINATION_PICTURE_POS_Y = 51
 
 
 ; Mode7 projection: 
@@ -68,7 +69,7 @@ X_SUB_PIXEL               = $20
 Y_SUB_PIXEL               = $21
 
 ; RAM addresses
-COPY_ROW_CODE             = $7E00    ; 152 * 3 bytes + 1 byte = 457 bytes
+COPY_ROW_CODE               = $7800
 
 
 ; ROM addresses
@@ -280,24 +281,31 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     
     jsr print_text_zero
     
-;    lda #8
-;    sta CURSOR_X
-;    lda #15
-;    sta CURSOR_Y
+    lda #8
+    sta CURSOR_X
+    lda #21
+    sta CURSOR_Y
 
-;    lda #<shear_bitmap_1_byte_message
-;    sta TEXT_TO_PRINT
-;    lda #>shear_bitmap_1_byte_message
-;    sta TEXT_TO_PRINT + 1
+    .if(USE_CACHE_FOR_WRITING)
+        lda #<four_bytes_per_write_message
+        sta TEXT_TO_PRINT
+        lda #>four_bytes_per_write_message
+        sta TEXT_TO_PRINT + 1
+    .else
+        lda #<one_byte_per_write_message
+        sta TEXT_TO_PRINT
+        lda #>one_byte_per_write_message
+        sta TEXT_TO_PRINT + 1
+    .endif
     
-;    jsr print_text_zero
+    jsr print_text_zero
     
     lda #COLOR_TRANSPARANT
     sta TEXT_COLOR
     
-    lda #9
+    lda #8
     sta CURSOR_X
-    lda #25
+    lda #26
     sta CURSOR_Y
     
     jsr print_time_elapsed
@@ -310,8 +318,10 @@ shear_bitmap_3x100x75_8bpp_message:
     .asciiz "Shearing bitmap 100x75 (8bpp) "
 rotate_bitmap_3x100x75_8bpp_message: 
     .asciiz "Rotating bitmap 100x75 (8bpp) "
-shear_bitmap_1_byte_message: 
-    .asciiz "Method: using affine helper"
+one_byte_per_write_message: 
+    .asciiz "Method: 1 byte per write"
+four_bytes_per_write_message: 
+    .asciiz "Method: 4 bytes per write"
 
     
     
@@ -419,7 +429,7 @@ rotate_bitmap_fast_1_byte_per_copy:
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     sta VERA_ADDR_BANK
     
-    ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
+    ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the *current* one from ADDR0 (its settings are copied) and from itself
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
 
@@ -429,10 +439,6 @@ rotate_bitmap_fast_1_byte_per_copy:
     lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320-28*320)
     sta VERA_ADDR_ZP_FROM+1
     
-; FIXME: we should scan the source diagonally and write straight into the destination! (to prevent "holes" in the result)
-; FIXME: we should scan the source diagonally and write straight into the destination! (to prevent "holes" in the result)
-; FIXME: we should scan the source diagonally and write straight into the destination! (to prevent "holes" in the result)
-
     ; Maybe do 15.2 degrees: 
     ;   cos(15.2 degrees)*256 = 247.0  -> +247 = x_delta for row, -67  x_delta for column (start of row)
     ;   sin(15.2 degrees)*256 = 67.1   -> +67  = y_delta for row, +247  x_delta for column (start or row)
@@ -457,8 +463,13 @@ rotate_copy_next_row_1:
     lda #%00000100           ; DCSEL=0, ADDRSEL=0, with affine helper
     sta VERA_CTRL
 
-    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-    sta VERA_ADDR_BANK
+    .if (USE_CACHE_FOR_WRITING)
+        lda #%00110110           ; Setting auto-increment value to 4 byte increment (=%0011) and wrpattern = 11b
+        sta VERA_ADDR_BANK
+    .else
+        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+    .endif
     lda VERA_ADDR_ZP_TO+1
     sta VERA_ADDR_HIGH
     lda VERA_ADDR_ZP_TO
@@ -477,7 +488,7 @@ rotate_copy_next_row_1:
     ; Copy one row of 100 pixels
     jsr COPY_ROW_CODE
     
-    ; We increment our VERA_ADDR_FROM with 320
+    ; We increment our VERA_ADDR_TO with 320
     clc
     lda VERA_ADDR_ZP_TO
     adc #<(320)
@@ -493,7 +504,7 @@ rotate_copy_next_row_1:
     
     bcc rotate_correct_pixel_row  ; if we have no overflow, we are at the correct pixel row
 
-    ; We increment our VERA_ADDR_TO with 1 if we should proceed to the next pixel column 
+    ; We increment our VERA_ADDR_FROM with 320 if we should proceed to the next pixel row
     clc
     lda VERA_ADDR_ZP_FROM
     adc #<(320)
@@ -562,21 +573,77 @@ next_copy_instruction:
     lda #$9F         
     jsr add_code_byte
 
-    
-    ; -- sta VERA_DATA0 ($9F23)
-    lda #$8D               ; sta ....
-    jsr add_code_byte
+    .if (USE_CACHE_FOR_WRITING)
+        ; When using the cache for writing we only write 1/4th of the time, so we read 3 extra bytes here (they go into the cache)
+        
+        ; -- lda VERA_DATA1 ($9F24)
+        lda #$AD               ; lda ....
+        jsr add_code_byte
+        
+        lda #$24               ; VERA_DATA1
+        jsr add_code_byte
+        
+        lda #$9F         
+        jsr add_code_byte
 
-    lda #$23               ; $23
-    jsr add_code_byte
+        ; -- lda VERA_DATA1 ($9F24)
+        lda #$AD               ; lda ....
+        jsr add_code_byte
+        
+        lda #$24               ; VERA_DATA1
+        jsr add_code_byte
+        
+        lda #$9F         
+        jsr add_code_byte
+
+        ; -- lda VERA_DATA1 ($9F24)
+        lda #$AD               ; lda ....
+        jsr add_code_byte
+        
+        lda #$24               ; VERA_DATA1
+        jsr add_code_byte
+        
+        lda #$9F         
+        jsr add_code_byte
+
+    .endif
+
     
-    lda #$9F               ; $9F
-    jsr add_code_byte
+    .if (USE_CACHE_FOR_WRITING)
+        ; We use the cache for writing, we do not want a mask to we store 0 (stz)
+    
+        ; -- stz VERA_DATA0 ($9F23)
+        lda #$9C               ; stz ....
+        jsr add_code_byte
+
+        lda #$23               ; $23
+        jsr add_code_byte
+        
+        lda #$9F               ; $9F
+        jsr add_code_byte
+
+    .else
+        ; -- sta VERA_DATA0 ($9F23)
+        lda #$8D               ; sta ....
+        jsr add_code_byte
+
+        lda #$23               ; $23
+        jsr add_code_byte
+        
+        lda #$9F               ; $9F
+        jsr add_code_byte
+    .endif
     
     inx
     .if(DO_ROTATE)
-        ; HACK!
-        cpx #125               ; 130 copy pixels written to VERA (due to diagonal)
+        .if (USE_CACHE_FOR_WRITING)
+            ; HACK!
+            cpx #124/4             ; 124(+3) copy pixels written to VERA (due to diagonal)
+        .else
+            ; HACK!
+            cpx #125               ; 125 copy pixels written to VERA (due to diagonal)
+        .endif
+        
     .else
         cpx #100               ; 100 copy pixels written to VERA
     .endif
