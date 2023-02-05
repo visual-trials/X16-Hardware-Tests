@@ -11,10 +11,9 @@ TOP_MARGIN = 12
 LEFT_MARGIN = 16
 VSPACING = 10
 
-ORIGINAL_PICTURE_POS_X = 32
-ORIGINAL_PICTURE_POS_Y = 65
+TEXTURE_VRAM_ADDRESS = $18000
 
-DESTINATION_PICTURE_POS_X = 160
+DESTINATION_PICTURE_POS_X = 120
 DESTINATION_PICTURE_POS_Y = 65
 
 
@@ -104,13 +103,7 @@ reset:
     ; Put orginal picture on screen (slow)
     jsr clear_screen_slow
     jsr copy_palette
-    ; Copy bitmap image to VRAM from ROM
-    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_TO
-    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_TO+1
-    jsr copy_pixels
-    
+    jsr copy_pixels_to_high_vram
     
     ; Test speed of perspective style transformation
     jsr test_speed_of_perspective_1_byte_per_pixel
@@ -130,16 +123,6 @@ test_speed_of_perspective_1_byte_per_pixel:
 
     jsr start_timer
 
-    ; Setup FROM and TO VRAM addresses
-    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_FROM
-    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_FROM+1
-    lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_TO
-    lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_TO+1
-    
     jsr perspective_bitmap_fast_1_byte_per_copy
     
     jsr stop_timer
@@ -204,7 +187,17 @@ four_bytes_per_write_message:
 
 perspective_bitmap_fast_1_byte_per_copy:
 
+    ; Setup FROM and TO VRAM addresses
+    lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO
+    lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO+1
+    lda #<(TEXTURE_VRAM_ADDRESS)
+    sta VERA_ADDR_ZP_FROM
+    lda #>(TEXTURE_VRAM_ADDRESS)
+    sta VERA_ADDR_ZP_FROM+1
 
+    
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
     lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
     sta VERA_CTRL
@@ -215,17 +208,12 @@ perspective_bitmap_fast_1_byte_per_copy:
     
     lda #%00000001           ; DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
-    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
     sta VERA_ADDR_BANK
     
     ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the *current* one from ADDR0 (its settings are copied) and from itself
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
-
-    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_FROM
-    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_FROM+1
     
     lda #128
     sta Y_SUB_PIXEL
@@ -262,7 +250,7 @@ perspective_copy_next_row_1:
     lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
     sta VERA_CTRL
     
-    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
     sta VERA_ADDR_BANK
     lda VERA_ADDR_ZP_FROM+1
     sta VERA_ADDR_HIGH
@@ -281,13 +269,13 @@ perspective_copy_next_row_1:
     adc #>(320)
     sta VERA_ADDR_ZP_TO+1
 
-    ; We increment our VERA_ADDR_FROM with 320 if we should proceed to the next pixel row
+    ; We increment our VERA_ADDR_FROM with 64 if we should proceed to the next pixel row
     clc
     lda VERA_ADDR_ZP_FROM
-    adc #<(320)
+    adc #<(64)
     sta VERA_ADDR_ZP_FROM
     lda VERA_ADDR_ZP_FROM+1
-    adc #>(320)
+    adc #>(64)
     sta VERA_ADDR_ZP_FROM+1
     
     inx
@@ -498,44 +486,38 @@ next_packed_color2:
 
     rts
 
-
-
-; Note: Destination VRAM address (lower 16 bits, bit 16 is assumed to be 0) should be put in VERA_ADDR_ZP_TO before calling this function
-copy_pixels:  
+    
+copy_pixels_to_high_vram:  
 
     lda #<PIXELS
     sta DATA_PTR_ZP
     lda #>PIXELS
     sta DATA_PTR_ZP+1 
 
-    lda #%00010000      ; setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 1
+    ; For now copying to TEXTURE_VRAM_ADDRESS
+    ; TODO: we are ASSUMING here that TEXTURE_VRAM_ADDRESS has its bit16 set to 1!!
+    lda #%00010001      ; setting bit 16 of vram address to the highest bit in the tilebase (=1), setting auto-increment value to 1
     sta VERA_ADDR_BANK
-
-    lda #0
+    lda #<(TEXTURE_VRAM_ADDRESS)
     sta VERA_ADDR_LOW
+    lda #>(TEXTURE_VRAM_ADDRESS)
     sta VERA_ADDR_HIGH
-
+    
     ldx #0
-next_pixel_row:  
-    ; Loading VRAM address into VERA  
-    lda VERA_ADDR_ZP_TO
-    sta VERA_ADDR_LOW
-    lda VERA_ADDR_ZP_TO+1
-    sta VERA_ADDR_HIGH
+next_pixel_row_high_vram:  
 
-  ldy #0
-next_horizontal_pixel:
-    ; tya  ; ----> This is to generate a pattern!
+    ldy #0
+next_horizontal_pixel_high_vram:
     lda (DATA_PTR_ZP),y
 
     sta VERA_DATA0
 
     iny
     cpy #TEXTURE_WIDTH
-    bne jmp_next_horizontal_pixel
+    bne next_horizontal_pixel_high_vram
     inx
-
-    ; Adding TEXTURE_WIDTH + 0*256 to the previous data address
+    
+    ; Adding TEXTURE_WIDTH to the previous data address
     clc
     lda DATA_PTR_ZP
     adc #TEXTURE_WIDTH
@@ -544,24 +526,10 @@ next_horizontal_pixel:
     adc #0
     sta DATA_PTR_ZP+1
 
-    ; Adding 64 + 1*256 (=320) to the previous VRAM address
-    clc
-    lda VERA_ADDR_ZP_TO
-    adc #64
-    sta VERA_ADDR_ZP_TO
-    lda VERA_ADDR_ZP_TO+1
-    adc #1
-    sta VERA_ADDR_ZP_TO+1
-
     cpx #TEXTURE_HEIGHT
-    bne jmp_next_pixel_row 
-
+    bne next_pixel_row_high_vram
+    
     rts
-  
-jmp_next_horizontal_pixel:
-    jmp next_horizontal_pixel
-jmp_next_pixel_row:
-    jmp next_pixel_row
 
     
     
