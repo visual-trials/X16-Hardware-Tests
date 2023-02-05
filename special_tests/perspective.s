@@ -1,8 +1,8 @@
 
-USE_CACHE_FOR_WRITING = 1
+USE_CACHE_FOR_WRITING = 0
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
-FOREGROUND_COLOR = 1
+COLOR_TEXT  = $03       ; Background color = 0 (transparent), foreground color 3 (white in this palette)
 
 TEXTURE_WIDTH = 64
 TEXTURE_HEIGHT = 64
@@ -15,7 +15,7 @@ ORIGINAL_PICTURE_POS_X = 32
 ORIGINAL_PICTURE_POS_Y = 65
 
 DESTINATION_PICTURE_POS_X = 160
-DESTINATION_PICTURE_POS_Y = 51
+DESTINATION_PICTURE_POS_Y = 65
 
 
 ; Mode7 projection: 
@@ -113,7 +113,7 @@ reset:
     
     
     ; Test speed of perspective style transformation
-    ;jsr test_speed_of_perspective_1_byte_per_pixel
+    jsr test_speed_of_perspective_1_byte_per_pixel
     
   
 loop:
@@ -144,7 +144,7 @@ test_speed_of_perspective_1_byte_per_pixel:
     
     jsr stop_timer
 
-    lda #COLOR_TRANSPARANT
+    lda #COLOR_TEXT
     sta TEXT_COLOR
     
     lda #5
@@ -178,7 +178,7 @@ test_speed_of_perspective_1_byte_per_pixel:
     
     jsr print_text_zero
     
-    lda #COLOR_TRANSPARANT
+    lda #COLOR_TEXT
     sta TEXT_COLOR
     
     lda #8
@@ -202,17 +202,8 @@ four_bytes_per_write_message:
     
 
 
-COSINE_ROTATE = 247
-SINE_ROTATE = 67
-
 perspective_bitmap_fast_1_byte_per_copy:
 
-; FIXME: implement this!!
-; FIXME: implement this!!
-; FIXME: implement this!!
-    
-    .if(0)
-    
 
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
     lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
@@ -231,33 +222,28 @@ perspective_bitmap_fast_1_byte_per_copy:
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
 
-    ; HACK: adjusting the source start point a bit, to make sure we catch the whole picture!
-    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320-28*320)
+    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_FROM
-    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320-28*320)
+    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_FROM+1
-    
-    ; Maybe do 15.2 degrees: 
-    ;   cos(15.2 degrees)*256 = 247.0  -> +247 = x_delta for row, -67  x_delta for column (start of row)
-    ;   sin(15.2 degrees)*256 = 67.1   -> +67  = y_delta for row, +247  x_delta for column (start or row)
     
     lda #128
     sta Y_SUB_PIXEL
     lda #128
     sta X_SUB_PIXEL
 
-    lda #247                 ; X increment low
+    lda #0                   ; X increment low
     sta $9F29
-    lda #00                  ; X increment high (only 1 bit is used)
+    lda #01                  ; X increment high (only 1 bit is used)
     sta $9F2A
-    lda #67
+    lda #00
     sta $9F2B                ; Y increment low
     lda #00
     sta $9F2C                ; Y increment high (only 1 bit is used)
 
     ldx #0
     
-rotate_copy_next_row_1:
+perspective_copy_next_row_1:
     lda #%00000100           ; DCSEL=0, ADDRSEL=0, with affine helper
     sta VERA_CTRL
 
@@ -283,7 +269,7 @@ rotate_copy_next_row_1:
     lda VERA_ADDR_ZP_FROM
     sta VERA_ADDR_LOW
 
-    ; Copy one row of 100 pixels
+    ; Copy one row of 64 pixels
     jsr COPY_ROW_CODE
     
     ; We increment our VERA_ADDR_TO with 320
@@ -295,13 +281,6 @@ rotate_copy_next_row_1:
     adc #>(320)
     sta VERA_ADDR_ZP_TO+1
 
-    clc
-    lda Y_SUB_PIXEL
-    adc #COSINE_ROTATE
-    sta Y_SUB_PIXEL
-    
-    bcc rotate_correct_pixel_row  ; if we have no overflow, we are at the correct pixel row
-
     ; We increment our VERA_ADDR_FROM with 320 if we should proceed to the next pixel row
     clc
     lda VERA_ADDR_ZP_FROM
@@ -311,38 +290,15 @@ rotate_copy_next_row_1:
     adc #>(320)
     sta VERA_ADDR_ZP_FROM+1
     
-rotate_correct_pixel_row:
-
-    sec
-    lda X_SUB_PIXEL
-    sbc #SINE_ROTATE
-    sta X_SUB_PIXEL
-    
-    bcs rotate_correct_pixel_column  ; if we have the carry still set (no borrow), we are at the correct pixel column
-
-    ; We decrement our VERA_ADDR_FROM with 1 if we should proceed to the next pixel row (one to the left)
-    sec
-    lda VERA_ADDR_ZP_FROM
-    sbc #<(1)
-    sta VERA_ADDR_ZP_FROM
-    lda VERA_ADDR_ZP_FROM+1
-    sbc #>(1)
-    sta VERA_ADDR_ZP_FROM+1
-
-rotate_correct_pixel_column:
-
     inx
-;    cpx #75             ; we do 75 rows
-    cpx #100             ; we do 75 rows diagonally ~= 100
-    bne rotate_copy_next_row_1
+    cpx #TEXTURE_HEIGHT          ; we do 64 rows
+    bne perspective_copy_next_row_1
     
 done_rotate_copy: 
 
     ; Exiting affine helper mode
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
-    
-    .endif
     
     rts
 
@@ -435,9 +391,9 @@ next_copy_instruction:
     
     inx
     .if (USE_CACHE_FOR_WRITING)
-        cpx #64/4             ; 16*4 copy pixels written to VERA (due to diagonal)
+        cpx #TEXTURE_WIDTH/4             ; 16*4 copy pixels written to VERA (due to diagonal)
     .else
-        cpx #64               ; 64 copy pixels written to VERA (due to diagonal)
+        cpx #TEXTURE_WIDTH               ; 64 copy pixels written to VERA (due to diagonal)
     .endif
     bne next_copy_instruction
 
