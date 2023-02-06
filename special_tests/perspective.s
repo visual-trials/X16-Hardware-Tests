@@ -1,5 +1,5 @@
 
-USE_CACHE_FOR_WRITING = 0
+USE_CACHE_FOR_WRITING = 1
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 COLOR_TEXT  = $03       ; Background color = 0 (transparent), foreground color 3 (white in this palette)
@@ -13,7 +13,7 @@ VSPACING = 10
 
 TEXTURE_VRAM_ADDRESS = $18000
 
-DESTINATION_PICTURE_POS_X = 120
+DESTINATION_PICTURE_POS_X = 64
 DESTINATION_PICTURE_POS_Y = 65
 
 
@@ -105,8 +105,11 @@ reset:
     jsr copy_palette
     jsr copy_pixels_to_high_vram
     
+    ; Test speed of repetetion of texture draws
+    jsr test_speed_of_repetition
+    
     ; Test speed of perspective style transformation
-    jsr test_speed_of_perspective_1_byte_per_pixel
+    ; TODO: implement this: jsr test_speed_of_perspective
     
   
 loop:
@@ -115,15 +118,15 @@ loop:
   
   
   
-; ====================================== PERSPECTIVE SPEED TEST ========================================
+; ====================================== REPETITIVE SPEED TEST ========================================
   
-test_speed_of_perspective_1_byte_per_pixel:
+test_speed_of_repetition:
 
     jsr generate_copy_row_code
 
     jsr start_timer
 
-    jsr perspective_bitmap_fast_1_byte_per_copy
+    jsr repetitive_bitmap_fast
     
     jsr stop_timer
 
@@ -135,9 +138,9 @@ test_speed_of_perspective_1_byte_per_pixel:
     lda #4
     sta CURSOR_Y
 
-    lda #<perspective_64x64_8bpp_message
+    lda #<repetitive_64x64_8bpp_message
     sta TEXT_TO_PRINT
-    lda #>perspective_64x64_8bpp_message
+    lda #>repetitive_64x64_8bpp_message
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
@@ -175,8 +178,8 @@ test_speed_of_perspective_1_byte_per_pixel:
     
 
 
-perspective_64x64_8bpp_message: 
-    .asciiz "Perspective bitmap 64x64 (8bpp) "
+repetitive_64x64_8bpp_message: 
+    .asciiz "Repetitive bitmap 64x64 (8bpp) "
 one_byte_per_write_message: 
     .asciiz "Method: 1 byte per write"
 four_bytes_per_write_message: 
@@ -185,7 +188,7 @@ four_bytes_per_write_message:
     
 
 
-perspective_bitmap_fast_1_byte_per_copy:
+repetitive_bitmap_fast:
 
     ; Setup FROM and TO VRAM addresses
     lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
@@ -226,12 +229,12 @@ perspective_bitmap_fast_1_byte_per_copy:
     sta $9F2A
     lda #00
     sta $9F2B                ; Y increment low
-    lda #00
+    lda #$20  ; NOTE: 2 = Enable crop or repeat!!
     sta $9F2C                ; Y increment high (only 1 bit is used)
 
     ldx #0
     
-perspective_copy_next_row_1:
+repetitive_copy_next_row_1:
     lda #%00000100           ; DCSEL=0, ADDRSEL=0, with affine helper
     sta VERA_CTRL
 
@@ -259,6 +262,8 @@ perspective_copy_next_row_1:
 
     ; Copy one row of 64 pixels
     jsr COPY_ROW_CODE
+    jsr COPY_ROW_CODE
+    jsr COPY_ROW_CODE
     
     ; We increment our VERA_ADDR_TO with 320
     clc
@@ -280,7 +285,7 @@ perspective_copy_next_row_1:
     
     inx
     cpx #TEXTURE_HEIGHT          ; we do 64 rows
-    bne perspective_copy_next_row_1
+    bne repetitive_copy_next_row_1
     
 done_rotate_copy: 
 
