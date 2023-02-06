@@ -34,22 +34,6 @@ TMP2                      = $03
 TMP3                      = $04
 TMP4                      = $05
 
-DATA_PTR_ZP               = $06 ; 07
-PALLETE_PTR_ZP            = $08 ; 09
-VERA_ADDR_ZP_FROM         = $0A ; 0B
-VERA_ADDR_ZP_TO           = $0C ; 0D
-
-RED                       = $0E
-GREEN                     = $0F
-BLUE                      = $10
-
-
-; FIXME: these are leftovers of memory tests in the general hardware tester (needed by utils.s atm). We dont use them, but cant remove them right now
-BANK_TESTING              = $12   
-BAD_VALUE                 = $1A
-
-CODE_ADDRESS              = $1D ; 1E ; TODO: this can probably share the address of LOAD_ADDRESS
-
 ; Printing
 TEXT_TO_PRINT             = $06 ; 07
 TEXT_COLOR                = $08
@@ -64,9 +48,23 @@ TIMING_COUNTER            = $14 ; 15
 TIME_ELAPSED_MS           = $16
 TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
 
+DATA_PTR_ZP               = $26 ; 27
+PALLETE_PTR_ZP            = $28 ; 29
+VERA_ADDR_ZP_FROM         = $2A ; 2B ; 2C
+VERA_ADDR_ZP_TO           = $2D ; 2E
+
+
+; FIXME: these are leftovers of memory tests in the general hardware tester (needed by utils.s atm). We dont use them, but cant remove them right now
+BANK_TESTING              = $32   
+BAD_VALUE                 = $3A
+
+CODE_ADDRESS              = $3D ; 3E
+
+
 ; Affine transformation
-X_SUB_PIXEL               = $20
-Y_SUB_PIXEL               = $21
+X_SUB_PIXEL               = $40
+Y_SUB_PIXEL               = $41
+X_INCREMENT               = $42 ; 43
 
 ; RAM addresses
 COPY_ROW_CODE               = $7800
@@ -106,27 +104,27 @@ reset:
     jsr copy_pixels_to_high_vram
     
     ; Test speed of repetetion of texture draws
-    jsr test_speed_of_repetition
+    ; jsr test_speed_of_repetition
     
     ; Test speed of perspective style transformation
-    ; TODO: implement this: jsr test_speed_of_perspective
+    jsr test_speed_of_perspective
     
   
 loop:
   jmp loop
 
   
+      ;  for y in range(64): print(128/(y+1))
   
+; ====================================== PERSPECTIVE SPEED TEST ========================================
   
-; ====================================== REPETITIVE SPEED TEST ========================================
-  
-test_speed_of_repetition:
+test_speed_of_perspective:
 
     jsr generate_copy_row_code
 
     jsr start_timer
 
-    jsr repetitive_bitmap_fast
+    jsr perspective_bitmap_fast
     
     jsr stop_timer
 
@@ -138,9 +136,9 @@ test_speed_of_repetition:
     lda #4
     sta CURSOR_Y
 
-    lda #<repetitive_64x64_8bpp_message
+    lda #<perspective_192x64_8bpp_message
     sta TEXT_TO_PRINT
-    lda #>repetitive_64x64_8bpp_message
+    lda #>perspective_192x64_8bpp_message
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
@@ -178,12 +176,199 @@ test_speed_of_repetition:
     
 
 
-repetitive_64x64_8bpp_message: 
-    .asciiz "Repetitive bitmap 64x64 (8bpp) "
+perspective_192x64_8bpp_message: 
+    .asciiz "Perspective bitmap 192x64 (8bpp) "
 one_byte_per_write_message: 
     .asciiz "Method: 1 byte per write"
 four_bytes_per_write_message: 
     .asciiz "Method: 4 bytes per write"
+
+    
+
+
+perspective_bitmap_fast:
+
+    ; Setup FROM and TO VRAM addresses
+    lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO
+    lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO+1
+    lda #<(TEXTURE_VRAM_ADDRESS)
+    sta VERA_ADDR_ZP_FROM
+    lda #>(TEXTURE_VRAM_ADDRESS)
+    sta VERA_ADDR_ZP_FROM+1
+
+    
+    ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
+    sta VERA_CTRL
+    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
+    
+    ; Setting up for reading from a new line from a texture/bitmap
+    
+    lda #%00000001           ; DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
+    sta VERA_ADDR_BANK
+    
+    ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the *current* one from ADDR0 (its settings are copied) and from itself
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #128
+    sta Y_SUB_PIXEL
+    lda #128
+    sta X_SUB_PIXEL
+    
+    ; We start at "zoom level" 1.FF (~2.0)
+    lda #$01
+    sta X_INCREMENT+1
+    lda #$FF
+    sta X_INCREMENT
+
+    ldx #0
+    
+perspective_copy_next_row_1:
+    lda X_INCREMENT          ; X increment low
+    sta $9F29
+    lda X_INCREMENT+1        ; X increment high (only 1 bit is used)
+    sta $9F2A
+    lda #00
+    sta $9F2B                ; Y increment low
+    lda #$20  ; NOTE: 2 = Enable repeat!!
+    sta $9F2C                ; Y increment high (only 1 bit is used)
+
+    lda #%00000100           ; DCSEL=0, ADDRSEL=0, with affine helper
+    sta VERA_CTRL
+
+    .if (USE_CACHE_FOR_WRITING)
+        lda #%00110110           ; Setting auto-increment value to 4 byte increment (=%0011) and wrpattern = 11b
+        sta VERA_ADDR_BANK
+    .else
+        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+    .endif
+    lda VERA_ADDR_ZP_TO+1
+    sta VERA_ADDR_HIGH
+    lda VERA_ADDR_ZP_TO
+    sta VERA_ADDR_LOW
+    
+    lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
+    sta VERA_CTRL
+    
+    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
+    sta VERA_ADDR_BANK
+    lda VERA_ADDR_ZP_FROM+1
+    sta VERA_ADDR_HIGH
+    lda VERA_ADDR_ZP_FROM
+    sta VERA_ADDR_LOW
+
+    ; Copy one row of 64 pixels
+    jsr COPY_ROW_CODE
+    jsr COPY_ROW_CODE
+    jsr COPY_ROW_CODE
+    
+    ; We increment our VERA_ADDR_TO with 320
+    clc
+    lda VERA_ADDR_ZP_TO
+    adc #<(320)
+    sta VERA_ADDR_ZP_TO
+    lda VERA_ADDR_ZP_TO+1
+    adc #>(320)
+    sta VERA_ADDR_ZP_TO+1
+
+    ; We increment our VERA_ADDR_FROM with 64 if we should proceed to the next pixel row
+    clc
+    lda VERA_ADDR_ZP_FROM
+    adc #<(64)
+    sta VERA_ADDR_ZP_FROM
+    lda VERA_ADDR_ZP_FROM+1
+    adc #>(64)
+    sta VERA_ADDR_ZP_FROM+1
+    
+    ; We substract 4 of the X_INCREMENT (we start at 1.FF and end up at 0.FF)
+    sec
+    lda X_INCREMENT
+    sbc #4
+    sta X_INCREMENT
+    lda X_INCREMENT+1
+    sbc #0
+    sta X_INCREMENT+1
+    
+    inx
+    cpx #TEXTURE_HEIGHT          ; we do 64 rows
+    bne perspective_copy_next_row_1
+    
+    ; Exiting affine helper mode
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    rts
+
+  
+; ====================================== REPETITIVE SPEED TEST ========================================
+  
+test_speed_of_repetition:
+
+    jsr generate_copy_row_code
+
+    jsr start_timer
+
+    jsr repetitive_bitmap_fast
+    
+    jsr stop_timer
+
+    lda #COLOR_TEXT
+    sta TEXT_COLOR
+    
+    lda #5
+    sta CURSOR_X
+    lda #4
+    sta CURSOR_Y
+
+    lda #<repetitive_192x64_8bpp_message
+    sta TEXT_TO_PRINT
+    lda #>repetitive_192x64_8bpp_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    lda #8
+    sta CURSOR_X
+    lda #21
+    sta CURSOR_Y
+
+    .if(USE_CACHE_FOR_WRITING)
+        lda #<four_bytes_per_write_message
+        sta TEXT_TO_PRINT
+        lda #>four_bytes_per_write_message
+        sta TEXT_TO_PRINT + 1
+    .else
+        lda #<one_byte_per_write_message
+        sta TEXT_TO_PRINT
+        lda #>one_byte_per_write_message
+        sta TEXT_TO_PRINT + 1
+    .endif
+    
+    jsr print_text_zero
+    
+    lda #COLOR_TEXT
+    sta TEXT_COLOR
+    
+    lda #8
+    sta CURSOR_X
+    lda #26
+    sta CURSOR_Y
+    
+    jsr print_time_elapsed
+
+    rts
+    
+
+
+repetitive_192x64_8bpp_message: 
+    .asciiz "Repetitive bitmap 192x64 (8bpp) "
 
     
 
@@ -229,7 +414,7 @@ repetitive_bitmap_fast:
     sta $9F2A
     lda #00
     sta $9F2B                ; Y increment low
-    lda #$20  ; NOTE: 2 = Enable crop or repeat!!
+    lda #$20  ; NOTE: 2 = Enable repeat!!
     sta $9F2C                ; Y increment high (only 1 bit is used)
 
     ldx #0
@@ -287,8 +472,6 @@ repetitive_copy_next_row_1:
     cpx #TEXTURE_HEIGHT          ; we do 64 rows
     bne repetitive_copy_next_row_1
     
-done_rotate_copy: 
-
     ; Exiting affine helper mode
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL

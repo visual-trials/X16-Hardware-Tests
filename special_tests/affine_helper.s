@@ -17,10 +17,6 @@ DESTINATION_PICTURE_POS_X = 160
 DESTINATION_PICTURE_POS_Y = 51
 
 
-; Mode7 projection: 
-;   https://www.coranac.com/tonc/text/mode7.htm
-;   https://gamedev.stackexchange.com/questions/24957/doing-an-snes-mode-7-affine-transform-effect-in-pygame
-
 
 ; === Zero page addresses ===
 
@@ -33,22 +29,6 @@ TMP1                      = $02
 TMP2                      = $03
 TMP3                      = $04
 TMP4                      = $05
-
-DATA_PTR_ZP               = $06 ; 07
-PALLETE_PTR_ZP            = $08 ; 09
-VERA_ADDR_ZP_FROM         = $0A ; 0B
-VERA_ADDR_ZP_TO           = $0C ; 0D
-
-RED                       = $0E
-GREEN                     = $0F
-BLUE                      = $10
-
-
-; FIXME: these are leftovers of memory tests in the general hardware tester (needed by utils.s atm). We dont use them, but cant remove them right now
-BANK_TESTING              = $12   
-BAD_VALUE                 = $1A
-
-CODE_ADDRESS              = $1D ; 1E ; TODO: this can probably share the address of LOAD_ADDRESS
 
 ; Printing
 TEXT_TO_PRINT             = $06 ; 07
@@ -64,9 +44,21 @@ TIMING_COUNTER            = $14 ; 15
 TIME_ELAPSED_MS           = $16
 TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
 
+DATA_PTR_ZP               = $26 ; 27
+PALLETE_PTR_ZP            = $28 ; 29
+VERA_ADDR_ZP_FROM         = $2A ; 2B
+VERA_ADDR_ZP_TO           = $2C ; 2D
+
+
+; FIXME: these are leftovers of memory tests in the general hardware tester (needed by utils.s atm). We dont use them, but cant remove them right now
+BANK_TESTING              = $32   
+BAD_VALUE                 = $3A
+
+CODE_ADDRESS              = $3D ; 3E
+
 ; Affine transformation
-X_SUB_PIXEL               = $20
-Y_SUB_PIXEL               = $21
+X_SUB_PIXEL               = $40
+Y_SUB_PIXEL               = $41
 
 ; RAM addresses
 COPY_ROW_CODE               = $7800
