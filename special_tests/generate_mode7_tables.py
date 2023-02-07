@@ -35,6 +35,38 @@ def run():
             else:
                 texture[y].append(0)
     
+    screen.fill(background_color)
+
+    for y in range(32, 96):
+        start_sx = None
+        for x in range(-96, 96):
+        
+            horizon = 0.001
+            fov = 96
+
+            px = x
+            py = fov
+            pz = y + horizon
+
+            sx = px / pz
+            sy = py / pz 
+            
+            if (x == -96):
+                start_sx = sx
+
+            scaling = 64
+            pixel_color = color_by_index[texture[int(sy * scaling) % 64][int(sx * scaling) % 64]]
+            pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2, 2, 2))  # , width=border_width
+            
+        pygame.display.update()
+        # print(str(y) + ':' +str(sy) , ' - ', str(start_sx) , ' - ', (-start_sx/96)*64)
+        
+        y_in_texture = int((-sy * 64) % 64)
+        x_in_texture = int((start_sx * 64) % 64)
+        x_sub_pixel_step = int((-start_sx/96)*64 * 256)
+        print('y in texture: ' + str(y_in_texture) + ' - x in texture: ' + str(x_in_texture) + ' - x sub pixel step: ' + str(x_sub_pixel_step))
+        
+        
     running = True
     while running:
         # TODO: We might want to set this to max?
@@ -44,36 +76,7 @@ def run():
 
             if event.type == pygame.QUIT: 
                 running = False
-
-        screen.fill(background_color)
-
-        for y in range(32, 96):
-            for x in range(-96, 96):
-            
-                horizon = 1
-                fov = 64
-
-                px = x
-                py = fov
-                pz = y + horizon
-
-                sx = px / pz
-                sy = py / pz 
-
-                scaling = 64
-                pixel_color = color_by_index[texture[int(sy * scaling) % 64][int(sx * scaling) % 64]]
-                pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2, 2, 2))  # , width=border_width
-        
-#        draw_map(map_info, map_width, map_height)
-        
-#        draw_wall_cone(viewpoint_x, viewpoint_y, current_wall, back_wall_cone_color)
-
-        
-        pygame.display.update()
-        
-        #if rotating:
-        #    current_ordered_wall_index += 1
-            
+                
         time.sleep(0.5)
    
         
