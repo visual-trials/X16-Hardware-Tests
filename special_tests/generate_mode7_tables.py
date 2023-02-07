@@ -13,6 +13,11 @@ screen_height = 240*2
 
 texture = []
 
+addresses_in_texture_low = []
+addresses_in_texture_high = []
+x_sub_pixel_steps_low = []
+x_sub_pixel_steps_high = []
+
 color_by_index = [ black_color, white_color ]
 
 pygame.init()
@@ -65,6 +70,25 @@ def run():
         x_in_texture = int((start_sx * 64) % 64)
         x_sub_pixel_step = int((-start_sx/96)*64 * 256)
         print('y in texture: ' + str(y_in_texture) + ' - x in texture: ' + str(x_in_texture) + ' - x sub pixel step: ' + str(x_sub_pixel_step))
+        
+        address_in_texture = y_in_texture * 64 + x_in_texture
+        
+        addresses_in_texture_low.append(address_in_texture % 256)
+        addresses_in_texture_high.append(address_in_texture // 256)
+        x_sub_pixel_steps_low.append(x_sub_pixel_step % 256)
+        x_sub_pixel_steps_high.append(x_sub_pixel_step // 256)
+
+
+    print('addresses_in_texture_low:')
+    print('    .byte ' + ','.join(str(x) for x in addresses_in_texture_low))
+    print('addresses_in_texture_high:')
+    print('    .byte ' + ','.join(str(x) for x in addresses_in_texture_high))
+        
+    print('x_sub_pixel_steps_low:')
+    print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_low))
+    print('x_sub_pixel_steps_high:')
+    print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_high))
+        
         
         
     running = True

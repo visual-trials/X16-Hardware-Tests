@@ -61,11 +61,6 @@ BAD_VALUE                 = $3A
 CODE_ADDRESS              = $3D ; 3E
 
 
-; Affine transformation
-X_SUB_PIXEL               = $40
-Y_SUB_PIXEL               = $41
-X_INCREMENT               = $42 ; 43
-
 ; RAM addresses
 COPY_ROW_CODE               = $7800
 
@@ -184,7 +179,19 @@ four_bytes_per_write_message:
     .asciiz "Method: 4 bytes per write"
 
     
-
+; For perspective we need to set the x and y coordinate within the texture for each pixel row on the screen. 
+; We also have to set the sub pixel increment for each pixel row on the screen.
+; We generated this using the python script (see same folder) and put the data here.
+    
+addresses_in_texture_low:
+    .byte 0,69,203,16,85,89,158,162,166,170,109,113,52,247,186,125,0,130,69,199,73,12,142,16,146,20,150,215,89,219,28,158,32,97,162,36,101,166,40,105,170,235,44,174,239,48,113,178,243,52,117,117,182,247,56,121,186,186,251,60,125,125,190,255
+addresses_in_texture_high:
+    .byte 0,1,2,4,5,6,7,8,9,10,11,12,13,13,14,15,0,0,1,1,2,3,3,4,4,5,5,5,6,6,7,7,8,8,8,9,9,9,10,10,10,10,11,11,11,12,12,12,12,13,13,13,13,13,14,14,14,14,14,15,15,15,15,15
+x_sub_pixel_steps_low:
+    .byte 255,240,225,212,199,186,175,164,153,143,134,125,116,108,100,92,85,78,71,65,59,53,47,41,36,31,26,21,17,12,8,4,255,252,248,244,240,237,234,230,227,224,221,218,215,212,210,207,204,202,199,197,195,192,190,188,186,184,182,180,178,176,174,172
+x_sub_pixel_steps_high:
+    .byte 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    
 
 perspective_bitmap_fast:
 
@@ -216,24 +223,14 @@ perspective_bitmap_fast:
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
     
-    lda #128
-    sta Y_SUB_PIXEL
-    lda #128
-    sta X_SUB_PIXEL
-    
-    ; We start at "zoom level" 1.FF (~2.0)
-    lda #$01
-    sta X_INCREMENT+1
-    lda #$FF
-    sta X_INCREMENT
-
     ldx #0
     
 perspective_copy_next_row_1:
-    lda X_INCREMENT          ; X increment low
-    sta $9F29
-    lda X_INCREMENT+1        ; X increment high (only 1 bit is used)
-    sta $9F2A
+    
+    lda x_sub_pixel_steps_low, x
+    sta $9F29                ; X increment low
+    lda x_sub_pixel_steps_high, x
+    sta $9F2A                ; X increment high (only 1 bit is used)
     lda #00
     sta $9F2B                ; Y increment low
     lda #$20  ; NOTE: 2 = Enable repeat!!
@@ -259,9 +256,12 @@ perspective_copy_next_row_1:
     
     lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
     sta VERA_ADDR_BANK
-    lda VERA_ADDR_ZP_FROM+1
+;    lda VERA_ADDR_ZP_FROM+1
+    lda addresses_in_texture_high, x
+    ora #$80                 ; HACK: we have $18000 as base address, so we just set the high bit of the high byte
     sta VERA_ADDR_HIGH
-    lda VERA_ADDR_ZP_FROM
+;    lda VERA_ADDR_ZP_FROM
+    lda addresses_in_texture_low, x
     sta VERA_ADDR_LOW
 
     ; Copy one row of 64 pixels
@@ -279,22 +279,13 @@ perspective_copy_next_row_1:
     sta VERA_ADDR_ZP_TO+1
 
     ; We increment our VERA_ADDR_FROM with 64 if we should proceed to the next pixel row
-    clc
-    lda VERA_ADDR_ZP_FROM
-    adc #<(64)
-    sta VERA_ADDR_ZP_FROM
-    lda VERA_ADDR_ZP_FROM+1
-    adc #>(64)
-    sta VERA_ADDR_ZP_FROM+1
-    
-    ; We substract 4 of the X_INCREMENT (we start at 1.FF and end up at 0.FF)
-    sec
-    lda X_INCREMENT
-    sbc #4
-    sta X_INCREMENT
-    lda X_INCREMENT+1
-    sbc #0
-    sta X_INCREMENT+1
+;    clc
+;    lda VERA_ADDR_ZP_FROM
+;    adc #<(64)
+;    sta VERA_ADDR_ZP_FROM
+;    lda VERA_ADDR_ZP_FROM+1
+;    adc #>(64)
+;    sta VERA_ADDR_ZP_FROM+1
     
     inx
     cpx #TEXTURE_HEIGHT          ; we do 64 rows
@@ -403,11 +394,6 @@ repetitive_bitmap_fast:
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
     
-    lda #128
-    sta Y_SUB_PIXEL
-    lda #128
-    sta X_SUB_PIXEL
-
     lda #0                   ; X increment low
     sta $9F29
     lda #01                  ; X increment high (only 1 bit is used)
