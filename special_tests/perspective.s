@@ -1,4 +1,3 @@
-
 USE_CACHE_FOR_WRITING = 1
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
@@ -183,6 +182,10 @@ four_bytes_per_write_message:
 ; We also have to set the sub pixel increment for each pixel row on the screen.
 ; We generated this using the python script (see same folder) and put the data here.
     
+x_in_texture_fraction_corrections:
+    .byte 129,82,204,246,214,115,209,247,231,166,55,158,221,248,240,199,128,29,159,8,89,147,185,202,201,182,146,93,26,199,103,250,128,250,105,204,37,117,186,247,42,86,121,148,168,181,187,186,179,166,146,122,91,55,15,225,174,119,59,251,183,111,35,211
+y_in_texture_fraction_corrections:
+    .byte 129,82,204,246,214,115,209,247,231,166,55,158,221,248,240,199,128,29,159,8,89,147,185,202,201,182,146,93,26,199,103,250,128,250,105,204,37,117,186,247,42,86,121,148,168,181,187,186,179,166,146,122,91,55,15,225,174,119,59,251,183,111,35,211
 addresses_in_texture_low:
     .byte 0,69,203,16,85,89,158,162,166,170,109,113,52,247,186,125,0,130,69,199,73,12,142,16,146,20,150,215,89,219,28,158,32,97,162,36,101,166,40,105,170,235,44,174,239,48,113,178,243,52,117,117,182,247,56,121,186,186,251,60,125,125,190,255
 addresses_in_texture_high:
@@ -192,7 +195,6 @@ x_sub_pixel_steps_low:
 x_sub_pixel_steps_high:
     .byte 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
     
-
 perspective_bitmap_fast:
 
     ; Setup FROM and TO VRAM addresses
@@ -227,15 +229,6 @@ perspective_bitmap_fast:
     
 perspective_copy_next_row_1:
     
-    lda x_sub_pixel_steps_low, x
-    sta $9F29                ; X increment low
-    lda x_sub_pixel_steps_high, x
-    sta $9F2A                ; X increment high (only 1 bit is used)
-    lda #00
-    sta $9F2B                ; Y increment low
-    lda #$20  ; NOTE: 2 = Enable repeat!!
-    sta $9F2C                ; Y increment high (only 1 bit is used)
-
     lda #%00000100           ; DCSEL=0, ADDRSEL=0, with affine helper
     sta VERA_CTRL
 
@@ -251,8 +244,42 @@ perspective_copy_next_row_1:
     lda VERA_ADDR_ZP_TO
     sta VERA_ADDR_LOW
     
+    ; We reset so both x and y sub pixels positions are reset to 128 
     lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
     sta VERA_CTRL
+    
+; FIXME: Since loading *once* screws up my cache byte index, we need to load 3 times first!
+    stz $9F29                ; X increment low
+    stz $9F2A                ; X increment high (only 1 bit is used)
+    stz $9F2B                ; Y increment low
+    stz $9F2C                ; Y increment high (only 1 bit is used)
+    lda VERA_DATA1
+    lda VERA_DATA1
+    lda VERA_DATA1
+    
+    ; We correct both x and y sub pixels positions to the correct starting value by setting the deltas 
+; FIXME: we dont take into account whether we have a DECR set to 1 here!
+    lda x_in_texture_fraction_corrections, x
+    sta $9F29                ; X increment low
+    lda #0
+    sta $9F2A                ; X increment high (only 1 bit is used)
+    lda y_in_texture_fraction_corrections, x
+    sta $9F2B                ; Y increment low
+    lda #$20  ; NOTE: 2 = Enable repeat!!
+    sta $9F2C                ; Y increment high (only 1 bit is used)
+    
+    ; We read once from ADDR1 which adds the corrections
+    lda VERA_DATA1
+    
+    ; We now set the actual increments
+    lda x_sub_pixel_steps_low, x
+    sta $9F29                ; X increment low
+    lda x_sub_pixel_steps_high, x
+    sta $9F2A                ; X increment high (only 1 bit is used)
+    lda #00
+    sta $9F2B                ; Y increment low
+    lda #$20  ; NOTE: 2 = Enable repeat!!
+    sta $9F2C                ; Y increment high (only 1 bit is used)
     
     lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
     sta VERA_ADDR_BANK
@@ -289,7 +316,10 @@ perspective_copy_next_row_1:
     
     inx
     cpx #TEXTURE_HEIGHT          ; we do 64 rows
-    bne perspective_copy_next_row_1
+    beq done_perspective_copy
+    
+    jmp perspective_copy_next_row_1
+done_perspective_copy:
     
     ; Exiting affine helper mode
     lda #%00000000           ; DCSEL=0, ADDRSEL=0

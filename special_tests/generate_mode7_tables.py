@@ -13,6 +13,8 @@ screen_height = 240*2
 
 texture = []
 
+y_in_texture_fraction_corrections = []
+x_in_texture_fraction_corrections = []
 addresses_in_texture_low = []
 addresses_in_texture_high = []
 x_sub_pixel_steps_low = []
@@ -66,19 +68,29 @@ def run():
         pygame.display.update()
         # print(str(y) + ':' +str(sy) , ' - ', str(start_sx) , ' - ', (-start_sx/96)*64)
         
-        y_in_texture = int((-sy * 64) % 64)
-        x_in_texture = int((start_sx * 64) % 64)
-        x_sub_pixel_step = int((-start_sx/96)*64 * 256)
-        print('y in texture: ' + str(y_in_texture) + ' - x in texture: ' + str(x_in_texture) + ' - x sub pixel step: ' + str(x_sub_pixel_step))
+        y_in_texture = (-sy * 64) % 64
+        x_in_texture = (start_sx * 64) % 64
+        x_sub_pixel_step = (-start_sx/96)*64 * 256   # FIXME: We want more bits of precision!
+        print('y in texture: ' + str(y_in_texture) + ' - x in texture: ' + str(x_in_texture) + ' - x sub pixel step: ' + str(int(x_sub_pixel_step)))
         
-        address_in_texture = y_in_texture * 64 + x_in_texture
+        address_in_texture = int(y_in_texture) * 64 + int(x_in_texture)
+        x_in_texture_fraction_correction = int(((x_in_texture % 1)*256-128)%256)
+        y_in_texture_fraction_correction = int(((y_in_texture % 1)*256-128)%256)
+        
+        x_in_texture_fraction_corrections.append(x_in_texture_fraction_correction)
+        y_in_texture_fraction_corrections.append(y_in_texture_fraction_correction)
         
         addresses_in_texture_low.append(address_in_texture % 256)
         addresses_in_texture_high.append(address_in_texture // 256)
-        x_sub_pixel_steps_low.append(x_sub_pixel_step % 256)
-        x_sub_pixel_steps_high.append(x_sub_pixel_step // 256)
+        x_sub_pixel_steps_low.append(int(x_sub_pixel_step) % 256)    # FIXME: We want more bits of precision!
+        x_sub_pixel_steps_high.append(int(x_sub_pixel_step) // 256)  # FIXME: We want more bits of precision!
 
 
+    print('x_in_texture_fraction_corrections:')
+    print('    .byte ' + ','.join(str(x) for x in x_in_texture_fraction_corrections))
+    print('y_in_texture_fraction_corrections:')
+    print('    .byte ' + ','.join(str(x) for x in y_in_texture_fraction_corrections))
+        
     print('addresses_in_texture_low:')
     print('    .byte ' + ','.join(str(x) for x in addresses_in_texture_low))
     print('addresses_in_texture_high:')
