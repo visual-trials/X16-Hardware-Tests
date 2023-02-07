@@ -19,6 +19,8 @@ addresses_in_texture_low = []
 addresses_in_texture_high = []
 x_sub_pixel_steps_low = []
 x_sub_pixel_steps_high = []
+y_sub_pixel_steps_low = []
+y_sub_pixel_steps_high = []
 
 color_by_index = [ black_color, white_color ]
 
@@ -44,12 +46,20 @@ def run():
     
     screen.fill(background_color)
 
+    
     for y in range(32, 96):
         start_sx = None
+        sx_rotated = None
+        sy_rotated = None
+        sub_pixel_increment_x = None
+        sub_pixel_increment_y = None
         for x in range(-96, 96):
         
             horizon = 0.001
             fov = 96
+            
+            angle = math.pi * 0.05
+#            angle = math.pi * 0.0
 
             px = x
             py = fov
@@ -58,20 +68,39 @@ def run():
             sx = px / pz
             sy = py / pz 
             
+            previous_sx_rotated = sx_rotated
+            previous_sy_rotated = sy_rotated
+            
+            sx_rotated = sx * math.cos(angle) - sy * math.sin(angle)
+            sy_rotated = sx * math.sin(angle) + sy * math.cos(angle)            
+            
+            # When we calculated the second pixel of a row, we know the increment between the first and second pixel
+            if (x == -95):
+                sub_pixel_increment_x = sx_rotated - previous_sx_rotated
+                sub_pixel_increment_y = sy_rotated - previous_sy_rotated
+            
+            # When we calculated the first pixel of a row, we know the start x-position for that row
             if (x == -96):
-                start_sx = sx
+                start_sx = sx_rotated
 
             scaling = 64
-            pixel_color = color_by_index[texture[int(sy * scaling) % 64][int(sx * scaling) % 64]]
+
+            pixel_color = color_by_index[texture[int(sy_rotated * scaling) % 64][int(sx_rotated * scaling) % 64]]
             pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2, 2, 2))  # , width=border_width
             
         pygame.display.update()
-        # print(str(y) + ':' +str(sy) , ' - ', str(start_sx) , ' - ', (-start_sx/96)*64)
+        # print(str(y) + ':' +str(sy_rotated) , ' - ', str(start_sx) , ' - ', (-start_sx/96)*64)
         
-        y_in_texture = (-sy * 64) % 64
+        print(sub_pixel_increment_x*64*256, sub_pixel_increment_y*64*256)
+        
+        y_in_texture = (-sy_rotated * 64) % 64
         x_in_texture = (start_sx * 64) % 64
-        x_sub_pixel_step = (-start_sx/96)*64 * 256   # FIXME: We want more bits of precision!
-        print('y in texture: ' + str(y_in_texture) + ' - x in texture: ' + str(x_in_texture) + ' - x sub pixel step: ' + str(int(x_sub_pixel_step)))
+        
+        x_sub_pixel_step = int(sub_pixel_increment_x*64*256)  # FIXME: We want more bits of precision!
+        y_sub_pixel_step = int(sub_pixel_increment_y*64*256)  # FIXME: We want more bits of precision!
+        
+        # x_sub_pixel_step = (-start_sx/96)*64 * 256   
+        print('y in texture: ' + str(y_in_texture) + ' - x in texture: ' + str(x_in_texture) + ' - x,y sub pixel step: ' + str(int(x_sub_pixel_step)) + ',' + str(int(y_sub_pixel_step)))
         
         address_in_texture = int(y_in_texture) * 64 + int(x_in_texture)
         x_in_texture_fraction_correction = int(((x_in_texture % 1)*256-128)%256)
@@ -84,6 +113,8 @@ def run():
         addresses_in_texture_high.append(address_in_texture // 256)
         x_sub_pixel_steps_low.append(int(x_sub_pixel_step) % 256)    # FIXME: We want more bits of precision!
         x_sub_pixel_steps_high.append(int(x_sub_pixel_step) // 256)  # FIXME: We want more bits of precision!
+        y_sub_pixel_steps_low.append(int(y_sub_pixel_step) % 256)    # FIXME: We want more bits of precision!
+        y_sub_pixel_steps_high.append(int(y_sub_pixel_step) // 256)  # FIXME: We want more bits of precision!
 
 
     print('x_in_texture_fraction_corrections:')
@@ -101,6 +132,10 @@ def run():
     print('x_sub_pixel_steps_high:')
     print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_high))
         
+    print('y_sub_pixel_steps_low:')
+    print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_low))
+    print('y_sub_pixel_steps_high:')
+    print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_high))
         
         
     running = True
