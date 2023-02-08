@@ -1,7 +1,12 @@
 
 DO_SHEAR = 0  ; FIXME: broken atm (the copier is now the other way around!)
 DO_ROTATE = 1
-USE_CACHE_FOR_WRITING = 1
+
+; FIXME
+; FIXME
+; FIXME
+USE_CACHE_FOR_WRITING = 0
+
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 FOREGROUND_COLOR = 1
@@ -319,9 +324,14 @@ four_bytes_per_write_message:
     
 shear_bitmap_fast_1_byte_per_copy:
 
+
+; FIXME: SHEARING IS BROKEN!!
+
+
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
     lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
     sta VERA_CTRL
+; FIXME: this is the *old* method of copying the incrementer!
     lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
     
@@ -338,11 +348,13 @@ shear_bitmap_fast_1_byte_per_copy:
 
     lda #00                  ; X increment low
     sta $9F29
-    lda #01                  ; X increment high (only 1 bit is used)
+    lda #%00100101           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 01
+; OLD way:    lda #01                  ; X increment high (only 1 bit is used)
     sta $9F2A
     lda #60
     sta $9F2B                ; Y increment low
-    lda #00
+    lda #%00000100           ; L0/L1 = 0, Repeat / Clip / Combined / None = 00, Y subpixel increment exponent = 001, Y increment high = 00 
+; OLD way:        lda #00
     sta $9F2C                ; Y increment high (only 1 bit is used)
 
     ldx #0
@@ -442,11 +454,13 @@ rotate_bitmap_fast_1_byte_per_copy:
 
     lda #247                 ; X increment low
     sta $9F29
-    lda #00                  ; X increment high (only 1 bit is used)
+    lda #%00100100           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 00
+; OLD way:        lda #00                  ; X increment high (only 1 bit is used)
     sta $9F2A
     lda #67
     sta $9F2B                ; Y increment low
-    lda #00
+    lda #%00000100           ; L0/L1 = 0, Repeat / Clip / Combined / None = 00, Y subpixel increment exponent = 001, Y increment high = 00 
+; OLD way:        lda #00
     sta $9F2C                ; Y increment high (only 1 bit is used)
 
     ldx #0
