@@ -1,3 +1,6 @@
+
+; FIXME!
+; FIXME!
 ; FIXME!
 USE_CACHE_FOR_WRITING = 0
 
@@ -99,10 +102,10 @@ reset:
     jsr copy_pixels_to_high_vram
     
     ; Test speed of repetetion of texture draws
-    ; jsr test_speed_of_repetition
+    jsr test_speed_of_repetition
     
     ; Test speed of perspective style transformation
-    jsr test_speed_of_perspective
+;    jsr test_speed_of_perspective
     
   
 loop:
@@ -216,6 +219,7 @@ perspective_bitmap_fast:
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
     lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
     sta VERA_CTRL
+; FIXME: this is the *old* method of copying the incrementer!
     lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
     
@@ -267,11 +271,11 @@ perspective_copy_next_row_1:
     lda x_in_texture_fraction_corrections, x
     sta $9F29                ; X increment low
     lda #0
-    sta $9F2A                ; X increment high (only 1 bit is used)
+    sta $9F2A                ; X increment high
     lda y_in_texture_fraction_corrections, x
     sta $9F2B                ; Y increment low
     lda #$20  ; NOTE: 2 = Enable repeat!!
-    sta $9F2C                ; Y increment high (only 1 bit is used)
+    sta $9F2C                ; Y increment high
     
     ; We read once from ADDR1 which adds the corrections
     lda VERA_DATA1
@@ -417,6 +421,7 @@ repetitive_bitmap_fast:
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
     lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
     sta VERA_CTRL
+; FIXME: this is the *old* method of copying the incrementer!
     lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
     
@@ -433,12 +438,14 @@ repetitive_bitmap_fast:
     
     lda #0                   ; X increment low
     sta $9F29
-    lda #01                  ; X increment high (only 1 bit is used)
+    lda #%00100101           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 01
+; OLD way:    lda #01                  ; X increment high (only 1 bit is used)
     sta $9F2A
     lda #00
     sta $9F2B                ; Y increment low
-    lda #$20  ; NOTE: 2 = Enable repeat!!
-    sta $9F2C                ; Y increment high (only 1 bit is used)
+    lda #%00100100           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 
+; OLD way:    lda #$20  ; NOTE: 2 = Enable repeat!!
+    sta $9F2C                ; Y increment high
 
     ldx #0
     
