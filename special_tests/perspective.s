@@ -102,10 +102,10 @@ reset:
     jsr copy_pixels_to_high_vram
     
     ; Test speed of repetetion of texture draws
-    jsr test_speed_of_repetition
+;    jsr test_speed_of_repetition
     
     ; Test speed of perspective style transformation
-;    jsr test_speed_of_perspective
+    jsr test_speed_of_perspective
     
   
 loop:
@@ -258,6 +258,7 @@ perspective_copy_next_row_1:
     sta VERA_CTRL
     
 ; FIXME: Since loading *once* screws up my cache byte index, we need to load 3 times first!
+    .if(USE_CACHE_FOR_WRITING)
     stz $9F29                ; X increment low
     stz $9F2A                ; X increment high (only 1 bit is used)
     stz $9F2B                ; Y increment low
@@ -265,16 +266,19 @@ perspective_copy_next_row_1:
     lda VERA_DATA1
     lda VERA_DATA1
     lda VERA_DATA1
+    .endif
     
     ; We correct both x and y sub pixels positions to the correct starting value by setting the deltas 
 ; FIXME: we dont take into account whether we have a DECR set to 1 here!
     lda x_in_texture_fraction_corrections, x
     sta $9F29                ; X increment low
     lda #0
+    ora #%00100100           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 00 (these two bits are already in a by the lda)
     sta $9F2A                ; X increment high
     lda y_in_texture_fraction_corrections, x
     sta $9F2B                ; Y increment low
-    lda #$20  ; NOTE: 2 = Enable repeat!!
+    ora #%00100100           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 (these two bits are already in a by the lda)
+; OLD    lda #$20  ; NOTE: 2 = Enable repeat!!
     sta $9F2C                ; Y increment high
     
     ; We read once from ADDR1 which adds the corrections
@@ -284,11 +288,14 @@ perspective_copy_next_row_1:
     lda x_sub_pixel_steps_low, x
     sta $9F29                ; X increment low
     lda x_sub_pixel_steps_high, x
+; FIXME: we dont take into account whether we have a DECR set to 1 here!
+    ora #%00100100           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 00 (these two bits are already in a by the lda)
     sta $9F2A                ; X increment high (only 1 bit is used)
     lda y_sub_pixel_steps_low, x
     sta $9F2B                ; Y increment low
     lda y_sub_pixel_steps_high, x
-    ora #$20  ; NOTE: 2 = Enable repeat!!
+    ora #%00100100           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 (these two bits are already in a by the lda)
+; OLD:    ora #$20  ; NOTE: 2 = Enable repeat!!
     sta $9F2C                ; Y increment high (only 1 bit is used)
     
     lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1

@@ -423,6 +423,7 @@ rotate_bitmap_fast_1_byte_per_copy:
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
     lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
     sta VERA_CTRL
+; FIXME: this is the *old* method of copying the incrementer!
     lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
     
