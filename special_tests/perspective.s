@@ -1,8 +1,5 @@
 
-; FIXME!
-; FIXME!
-; FIXME!
-USE_CACHE_FOR_WRITING = 0
+USE_CACHE_FOR_WRITING = 1
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 COLOR_TEXT  = $03       ; Background color = 0 (transparent), foreground color 3 (white in this palette)
@@ -215,6 +212,12 @@ perspective_bitmap_fast:
     lda #>(TEXTURE_VRAM_ADDRESS)
     sta VERA_ADDR_ZP_FROM+1
 
+    lda #(TEXTURE_VRAM_ADDRESS >> 9)
+    sta VERA_L0_MAPBASE
+    ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
+    ;                + 10100000 for 64x64 texture
+    lda #%10100111
+    sta VERA_L0_CONFIG
     
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
     lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
@@ -424,6 +427,12 @@ repetitive_bitmap_fast:
     lda #>(TEXTURE_VRAM_ADDRESS)
     sta VERA_ADDR_ZP_FROM+1
 
+    lda #(TEXTURE_VRAM_ADDRESS >> 9)
+    sta VERA_L0_MAPBASE
+    ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
+    ;                + 10100000 for 64x64 texture
+    lda #%10100111
+    sta VERA_L0_CONFIG
     
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
     lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
