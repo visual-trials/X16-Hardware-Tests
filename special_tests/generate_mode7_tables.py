@@ -46,8 +46,16 @@ def run():
     
     screen.fill(background_color)
 
+    #for y in range(0, 64):
+    #    for x in range(0, 64):
+    #        pixel_color = color_by_index[texture[y][x]]
+    #        pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2, 2, 2))  # , width=border_width
+    #        
+    #pygame.display.update()
+    
     
     for y in range(32, 96):
+#    for y in range(16, 80):
         start_sx = None
         sx_rotated = None
         sy_rotated = None
@@ -58,7 +66,8 @@ def run():
             horizon = 0.001
             fov = 96
             
-            angle = math.pi * -0.05
+#            angle = math.pi * 0.02
+            angle = math.pi * 0.05
 #            angle = math.pi * 0.0
 
             px = x
@@ -67,9 +76,6 @@ def run():
 
             sx = px / pz
             sy = py / pz 
-            
-            previous_sx_rotated = sx_rotated
-            previous_sy_rotated = sy_rotated
             
             sx_rotated = sx * math.cos(angle) - sy * math.sin(angle)
             sy_rotated = sx * math.sin(angle) + sy * math.cos(angle)            
@@ -88,12 +94,16 @@ def run():
             pixel_color = color_by_index[texture[int(sy_rotated * scaling) % 64][int(sx_rotated * scaling) % 64]]
             pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2, 2, 2))  # , width=border_width
             
+            previous_sx_rotated = sx_rotated
+            previous_sy_rotated = sy_rotated
+            
         pygame.display.update()
         # print(str(y) + ':' +str(sy_rotated) , ' - ', str(start_sx) , ' - ', (-start_sx/96)*64)
         
-        print(sub_pixel_increment_x*64*256, sub_pixel_increment_y*64*256)
+        # print(sub_pixel_increment_x*64*256, sub_pixel_increment_y*64*256)
         
-        y_in_texture = (-sy_rotated * 64) % 64
+#        y_in_texture = (-sy_rotated * 64) % 64
+        y_in_texture = (sy_rotated * 64) % 64
         x_in_texture = (start_sx * 64) % 64
         
         x_sub_pixel_step = int(sub_pixel_increment_x*64*256)  # FIXME: We want more bits of precision!
@@ -149,7 +159,7 @@ def run():
                 running = False
                 
         time.sleep(0.5)
-   
+    
         
     pygame.quit()
 
