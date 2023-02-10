@@ -326,6 +326,8 @@ shear_bitmap_fast_1_byte_per_copy:
 
 
 ; FIXME: SHEARING IS BROKEN!!
+; FIXME: SHEARING IS BROKEN!!
+; FIXME: SHEARING IS BROKEN!!
 
 
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
@@ -420,13 +422,6 @@ SINE_ROTATE = 67
 
 rotate_bitmap_fast_1_byte_per_copy:
 
-    ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
-    sta VERA_CTRL
-; FIXME: this is the *old* method of copying the incrementer!
-    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-    sta VERA_ADDR_BANK
-    
     ; Setting up for reading from a new line from a texture/bitmap
     
     lda #%00000001           ; DCSEL=0, ADDRSEL=1
@@ -456,13 +451,11 @@ rotate_bitmap_fast_1_byte_per_copy:
     lda #247                 ; X increment low
     sta $9F29
     lda #%00100100           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 00
-; OLD way:        lda #00                  ; X increment high (only 1 bit is used)
     sta $9F2A
     lda #67
     sta $9F2B                ; Y increment low
     lda #%00000100           ; L0/L1 = 0, Repeat / Clip / Combined / None = 00, Y subpixel increment exponent = 001, Y increment high = 00 
-; OLD way:        lda #00
-    sta $9F2C                ; Y increment high (only 1 bit is used)
+    sta $9F2C
 
     ldx #0
     

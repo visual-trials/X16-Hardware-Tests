@@ -1,5 +1,5 @@
 
-USE_CACHE_FOR_WRITING = 1
+USE_CACHE_FOR_WRITING = 0
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 COLOR_TEXT  = $03       ; Background color = 0 (transparent), foreground color 3 (white in this palette)
@@ -200,6 +200,11 @@ y_sub_pixel_steps_low:
 y_sub_pixel_steps_high:
     .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
     
+    
+; FIXME: we need to be able to use NEGATIVE values in the above table! For turning the other way around!
+; FIXME: we need to be able to use NEGATIVE values in the above table! For turning the other way around!
+; FIXME: we need to be able to use NEGATIVE values in the above table! For turning the other way around!
+    
 perspective_bitmap_fast:
 
     ; Setup FROM and TO VRAM addresses
@@ -276,12 +281,12 @@ perspective_copy_next_row_1:
     lda x_in_texture_fraction_corrections, x
     sta $9F29                ; X increment low
     lda #0
+; FIXME: we dont take into account whether we have a DECR set to 1 here!
     ora #%00100100           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 00 (these two bits are already in a by the lda)
     sta $9F2A                ; X increment high
     lda y_in_texture_fraction_corrections, x
     sta $9F2B                ; Y increment low
     ora #%00100100           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 (these two bits are already in a by the lda)
-; OLD    lda #$20  ; NOTE: 2 = Enable repeat!!
     sta $9F2C                ; Y increment high
     
     ; We read once from ADDR1 which adds the corrections
@@ -298,21 +303,18 @@ perspective_copy_next_row_1:
     sta $9F2B                ; Y increment low
     lda y_sub_pixel_steps_high, x
     ora #%00100100           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 (these two bits are already in a by the lda)
-; OLD:    ora #$20  ; NOTE: 2 = Enable repeat!!
     sta $9F2C                ; Y increment high (only 1 bit is used)
     
     lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
     sta VERA_ADDR_BANK
-;    lda VERA_ADDR_ZP_FROM+1
     lda addresses_in_texture_high, x
 ; FIXME: HACK!
     ora #$80                 ; HACK: we have $18000 as base address, so we just set the high bit of the high byte
     sta VERA_ADDR_HIGH
-;    lda VERA_ADDR_ZP_FROM
     lda addresses_in_texture_low, x
     sta VERA_ADDR_LOW
 
-    ; Copy one row of 64 pixels
+    ; Copy three rows of 64 pixels (= 192 pixels)
     jsr COPY_ROW_CODE
     jsr COPY_ROW_CODE
     jsr COPY_ROW_CODE
@@ -326,15 +328,6 @@ perspective_copy_next_row_1:
     adc #>(320)
     sta VERA_ADDR_ZP_TO+1
 
-    ; We increment our VERA_ADDR_FROM with 64 if we should proceed to the next pixel row
-;    clc
-;    lda VERA_ADDR_ZP_FROM
-;    adc #<(64)
-;    sta VERA_ADDR_ZP_FROM
-;    lda VERA_ADDR_ZP_FROM+1
-;    adc #>(64)
-;    sta VERA_ADDR_ZP_FROM+1
-    
     inx
     cpx #TEXTURE_HEIGHT          ; we do 64 rows
     beq done_perspective_copy

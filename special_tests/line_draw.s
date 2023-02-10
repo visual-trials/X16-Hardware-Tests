@@ -124,13 +124,6 @@ loop:
 
 test_sub_pixel_increments:
 
-    ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
-    sta VERA_CTRL
-    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-    sta VERA_ADDR_BANK
-
-    
     ; Setting up for drawing a new line
     
     lda #%00000001           ; DCSEL=0, ADDRSEL=1
@@ -148,11 +141,11 @@ test_sub_pixel_increments:
 
     lda #00                  ; X increment low
     sta $9F29
-    lda #01                  ; X increment high (only 1 bit is used)
+    lda #%00100101           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 01
     sta $9F2A
     lda #80
     sta $9F2B                ; Y increment low
-    lda #00
+    lda #%00000100           ; L0/L1 = 0, Repeat / Clip / Combined / None = 00, Y subpixel increment exponent = 001, Y increment high = 00 
     sta $9F2C                ; Y increment high (only 1 bit is used)
     
     ; Starting to draw: 4 cpu cycles per pixel
@@ -345,14 +338,6 @@ draw_lines:
 
     ; ====================== Drawing mainly left to right and then down ===================
 
-    .if(USE_AFFINE_HELPER)
-        ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
-        lda #%00000000           ; DCSEL=0, ADDRSEL=0, no linked mode, no affine helper
-        sta VERA_CTRL
-        lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
-        sta VERA_ADDR_BANK
-    .endif
-    
     lda #0
     sta SLOPE
     
@@ -389,12 +374,12 @@ draw_line_to_the_right_from_left_top_corner_next:
 ; TODO: we only have to set 1 byte each iteration!
         lda #00                  ; X increment low
         sta $9F29
-        lda #01                  ; X increment high (only 1 bit is used)
+        lda #%00100101           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 01
         sta $9F2A
         lda SLOPE
         sta $9F2B                ; Y increment low
-        lda #00
-        sta $9F2C                ; Y increment high (only 1 bit is used)
+        lda #%00000100           ; L0/L1 = 0, Repeat / Clip / Combined / None = 00, Y subpixel increment exponent = 001, Y increment high = 00 
+        sta $9F2C
         
         ; Note that ADDR0 had an increment of 1 and this increment is now the secondary incrementer for ADDR1
         
@@ -467,14 +452,6 @@ draw_line_to_the_right_from_left_top_corner_next:
 
     ; ====================== Drawing mainly top to bottom and then right ===================
 
-    .if(USE_AFFINE_HELPER)
-        ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
-        lda #%00000000           ; DCSEL=0, ADDRSEL=0, no linked mode, no affine helper
-        sta VERA_CTRL
-        lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
-        sta VERA_ADDR_BANK
-    .endif
-    
     lda #0
     sta SLOPE
     
@@ -510,13 +487,23 @@ draw_line_to_the_bottom_from_left_top_corner_next:
         sta VERA_CTRL
 
 ; TODO: we only have to set 1 byte each iteration!
+        lda #00                  ; X increment low
+        sta $9F29
+        lda #%00100101           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 01
+        sta $9F2A
+        lda SLOPE
+        sta $9F2B                ; Y increment low
+        lda #%00000100           ; L0/L1 = 0, Repeat / Clip / Combined / None = 00, Y subpixel increment exponent = 001, Y increment high = 00 
+        sta $9F2C
+
+        
         lda SLOPE                ; X increment low
         sta $9F29
-        lda #00                  ; X increment high (only 1 bit is used)
+        lda #%00100100           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 00
         sta $9F2A
         lda #00
         sta $9F2B                ; Y increment low
-        lda #01
+        lda #%00000101           ; L0/L1 = 0, Repeat / Clip / Combined / None = 00, Y subpixel increment exponent = 001, Y increment high = 01
         sta $9F2C                ; Y increment high (only 1 bit is used)
         
         ; Note that ADDR0 had an increment of 1 and this increment is now the secondary incrementer for ADDR1

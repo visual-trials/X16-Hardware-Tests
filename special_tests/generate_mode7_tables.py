@@ -58,7 +58,7 @@ def run():
             horizon = 0.001
             fov = 96
             
-            angle = math.pi * 0.05
+            angle = math.pi * -0.05
 #            angle = math.pi * 0.0
 
             px = x
