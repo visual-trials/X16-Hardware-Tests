@@ -2,10 +2,8 @@
 DO_SHEAR = 0  ; FIXME: broken atm (the copier is now the other way around!)
 DO_ROTATE = 1
 
-; FIXME
-; FIXME
-; FIXME
-USE_CACHE_FOR_WRITING = 0
+; NOTE: Cache WONT work for SHEARING!
+USE_CACHE_FOR_WRITING = 1
 
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
@@ -230,7 +228,12 @@ affine_transform_some_bytes:
   
 test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
 
+    .if(DO_SHEAR)
+    jsr generate_copy_row_code_data0_to_data1
+    .endif
+    .if(DO_ROTATE)
     jsr generate_copy_row_code
+    .endif
 
     jsr start_timer
 
@@ -635,17 +638,12 @@ next_copy_instruction:
     .endif
     
     inx
-    .if(DO_ROTATE)
-        .if (USE_CACHE_FOR_WRITING)
-            ; HACK!
-            cpx #124/4             ; 124(+3) copy pixels written to VERA (due to diagonal)
-        .else
-            ; HACK!
-            cpx #125               ; 125 copy pixels written to VERA (due to diagonal)
-        .endif
-        
+    .if (USE_CACHE_FOR_WRITING)
+        ; HACK!
+        cpx #124/4             ; 124(+3) copy pixels written to VERA (due to diagonal)
     .else
-        cpx #100               ; 100 copy pixels written to VERA
+        ; HACK!
+        cpx #125               ; 125 copy pixels written to VERA (due to diagonal)
     .endif
     bne next_copy_instruction
 
@@ -656,6 +654,52 @@ next_copy_instruction:
     rts
 
 
+generate_copy_row_code_data0_to_data1:
+
+    lda #<COPY_ROW_CODE
+    sta CODE_ADDRESS
+    lda #>COPY_ROW_CODE
+    sta CODE_ADDRESS+1
+    
+    ldy #0                 ; generated code byte counter
+    
+    ldx #0                 ; counts nr of copy instructions
+
+next_copy_instruction_data0_to_data1:
+
+    ; -- lda VERA_DATA0 ($9F23)
+    lda #$AD               ; lda ....
+    jsr add_code_byte
+    
+    lda #$23               ; VERA_DATA0
+    jsr add_code_byte
+    
+    lda #$9F         
+    jsr add_code_byte
+
+    
+    ; -- sta VERA_DATA1 ($9F24)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    inx
+    cpx #100               ; 100 copy pixels written to VERA
+    bne next_copy_instruction_data0_to_data1
+
+    ; -- rts --
+    lda #$60
+    jsr add_code_byte
+
+    rts
+
+    
+    
 add_code_byte:
     sta (CODE_ADDRESS),y   ; store code byte at address (located at CODE_ADDRESS) + y
     iny                    ; increase y
