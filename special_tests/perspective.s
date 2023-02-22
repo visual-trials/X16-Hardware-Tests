@@ -184,21 +184,25 @@ four_bytes_per_write_message:
 ; We generated this using the python script (see same folder) and put the data here.
     
 x_in_texture_fraction_corrections_low:
-    .byte 126,99,119,203,112,116,227,201,49,35,169,200,138,243,9,210,83,144,141,78,215,41,74,58,254,151,7,80,117,120,89,26,190,69,176,2,58,91,100,88,55,2,185,94,241,114,228,69,152,219,17,57,84,98,99,89,68,36,249,195,132,59,232,141
+    .byte 6,215,35,246,90,88,247,63,55,229,77,117,97,20,148,227,3,249,197,108,239,80,145,179,185,164,117,46,207,90,209,51,130,191,235,6,17,13,250,218,172,114,43,217,123,18,159,34,155,11,114,208,38,116,186,248,48,96,138,173,201,224,241,252
 x_in_texture_fraction_corrections_high:
-    .byte 0,0,1,1,1,0,0,0,0,1,1,1,1,0,0,0,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,0,1,0,1,0,1,0,0,1,1,0,0,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,0,0
+    .byte 0,0,1,0,0,1,1,0,0,1,1,0,1,0,0,0,1,0,0,0,1,1,0,1,0,1,0,1,1,0,0,1,1,1,1,0,0,0,1,1,1,1,1,0,0,0,1,1,0,0,1,0,0,1,0,1,1,0,1,0,1,0,1,0
 y_in_texture_fraction_corrections_low:
-    .byte 249,40,220,9,165,167,8,192,200,26,178,138,158,235,107,28,252,6,58,147,16,175,110,76,70,91,138,209,48,165,46,204,125,64,20,249,238,242,5,37,83,141,212,38,132,237,96,221,100,244,141,47,217,139,69,7,207,159,117,82,54,31,14,3
+    .byte 127,100,120,204,113,117,228,202,50,36,170,201,139,244,10,211,84,145,142,79,216,42,75,59,255,152,8,81,118,121,90,27,191,70,177,3,59,92,101,89,56,3,186,95,242,115,229,70,153,220,18,58,85,99,100,90,69,37,250,196,133,60,233,142
 y_in_texture_fraction_corrections_high:
-    .byte 1,1,0,1,1,0,0,1,1,0,0,1,0,1,1,1,0,1,1,1,0,0,1,0,1,0,1,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,0,1,1,1,0,0,1,1,0,1,1,0,1,0,0,1,0,1,0,1,0,1
+    .byte 0,0,1,1,1,0,0,0,0,1,1,1,1,0,0,0,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,0,1,0,1,0,1,0,0,1,1,0,0,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,0,0
 addresses_in_texture_low:
-    .byte 90,97,40,110,116,121,190,195,8,77,145,21,89,220,96,227,39,234,109,240,114,245,184,58,252,127,1,131,69,7,201,75,13,207,144,82,20,213,151,88,26,219,156,158,95,32,225,163,164,101,38,39,232,169,170,107,44,45,238,239,176,177,113,114
+    .byte 110,178,247,122,254,130,69,8,203,142,145,147,150,216,218,28,31,96,162,228,102,168,233,107,236,46,175,49,178,51,180,54,183,56,249,122,251,188,61,254,127,0,193,65,2,195,132,5,197,134,71,7,200,137,73,10,203,139,76,12,205,141,142,78
 addresses_in_texture_high:
-    .byte 4,3,2,1,0,15,14,13,13,12,11,11,10,9,9,8,8,7,7,6,6,5,5,5,4,4,4,3,3,3,2,2,2,1,1,1,1,0,0,0,0,15,15,15,15,15,14,14,14,14,14,14,13,13,13,13,13,13,12,12,12,12,12,12
+    .byte 9,7,5,4,2,1,0,15,13,12,11,10,9,8,7,7,6,5,4,3,3,2,1,1,0,0,15,15,14,14,13,13,12,12,11,11,10,10,10,9,9,9,8,8,8,7,7,7,6,6,6,6,5,5,5,5,4,4,4,4,3,3,3,3
+x_sub_pixel_steps_decr:
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 x_sub_pixel_steps_low:
     .byte 231,201,172,145,120,96,73,51,31,11,249,231,214,198,183,168,154,140,127,115,102,91,80,69,59,49,39,30,20,12,3,251,243,235,228,221,214,207,200,194,188,182,176,170,164,159,153,148,143,138,133,129,124,120,115,111,107,103,99,95,91,87,84,80
 x_sub_pixel_steps_high:
     .byte 3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+y_sub_pixel_steps_decr:
+    .byte 8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8
 y_sub_pixel_steps_low:
     .byte 223,216,210,204,198,193,188,183,178,174,170,166,162,158,155,152,148,145,142,140,137,134,132,129,127,125,123,121,119,117,115,113,111,109,108,106,105,103,102,100,99,97,96,95,94,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,76,76,75
 y_sub_pixel_steps_high:
@@ -280,11 +284,10 @@ perspective_copy_next_row_1:
     .endif
     
     ; We correct both x and y sub pixels positions to the correct starting value by setting the deltas 
-; FIXME: we dont take into account whether we have a DECR set to 1 here!
     lda x_in_texture_fraction_corrections_low, x
     sta $9F29                ; X increment low
     lda x_in_texture_fraction_corrections_high, x
-; FIXME: we dont take into account whether we have a DECR set to 1 here!
+    ora x_sub_pixel_steps_decr, x   ; TODO: we could encode the decr value into the high value itself!
     ora #%00100000           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 000, X increment high = 00 (these two bits are already in a by the lda)
     sta $9F2A                ; X increment high
     lda y_in_texture_fraction_corrections_low, x
@@ -292,6 +295,11 @@ perspective_copy_next_row_1:
     lda y_in_texture_fraction_corrections_high, x
     ora #%00100000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
     sta $9F2C                ; Y increment high
+
+    ; FIXME: we shouldnt need this if we didnt have to correct the subpixel position. We also should be calculating the subpixel position in the table generator.
+    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
+    ora y_sub_pixel_steps_decr, x
+    sta VERA_ADDR_BANK
     
     ; We read once from ADDR1 which adds the corrections
     lda VERA_DATA1
@@ -300,7 +308,7 @@ perspective_copy_next_row_1:
     lda x_sub_pixel_steps_low, x
     sta $9F29                ; X increment low
     lda x_sub_pixel_steps_high, x
-; FIXME: we dont take into account whether we have a DECR set to 1 here!
+    ora x_sub_pixel_steps_decr, x   ; TODO: we could encode the decr value into the high value itself!
     ora #%00100000           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 000, X increment high = 00 (these two bits are already in a by the lda)
     sta $9F2A                ; X increment high (only 1 bit is used)
     lda y_sub_pixel_steps_low, x
@@ -310,6 +318,7 @@ perspective_copy_next_row_1:
     sta $9F2C                ; Y increment high (only 1 bit is used)
     
     lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
+    ora y_sub_pixel_steps_decr, x
     sta VERA_ADDR_BANK
     lda addresses_in_texture_high, x
 ; FIXME: HACK!
