@@ -85,11 +85,12 @@ def run():
                 sub_pixel_increment_x = sx_rotated - previous_sx_rotated
                 sub_pixel_increment_y = sy_rotated - previous_sy_rotated
             
-            # When we calculated the first pixel of a row, we know the start x-position for that row
+            scaling = 64
+
+            # When we calculated the first pixel of a row, we know the start x and y position (in the texture) for the start of that row
             if (x == -96):
                 start_sx = sx_rotated
-
-            scaling = 64
+                start_sy = sy_rotated
 
             pixel_color = color_by_index[texture[int(sy_rotated * scaling) % 64][int(sx_rotated * scaling) % 64]]
             pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2, 2, 2))  # , width=border_width
@@ -102,15 +103,14 @@ def run():
         
         # print(sub_pixel_increment_x*64*256, sub_pixel_increment_y*64*256)
         
-#        y_in_texture = (-sy_rotated * 64) % 64
-        y_in_texture = (sy_rotated * 64) % 64
+        y_in_texture = (start_sy * 64) % 64
         x_in_texture = (start_sx * 64) % 64
         
         x_sub_pixel_step = int(sub_pixel_increment_x*64*256)  # FIXME: We want more bits of precision!
         y_sub_pixel_step = int(sub_pixel_increment_y*64*256)  # FIXME: We want more bits of precision!
         
         # x_sub_pixel_step = (-start_sx/96)*64 * 256   
-        print('y in texture: ' + str(y_in_texture) + ' - x in texture: ' + str(x_in_texture) + ' - x,y sub pixel step: ' + str(int(x_sub_pixel_step)) + ',' + str(int(y_sub_pixel_step)))
+        # print('y in texture: ' + str(y_in_texture) + ' - x in texture: ' + str(x_in_texture) + ' - x,y sub pixel step: ' + str(int(x_sub_pixel_step)) + ',' + str(int(y_sub_pixel_step)))
         
         address_in_texture = int(y_in_texture) * 64 + int(x_in_texture)
         x_in_texture_fraction_correction = int(((x_in_texture % 1)*256-128)%256)
