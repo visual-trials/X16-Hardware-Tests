@@ -111,11 +111,11 @@ def run():
 
 
 # FIXME: We want more bits of precision!
-        x_sub_pixel_step = int(sub_pixel_increment_x*64*512)
-        y_sub_pixel_step = int(sub_pixel_increment_y*64*512)
+#        x_sub_pixel_step = int(sub_pixel_increment_x*64*512)
+#        y_sub_pixel_step = int(sub_pixel_increment_y*64*512)
 # FIXME: restore this!
-#        x_sub_pixel_step = int(sub_pixel_increment_x*64*256)
-#        y_sub_pixel_step = int(sub_pixel_increment_y*64*256)
+        x_sub_pixel_step = int(sub_pixel_increment_x*64*256)
+        y_sub_pixel_step = int(sub_pixel_increment_y*64*256)
         
         # x_sub_pixel_step = (-start_sx/96)*64 * 256   
         # print('y in texture: ' + str(y_in_texture) + ' - x in texture: ' + str(x_in_texture) + ' - x,y sub pixel step: ' + str(int(x_sub_pixel_step)) + ',' + str(int(y_sub_pixel_step)))
@@ -170,11 +170,11 @@ def run():
 # FIXME: we also need to allow NEGATIVE numbers!!
 
 # FIXME: We want more bits of precision!
-        x_sub_pixel_step = (x_sub_pixel_steps_low[y_index] + x_sub_pixel_steps_high[y_index] * 256)/512 
-        y_sub_pixel_step = (y_sub_pixel_steps_low[y_index] + y_sub_pixel_steps_high[y_index] * 256)/512
+#        x_sub_pixel_step = (x_sub_pixel_steps_low[y_index] + x_sub_pixel_steps_high[y_index] * 256)/512 
+#        y_sub_pixel_step = (y_sub_pixel_steps_low[y_index] + y_sub_pixel_steps_high[y_index] * 256)/512
 # FIXME: restore this!
-#        x_sub_pixel_step = (x_sub_pixel_steps_low[y_index] + x_sub_pixel_steps_high[y_index] * 256)/256 # FIXME: We want more bits of precision!
-#        y_sub_pixel_step = (y_sub_pixel_steps_low[y_index] + y_sub_pixel_steps_high[y_index] * 256)/256 # FIXME: We want more bits of precision!
+        x_sub_pixel_step = (x_sub_pixel_steps_low[y_index] + x_sub_pixel_steps_high[y_index] * 256)/256 # FIXME: We want more bits of precision!
+        y_sub_pixel_step = (y_sub_pixel_steps_low[y_index] + y_sub_pixel_steps_high[y_index] * 256)/256 # FIXME: We want more bits of precision!
         
         for x in range(-96, 96):
      
