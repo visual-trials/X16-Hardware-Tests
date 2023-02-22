@@ -7,6 +7,10 @@ import time
 background_color = (100,0,100)
 white_color = (200,200,200)
 black_color = (20,20,20)
+blue_color = (20,20,200)
+red_color = (200,20,20)
+green_color = (20,200,20)
+yellow_color = (200,200,20)
 
 screen_width = 320*2
 screen_height = 240*2
@@ -24,7 +28,7 @@ x_sub_pixel_steps_high = []
 y_sub_pixel_steps_low = []
 y_sub_pixel_steps_high = []
 
-color_by_index = [ black_color, white_color ]
+color_by_index = [ black_color, white_color, blue_color, red_color, green_color, yellow_color ]
 
 pygame.init()
 
@@ -39,7 +43,15 @@ def run():
     for y in range(64):
         texture.append([])
         for x in range(64):
-            if (y < 32 and x < 32):
+            if (y == 31 or y == 63):
+                texture[y].append(2)
+            elif (y == 32 or y == 0):
+                texture[y].append(4)
+            elif (x == 31 or x == 63):
+                texture[y].append(3)
+            elif (x == 32 or x == 0):
+                texture[y].append(5)
+            elif (y < 32 and x < 32):
                 texture[y].append(1)
             elif (y >= 32 and x >= 32):
                 texture[y].append(1)
