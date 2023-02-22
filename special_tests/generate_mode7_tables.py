@@ -43,15 +43,15 @@ def run():
     for y in range(64):
         texture.append([])
         for x in range(64):
-            if (y == 31 or y == 63):
-                texture[y].append(2)
-            elif (y == 32 or y == 0):
-                texture[y].append(4)
-            elif (x == 31 or x == 63):
-                texture[y].append(3)
-            elif (x == 32 or x == 0):
-                texture[y].append(5)
-            elif (y < 32 and x < 32):
+#            if (y == 31 or y == 63):
+#                texture[y].append(2)
+#            elif (y == 32 or y == 0):
+#                texture[y].append(4)
+#            elif (x == 31 or x == 63):
+#                texture[y].append(3)
+#            elif (x == 32 or x == 0):
+#                texture[y].append(5)
+            if (y < 32 and x < 32):
                 texture[y].append(1)
             elif (y >= 32 and x >= 32):
                 texture[y].append(1)
