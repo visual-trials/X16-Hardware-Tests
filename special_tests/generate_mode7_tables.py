@@ -53,8 +53,9 @@ def run():
     #        
     #pygame.display.update()
     
-    
-    for y in range(32, 96):
+    start_y = 32
+    end_y = 96
+    for y in range(start_y, end_y):
 #    for y in range(16, 80):
         start_sx = None
         sx_rotated = None
@@ -121,11 +122,52 @@ def run():
         
         addresses_in_texture_low.append(address_in_texture % 256)
         addresses_in_texture_high.append(address_in_texture // 256)
+# FIXME
+# FIXME
+# FIXME
         x_sub_pixel_steps_low.append(int(x_sub_pixel_step) % 256)    # FIXME: We want more bits of precision!
         x_sub_pixel_steps_high.append(int(x_sub_pixel_step) // 256)  # FIXME: We want more bits of precision!
         y_sub_pixel_steps_low.append(int(y_sub_pixel_step) % 256)    # FIXME: We want more bits of precision!
         y_sub_pixel_steps_high.append(int(y_sub_pixel_step) // 256)  # FIXME: We want more bits of precision!
 
+    # ========= SIMULATING USING THE SAME DATA ==========
+    
+    for y in range(start_y, end_y):
+        y_index = y-start_y
+        address_in_texture = addresses_in_texture_low[y_index] + addresses_in_texture_high[y_index]*256
+        x_in_texture = address_in_texture % 64
+        y_in_texture = address_in_texture // 64
+        
+        x_start_sub_pixel = 0.5
+        y_start_sub_pixel = 0.5
+
+        x_sub_pixel_correction = x_in_texture_fraction_corrections[y_index] / 256
+        y_sub_pixel_correction = y_in_texture_fraction_corrections[y_index] / 256
+        
+        x_start_sub_pixel = (x_start_sub_pixel + x_sub_pixel_correction) % 1
+        y_start_sub_pixel = (y_start_sub_pixel + y_sub_pixel_correction) % 1
+        
+        x_in_texture += x_start_sub_pixel
+        y_in_texture += y_start_sub_pixel
+        
+# FIXME: we also need to allow NEGATIVE numbers!!
+        x_sub_pixel_step = (x_sub_pixel_steps_low[y_index] + x_sub_pixel_steps_high[y_index] * 256)/256 # FIXME: We want more bits of precision!
+        y_sub_pixel_step = (y_sub_pixel_steps_low[y_index] + y_sub_pixel_steps_high[y_index] * 256)/256 # FIXME: We want more bits of precision!
+        
+        for x in range(-96, 96):
+     
+            pixel_color = color_by_index[texture[int(y_in_texture)][int(x_in_texture)]]
+            pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2+192, 2, 2))  # , width=border_width
+            
+            x_in_texture += x_sub_pixel_step
+            y_in_texture += y_sub_pixel_step
+            
+            x_in_texture = x_in_texture % 64
+            y_in_texture = y_in_texture % 64
+        
+        pygame.display.update()
+        
+    # ========= / SIMULATING USING THE SAME DATA ==========
 
     print('x_in_texture_fraction_corrections:')
     print('    .byte ' + ','.join(str(x) for x in x_in_texture_fraction_corrections))
