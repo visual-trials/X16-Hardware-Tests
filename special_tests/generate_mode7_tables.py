@@ -123,11 +123,11 @@ def run():
 
 
 # FIXME: We want more bits of precision!
-#        x_sub_pixel_step = int(sub_pixel_increment_x*64*512)
-#        y_sub_pixel_step = int(sub_pixel_increment_y*64*512)
+        x_sub_pixel_step = int(sub_pixel_increment_x*64*512)
+        y_sub_pixel_step = int(sub_pixel_increment_y*64*512)
 # FIXME: restore this!
-        x_sub_pixel_step = int(sub_pixel_increment_x*64*256)
-        y_sub_pixel_step = int(sub_pixel_increment_y*64*256)
+#        x_sub_pixel_step = int(sub_pixel_increment_x*64*256)
+#        y_sub_pixel_step = int(sub_pixel_increment_y*64*256)
         
         # x_sub_pixel_step = (-start_sx/96)*64 * 256   
         # print('y in texture: ' + str(y_in_texture) + ' - x in texture: ' + str(x_in_texture) + ' - x,y sub pixel step: ' + str(int(x_sub_pixel_step)) + ',' + str(int(y_sub_pixel_step)))
@@ -135,11 +135,11 @@ def run():
         address_in_texture = int(y_in_texture) * 64 + int(x_in_texture)
         
 # FIXME: We want more bits of precision!
-#        x_in_texture_fraction_correction = int(((x_in_texture % 1)*512-256)%512)
-#        y_in_texture_fraction_correction = int(((y_in_texture % 1)*512-256)%512)
+        x_in_texture_fraction_correction = int(((x_in_texture % 1)*512-256)%512)
+        y_in_texture_fraction_correction = int(((y_in_texture % 1)*512-256)%512)
 # FIXME: restore this!
-        x_in_texture_fraction_correction = int(((x_in_texture % 1)*256-128)%256)
-        y_in_texture_fraction_correction = int(((y_in_texture % 1)*256-128)%256)
+#        x_in_texture_fraction_correction = int(((x_in_texture % 1)*256-128)%256)
+#        y_in_texture_fraction_correction = int(((y_in_texture % 1)*256-128)%256)
         
         x_in_texture_fraction_corrections_low.append(x_in_texture_fraction_correction % 256)
         x_in_texture_fraction_corrections_high.append(x_in_texture_fraction_correction // 256)
@@ -167,11 +167,11 @@ def run():
         y_start_sub_pixel = 0.5
 
 # FIXME: We want more bits of precision!
-#        x_sub_pixel_correction = (x_in_texture_fraction_corrections_low[y_index] + x_in_texture_fraction_corrections_high[y_index] * 256) / 512
-#        y_sub_pixel_correction = (y_in_texture_fraction_corrections_low[y_index] + y_in_texture_fraction_corrections_high[y_index] * 256) / 512
+        x_sub_pixel_correction = (x_in_texture_fraction_corrections_low[y_index] + x_in_texture_fraction_corrections_high[y_index] * 256) / 512
+        y_sub_pixel_correction = (y_in_texture_fraction_corrections_low[y_index] + y_in_texture_fraction_corrections_high[y_index] * 256) / 512
 # FIXME: restore this!
-        x_sub_pixel_correction = x_in_texture_fraction_corrections_low[y_index] / 256
-        y_sub_pixel_correction = y_in_texture_fraction_corrections_low[y_index] / 256
+#        x_sub_pixel_correction = x_in_texture_fraction_corrections_low[y_index] / 256
+#        y_sub_pixel_correction = y_in_texture_fraction_corrections_low[y_index] / 256
         
         x_start_sub_pixel = (x_start_sub_pixel + x_sub_pixel_correction) % 1
         y_start_sub_pixel = (y_start_sub_pixel + y_sub_pixel_correction) % 1
@@ -182,11 +182,11 @@ def run():
 # FIXME: we also need to allow NEGATIVE numbers!!
 
 # FIXME: We want more bits of precision!
-#        x_sub_pixel_step = (x_sub_pixel_steps_low[y_index] + x_sub_pixel_steps_high[y_index] * 256)/512 
-#        y_sub_pixel_step = (y_sub_pixel_steps_low[y_index] + y_sub_pixel_steps_high[y_index] * 256)/512
+        x_sub_pixel_step = (x_sub_pixel_steps_low[y_index] + x_sub_pixel_steps_high[y_index] * 256)/512 
+        y_sub_pixel_step = (y_sub_pixel_steps_low[y_index] + y_sub_pixel_steps_high[y_index] * 256)/512
 # FIXME: restore this!
-        x_sub_pixel_step = (x_sub_pixel_steps_low[y_index] + x_sub_pixel_steps_high[y_index] * 256)/256 # FIXME: We want more bits of precision!
-        y_sub_pixel_step = (y_sub_pixel_steps_low[y_index] + y_sub_pixel_steps_high[y_index] * 256)/256 # FIXME: We want more bits of precision!
+#        x_sub_pixel_step = (x_sub_pixel_steps_low[y_index] + x_sub_pixel_steps_high[y_index] * 256)/256 # FIXME: We want more bits of precision!
+#        y_sub_pixel_step = (y_sub_pixel_steps_low[y_index] + y_sub_pixel_steps_high[y_index] * 256)/256 # FIXME: We want more bits of precision!
         
         for x in range(-96, 96):
      
@@ -203,13 +203,15 @@ def run():
         
     # ========= / SIMULATING USING THE SAME DATA ==========
 
-# FIXME: we need both high and low corrections!
-# FIXME: we need both high and low corrections!
-# FIXME: we need both high and low corrections!
-    print('x_in_texture_fraction_corrections:')
+    print('x_in_texture_fraction_corrections_low:')
     print('    .byte ' + ','.join(str(x) for x in x_in_texture_fraction_corrections_low))
-    print('y_in_texture_fraction_corrections:')
+    print('x_in_texture_fraction_corrections_high:')
+    print('    .byte ' + ','.join(str(x) for x in x_in_texture_fraction_corrections_high))
+    
+    print('y_in_texture_fraction_corrections_low:')
     print('    .byte ' + ','.join(str(x) for x in y_in_texture_fraction_corrections_low))
+    print('y_in_texture_fraction_corrections_high:')
+    print('    .byte ' + ','.join(str(x) for x in y_in_texture_fraction_corrections_high))
         
     print('addresses_in_texture_low:')
     print('    .byte ' + ','.join(str(x) for x in addresses_in_texture_low))

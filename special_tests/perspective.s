@@ -183,20 +183,24 @@ four_bytes_per_write_message:
 ; We also have to set the sub pixel increment for each pixel row on the screen.
 ; We generated this using the python script (see same folder) and put the data here.
     
-x_in_texture_fraction_corrections:
-    .byte 63,49,187,229,184,58,113,100,24,145,212,228,197,121,4,105,169,200,198,167,107,20,165,29,127,203,3,40,58,60,44,13,223,162,88,1,157,45,178,44,155,1,92,175,248,57,114,162,204,237,8,28,42,49,49,44,34,18,252,225,194,157,116,70
-y_in_texture_fraction_corrections:
-    .byte 252,148,110,132,210,83,4,224,228,13,89,197,79,245,181,142,126,131,157,201,8,87,183,38,163,45,197,104,24,210,151,102,62,32,10,252,247,249,2,18,41,70,106,147,194,246,48,110,178,250,70,151,236,69,162,3,103,207,58,169,27,143,7,129
+x_in_texture_fraction_corrections_low:
+    .byte 126,99,119,203,112,116,227,201,49,35,169,200,138,243,9,210,83,144,141,78,215,41,74,58,254,151,7,80,117,120,89,26,190,69,176,2,58,91,100,88,55,2,185,94,241,114,228,69,152,219,17,57,84,98,99,89,68,36,249,195,132,59,232,141
+x_in_texture_fraction_corrections_high:
+    .byte 0,0,1,1,1,0,0,0,0,1,1,1,1,0,0,0,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,0,1,0,1,0,1,0,0,1,1,0,0,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,0,0
+y_in_texture_fraction_corrections_low:
+    .byte 249,40,220,9,165,167,8,192,200,26,178,138,158,235,107,28,252,6,58,147,16,175,110,76,70,91,138,209,48,165,46,204,125,64,20,249,238,242,5,37,83,141,212,38,132,237,96,221,100,244,141,47,217,139,69,7,207,159,117,82,54,31,14,3
+y_in_texture_fraction_corrections_high:
+    .byte 1,1,0,1,1,0,0,1,1,0,0,1,0,1,1,1,0,1,1,1,0,0,1,0,1,0,1,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,0,1,1,1,0,0,1,1,0,1,1,0,1,0,0,1,0,1,0,1,0,1
 addresses_in_texture_low:
     .byte 90,97,40,110,116,121,190,195,8,77,145,21,89,220,96,227,39,234,109,240,114,245,184,58,252,127,1,131,69,7,201,75,13,207,144,82,20,213,151,88,26,219,156,158,95,32,225,163,164,101,38,39,232,169,170,107,44,45,238,239,176,177,113,114
 addresses_in_texture_high:
     .byte 4,3,2,1,0,15,14,13,13,12,11,11,10,9,9,8,8,7,7,6,6,5,5,5,4,4,4,3,3,3,2,2,2,1,1,1,1,0,0,0,0,15,15,15,15,15,14,14,14,14,14,14,13,13,13,13,13,13,12,12,12,12,12,12
 x_sub_pixel_steps_low:
-    .byte 243,228,214,200,188,176,164,153,143,133,124,115,107,99,91,84,77,70,63,57,51,45,40,34,29,24,19,15,10,6,1,253,249,245,242,238,235,231,228,225,222,219,216,213,210,207,204,202,199,197,194,192,190,188,185,183,181,179,177,175,173,171,170,168
+    .byte 231,201,172,145,120,96,73,51,31,11,249,231,214,198,183,168,154,140,127,115,102,91,80,69,59,49,39,30,20,12,3,251,243,235,228,221,214,207,200,194,188,182,176,170,164,159,153,148,143,138,133,129,124,120,115,111,107,103,99,95,91,87,84,80
 x_sub_pixel_steps_high:
-    .byte 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 y_sub_pixel_steps_low:
-    .byte 111,108,105,102,99,96,94,91,89,87,85,83,81,79,77,76,74,72,71,70,68,67,66,64,63,62,61,60,59,58,57,56,55,54,54,53,52,51,51,50,49,48,48,47,47,46,45,45,44,44,43,43,42,42,41,41,40,40,39,39,38,38,38,37
+    .byte 223,216,210,204,198,193,188,183,178,174,170,166,162,158,155,152,148,145,142,140,137,134,132,129,127,125,123,121,119,117,115,113,111,109,108,106,105,103,102,100,99,97,96,95,94,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,76,76,75
 y_sub_pixel_steps_high:
     .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
     
@@ -277,16 +281,16 @@ perspective_copy_next_row_1:
     
     ; We correct both x and y sub pixels positions to the correct starting value by setting the deltas 
 ; FIXME: we dont take into account whether we have a DECR set to 1 here!
-    lda x_in_texture_fraction_corrections, x
+    lda x_in_texture_fraction_corrections_low, x
     sta $9F29                ; X increment low
-    lda #0
+    lda x_in_texture_fraction_corrections_high, x
 ; FIXME: we dont take into account whether we have a DECR set to 1 here!
-    ora #%00100100           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 00 (these two bits are already in a by the lda)
+    ora #%00100000           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 000, X increment high = 00 (these two bits are already in a by the lda)
     sta $9F2A                ; X increment high
-    lda y_in_texture_fraction_corrections, x
+    lda y_in_texture_fraction_corrections_low, x
     sta $9F2B                ; Y increment low
-    lda #0
-    ora #%00100100           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 (these two bits are already in a by the lda)
+    lda y_in_texture_fraction_corrections_high, x
+    ora #%00100000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
     sta $9F2C                ; Y increment high
     
     ; We read once from ADDR1 which adds the corrections
@@ -297,12 +301,12 @@ perspective_copy_next_row_1:
     sta $9F29                ; X increment low
     lda x_sub_pixel_steps_high, x
 ; FIXME: we dont take into account whether we have a DECR set to 1 here!
-    ora #%00100100           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 00 (these two bits are already in a by the lda)
+    ora #%00100000           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 000, X increment high = 00 (these two bits are already in a by the lda)
     sta $9F2A                ; X increment high (only 1 bit is used)
     lda y_sub_pixel_steps_low, x
     sta $9F2B                ; Y increment low
     lda y_sub_pixel_steps_high, x
-    ora #%00100100           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 (these two bits are already in a by the lda)
+    ora #%00100000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
     sta $9F2C                ; Y increment high (only 1 bit is used)
     
     lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
