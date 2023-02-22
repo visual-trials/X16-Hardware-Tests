@@ -285,6 +285,7 @@ perspective_copy_next_row_1:
     sta $9F2A                ; X increment high
     lda y_in_texture_fraction_corrections, x
     sta $9F2B                ; Y increment low
+    lda #0
     ora #%00100100           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 (these two bits are already in a by the lda)
     sta $9F2C                ; Y increment high
     
