@@ -17,19 +17,6 @@ screen_height = 240*2
 
 texture = []
 
-y_in_texture_fraction_corrections_low = []
-y_in_texture_fraction_corrections_high = []
-x_in_texture_fraction_corrections_low = []
-x_in_texture_fraction_corrections_high = []
-addresses_in_texture_low = []
-addresses_in_texture_high = []
-x_sub_pixel_steps_decr = []
-x_sub_pixel_steps_low = []
-x_sub_pixel_steps_high = []
-y_sub_pixel_steps_decr = []
-y_sub_pixel_steps_low = []
-y_sub_pixel_steps_high = []
-
 color_by_index = [ black_color, white_color, blue_color, red_color, green_color, yellow_color ]
 
 pygame.init()
@@ -69,177 +56,279 @@ def run():
     #        
     #pygame.display.update()
     
-    start_y = 32
-    end_y = 96
-    for y in range(start_y, end_y):
-#    for y in range(16, 80):
-        start_sx = None
-        sx_rotated = None
-        sy_rotated = None
-        sub_pixel_increment_x = None
-        sub_pixel_increment_y = None
-        for x in range(-96, 96):
-        
-            horizon = 0.001
-            fov = 96
-            
-            angle = math.pi * -0.07
-#            angle = math.pi * 0.05
-#            angle = math.pi * 0.0
+    all_angles_y_in_texture_fraction_corrections_low = []
+    all_angles_y_in_texture_fraction_corrections_high = []
+    all_angles_x_in_texture_fraction_corrections_low = []
+    all_angles_x_in_texture_fraction_corrections_high = []
+    all_angles_addresses_in_texture_low = []
+    all_angles_addresses_in_texture_high = []
+    all_angles_x_sub_pixel_steps_decr = []
+    all_angles_x_sub_pixel_steps_low = []
+    all_angles_x_sub_pixel_steps_high = []
+    all_angles_y_sub_pixel_steps_decr = []
+    all_angles_y_sub_pixel_steps_low = []
+    all_angles_y_sub_pixel_steps_high = []
 
-            px = x
-            py = fov
-            pz = y + horizon
-
-            sx = px / pz
-            sy = py / pz 
-            
-            sx_rotated = sx * math.cos(angle) - sy * math.sin(angle)
-            sy_rotated = sx * math.sin(angle) + sy * math.cos(angle)            
-            
-            # When we calculated the second pixel of a row, we know the increment between the first and second pixel
-            if (x == -95):
-                sub_pixel_increment_x = sx_rotated - previous_sx_rotated
-                sub_pixel_increment_y = sy_rotated - previous_sy_rotated
-            
-            scaling = 64
-
-            # When we calculated the first pixel of a row, we know the start x and y position (in the texture) for the start of that row
-            if (x == -96):
-                start_sx = sx_rotated
-                start_sy = sy_rotated
-
-            pixel_color = color_by_index[texture[int(sy_rotated * scaling) % 64][int(sx_rotated * scaling) % 64]]
-            pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2, 2, 2))  # , width=border_width
-            
-            previous_sx_rotated = sx_rotated
-            previous_sy_rotated = sy_rotated
-            
-        pygame.display.update()
-        # print(str(y) + ':' +str(sy_rotated) , ' - ', str(start_sx) , ' - ', (-start_sx/96)*64)
-        
-        # print(sub_pixel_increment_x*64*256, sub_pixel_increment_y*64*256)
-        
-        y_in_texture = (start_sy * 64) % 64
-        x_in_texture = (start_sx * 64) % 64
-
-
-        x_sub_pixel_step = int(sub_pixel_increment_x*64*512)
-        y_sub_pixel_step = int(sub_pixel_increment_y*64*512)
-        
-        # x_sub_pixel_step = (-start_sx/96)*64 * 256   
-        # print('y in texture: ' + str(y_in_texture) + ' - x in texture: ' + str(x_in_texture) + ' - x,y sub pixel step: ' + str(int(x_sub_pixel_step)) + ',' + str(int(y_sub_pixel_step)))
-        
-        address_in_texture = int(y_in_texture) * 64 + int(x_in_texture)
-        
-        x_sub_pixel_step_decr = 0
-        if x_sub_pixel_step < 0:
-            x_sub_pixel_step = -x_sub_pixel_step
-            x_sub_pixel_step_decr = 1
-            
-        x_sub_pixel_steps_decr.append(x_sub_pixel_step_decr * 128)   # Bit 7 is the DECR bit for the EXTRA X-incrementer of ADDR1 (usually 1), so we multiply by 128 here
-        x_sub_pixel_steps_low.append(int(x_sub_pixel_step) % 256)
-        x_sub_pixel_steps_high.append(int(x_sub_pixel_step) // 256)
-        
-        y_sub_pixel_step_decr = 0
-        if y_sub_pixel_step < 0:
-            y_sub_pixel_step = -y_sub_pixel_step
-            y_sub_pixel_step_decr = 1
-            
-        y_sub_pixel_steps_decr.append(y_sub_pixel_step_decr * 8)  # Bit 3 is the DECR bit for the NORMAL Y-incrementer of ADDR1 (usually 64), so we multiply by 8 here
-        y_sub_pixel_steps_low.append(int(y_sub_pixel_step) % 256)
-        y_sub_pixel_steps_high.append(int(y_sub_pixel_step) // 256)
-
-        # TODO: give an explanation why we are doing this: 512 - ...
-        x_in_texture_fraction_correction = int(((x_in_texture % 1)*512-256)%512)
-        if x_sub_pixel_step_decr:
-            x_in_texture_fraction_correction = 512 - x_in_texture_fraction_correction
-        y_in_texture_fraction_correction = int(((y_in_texture % 1)*512-256)%512)
-        if y_sub_pixel_step_decr:
-            y_in_texture_fraction_correction = 512 - y_in_texture_fraction_correction
-        
-        x_in_texture_fraction_corrections_low.append(x_in_texture_fraction_correction % 256)
-        x_in_texture_fraction_corrections_high.append(x_in_texture_fraction_correction // 256)
-        
-        y_in_texture_fraction_corrections_low.append(y_in_texture_fraction_correction % 256)
-        y_in_texture_fraction_corrections_high.append(y_in_texture_fraction_correction // 256)
-        
-        addresses_in_texture_low.append(address_in_texture % 256)
-        addresses_in_texture_high.append(address_in_texture // 256)
-
-    # ========= SIMULATING USING THE SAME DATA ==========
+    do_draw_orig = False
+    do_draw_sim = True
+    angle_max = 256
     
-    for y in range(start_y, end_y):
-        y_index = y-start_y
-        address_in_texture = addresses_in_texture_low[y_index] + addresses_in_texture_high[y_index]*256
-        x_in_texture = address_in_texture % 64
-        y_in_texture = address_in_texture // 64
-        
-        x_start_sub_pixel = 0.5
-        y_start_sub_pixel = 0.5
+    for angle_index in range(angle_max):
 
-        x_sub_pixel_correction = (x_in_texture_fraction_corrections_low[y_index] + x_in_texture_fraction_corrections_high[y_index] * 256) / 512
-        y_sub_pixel_correction = (y_in_texture_fraction_corrections_low[y_index] + y_in_texture_fraction_corrections_high[y_index] * 256) / 512
-        
-        x_sub_pixel_step = (x_sub_pixel_steps_low[y_index] + x_sub_pixel_steps_high[y_index] * 256)/512 
-        if x_sub_pixel_steps_decr[y_index]:
-            x_sub_pixel_step = -x_sub_pixel_step
-            x_sub_pixel_correction = 512 - x_sub_pixel_correction
-        y_sub_pixel_step = (y_sub_pixel_steps_low[y_index] + y_sub_pixel_steps_high[y_index] * 256)/512
-        if y_sub_pixel_steps_decr[y_index]:
-            y_sub_pixel_step = -y_sub_pixel_step
-            y_sub_pixel_correction = 512 - y_sub_pixel_correction
-        
-        x_start_sub_pixel = (x_start_sub_pixel + x_sub_pixel_correction) % 1
-        y_start_sub_pixel = (y_start_sub_pixel + y_sub_pixel_correction) % 1
-        
-        x_in_texture += x_start_sub_pixel
-        y_in_texture += y_start_sub_pixel
-        
-        for x in range(-96, 96):
-     
-            pixel_color = color_by_index[texture[int(y_in_texture)][int(x_in_texture)]]
-            pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2+192, 2, 2))  # , width=border_width
+# FIXME: we should put this in a bigger array    
+        y_in_texture_fraction_corrections_low = []
+        y_in_texture_fraction_corrections_high = []
+        x_in_texture_fraction_corrections_low = []
+        x_in_texture_fraction_corrections_high = []
+        addresses_in_texture_low = []
+        addresses_in_texture_high = []
+        x_sub_pixel_steps_decr = []
+        x_sub_pixel_steps_low = []
+        x_sub_pixel_steps_high = []
+        y_sub_pixel_steps_decr = []
+        y_sub_pixel_steps_low = []
+        y_sub_pixel_steps_high = []
+
+        start_y = 32
+        end_y = 96
+        for y in range(start_y, end_y):
+    #    for y in range(16, 80):
+            start_sx = None
+            sx_rotated = None
+            sy_rotated = None
+            sub_pixel_increment_x = None
+            sub_pixel_increment_y = None
+            for x in range(-96, 96):
             
-            x_in_texture += x_sub_pixel_step
-            y_in_texture += y_sub_pixel_step
+                horizon = 0.001
+                fov = 96
+                
+                angle = math.pi * (angle_index / angle_max)
+    #            angle = math.pi * -0.07
+    #            angle = math.pi * 0.05
+    #            angle = math.pi * 0.0
+
+                px = x
+                py = fov
+                pz = y + horizon
+
+                sx = px / pz
+                sy = py / pz 
+                
+                sx_rotated = sx * math.cos(angle) - sy * math.sin(angle)
+                sy_rotated = sx * math.sin(angle) + sy * math.cos(angle)            
+                
+                # When we calculated the second pixel of a row, we know the increment between the first and second pixel
+                if (x == -95):
+                    sub_pixel_increment_x = sx_rotated - previous_sx_rotated
+                    sub_pixel_increment_y = sy_rotated - previous_sy_rotated
+                
+                scaling = 64
+
+                # When we calculated the first pixel of a row, we know the start x and y position (in the texture) for the start of that row
+                if (x == -96):
+                    start_sx = sx_rotated
+                    start_sy = sy_rotated
+
+                if do_draw_orig:
+                    pixel_color = color_by_index[texture[int(sy_rotated * scaling) % 64][int(sx_rotated * scaling) % 64]]
+                    pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2, 2, 2))  # , width=border_width
+                
+                previous_sx_rotated = sx_rotated
+                previous_sy_rotated = sy_rotated
+                
+#            pygame.display.update()
+            # print(str(y) + ':' +str(sy_rotated) , ' - ', str(start_sx) , ' - ', (-start_sx/96)*64)
             
-            x_in_texture = x_in_texture % 64
-            y_in_texture = y_in_texture % 64
+            # print(sub_pixel_increment_x*64*256, sub_pixel_increment_y*64*256)
+            
+            y_in_texture = (start_sy * 64) % 64
+            x_in_texture = (start_sx * 64) % 64
+
+
+            x_sub_pixel_step = int(sub_pixel_increment_x*64*512)
+            y_sub_pixel_step = int(sub_pixel_increment_y*64*512)
+            
+            # x_sub_pixel_step = (-start_sx/96)*64 * 256   
+            # print('y in texture: ' + str(y_in_texture) + ' - x in texture: ' + str(x_in_texture) + ' - x,y sub pixel step: ' + str(int(x_sub_pixel_step)) + ',' + str(int(y_sub_pixel_step)))
+            
+            address_in_texture = int(y_in_texture) * 64 + int(x_in_texture)
+            
+            x_sub_pixel_step_decr = 0
+            if x_sub_pixel_step < 0:
+                x_sub_pixel_step = -x_sub_pixel_step
+                x_sub_pixel_step_decr = 1
+                
+            x_sub_pixel_steps_decr.append(x_sub_pixel_step_decr * 128)   # Bit 7 is the DECR bit for the EXTRA X-incrementer of ADDR1 (usually 1), so we multiply by 128 here
+            x_sub_pixel_steps_low.append(int(x_sub_pixel_step) % 256)
+            x_sub_pixel_steps_high.append(int(x_sub_pixel_step) // 256)
+            
+            y_sub_pixel_step_decr = 0
+            if y_sub_pixel_step < 0:
+                y_sub_pixel_step = -y_sub_pixel_step
+                y_sub_pixel_step_decr = 1
+                
+            y_sub_pixel_steps_decr.append(y_sub_pixel_step_decr * 8)  # Bit 3 is the DECR bit for the NORMAL Y-incrementer of ADDR1 (usually 64), so we multiply by 8 here
+            y_sub_pixel_steps_low.append(int(y_sub_pixel_step) % 256)
+            y_sub_pixel_steps_high.append(int(y_sub_pixel_step) // 256)
+
+            # TODO: give an explanation why we are doing this: 512 - ...
+            x_in_texture_fraction_correction = int(((x_in_texture % 1)*512-256)%512)
+            if x_sub_pixel_step_decr:
+                x_in_texture_fraction_correction = 512 - x_in_texture_fraction_correction
+            y_in_texture_fraction_correction = int(((y_in_texture % 1)*512-256)%512)
+            if y_sub_pixel_step_decr:
+                y_in_texture_fraction_correction = 512 - y_in_texture_fraction_correction
+            
+            x_in_texture_fraction_corrections_low.append(x_in_texture_fraction_correction % 256)
+            x_in_texture_fraction_corrections_high.append(x_in_texture_fraction_correction // 256)
+            
+            y_in_texture_fraction_corrections_low.append(y_in_texture_fraction_correction % 256)
+            y_in_texture_fraction_corrections_high.append(y_in_texture_fraction_correction // 256)
+            
+            addresses_in_texture_low.append(address_in_texture % 256)
+            addresses_in_texture_high.append(address_in_texture // 256)
+
+            
+            
+            
+        # ========= SIMULATING USING THE SAME DATA ==========
         
+        for y in range(start_y, end_y):
+            y_index = y-start_y
+            address_in_texture = addresses_in_texture_low[y_index] + addresses_in_texture_high[y_index]*256
+            x_in_texture = address_in_texture % 64
+            y_in_texture = address_in_texture // 64
+            
+            x_start_sub_pixel = 0.5
+            y_start_sub_pixel = 0.5
+
+            x_sub_pixel_correction = (x_in_texture_fraction_corrections_low[y_index] + x_in_texture_fraction_corrections_high[y_index] * 256) / 512
+            y_sub_pixel_correction = (y_in_texture_fraction_corrections_low[y_index] + y_in_texture_fraction_corrections_high[y_index] * 256) / 512
+            
+            x_sub_pixel_step = (x_sub_pixel_steps_low[y_index] + x_sub_pixel_steps_high[y_index] * 256)/512 
+            if x_sub_pixel_steps_decr[y_index]:
+                x_sub_pixel_step = -x_sub_pixel_step
+                x_sub_pixel_correction = 512 - x_sub_pixel_correction
+            y_sub_pixel_step = (y_sub_pixel_steps_low[y_index] + y_sub_pixel_steps_high[y_index] * 256)/512
+            if y_sub_pixel_steps_decr[y_index]:
+                y_sub_pixel_step = -y_sub_pixel_step
+                y_sub_pixel_correction = 512 - y_sub_pixel_correction
+            
+            x_start_sub_pixel = (x_start_sub_pixel + x_sub_pixel_correction) % 1
+            y_start_sub_pixel = (y_start_sub_pixel + y_sub_pixel_correction) % 1
+            
+            x_in_texture += x_start_sub_pixel
+            y_in_texture += y_start_sub_pixel
+            
+            for x in range(-96, 96):
+         
+                if do_draw_sim:
+                    pixel_color = color_by_index[texture[int(y_in_texture)][int(x_in_texture)]]
+                    pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2+192, 2, 2))  # , width=border_width
+                
+                x_in_texture += x_sub_pixel_step
+                y_in_texture += y_sub_pixel_step
+                
+                x_in_texture = x_in_texture % 64
+                y_in_texture = y_in_texture % 64
+            
+#            pygame.display.update()
+            
+        # ========= / SIMULATING USING THE SAME DATA ==========
+
         pygame.display.update()
         
-    # ========= / SIMULATING USING THE SAME DATA ==========
+        all_angles_x_in_texture_fraction_corrections_low += x_in_texture_fraction_corrections_low
+        all_angles_x_in_texture_fraction_corrections_high += x_in_texture_fraction_corrections_high
+        
+        all_angles_y_in_texture_fraction_corrections_low += y_in_texture_fraction_corrections_low
+        all_angles_y_in_texture_fraction_corrections_high += y_in_texture_fraction_corrections_high
+        
+        all_angles_addresses_in_texture_low += addresses_in_texture_low
+        all_angles_addresses_in_texture_high += addresses_in_texture_high
+        
+        all_angles_x_sub_pixel_steps_decr += x_sub_pixel_steps_decr
+        all_angles_x_sub_pixel_steps_low += x_sub_pixel_steps_low
+        all_angles_x_sub_pixel_steps_high += x_sub_pixel_steps_high
+        
+        all_angles_y_sub_pixel_steps_decr += y_sub_pixel_steps_decr
+        all_angles_y_sub_pixel_steps_low += y_sub_pixel_steps_low
+        all_angles_y_sub_pixel_steps_high += y_sub_pixel_steps_high
+        
+        """        
+        print('x_in_texture_fraction_corrections_low:')
+        print('    .byte ' + ','.join(str(x) for x in x_in_texture_fraction_corrections_low))
+        print('x_in_texture_fraction_corrections_high:')
+        print('    .byte ' + ','.join(str(x) for x in x_in_texture_fraction_corrections_high))
+        
+        print('y_in_texture_fraction_corrections_low:')
+        print('    .byte ' + ','.join(str(x) for x in y_in_texture_fraction_corrections_low))
+        print('y_in_texture_fraction_corrections_high:')
+        print('    .byte ' + ','.join(str(x) for x in y_in_texture_fraction_corrections_high))
+            
+        print('addresses_in_texture_low:')
+        print('    .byte ' + ','.join(str(x) for x in addresses_in_texture_low))
+        print('addresses_in_texture_high:')
+        print('    .byte ' + ','.join(str(x) for x in addresses_in_texture_high))
+            
+        print('x_sub_pixel_steps_decr:')
+        print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_decr))
+        print('x_sub_pixel_steps_low:')
+        print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_low))
+        print('x_sub_pixel_steps_high:')
+        print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_high))
+            
+        print('y_sub_pixel_steps_decr:')
+        print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_decr))
+        print('y_sub_pixel_steps_low:')
+        print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_low))
+        print('y_sub_pixel_steps_high:')
+        print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_high))
+        """
 
-    print('x_in_texture_fraction_corrections_low:')
-    print('    .byte ' + ','.join(str(x) for x in x_in_texture_fraction_corrections_low))
-    print('x_in_texture_fraction_corrections_high:')
-    print('    .byte ' + ','.join(str(x) for x in x_in_texture_fraction_corrections_high))
+        
+    tableFile = open("special_tests/textures/x_in_texture_fraction_corrections_low.bin", "wb")
+    tableFile.write(bytearray(all_angles_x_in_texture_fraction_corrections_low))
+    tableFile.close()
+    tableFile = open("special_tests/textures/x_in_texture_fraction_corrections_high.bin", "wb")
+    tableFile.write(bytearray(all_angles_x_in_texture_fraction_corrections_low))
+    tableFile.close()
     
-    print('y_in_texture_fraction_corrections_low:')
-    print('    .byte ' + ','.join(str(x) for x in y_in_texture_fraction_corrections_low))
-    print('y_in_texture_fraction_corrections_high:')
-    print('    .byte ' + ','.join(str(x) for x in y_in_texture_fraction_corrections_high))
-        
-    print('addresses_in_texture_low:')
-    print('    .byte ' + ','.join(str(x) for x in addresses_in_texture_low))
-    print('addresses_in_texture_high:')
-    print('    .byte ' + ','.join(str(x) for x in addresses_in_texture_high))
-        
-    print('x_sub_pixel_steps_decr:')
-    print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_decr))
-    print('x_sub_pixel_steps_low:')
-    print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_low))
-    print('x_sub_pixel_steps_high:')
-    print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_high))
-        
-    print('y_sub_pixel_steps_decr:')
-    print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_decr))
-    print('y_sub_pixel_steps_low:')
-    print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_low))
-    print('y_sub_pixel_steps_high:')
-    print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_high))
-        
+    tableFile = open("special_tests/textures/y_in_texture_fraction_corrections_low.bin", "wb")
+    tableFile.write(bytearray(all_angles_y_in_texture_fraction_corrections_low))
+    tableFile.close()
+    tableFile = open("special_tests/textures/y_in_texture_fraction_corrections_high.bin", "wb")
+    tableFile.write(bytearray(all_angles_y_in_texture_fraction_corrections_low))
+    tableFile.close()
+    
+    tableFile = open("special_tests/textures/addresses_in_texture_low.bin", "wb")
+    tableFile.write(bytearray(all_angles_addresses_in_texture_low))
+    tableFile.close()
+    tableFile = open("special_tests/textures/addresses_in_texture_high.bin", "wb")
+    tableFile.write(bytearray(all_angles_addresses_in_texture_high))
+    tableFile.close()
+
+    tableFile = open("special_tests/textures/x_sub_pixel_steps_decr.bin", "wb")
+    tableFile.write(bytearray(all_angles_x_sub_pixel_steps_decr))
+    tableFile.close()
+    tableFile = open("special_tests/textures/x_sub_pixel_steps_low.bin", "wb")
+    tableFile.write(bytearray(all_angles_x_sub_pixel_steps_low))
+    tableFile.close()
+    tableFile = open("special_tests/textures/x_sub_pixel_steps_high.bin", "wb")
+    tableFile.write(bytearray(all_angles_x_sub_pixel_steps_high))
+    tableFile.close()
+
+    tableFile = open("special_tests/textures/y_sub_pixel_steps_decr.bin", "wb")
+    tableFile.write(bytearray(all_angles_y_sub_pixel_steps_decr))
+    tableFile.close()
+    tableFile = open("special_tests/textures/y_sub_pixel_steps_low.bin", "wb")
+    tableFile.write(bytearray(all_angles_y_sub_pixel_steps_low))
+    tableFile.close()
+    tableFile = open("special_tests/textures/y_sub_pixel_steps_high.bin", "wb")
+    tableFile.write(bytearray(all_angles_y_sub_pixel_steps_high))
+    tableFile.close()
+    
         
     running = True
     while running:

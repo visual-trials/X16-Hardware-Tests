@@ -65,6 +65,21 @@ CODE_ADDRESS              = $3D ; 3E
 COPY_ROW_CODE               = $7800
 
 
+Y_IN_TEXTURE_FRACTION_CORRECTIONS_LOW  = $A000
+Y_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH = $A100
+X_IN_TEXTURE_FRACTION_CORRECTIONS_LOW  = $A200
+X_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH = $A300
+ADDRESSES_IN_TEXTURE_LOW               = $A400
+ADDRESSES_IN_TEXTURE_HIGH              = $A500
+X_SUB_PIXEL_STEPS_DECR                 = $A600
+X_SUB_PIXEL_STEPS_LOW                  = $A700
+X_SUB_PIXEL_STEPS_HIGH                 = $A800
+Y_SUB_PIXEL_STEPS_DECR                 = $A900
+Y_SUB_PIXEL_STEPS_LOW                  = $AA00
+Y_SUB_PIXEL_STEPS_HIGH                 = $AB00
+
+
+
 ; ROM addresses
 PALLETE           = $CC00
 PIXELS            = $D000
@@ -1131,3 +1146,18 @@ irq:
     .word nmi
     .word reset
     .word irq
+
+    .binary "special_tests/textures/x_in_texture_fraction_corrections_low.bin"
+    .binary "special_tests/textures/x_in_texture_fraction_corrections_high.bin"
+    .binary "special_tests/textures/y_in_texture_fraction_corrections_low.bin"
+    .binary "special_tests/textures/y_in_texture_fraction_corrections_high.bin"
+    .binary "special_tests/textures/addresses_in_texture_low.bin"
+    .binary "special_tests/textures/addresses_in_texture_high.bin"
+    .binary "special_tests/textures/x_sub_pixel_steps_decr.bin"
+    .binary "special_tests/textures/x_sub_pixel_steps_low.bin"
+    .binary "special_tests/textures/x_sub_pixel_steps_high.bin"
+    .binary "special_tests/textures/y_sub_pixel_steps_decr.bin"
+    .binary "special_tests/textures/y_sub_pixel_steps_low.bin"
+    .binary "special_tests/textures/y_sub_pixel_steps_high.bin"
+    
+    
