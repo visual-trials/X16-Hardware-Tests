@@ -1147,17 +1147,17 @@ irq:
     .word reset
     .word irq
 
-    .binary "special_tests/textures/x_in_texture_fraction_corrections_low.bin"
-    .binary "special_tests/textures/x_in_texture_fraction_corrections_high.bin"
-    .binary "special_tests/textures/y_in_texture_fraction_corrections_low.bin"
-    .binary "special_tests/textures/y_in_texture_fraction_corrections_high.bin"
-    .binary "special_tests/textures/addresses_in_texture_low.bin"
-    .binary "special_tests/textures/addresses_in_texture_high.bin"
-    .binary "special_tests/textures/x_sub_pixel_steps_decr.bin"
-    .binary "special_tests/textures/x_sub_pixel_steps_low.bin"
-    .binary "special_tests/textures/x_sub_pixel_steps_high.bin"
-    .binary "special_tests/textures/y_sub_pixel_steps_decr.bin"
-    .binary "special_tests/textures/y_sub_pixel_steps_low.bin"
-    .binary "special_tests/textures/y_sub_pixel_steps_high.bin"
+    .binary "special_tests/tables/x_in_texture_fraction_corrections_low.bin"
+    .binary "special_tests/tables/x_in_texture_fraction_corrections_high.bin"
+    .binary "special_tests/tables/y_in_texture_fraction_corrections_low.bin"
+    .binary "special_tests/tables/y_in_texture_fraction_corrections_high.bin"
+    .binary "special_tests/tables/addresses_in_texture_low.bin"
+    .binary "special_tests/tables/addresses_in_texture_high.bin"
+    .binary "special_tests/tables/x_sub_pixel_steps_decr.bin"
+    .binary "special_tests/tables/x_sub_pixel_steps_low.bin"
+    .binary "special_tests/tables/x_sub_pixel_steps_high.bin"
+    .binary "special_tests/tables/y_sub_pixel_steps_decr.bin"
+    .binary "special_tests/tables/y_sub_pixel_steps_low.bin"
+    .binary "special_tests/tables/y_sub_pixel_steps_high.bin"
     
     
