@@ -1,7 +1,7 @@
 
-USE_CACHE_FOR_WRITING = 1
-
+USE_CACHE_FOR_WRITING = 0
 USE_TABLE_FILES = 1
+USE_V03_API = 1
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 COLOR_TEXT  = $03       ; Background color = 0 (transparent), foreground color 3 (white in this palette)
@@ -277,6 +277,13 @@ perspective_bitmap_fast:
     lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
     sta VERA_ADDR_BANK
     
+    .if(USE_V03_API)
+        lda #%00000111           ; Affine helper = 1, DCSEL=1, ADDRSEL=1
+        sta VERA_CTRL
+        lda #%00000100           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, X subpixel[8] = 0, Y subpixel[8] = 0
+        sta $9F2B
+    .endif
+
     ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the *current* one from ADDR0 (its settings are copied) and from itself
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
@@ -304,6 +311,11 @@ perspective_copy_next_row_1:
     lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
     sta VERA_CTRL
     
+    .if(USE_V03_API)
+        lda #%11000000           ; Reset subpixel = 1, Reset cache = 1, x/y swap = 0, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
+        sta $9F2C
+    .endif
+    
 ; FIXME: Since loading *once* screws up my cache byte index, we need to load 3 times first!
     .if(USE_CACHE_FOR_WRITING)
     stz $9F29                ; X increment low
@@ -315,6 +327,7 @@ perspective_copy_next_row_1:
     lda VERA_DATA1
     .endif
     
+    
 ; FIXME
     ; We correct both x and y sub pixels positions to the correct starting value by setting the deltas 
     .if(USE_TABLE_FILES)
@@ -322,7 +335,7 @@ perspective_copy_next_row_1:
     .else
         lda x_in_texture_fraction_corrections_low, x
     .endif
-    sta $9F29                ; X increment low
+    sta $9F29
 
     .if(USE_TABLE_FILES)
         lda X_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH, x
@@ -335,22 +348,26 @@ perspective_copy_next_row_1:
         ora x_sub_pixel_steps_decr, x   ; TODO: we could encode the decr value into the high value itself!
     .endif
     ora #%00100000           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 000, X increment high = 00 (these two bits are already in a by the lda)
-    sta $9F2A                ; X increment high
+    sta $9F2A
     
     .if(USE_TABLE_FILES)
         lda Y_IN_TEXTURE_FRACTION_CORRECTIONS_LOW, x
     .else
         lda y_in_texture_fraction_corrections_low, x
     .endif
-    sta $9F2B                ; Y increment low
+    sta $9F2B
 
     .if(USE_TABLE_FILES)
         lda Y_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH, x
     .else
         lda y_in_texture_fraction_corrections_high, x
     .endif
-    ora #%00100000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
-    sta $9F2C                ; Y increment high
+    .if(USE_V03_API)
+        ora #%00000000           ; Reset subpixel = 0, Reset cache = 0, x/y swap = 0, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
+    .else
+        ora #%00100000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
+    .endif
+    sta $9F2C
 
     ; FIXME: we shouldnt need this if we didnt have to correct the subpixel position. We also should be calculating the subpixel position in the table generator.
     lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
@@ -382,20 +399,24 @@ perspective_copy_next_row_1:
         ora x_sub_pixel_steps_decr, x   ; TODO: we could encode the decr value into the high value itself!
     .endif
     ora #%00100000           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 000, X increment high = 00 (these two bits are already in a by the lda)
-    sta $9F2A                ; X increment high (only 1 bit is used)
+    sta $9F2A
     .if(USE_TABLE_FILES)
         lda Y_SUB_PIXEL_STEPS_LOW, x
     .else
         lda y_sub_pixel_steps_low, x
     .endif
-    sta $9F2B                ; Y increment low
+    sta $9F2B
     .if(USE_TABLE_FILES)
         lda Y_SUB_PIXEL_STEPS_HIGH, x
     .else
         lda y_sub_pixel_steps_high, x
     .endif
-    ora #%00100000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
-    sta $9F2C                ; Y increment high (only 1 bit is used)
+    .if(USE_V03_API)
+        ora #%00000000           ; Reset subpixel = 0, Reset cache = 0, x/y swap = 0, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
+    .else
+        ora #%00100000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
+    .endif
+    sta $9F2C
     
     lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
     .if(USE_TABLE_FILES)
