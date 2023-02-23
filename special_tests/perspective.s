@@ -1,6 +1,8 @@
 
 USE_CACHE_FOR_WRITING = 1
 
+USE_TABLE_FILES = 1
+
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 COLOR_TEXT  = $03       ; Background color = 0 (transparent), foreground color 3 (white in this palette)
 
@@ -60,9 +62,15 @@ BAD_VALUE                 = $3A
 
 CODE_ADDRESS              = $3D ; 3E
 
+LOAD_ADDRESS              = $40 ; 41
+STORE_ADDRESS             = $42 ; 43
+
+TABLE_ROM_BANK            = $44
+VIEWING_ANGLE             = $45
 
 ; RAM addresses
 COPY_ROW_CODE               = $7800
+COPY_TABLES_TO_BANKED_RAM   = $8000
 
 
 Y_IN_TEXTURE_FRACTION_CORRECTIONS_LOW  = $A000
@@ -81,7 +89,7 @@ Y_SUB_PIXEL_STEPS_HIGH                 = $AB00
 
 
 ; ROM addresses
-PALLETE           = $CC00
+PALLETE           = $CE00
 PIXELS            = $D000
 
 
@@ -131,10 +139,23 @@ loop:
 test_speed_of_perspective:
 
     jsr generate_copy_row_code
+    jsr copy_table_copier_to_ram
+    jsr COPY_TABLES_TO_BANKED_RAM
+    
 
     jsr start_timer
 
+    lda #0
+    sta VIEWING_ANGLE
+turn_around:
+    lda VIEWING_ANGLE
+    sta RAM_BANK
+    
     jsr perspective_bitmap_fast
+    inc VIEWING_ANGLE
+    
+    bra turn_around
+    
     
     jsr stop_timer
 
@@ -223,10 +244,6 @@ y_sub_pixel_steps_low:
 y_sub_pixel_steps_high:
     .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
     
-; FIXME: we need to be able to use NEGATIVE values in the above table! For turning the other way around!
-; FIXME: we need to be able to use NEGATIVE values in the above table! For turning the other way around!
-; FIXME: we need to be able to use NEGATIVE values in the above table! For turning the other way around!
-    
 perspective_bitmap_fast:
 
     ; Setup FROM and TO VRAM addresses
@@ -298,48 +315,108 @@ perspective_copy_next_row_1:
     lda VERA_DATA1
     .endif
     
+; FIXME
     ; We correct both x and y sub pixels positions to the correct starting value by setting the deltas 
-    lda x_in_texture_fraction_corrections_low, x
+    .if(USE_TABLE_FILES)
+        lda X_IN_TEXTURE_FRACTION_CORRECTIONS_LOW, x
+    .else
+        lda x_in_texture_fraction_corrections_low, x
+    .endif
     sta $9F29                ; X increment low
-    lda x_in_texture_fraction_corrections_high, x
-    ora x_sub_pixel_steps_decr, x   ; TODO: we could encode the decr value into the high value itself!
+
+    .if(USE_TABLE_FILES)
+        lda X_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH, x
+    .else
+        lda x_in_texture_fraction_corrections_high, x
+    .endif
+    .if(USE_TABLE_FILES)
+        lda X_SUB_PIXEL_STEPS_DECR, x
+    .else
+        ora x_sub_pixel_steps_decr, x   ; TODO: we could encode the decr value into the high value itself!
+    .endif
     ora #%00100000           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 000, X increment high = 00 (these two bits are already in a by the lda)
     sta $9F2A                ; X increment high
-    lda y_in_texture_fraction_corrections_low, x
+    
+    .if(USE_TABLE_FILES)
+        lda Y_IN_TEXTURE_FRACTION_CORRECTIONS_LOW, x
+    .else
+        lda y_in_texture_fraction_corrections_low, x
+    .endif
     sta $9F2B                ; Y increment low
-    lda y_in_texture_fraction_corrections_high, x
+
+    .if(USE_TABLE_FILES)
+        lda Y_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH, x
+    .else
+        lda y_in_texture_fraction_corrections_high, x
+    .endif
     ora #%00100000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
     sta $9F2C                ; Y increment high
 
     ; FIXME: we shouldnt need this if we didnt have to correct the subpixel position. We also should be calculating the subpixel position in the table generator.
     lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
-    ora y_sub_pixel_steps_decr, x
+    .if(USE_TABLE_FILES)
+        ora Y_SUB_PIXEL_STEPS_DECR, x
+    .else
+        ora y_sub_pixel_steps_decr, x
+    .endif
     sta VERA_ADDR_BANK
     
     ; We read once from ADDR1 which adds the corrections
     lda VERA_DATA1
     
     ; We now set the actual increments
-    lda x_sub_pixel_steps_low, x
+    .if(USE_TABLE_FILES)
+        lda X_SUB_PIXEL_STEPS_LOW, x
+    .else
+        lda x_sub_pixel_steps_low, x
+    .endif
     sta $9F29                ; X increment low
-    lda x_sub_pixel_steps_high, x
-    ora x_sub_pixel_steps_decr, x   ; TODO: we could encode the decr value into the high value itself!
+    .if(USE_TABLE_FILES)
+        lda X_SUB_PIXEL_STEPS_HIGH, x
+    .else
+        lda x_sub_pixel_steps_high, x
+    .endif
+    .if(USE_TABLE_FILES)
+        ora X_SUB_PIXEL_STEPS_DECR, x
+    .else
+        ora x_sub_pixel_steps_decr, x   ; TODO: we could encode the decr value into the high value itself!
+    .endif
     ora #%00100000           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 000, X increment high = 00 (these two bits are already in a by the lda)
     sta $9F2A                ; X increment high (only 1 bit is used)
-    lda y_sub_pixel_steps_low, x
+    .if(USE_TABLE_FILES)
+        lda Y_SUB_PIXEL_STEPS_LOW, x
+    .else
+        lda y_sub_pixel_steps_low, x
+    .endif
     sta $9F2B                ; Y increment low
-    lda y_sub_pixel_steps_high, x
+    .if(USE_TABLE_FILES)
+        lda Y_SUB_PIXEL_STEPS_HIGH, x
+    .else
+        lda y_sub_pixel_steps_high, x
+    .endif
     ora #%00100000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
     sta $9F2C                ; Y increment high (only 1 bit is used)
     
     lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
-    ora y_sub_pixel_steps_decr, x
+    .if(USE_TABLE_FILES)
+        ora Y_SUB_PIXEL_STEPS_DECR, x
+    .else
+        ora y_sub_pixel_steps_decr, x
+    .endif
     sta VERA_ADDR_BANK
-    lda addresses_in_texture_high, x
+    .if(USE_TABLE_FILES)
+        lda ADDRESSES_IN_TEXTURE_HIGH, x
+    .else
+        lda addresses_in_texture_high, x
+    .endif
 ; FIXME: HACK!
     ora #$80                 ; HACK: we have $18000 as base address, so we just set the high bit of the high byte
     sta VERA_ADDR_HIGH
-    lda addresses_in_texture_low, x
+    .if(USE_TABLE_FILES)
+        lda ADDRESSES_IN_TEXTURE_LOW, x
+    .else
+        lda addresses_in_texture_low, x
+    .endif
     sta VERA_ADDR_LOW
 
     ; Copy three rows of 64 pixels (= 192 pixels)
@@ -785,6 +862,102 @@ next_horizontal_pixel_high_vram:
     bne next_pixel_row_high_vram
     
     rts
+    
+    
+    
+    
+    
+    
+; NOTE: we are now using ROM banks to contain tables. We need to copy those textures to Banked RAM, but have to run that copy-code in Fixed RAM.
+    
+copy_table_copier_to_ram:
+
+    ; Copying copy_tables_to_banked_ram -> COPY_TABLES_TO_BANKED_RAM
+    
+    ldy #0
+copy_tables_to_banked_ram_byte:
+    lda copy_tables_to_banked_ram, y
+    sta COPY_TABLES_TO_BANKED_RAM, y
+    iny 
+    cpy #(end_of_copy_tables_to_banked_ram-copy_tables_to_banked_ram)
+    bne copy_tables_to_banked_ram_byte
+
+    rts
+    
+; FIXME: this is UGLY!
+copy_tables_to_banked_ram:
+
+
+    ; We copy 12 tables to banked RAM, but we pack them so they are easily accessible
+
+    lda #1               ; Our first tables starts at ROM Bank 1
+    sta TABLE_ROM_BANK
+    
+next_table_to_copy:    
+    lda #<($C000)        ; Our source table starts at C000
+    sta LOAD_ADDRESS
+    lda #>($C000)
+    sta LOAD_ADDRESS+1
+
+    lda #<($A000)        ; We store at Ax00
+    sta STORE_ADDRESS
+    clc
+    lda #>($A000)
+    adc TABLE_ROM_BANK
+    sec
+    sbc #1               ; since the TABLE_ROM_BANK starts at 1, we substract one from it
+    sta STORE_ADDRESS+1
+
+    ; Switching ROM BANK
+    lda TABLE_ROM_BANK
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+
+    ldx #0                             ; x = angle
+next_angle_to_copy_to_banked_ram:
+    ; Switching to RAM BANK x
+    stx RAM_BANK
+; FIXME: remove nop!
+    nop
+    
+    ldy #0                             ; y = screen y-line value
+next_byte_to_copy_to_banked_ram:
+    lda (LOAD_ADDRESS), y
+    sta (STORE_ADDRESS), y
+    iny
+    cpy #64
+    bne next_byte_to_copy_to_banked_ram
+    
+    ; We increment LOAD_ADDRESS by 64 bytes to move to the next angle
+    clc
+    lda LOAD_ADDRESS
+    adc #64
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    adc #0
+    sta LOAD_ADDRESS+1
+    
+    inx
+    bne next_angle_to_copy_to_banked_ram
+
+    inc TABLE_ROM_BANK
+    lda TABLE_ROM_BANK
+    cmp #14               ; we go from 1-13 so we need to stop at 14
+    bne next_table_to_copy
+
+    ; Switching back to ROM bank 0
+    lda #$00
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+   
+    rts
+end_of_copy_tables_to_banked_ram:
+    
+    
+    
+    
 
     
     
@@ -807,7 +980,7 @@ irq:
     
     
     
-  .org $CC00
+  .org $CE00
 
   .byte $aa, $0a
   .byte $88, $08
