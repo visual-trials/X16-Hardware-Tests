@@ -1,7 +1,9 @@
 
-USE_CACHE_FOR_WRITING = 0
+USE_CACHE_FOR_WRITING = 1
 USE_TABLE_FILES = 1
-USE_V03_API = 1
+USE_V03_API = 0
+
+DRAW_PERSPECTIVE = 1  ; Otherwise REPETITION
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 COLOR_TEXT  = $03       ; Background color = 0 (transparent), foreground color 3 (white in this palette)
@@ -121,12 +123,13 @@ reset:
     jsr copy_palette
     jsr copy_pixels_to_high_vram
     
-    ; Test speed of repetetion of texture draws
-;    jsr test_speed_of_repetition
-    
-    ; Test speed of perspective style transformation
-    jsr test_speed_of_perspective
-    
+    .if(DRAW_PERSPECTIVE)
+        ; Test speed of perspective style transformation
+        jsr test_speed_of_perspective
+    .else    
+        ; Test speed of repetetion of texture draws
+        jsr test_speed_of_repetition
+    .endif
   
 loop:
   jmp loop
@@ -145,7 +148,7 @@ test_speed_of_perspective:
 
     jsr start_timer
 
-    lda #0
+    lda #100
     sta VIEWING_ANGLE
 turn_around:
     lda VIEWING_ANGLE
@@ -154,6 +157,10 @@ turn_around:
     jsr perspective_bitmap_fast
     inc VIEWING_ANGLE
     
+    
+;tmp_loop:   
+;    jmp tmp_loop
+
     bra turn_around
     
     
