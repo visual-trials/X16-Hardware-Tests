@@ -1,6 +1,6 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 1
+SET_BY_COORDINATES = 1
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 COLOR_TEXT  = $03       ; Background color = 0 (transparent), foreground color 3 (white in this palette)
@@ -217,10 +217,18 @@ flat_tiles_fast:
 
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
     sta VERA_L0_MAPBASE
-    ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
-    ;                + 10100000 for 64x64 texture
-    lda #%10100111
-    sta VERA_L0_CONFIG
+    
+    .if(SET_BY_COORDINATES)
+        ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
+        ;                + 00100000 for 4x4 map
+        lda #%00100111
+        sta VERA_L0_CONFIG
+    .else
+        ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
+        ;                + 10100000 for 64x64 texture
+        lda #%10100111
+        sta VERA_L0_CONFIG
+    .endif
     
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
     lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
@@ -243,12 +251,10 @@ flat_tiles_fast:
     lda #0                   ; X increment low
     sta $9F29
     lda #%00100101           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 01
-; OLD way:    lda #01                  ; X increment high (only 1 bit is used)
     sta $9F2A
     lda #00
     sta $9F2B                ; Y increment low
     lda #%00100100           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 
-; OLD way:    lda #$20  ; NOTE: 2 = Enable repeat!!
     sta $9F2C                ; Y increment high
 
     ldx #0
@@ -268,18 +274,34 @@ repetitive_copy_next_row_1:
     sta VERA_ADDR_HIGH
     lda VERA_ADDR_ZP_TO
     sta VERA_ADDR_LOW
-    
-    lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
-    sta VERA_CTRL
-    
-    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
-    sta VERA_ADDR_BANK
-    lda VERA_ADDR_ZP_FROM+1
-    sta VERA_ADDR_HIGH
-    lda VERA_ADDR_ZP_FROM
-    sta VERA_ADDR_LOW
+ 
+    .if (SET_BY_COORDINATES)
+        lda #%00000111           ; DCSEL=1, ADDRSEL=1, with affine helper
+        sta VERA_CTRL
+        
+        lda #0                   ; X pixel position low [7:0]
+        sta $9F29
+        lda #0                   ; X pixel position high [10:8]
+        sta $9F2A
+;        lda #0                   ; Y pixel position low [7:0]
+;        sta $9F2B
+; FIXME: We directly put register x in the x pixel position low atm
+        stx $9F2B
+        lda #0                   ; Y pixel position high [10:8]
+        sta $9F2C
+    .else
+        lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
+        sta VERA_CTRL
+        
+        lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
+        sta VERA_ADDR_BANK
+        lda VERA_ADDR_ZP_FROM+1
+        sta VERA_ADDR_HIGH
+        lda VERA_ADDR_ZP_FROM
+        sta VERA_ADDR_LOW
+    .endif
 
-    ; Copy one row of 64 pixels
+    ; Copy three rows of 64 pixels
     jsr COPY_ROW_CODE
     jsr COPY_ROW_CODE
     jsr COPY_ROW_CODE
@@ -1009,18 +1031,3 @@ irq:
     .word nmi
     .word reset
     .word irq
-
-    .binary "special_tests/tables/x_in_texture_fraction_corrections_low.bin"
-    .binary "special_tests/tables/x_in_texture_fraction_corrections_high.bin"
-    .binary "special_tests/tables/y_in_texture_fraction_corrections_low.bin"
-    .binary "special_tests/tables/y_in_texture_fraction_corrections_high.bin"
-    .binary "special_tests/tables/addresses_in_texture_low.bin"
-    .binary "special_tests/tables/addresses_in_texture_high.bin"
-    .binary "special_tests/tables/x_sub_pixel_steps_decr.bin"
-    .binary "special_tests/tables/x_sub_pixel_steps_low.bin"
-    .binary "special_tests/tables/x_sub_pixel_steps_high.bin"
-    .binary "special_tests/tables/y_sub_pixel_steps_decr.bin"
-    .binary "special_tests/tables/y_sub_pixel_steps_low.bin"
-    .binary "special_tests/tables/y_sub_pixel_steps_high.bin"
-    
-    
