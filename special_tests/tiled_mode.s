@@ -1,6 +1,6 @@
 
 USE_CACHE_FOR_WRITING = 1
-SET_BY_COORDINATES = 0
+SET_BY_COORDINATES = 1
 
 BACKGROUND_COLOR = 255  ; 255 = Purple in this palette
 COLOR_TEXT  = $06       ; Background color = 0 (transparent), foreground color 6 (grey in this palette)
@@ -9,10 +9,14 @@ COLOR_TEXT  = $06       ; Background color = 0 (transparent), foreground color 6
 TEXTURE_WIDTH = 64
 TEXTURE_HEIGHT = 64
 
+MAP_WIDTH = 32
+MAP_HEIGHT = 32
+
 TOP_MARGIN = 12
 LEFT_MARGIN = 16
 VSPACING = 10
 
+MAPDATA_VRAM_ADDRESS = $17000
 TILEDATA_VRAM_ADDRESS = $18000
 
 DESTINATION_PICTURE_POS_X = 64
@@ -96,6 +100,7 @@ Y_SUB_PIXEL_STEPS_HIGH                 = $AB00
 ; ROM addresses
 PALLETE           = $CE00
 PIXELS            = $D000
+TILEMAP           = $E000
 
 
   .org $C000
@@ -125,6 +130,7 @@ reset:
     jsr clear_screen_slow
     jsr copy_palette
     jsr copy_pixels_to_high_vram
+    jsr copy_tilemap_to_high_vram
     
     ; Test speed of flat tiles draws
     jsr test_speed_of_flat_tiles
@@ -220,11 +226,13 @@ flat_tiles_fast:
 
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
     sta VERA_L0_MAPBASE
+    lda #(MAPDATA_VRAM_ADDRESS >> 9)
+    sta VERA_L0_HSCROLL_L
     
     .if(SET_BY_COORDINATES)
         ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
-        ;                + 00100000 for 4x4 map
-        lda #%00100111
+        ;                + 01010000 for 32x32 map
+        lda #%01010111
         sta VERA_L0_CONFIG
     .else
         ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
@@ -290,7 +298,8 @@ repetitive_copy_next_row_1:
 ;        sta $9F2B
 ; FIXME: We directly put register x in the x pixel position low atm
         stx $9F2B
-        lda #0                   ; Y pixel position high [10:8]
+;        lda #0                   ; Y pixel position high [10:8] = 0
+        lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
         sta $9F2C
     .else
         lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
@@ -533,7 +542,6 @@ next_packed_color2:
 
     rts
 
-    
 copy_pixels_to_high_vram:  
 
     lda #<PIXELS
@@ -579,6 +587,49 @@ next_horizontal_pixel_high_vram:
     rts
     
     
+copy_tilemap_to_high_vram:
+
+    lda #<TILEMAP
+    sta DATA_PTR_ZP
+    lda #>TILEMAP
+    sta DATA_PTR_ZP+1 
+
+    ; For now copying to MAPDATA_VRAM_ADDRESS
+    ; TODO: we are ASSUMING here that MAPDATA_VRAM_ADDRESS has its bit16 set to 1!!
+    lda #%00010001      ; setting bit 16 of vram address to the highest bit in the tilebase (=1), setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+    lda #<(MAPDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_LOW
+    lda #>(MAPDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_HIGH
+    
+    ldx #0
+next_tile_row_high_vram:  
+
+    ldy #0
+next_horizontal_tile_high_vram:
+    lda (DATA_PTR_ZP),y
+
+    sta VERA_DATA0
+
+    iny
+    cpy #MAP_WIDTH
+    bne next_horizontal_tile_high_vram
+    inx
+    
+    ; Adding TILE_WIDTH to the previous data address
+    clc
+    lda DATA_PTR_ZP
+    adc #MAP_WIDTH
+    sta DATA_PTR_ZP
+    lda DATA_PTR_ZP+1
+    adc #0
+    sta DATA_PTR_ZP+1
+
+    cpx #MAP_HEIGHT
+    bne next_tile_row_high_vram
+    
+    rts
     
     
     
@@ -1085,7 +1136,21 @@ irq:
   .byte $aa, $a2, $a2, $a9, $a2, $a3, $a2, $a5
   .byte $a6, $aa, $a5, $a7, $ac, $a6, $a9, $a3
   .byte $a5, $aa, $ac, $a3, $9f, $a1, $a9, $aa
-    
+
+
+  ; manual TILEMAP
+  .org $E000
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 4, 0, 0, 0, 4, 0, 0, 5, 5, 0, 0, 1, 1, 0, 0, 7, 0, 7, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 4, 0, 0, 0, 4, 0, 5, 0, 0, 5, 0, 1, 0, 1, 0, 7, 0, 7, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 4, 0, 0, 0, 4, 0, 5, 0, 0, 5, 0, 1, 1, 0, 0, 7, 7, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 4, 0, 0, 0, 4, 0, 5, 0, 0, 5, 0, 1, 0, 1, 0, 7, 7, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 4, 0, 4, 0, 4, 0, 5, 0, 0, 5, 0, 1, 0, 1, 0, 7, 0, 7, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 4, 0, 4, 0, 0, 0, 5, 5, 0, 0, 1, 0, 1, 0, 7, 0, 7, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+
+  
     
     ; ======== PETSCII CHARSET =======
 
