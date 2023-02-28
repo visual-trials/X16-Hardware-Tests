@@ -5,6 +5,7 @@ SET_BY_COORDINATES = 0
 BACKGROUND_COLOR = 255  ; 255 = Purple in this palette
 COLOR_TEXT  = $06       ; Background color = 0 (transparent), foreground color 6 (grey in this palette)
 
+; FIXME: we use this for copying the minecraft textures (8x128 pixels). But we also use it to create copy-code. So this is actually wrong.
 TEXTURE_WIDTH = 64
 TEXTURE_HEIGHT = 64
 
