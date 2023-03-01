@@ -11,6 +11,8 @@ TEXTURE_HEIGHT = 64
 
 MAP_WIDTH = 32
 MAP_HEIGHT = 32
+;MAP_WIDTH = 4
+;MAP_HEIGHT = 4
 
 TOP_MARGIN = 12
 LEFT_MARGIN = 16
@@ -233,6 +235,8 @@ flat_tiles_fast:
         ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
         ;                + 01010000 for 32x32 map
         lda #%01010111
+        ;                + 00100000 for 4x4 map
+;        lda #%00100111
         sta VERA_L0_CONFIG
     .else
         ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
@@ -289,6 +293,11 @@ repetitive_copy_next_row_1:
     .if (SET_BY_COORDINATES)
         lda #%00000111           ; DCSEL=1, ADDRSEL=1, with affine helper
         sta VERA_CTRL
+
+; FIXME: WORKAROUND! WE HAVE TO TURN ON TILE LOOKUP BEFORE SETTING THE POSITION!! BUT THEY ARE IN THE SAME REGISTER!!
+        lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
+        sta $9F2C
+
         
         lda #0                   ; X pixel position low [7:0]
         sta $9F29
@@ -1140,7 +1149,12 @@ irq:
 
   ; manual TILEMAP
   .org $E000
-  .byte 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+;  .byte 9, 1, 2, 3
+;  .byte 3, 2, 1, 0
+;  .byte 5, 4, 5, 4
+;  .byte 6, 7, 8, 9
+  
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   .byte 0, 4, 0, 0, 0, 4, 0, 0, 5, 5, 0, 0, 1, 1, 0, 0, 7, 0, 7, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0
   .byte 0, 4, 0, 0, 0, 4, 0, 5, 0, 0, 5, 0, 1, 0, 1, 0, 7, 0, 7, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   .byte 0, 4, 0, 0, 0, 4, 0, 5, 0, 0, 5, 0, 1, 1, 0, 0, 7, 7, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
