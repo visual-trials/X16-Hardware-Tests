@@ -1,6 +1,8 @@
 
 USE_CACHE_FOR_WRITING = 1
-SET_BY_COORDINATES = 1
+USE_TABLE_FILES = 0
+DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
+
 
 BACKGROUND_COLOR = 255  ; 255 = Purple in this palette
 COLOR_TEXT  = $06       ; Background color = 0 (transparent), foreground color 6 (grey in this palette)
@@ -134,8 +136,13 @@ reset:
     jsr copy_pixels_to_high_vram
     jsr copy_tilemap_to_high_vram
     
-    ; Test speed of flat tiles draws
-    jsr test_speed_of_flat_tiles
+    .if(DRAW_TILED_PERSPECTIVE)
+        ; Test speed of perspective style transformation
+        jsr test_speed_of_tiled_perspective
+    .else    
+        ; Test speed of flat tiles draws
+        jsr test_speed_of_flat_tiles
+    .endif
   
 loop:
   jmp loop
@@ -147,7 +154,375 @@ one_byte_per_write_message:
 four_bytes_per_write_message: 
     .asciiz "Method: 4 bytes per write"
 
+    
+    
+; ====================================== TILED PERSPECTIVE SPEED TEST ========================================
   
+test_speed_of_tiled_perspective:
+
+    jsr generate_copy_row_code
+    .if(USE_TABLE_FILES)
+    jsr copy_table_copier_to_ram
+    jsr COPY_TABLES_TO_BANKED_RAM
+    .endif
+    
+    jsr start_timer
+
+    .if(USE_TABLE_FILES)
+        lda #100
+        sta VIEWING_ANGLE
+turn_around:
+        lda VIEWING_ANGLE
+        sta RAM_BANK
+    .endif
+    
+    jsr tiled_perspective_fast
+
+    .if(USE_TABLE_FILES)
+        inc VIEWING_ANGLE
+
+        bra turn_around
+    .endif
+    
+    jsr stop_timer
+
+    lda #COLOR_TEXT
+    sta TEXT_COLOR
+    
+    lda #5
+    sta CURSOR_X
+    lda #4
+    sta CURSOR_Y
+
+    lda #<tiled_perspective_192x64_8bpp_message
+    sta TEXT_TO_PRINT
+    lda #>tiled_perspective_192x64_8bpp_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    lda #8
+    sta CURSOR_X
+    lda #21
+    sta CURSOR_Y
+
+    .if(USE_CACHE_FOR_WRITING)
+        lda #<four_bytes_per_write_message
+        sta TEXT_TO_PRINT
+        lda #>four_bytes_per_write_message
+        sta TEXT_TO_PRINT + 1
+    .else
+        lda #<one_byte_per_write_message
+        sta TEXT_TO_PRINT
+        lda #>one_byte_per_write_message
+        sta TEXT_TO_PRINT + 1
+    .endif
+    
+    jsr print_text_zero
+    
+    lda #COLOR_TEXT
+    sta TEXT_COLOR
+    
+    lda #8
+    sta CURSOR_X
+    lda #26
+    sta CURSOR_Y
+    
+    jsr print_time_elapsed
+
+    rts
+    
+
+
+tiled_perspective_192x64_8bpp_message: 
+    .asciiz "Tiled perspective 192x64 (8bpp) "
+
+    
+; For tiled perspective we need to set the x and y coordinate within the tilemap for each pixel row on the screen. 
+; We also have to set the sub pixel increment for each pixel row on the screen.
+; We generated this using the python script (see same folder) and put the data here.
+    
+x_in_texture_fraction_corrections_low:
+    .byte 6,215,35,246,90,88,247,63,55,229,77,117,97,20,148,227,3,249,197,108,239,80,145,179,185,164,117,46,207,90,209,51,130,191,235,6,17,13,250,218,172,114,43,217,123,18,159,34,155,11,114,208,38,116,186,248,48,96,138,173,201,224,241,252
+x_in_texture_fraction_corrections_high:
+    .byte 0,0,1,0,0,1,1,0,0,1,1,0,1,0,0,0,1,0,0,0,1,1,0,1,0,1,0,1,1,0,0,1,1,1,1,0,0,0,1,1,1,1,1,0,0,0,1,1,0,0,1,0,0,1,0,1,1,0,1,0,1,0,1,0
+y_in_texture_fraction_corrections_low:
+    .byte 127,100,120,204,113,117,228,202,50,36,170,201,139,244,10,211,84,145,142,79,216,42,75,59,255,152,8,81,118,121,90,27,191,70,177,3,59,92,101,89,56,3,186,95,242,115,229,70,153,220,18,58,85,99,100,90,69,37,250,196,133,60,233,142
+y_in_texture_fraction_corrections_high:
+    .byte 0,0,1,1,1,0,0,0,0,1,1,1,1,0,0,0,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,0,1,0,1,0,1,0,0,1,1,0,0,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,0,0
+addresses_in_texture_low:
+    .byte 110,178,247,122,254,130,69,8,203,142,145,147,150,216,218,28,31,96,162,228,102,168,233,107,236,46,175,49,178,51,180,54,183,56,249,122,251,188,61,254,127,0,193,65,2,195,132,5,197,134,71,7,200,137,73,10,203,139,76,12,205,141,142,78
+addresses_in_texture_high:
+    .byte 9,7,5,4,2,1,0,15,13,12,11,10,9,8,7,7,6,5,4,3,3,2,1,1,0,0,15,15,14,14,13,13,12,12,11,11,10,10,10,9,9,9,8,8,8,7,7,7,6,6,6,6,5,5,5,5,4,4,4,4,3,3,3,3
+x_sub_pixel_steps_decr:
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+x_sub_pixel_steps_low:
+    .byte 231,201,172,145,120,96,73,51,31,11,249,231,214,198,183,168,154,140,127,115,102,91,80,69,59,49,39,30,20,12,3,251,243,235,228,221,214,207,200,194,188,182,176,170,164,159,153,148,143,138,133,129,124,120,115,111,107,103,99,95,91,87,84,80
+x_sub_pixel_steps_high:
+    .byte 3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+y_sub_pixel_steps_decr:
+    .byte 8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8
+y_sub_pixel_steps_low:
+    .byte 223,216,210,204,198,193,188,183,178,174,170,166,162,158,155,152,148,145,142,140,137,134,132,129,127,125,123,121,119,117,115,113,111,109,108,106,105,103,102,100,99,97,96,95,94,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,76,76,75
+y_sub_pixel_steps_high:
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    
+tiled_perspective_fast:
+
+    ; Setup FROM and TO VRAM addresses
+    lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO
+    lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO+1
+    lda #<(TILEDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_ZP_FROM
+    lda #>(TILEDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_ZP_FROM+1
+
+    lda #(TILEDATA_VRAM_ADDRESS >> 9)
+    sta VERA_L0_MAPBASE
+    lda #(MAPDATA_VRAM_ADDRESS >> 9)
+    sta VERA_L0_HSCROLL_L
+    
+    ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
+    ;                + 01010000 for 32x32 map
+    lda #%01010111
+    ;                + 00100000 for 4x4 map
+;        lda #%00100111
+    sta VERA_L0_CONFIG
+    
+    ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
+    sta VERA_CTRL
+; FIXME: this is the *old* method of copying the incrementer!
+    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
+    
+    ; Setting up for reading from a new line from a texture/bitmap
+    
+    lda #%00000001           ; DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
+    sta VERA_ADDR_BANK
+    
+    ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the *current* one from ADDR0 (its settings are copied) and from itself
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #0                   ; X increment low
+    sta $9F29
+    lda #%00100101           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 01
+    sta $9F2A
+    lda #00
+    sta $9F2B                ; Y increment low
+    lda #%00100100           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 
+    sta $9F2C                ; Y increment high
+
+    ldx #0
+    
+tiled_perspective_copy_next_row_1:
+    
+    lda #%00000100           ; DCSEL=0, ADDRSEL=0, with affine helper
+    sta VERA_CTRL
+
+    .if (USE_CACHE_FOR_WRITING)
+        lda #%00110110           ; Setting auto-increment value to 4 byte increment (=%0011) and wrpattern = 11b
+        sta VERA_ADDR_BANK
+    .else
+        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+    .endif
+    lda VERA_ADDR_ZP_TO+1
+    sta VERA_ADDR_HIGH
+    lda VERA_ADDR_ZP_TO
+    sta VERA_ADDR_LOW
+    
+    ; We reset so both x and y sub pixels positions are reset to 128 
+    lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
+    sta VERA_CTRL
+    
+    ; FIXME: Since loading *once* screws up my cache byte index, we need to load 3 times first!
+    .if(USE_CACHE_FOR_WRITING)
+    stz $9F29                ; X increment low
+    stz $9F2A                ; X increment high (only 1 bit is used)
+    stz $9F2B                ; Y increment low
+    stz $9F2C                ; Y increment high (only 1 bit is used)
+    lda VERA_DATA1
+    lda VERA_DATA1
+    lda VERA_DATA1
+    .endif
+    
+    
+; FIXME
+    ; We correct both x and y sub pixels positions to the correct starting value by setting the deltas 
+    .if(USE_TABLE_FILES)
+        lda X_IN_TEXTURE_FRACTION_CORRECTIONS_LOW, x
+    .else
+        lda x_in_texture_fraction_corrections_low, x
+    .endif
+    sta $9F29
+
+    .if(USE_TABLE_FILES)
+        lda X_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH, x
+    .else
+        lda x_in_texture_fraction_corrections_high, x
+    .endif
+    .if(USE_TABLE_FILES)
+        lda X_SUB_PIXEL_STEPS_DECR, x
+    .else
+        ora x_sub_pixel_steps_decr, x   ; TODO: we could encode the decr value into the high value itself!
+    .endif
+    ora #%00100000           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 000, X increment high = 00 (these two bits are already in a by the lda)
+    sta $9F2A
+    
+    .if(USE_TABLE_FILES)
+        lda Y_IN_TEXTURE_FRACTION_CORRECTIONS_LOW, x
+    .else
+        lda y_in_texture_fraction_corrections_low, x
+    .endif
+    sta $9F2B
+
+    .if(USE_TABLE_FILES)
+        lda Y_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH, x
+    .else
+        lda y_in_texture_fraction_corrections_high, x
+    .endif
+    ora #%00100000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
+    sta $9F2C
+
+    ; FIXME: we shouldnt need this if we didnt have to correct the subpixel position. We also should be calculating the subpixel position in the table generator.
+    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
+    .if(USE_TABLE_FILES)
+        ora Y_SUB_PIXEL_STEPS_DECR, x
+    .else
+        ora y_sub_pixel_steps_decr, x
+    .endif
+    sta VERA_ADDR_BANK
+    
+    ; We read once from ADDR1 which adds the corrections
+    lda VERA_DATA1
+    
+    ; We now set the actual increments
+    .if(USE_TABLE_FILES)
+        lda X_SUB_PIXEL_STEPS_LOW, x
+    .else
+        lda x_sub_pixel_steps_low, x
+    .endif
+    sta $9F29                ; X increment low
+    .if(USE_TABLE_FILES)
+        lda X_SUB_PIXEL_STEPS_HIGH, x
+    .else
+        lda x_sub_pixel_steps_high, x
+    .endif
+    .if(USE_TABLE_FILES)
+        ora X_SUB_PIXEL_STEPS_DECR, x
+    .else
+        ora x_sub_pixel_steps_decr, x   ; TODO: we could encode the decr value into the high value itself!
+    .endif
+    ora #%00100000           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 000, X increment high = 00 (these two bits are already in a by the lda)
+    sta $9F2A
+    .if(USE_TABLE_FILES)
+        lda Y_SUB_PIXEL_STEPS_LOW, x
+    .else
+        lda y_sub_pixel_steps_low, x
+    .endif
+    sta $9F2B
+    .if(USE_TABLE_FILES)
+        lda Y_SUB_PIXEL_STEPS_HIGH, x
+    .else
+        lda y_sub_pixel_steps_high, x
+    .endif
+    ora #%00100000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
+    sta $9F2C
+    
+    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
+    .if(USE_TABLE_FILES)
+        ora Y_SUB_PIXEL_STEPS_DECR, x
+    .else
+        ora y_sub_pixel_steps_decr, x
+    .endif
+    sta VERA_ADDR_BANK
+    
+    
+; FIXME    
+    .if(0)
+    
+; FIXME: we need new tables for the x/y positions!
+; FIXME: we need new tables for the x/y positions!
+; FIXME: we need new tables for the x/y positions!
+
+;    .if(USE_TABLE_FILES)
+;        lda ADDRESSES_IN_TEXTURE_HIGH, x
+;    .else
+;        lda addresses_in_texture_high, x
+;    .endif
+;; FIXME: HACK!
+;    ora #$80                 ; HACK: we have $18000 as base address, so we just set the high bit of the high byte
+;    sta VERA_ADDR_HIGH
+;    .if(USE_TABLE_FILES)
+;        lda ADDRESSES_IN_TEXTURE_LOW, x
+;    .else
+;        lda addresses_in_texture_low, x
+;    .endif
+;    sta VERA_ADDR_LOW
+    
+; FIXME
+    .endif
+    
+    ; Setting the position
+    
+    lda #%00000111           ; DCSEL=1, ADDRSEL=1, with affine helper
+    sta VERA_CTRL
+
+; FIXME: WORKAROUND! WE HAVE TO TURN ON TILE LOOKUP BEFORE SETTING THE POSITION!! BUT THEY ARE IN THE SAME REGISTER!!
+    lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
+    sta $9F2C
+
+    
+    lda #0                   ; X pixel position low [7:0]
+    sta $9F29
+    lda #0                   ; X pixel position high [10:8]
+    sta $9F2A
+;    lda #0                   ; Y pixel position low [7:0]
+;    sta $9F2B
+; FIXME: We directly put register x in the x pixel position low atm
+    stx $9F2B
+;        lda #0                   ; Y pixel position high [10:8] = 0
+    lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
+    sta $9F2C
+    
+    
+    
+    
+
+    ; Copy three rows of 64 pixels (= 192 pixels)
+    jsr COPY_ROW_CODE
+    jsr COPY_ROW_CODE
+    jsr COPY_ROW_CODE
+    
+    ; We increment our VERA_ADDR_TO with 320
+    clc
+    lda VERA_ADDR_ZP_TO
+    adc #<(320)
+    sta VERA_ADDR_ZP_TO
+    lda VERA_ADDR_ZP_TO+1
+    adc #>(320)
+    sta VERA_ADDR_ZP_TO+1
+
+    inx
+    cpx #TEXTURE_HEIGHT          ; we do 64 rows
+    beq done_tiled_perspective_copy
+    
+    jmp tiled_perspective_copy_next_row_1
+done_tiled_perspective_copy:
+    
+    ; Exiting affine helper mode
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    rts
+    
+    
 ; ====================================== FLAT TILES SPEED TEST ========================================
   
 test_speed_of_flat_tiles:
@@ -231,19 +606,12 @@ flat_tiles_fast:
     lda #(MAPDATA_VRAM_ADDRESS >> 9)
     sta VERA_L0_HSCROLL_L
     
-    .if(SET_BY_COORDINATES)
-        ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
-        ;                + 01010000 for 32x32 map
-        lda #%01010111
-        ;                + 00100000 for 4x4 map
+    ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
+    ;                + 01010000 for 32x32 map
+    lda #%01010111
+    ;                + 00100000 for 4x4 map
 ;        lda #%00100111
-        sta VERA_L0_CONFIG
-    .else
-        ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
-        ;                + 10100000 for 64x64 texture
-        lda #%10100111
-        sta VERA_L0_CONFIG
-    .endif
+    sta VERA_L0_CONFIG
     
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
     lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
@@ -289,42 +657,33 @@ repetitive_copy_next_row_1:
     sta VERA_ADDR_HIGH
     lda VERA_ADDR_ZP_TO
     sta VERA_ADDR_LOW
- 
-    .if (SET_BY_COORDINATES)
-        lda #%00000111           ; DCSEL=1, ADDRSEL=1, with affine helper
-        sta VERA_CTRL
+
+    ; Setting the position
+    
+    lda #%00000111           ; DCSEL=1, ADDRSEL=1, with affine helper
+    sta VERA_CTRL
 
 ; FIXME: WORKAROUND! WE HAVE TO TURN ON TILE LOOKUP BEFORE SETTING THE POSITION!! BUT THEY ARE IN THE SAME REGISTER!!
-        lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
-        sta $9F2C
+    lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
+    sta $9F2C
 
-        
-        lda #0                   ; X pixel position low [7:0]
-        sta $9F29
-        lda #0                   ; X pixel position high [10:8]
-        sta $9F2A
+    
+    lda #0                   ; X pixel position low [7:0]
+    sta $9F29
+    lda #0                   ; X pixel position high [10:8]
+    sta $9F2A
 ;        lda #0                   ; Y pixel position low [7:0]
 ;        sta $9F2B
 ; FIXME: We directly put register x in the x pixel position low atm
-        txa
-        clc
-        adc #4
-        sta $9F2B
+    txa
+    clc
+    adc #4
+    sta $9F2B
 ;        lda #0                   ; Y pixel position high [10:8] = 0
-        lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
-        sta $9F2C
-    .else
-        lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
-        sta VERA_CTRL
-        
-        lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
-        sta VERA_ADDR_BANK
-        lda VERA_ADDR_ZP_FROM+1
-        sta VERA_ADDR_HIGH
-        lda VERA_ADDR_ZP_FROM
-        sta VERA_ADDR_LOW
-    .endif
-
+    lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
+    sta $9F2C
+    
+    
     ; Copy three rows of 64 pixels
     jsr COPY_ROW_CODE
     jsr COPY_ROW_CODE
@@ -339,15 +698,6 @@ repetitive_copy_next_row_1:
     adc #>(320)
     sta VERA_ADDR_ZP_TO+1
 
-    ; We increment our VERA_ADDR_FROM with 64 if we should proceed to the next pixel row
-    clc
-    lda VERA_ADDR_ZP_FROM
-    adc #<(64)
-    sta VERA_ADDR_ZP_FROM
-    lda VERA_ADDR_ZP_FROM+1
-    adc #>(64)
-    sta VERA_ADDR_ZP_FROM+1
-    
     inx
     cpx #TEXTURE_HEIGHT          ; we do 64 rows
     bne repetitive_copy_next_row_1
@@ -1180,3 +1530,19 @@ irq:
     .word nmi
     .word reset
     .word irq
+    
+    .if(USE_TABLE_FILES)
+    .binary "special_tests/tables/x_in_texture_fraction_corrections_low.bin"
+    .binary "special_tests/tables/x_in_texture_fraction_corrections_high.bin"
+    .binary "special_tests/tables/y_in_texture_fraction_corrections_low.bin"
+    .binary "special_tests/tables/y_in_texture_fraction_corrections_high.bin"
+    .binary "special_tests/tables/addresses_in_texture_low.bin"
+    .binary "special_tests/tables/addresses_in_texture_high.bin"
+    .binary "special_tests/tables/x_sub_pixel_steps_decr.bin"
+    .binary "special_tests/tables/x_sub_pixel_steps_low.bin"
+    .binary "special_tests/tables/x_sub_pixel_steps_high.bin"
+    .binary "special_tests/tables/y_sub_pixel_steps_decr.bin"
+    .binary "special_tests/tables/y_sub_pixel_steps_low.bin"
+    .binary "special_tests/tables/y_sub_pixel_steps_high.bin"
+    .endif
+    
