@@ -90,15 +90,16 @@ Y_IN_TEXTURE_FRACTION_CORRECTIONS_LOW  = $A000
 Y_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH = $A100
 X_IN_TEXTURE_FRACTION_CORRECTIONS_LOW  = $A200
 X_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH = $A300
-ADDRESSES_IN_TEXTURE_LOW               = $A400
-ADDRESSES_IN_TEXTURE_HIGH              = $A500
-X_SUB_PIXEL_STEPS_DECR                 = $A600
-X_SUB_PIXEL_STEPS_LOW                  = $A700
-X_SUB_PIXEL_STEPS_HIGH                 = $A800
-Y_SUB_PIXEL_STEPS_DECR                 = $A900
-Y_SUB_PIXEL_STEPS_LOW                  = $AA00
-Y_SUB_PIXEL_STEPS_HIGH                 = $AB00
-
+X_PIXEL_POSITIONS_IN_MAP_LOW           = $A400
+X_PIXEL_POSITIONS_IN_MAP_HIGH          = $A500
+Y_PIXEL_POSITIONS_IN_MAP_LOW           = $A600
+Y_PIXEL_POSITIONS_IN_MAP_HIGH          = $A700
+X_SUB_PIXEL_STEPS_DECR                 = $A800
+X_SUB_PIXEL_STEPS_LOW                  = $A900
+X_SUB_PIXEL_STEPS_HIGH                 = $AA00
+Y_SUB_PIXEL_STEPS_DECR                 = $AB00
+Y_SUB_PIXEL_STEPS_LOW                  = $AC00
+Y_SUB_PIXEL_STEPS_HIGH                 = $AD00
 
 
 ; ROM addresses
@@ -243,17 +244,21 @@ tiled_perspective_192x64_8bpp_message:
 ; We generated this using the python script (see same folder) and put the data here.
     
 x_in_texture_fraction_corrections_low:
-    .byte 6,215,35,246,90,88,247,63,55,229,77,117,97,20,148,227,3,249,197,108,239,80,145,179,185,164,117,46,207,90,209,51,130,191,235,6,17,13,250,218,172,114,43,217,123,18,159,34,155,11,114,208,38,116,186,248,48,96,138,173,201,224,241,252
+    .byte 126,99,119,203,112,116,227,201,49,35,169,200,138,243,9,210,83,144,141,78,215,41,74,58,254,151,7,80,117,120,89,26,190,69,176,2,58,91,100,88,55,2,185,94,241,114,228,69,152,219,17,57,84,98,99,89,68,36,249,195,132,59,232,141
 x_in_texture_fraction_corrections_high:
-    .byte 0,0,1,0,0,1,1,0,0,1,1,0,1,0,0,0,1,0,0,0,1,1,0,1,0,1,0,1,1,0,0,1,1,1,1,0,0,0,1,1,1,1,1,0,0,0,1,1,0,0,1,0,0,1,0,1,1,0,1,0,1,0,1,0
-y_in_texture_fraction_corrections_low:
-    .byte 127,100,120,204,113,117,228,202,50,36,170,201,139,244,10,211,84,145,142,79,216,42,75,59,255,152,8,81,118,121,90,27,191,70,177,3,59,92,101,89,56,3,186,95,242,115,229,70,153,220,18,58,85,99,100,90,69,37,250,196,133,60,233,142
-y_in_texture_fraction_corrections_high:
     .byte 0,0,1,1,1,0,0,0,0,1,1,1,1,0,0,0,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,0,1,0,1,0,1,0,0,1,1,0,0,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,0,0
-addresses_in_texture_low:
-    .byte 110,178,247,122,254,130,69,8,203,142,145,147,150,216,218,28,31,96,162,228,102,168,233,107,236,46,175,49,178,51,180,54,183,56,249,122,251,188,61,254,127,0,193,65,2,195,132,5,197,134,71,7,200,137,73,10,203,139,76,12,205,141,142,78
-addresses_in_texture_high:
-    .byte 9,7,5,4,2,1,0,15,13,12,11,10,9,8,7,7,6,5,4,3,3,2,1,1,0,0,15,15,14,14,13,13,12,12,11,11,10,10,10,9,9,9,8,8,8,7,7,7,6,6,6,6,5,5,5,5,4,4,4,4,3,3,3,3
+y_in_texture_fraction_corrections_low:
+    .byte 250,41,221,10,166,168,9,193,201,27,179,139,159,236,108,29,253,7,59,148,17,176,111,77,71,92,139,210,49,166,47,205,126,65,21,250,239,243,6,38,84,142,213,39,133,238,97,222,101,245,142,48,218,140,70,8,208,160,118,83,55,32,15,4
+y_in_texture_fraction_corrections_high:
+    .byte 1,1,0,1,1,0,0,1,1,0,0,1,0,1,1,1,0,1,1,1,0,0,1,0,1,0,1,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,0,1,1,1,0,0,1,1,0,1,1,0,1,0,0,1,0,1,0,1,0,1
+x_pixel_positions_in_map_low:
+    .byte 162,169,176,182,188,193,198,203,208,213,217,221,225,228,232,235,239,242,245,248,250,253,0,2,4,7,9,11,13,15,17,19,21,23,24,26,28,29,31,32,34,35,36,38,39,40,41,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,57,58
+x_pixel_positions_in_map_high:
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+y_pixel_positions_in_map_low:
+    .byte 246,250,255,2,6,10,13,16,19,22,25,27,30,32,34,36,39,40,42,44,46,48,49,51,52,54,55,57,58,59,60,62,63,64,65,66,67,68,69,70,71,72,73,73,74,75,76,77,77,78,79,79,80,81,81,82,83,83,84,84,85,85,86,86
+y_pixel_positions_in_map_high:
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 x_sub_pixel_steps_decr:
     .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 x_sub_pixel_steps_low:
@@ -353,7 +358,6 @@ tiled_perspective_copy_next_row_1:
     .endif
     
     
-; FIXME
     ; We correct both x and y sub pixels positions to the correct starting value by setting the deltas 
     .if(USE_TABLE_FILES)
         lda X_IN_TEXTURE_FRACTION_CORRECTIONS_LOW, x
@@ -444,31 +448,6 @@ tiled_perspective_copy_next_row_1:
     sta VERA_ADDR_BANK
     
     
-; FIXME    
-    .if(0)
-    
-; FIXME: we need new tables for the x/y positions!
-; FIXME: we need new tables for the x/y positions!
-; FIXME: we need new tables for the x/y positions!
-
-;    .if(USE_TABLE_FILES)
-;        lda ADDRESSES_IN_TEXTURE_HIGH, x
-;    .else
-;        lda addresses_in_texture_high, x
-;    .endif
-;; FIXME: HACK!
-;    ora #$80                 ; HACK: we have $18000 as base address, so we just set the high bit of the high byte
-;    sta VERA_ADDR_HIGH
-;    .if(USE_TABLE_FILES)
-;        lda ADDRESSES_IN_TEXTURE_LOW, x
-;    .else
-;        lda addresses_in_texture_low, x
-;    .endif
-;    sta VERA_ADDR_LOW
-    
-; FIXME
-    .endif
-    
     ; Setting the position
     
     lda #%00000111           ; DCSEL=1, ADDRSEL=1, with affine helper
@@ -479,20 +458,31 @@ tiled_perspective_copy_next_row_1:
     sta $9F2C
 
     
-    lda #0                   ; X pixel position low [7:0]
-    sta $9F29
-    lda #0                   ; X pixel position high [10:8]
-    sta $9F2A
-;    lda #0                   ; Y pixel position low [7:0]
-;    sta $9F2B
-; FIXME: We directly put register x in the x pixel position low atm
-    stx $9F2B
-;        lda #0                   ; Y pixel position high [10:8] = 0
-    lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
-    sta $9F2C
-    
-    
-    
+    .if(USE_TABLE_FILES)
+        lda X_PIXEL_POSITIONS_IN_MAP_LOW, x
+    .else
+        lda x_pixel_positions_in_map_low, x
+    .endif
+    sta $9F29                ; X pixel position low [7:0]
+    .if(USE_TABLE_FILES)
+        lda X_PIXEL_POSITIONS_IN_MAP_HIGH, x
+    .else
+        lda x_pixel_positions_in_map_high, x
+    .endif
+    sta $9F2A                ; X pixel position high [10:8]
+    .if(USE_TABLE_FILES)
+        lda Y_PIXEL_POSITIONS_IN_MAP_LOW, x
+    .else
+        lda y_pixel_positions_in_map_low, x
+    .endif
+    sta $9F2B                ; Y pixel position low [7:0]
+    .if(USE_TABLE_FILES)
+        lda Y_PIXEL_POSITIONS_IN_MAP_HIGH, x
+    .else
+        lda y_pixel_positions_in_map_high, x
+    .endif
+    ora #%10000000           
+    sta $9F2C                ; Y pixel position high [10:8] = 0, tile lookup = 1
     
 
     ; Copy three rows of 64 pixels (= 192 pixels)
@@ -1016,7 +1006,7 @@ copy_tables_to_banked_ram_byte:
 copy_tables_to_banked_ram:
 
 
-    ; We copy 12 tables to banked RAM, but we pack them so they are easily accessible
+    ; We copy 14 tables to banked RAM, but we pack them so they are easily accessible
 
     lda #1               ; Our first tables starts at ROM Bank 1
     sta TABLE_ROM_BANK
@@ -1071,7 +1061,7 @@ next_byte_to_copy_to_banked_ram:
 
     inc TABLE_ROM_BANK
     lda TABLE_ROM_BANK
-    cmp #14               ; we go from 1-13 so we need to stop at 14
+    cmp #16               ; we go from 1-15 so we need to stop at 16
     bne next_table_to_copy
 
     ; Switching back to ROM bank 0
@@ -1515,9 +1505,33 @@ irq:
   .byte 0, 4, 0, 4, 0, 4, 0, 5, 0, 0, 5, 0, 1, 0, 1, 0, 7, 0, 7, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0
   .byte 0, 0, 4, 0, 4, 0, 0, 0, 5, 5, 0, 0, 1, 0, 1, 0, 7, 0, 7, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
-  
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     
     ; ======== PETSCII CHARSET =======
 
@@ -1536,8 +1550,10 @@ irq:
     .binary "special_tests/tables/x_in_texture_fraction_corrections_high.bin"
     .binary "special_tests/tables/y_in_texture_fraction_corrections_low.bin"
     .binary "special_tests/tables/y_in_texture_fraction_corrections_high.bin"
-    .binary "special_tests/tables/addresses_in_texture_low.bin"
-    .binary "special_tests/tables/addresses_in_texture_high.bin"
+    .binary "special_tests/tables/x_pixel_positions_in_map_low.bin"
+    .binary "special_tests/tables/x_pixel_positions_in_map_high.bin"
+    .binary "special_tests/tables/y_pixel_positions_in_map_low.bin"
+    .binary "special_tests/tables/y_pixel_positions_in_map_high.bin"
     .binary "special_tests/tables/x_sub_pixel_steps_decr.bin"
     .binary "special_tests/tables/x_sub_pixel_steps_low.bin"
     .binary "special_tests/tables/x_sub_pixel_steps_high.bin"

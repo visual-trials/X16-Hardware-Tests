@@ -11,11 +11,12 @@ blue_color = (20,20,200)
 red_color = (200,20,20)
 green_color = (20,200,20)
 yellow_color = (200,200,20)
+purple_color = (200,0,200)
 
 do_draw_orig = True
 do_draw_sim = True
 do_single_angle = True
-angle_max = 256
+do_draw_border_lines = False
     
 screen_width = 320*2
 screen_height = 240*2
@@ -31,7 +32,7 @@ map_pixel_height = map_height * tile_height
 
 texture = []
 
-color_by_index = [ black_color, white_color, blue_color, red_color, green_color, yellow_color ]
+color_by_index = [ black_color, white_color, blue_color, red_color, green_color, yellow_color, purple_color ]
 
 pygame.init()
 
@@ -50,20 +51,25 @@ def run():
                 pixel_position_y = tile_y*tile_height + y
                 for x in range(tile_width):
                     pixel_position_x = tile_x*tile_width + x
-                    if (y == tile_height-1):
-                        texture[pixel_position_y][pixel_position_x] = 2
-                    elif (y == 0):
-                        texture[pixel_position_y][pixel_position_x] = 4
-                    elif (x == tile_width-1):
-                        texture[pixel_position_y][pixel_position_x] = 3
-                    elif (x == 0):
-                        texture[pixel_position_y][pixel_position_x] = 5
-                    if (tile_y % 2 == 0 and tile_x % 2 == 0):
+                    if (tile_y == 0 and tile_x == 0):
+                        texture[pixel_position_y][pixel_position_x] = 6 # 0:0 = purple
+                    elif (tile_y == 1 and tile_x == 1):
+                        texture[pixel_position_y][pixel_position_x] = 5 # 1:1 = yellow
+                    elif (tile_y % 2 == 0 and tile_x % 2 == 0):
                         texture[pixel_position_y][pixel_position_x] = 1
                     elif (tile_y % 2 == 1 and tile_x % 2 == 1):
                         texture[pixel_position_y][pixel_position_x] = 1
                     else:
                         texture[pixel_position_y][pixel_position_x] = 0
+                    if (do_draw_border_lines):
+                        if (y == tile_height-1):
+                            texture[pixel_position_y][pixel_position_x] = 2
+                        elif (y == 0):
+                            texture[pixel_position_y][pixel_position_x] = 4
+                        elif (x == tile_width-1):
+                            texture[pixel_position_y][pixel_position_x] = 3
+                        elif (x == 0):
+                            texture[pixel_position_y][pixel_position_x] = 5
     
     screen.fill(background_color)
 
@@ -91,6 +97,7 @@ def run():
     all_angles_y_sub_pixel_steps_low = []
     all_angles_y_sub_pixel_steps_high = []
 
+    angle_max = 256
     if do_single_angle:
         angle_max = 1 # This is a workaround/hack to make sure only one angle is drawn/generated
     for angle_index in range(angle_max):
@@ -139,10 +146,13 @@ def run():
                 pz = y + horizon
 
                 sx = px / pz
-                sy = py / pz 
+                sy = - py / pz 
                 
                 sx_rotated = sx * math.cos(angle) - sy * math.sin(angle)
                 sy_rotated = sx * math.sin(angle) + sy * math.cos(angle)            
+                
+                sx_rotated += 17 * 8 / scaling
+                sy_rotated += 17 * 8 / scaling
                 
                 # When we calculated the second pixel of a row, we know the increment between the first and second pixel
                 if (x == -95):
