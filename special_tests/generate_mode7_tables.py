@@ -14,8 +14,8 @@ yellow_color = (200,200,20)
 purple_color = (200,0,200)
 
 do_draw_orig = True
-do_draw_sim = True
-do_single_angle = True
+do_draw_sim = False
+do_single_angle = False
 do_draw_border_lines = False
     
 screen_width = 320*2
@@ -139,7 +139,7 @@ def run():
                     # angle = math.pi * 0.05
                     # angle = math.pi * 0.0
                 else:
-                    angle = math.pi * (angle_index / angle_max)
+                    angle = math.pi*2 * (angle_index / angle_max)
 
                 px = x
                 py = fov
@@ -327,7 +327,7 @@ def run():
             all_angles_y_sub_pixel_steps_low += y_sub_pixel_steps_low
             all_angles_y_sub_pixel_steps_high += y_sub_pixel_steps_high
         
-    if do_single_angle:
+    if not do_single_angle:
         tableFile = open("special_tests/tables/x_in_texture_fraction_corrections_low.bin", "wb")
         tableFile.write(bytearray(all_angles_x_in_texture_fraction_corrections_low))
         tableFile.close()

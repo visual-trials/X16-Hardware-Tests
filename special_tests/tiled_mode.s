@@ -1,6 +1,6 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 0
+USE_TABLE_FILES = 1
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 
 
@@ -162,74 +162,72 @@ four_bytes_per_write_message:
 test_speed_of_tiled_perspective:
 
     jsr generate_copy_row_code
-    .if(USE_TABLE_FILES)
-    jsr copy_table_copier_to_ram
-    jsr COPY_TABLES_TO_BANKED_RAM
-    .endif
     
-    jsr start_timer
-
     .if(USE_TABLE_FILES)
+        jsr copy_table_copier_to_ram
+        jsr COPY_TABLES_TO_BANKED_RAM
+        
         lda #100
         sta VIEWING_ANGLE
 turn_around:
         lda VIEWING_ANGLE
         sta RAM_BANK
-    .endif
-    
-    jsr tiled_perspective_fast
+        
+        jsr tiled_perspective_fast
 
-    .if(USE_TABLE_FILES)
         inc VIEWING_ANGLE
 
         bra turn_around
-    .endif
-    
-    jsr stop_timer
-
-    lda #COLOR_TEXT
-    sta TEXT_COLOR
-    
-    lda #5
-    sta CURSOR_X
-    lda #4
-    sta CURSOR_Y
-
-    lda #<tiled_perspective_192x64_8bpp_message
-    sta TEXT_TO_PRINT
-    lda #>tiled_perspective_192x64_8bpp_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
-    
-    lda #8
-    sta CURSOR_X
-    lda #21
-    sta CURSOR_Y
-
-    .if(USE_CACHE_FOR_WRITING)
-        lda #<four_bytes_per_write_message
-        sta TEXT_TO_PRINT
-        lda #>four_bytes_per_write_message
-        sta TEXT_TO_PRINT + 1
     .else
-        lda #<one_byte_per_write_message
+        jsr start_timer
+        jsr tiled_perspective_fast
+        jsr stop_timer
+
+        lda #COLOR_TEXT
+        sta TEXT_COLOR
+        
+        lda #5
+        sta CURSOR_X
+        lda #4
+        sta CURSOR_Y
+
+        lda #<tiled_perspective_192x64_8bpp_message
         sta TEXT_TO_PRINT
-        lda #>one_byte_per_write_message
+        lda #>tiled_perspective_192x64_8bpp_message
         sta TEXT_TO_PRINT + 1
+        
+        jsr print_text_zero
+        
+        lda #8
+        sta CURSOR_X
+        lda #21
+        sta CURSOR_Y
+
+        .if(USE_CACHE_FOR_WRITING)
+            lda #<four_bytes_per_write_message
+            sta TEXT_TO_PRINT
+            lda #>four_bytes_per_write_message
+            sta TEXT_TO_PRINT + 1
+        .else
+            lda #<one_byte_per_write_message
+            sta TEXT_TO_PRINT
+            lda #>one_byte_per_write_message
+            sta TEXT_TO_PRINT + 1
+        .endif
+        
+        jsr print_text_zero
+        
+        lda #COLOR_TEXT
+        sta TEXT_COLOR
+        
+        lda #8
+        sta CURSOR_X
+        lda #26
+        sta CURSOR_Y
+        
+        jsr print_time_elapsed
+    
     .endif
-    
-    jsr print_text_zero
-    
-    lda #COLOR_TEXT
-    sta TEXT_COLOR
-    
-    lda #8
-    sta CURSOR_X
-    lda #26
-    sta CURSOR_Y
-    
-    jsr print_time_elapsed
 
     rts
     
