@@ -14,10 +14,14 @@ yellow_color = (200,200,20)
 purple_color = (200,0,200)
 
 do_draw_orig = True
-do_draw_sim = False
-do_single_angle = False
+do_draw_sim = True
+do_single_angle = True
 do_draw_border_lines = False
-    
+do_clip = True
+
+max_x_position_in_map = 2048 # The affine helper allows for a max position of 11 bits
+max_y_position_in_map = max_x_position_in_map
+
 screen_width = 320*2
 screen_height = 240*2
 
@@ -165,7 +169,10 @@ def run():
                     start_sy = sy_rotated
 
                 if do_draw_orig:
-                    pixel_color = color_by_index[texture[int(sy_rotated * scaling) % map_pixel_height][int(sx_rotated * scaling) % map_pixel_width]]
+                    if do_clip and (int(sy_rotated * scaling) // map_pixel_height != 0 or int(sx_rotated * scaling) // map_pixel_width != 0):
+                        pixel_color = black_color
+                    else:
+                        pixel_color = color_by_index[texture[int(sy_rotated * scaling) % map_pixel_height][int(sx_rotated * scaling) % map_pixel_width]]
 # FIXME: +96 +64??
                     pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2, 2, 2))  # , width=border_width
                 
@@ -177,15 +184,15 @@ def run():
             
             # print(sub_pixel_increment_x*64*256, sub_pixel_increment_y*64*256)
             
-            y_in_texture = (start_sy * scaling) % map_pixel_height
-            x_in_texture = (start_sx * scaling) % map_pixel_width
-
+            
+            y_pixel_position_in_map = (start_sy * scaling) % max_y_position_in_map
+            x_pixel_position_in_map = (start_sx * scaling) % max_x_position_in_map
 
             x_sub_pixel_step = int(sub_pixel_increment_x * scaling * 512)
             y_sub_pixel_step = int(sub_pixel_increment_y * scaling * 512)
             
             # x_sub_pixel_step = (-start_sx/96)*64 * 256   
-            # print('y in texture: ' + str(y_in_texture) + ' - x in texture: ' + str(x_in_texture) + ' - x,y sub pixel step: ' + str(int(x_sub_pixel_step)) + ',' + str(int(y_sub_pixel_step)))
+            # print('y in texture: ' + str(y_pixel_position_in_map) + ' - x in texture: ' + str(x_pixel_position_in_map) + ' - x,y sub pixel step: ' + str(int(x_sub_pixel_step)) + ',' + str(int(y_sub_pixel_step)))
             
             x_sub_pixel_step_decr = 0
             if x_sub_pixel_step < 0:
@@ -205,11 +212,15 @@ def run():
             y_sub_pixel_steps_low.append(int(y_sub_pixel_step) % 256)
             y_sub_pixel_steps_high.append(int(y_sub_pixel_step) // 256)
 
+# FIXME: rename x/y_in_texture_fraction_correction to x/y_subpixel_position_in_map_correction
+# FIXME: rename x/y_in_texture_fraction_correction to x/y_subpixel_position_in_map_correction
+# FIXME: rename x/y_in_texture_fraction_correction to x/y_subpixel_position_in_map_correction
+
             # TODO: give an explanation why we are doing this: 512 - ...
-            x_in_texture_fraction_correction = int(((x_in_texture % 1)*512-256)%512)
+            x_in_texture_fraction_correction = int(((x_pixel_position_in_map % 1)*512-256)%512)
             if x_sub_pixel_step_decr:
                 x_in_texture_fraction_correction = 512 - x_in_texture_fraction_correction
-            y_in_texture_fraction_correction = int(((y_in_texture % 1)*512-256)%512)
+            y_in_texture_fraction_correction = int(((y_pixel_position_in_map % 1)*512-256)%512)
             if y_sub_pixel_step_decr:
                 y_in_texture_fraction_correction = 512 - y_in_texture_fraction_correction
             
@@ -219,10 +230,10 @@ def run():
             y_in_texture_fraction_corrections_low.append(y_in_texture_fraction_correction % 256)
             y_in_texture_fraction_corrections_high.append(y_in_texture_fraction_correction // 256)
             
-            x_pixel_positions_in_map_low.append(int(x_in_texture % 256))
-            x_pixel_positions_in_map_high.append(int(x_in_texture // 256))
-            y_pixel_positions_in_map_low.append(int(y_in_texture % 256))
-            y_pixel_positions_in_map_high.append(int(y_in_texture // 256))
+            x_pixel_positions_in_map_low.append(int(x_pixel_position_in_map % 256))
+            x_pixel_positions_in_map_high.append(int(x_pixel_position_in_map // 256))
+            y_pixel_positions_in_map_low.append(int(y_pixel_position_in_map % 256))
+            y_pixel_positions_in_map_high.append(int(y_pixel_position_in_map // 256))
             
             
         # ========= SIMULATING USING THE SAME DATA ==========
@@ -230,8 +241,8 @@ def run():
         if do_draw_sim:
             for y in range(start_y, end_y):
                 y_index = y-start_y
-                x_in_texture = x_pixel_positions_in_map_low[y_index] + x_pixel_positions_in_map_high[y_index]*256
-                y_in_texture = y_pixel_positions_in_map_low[y_index] + y_pixel_positions_in_map_high[y_index]*256
+                x_pixel_position_in_map = x_pixel_positions_in_map_low[y_index] + x_pixel_positions_in_map_high[y_index]*256
+                y_pixel_position_in_map = y_pixel_positions_in_map_low[y_index] + y_pixel_positions_in_map_high[y_index]*256
                 
                 x_start_sub_pixel = 0.5
                 y_start_sub_pixel = 0.5
@@ -251,20 +262,26 @@ def run():
                 x_start_sub_pixel = (x_start_sub_pixel + x_sub_pixel_correction) % 1
                 y_start_sub_pixel = (y_start_sub_pixel + y_sub_pixel_correction) % 1
                 
-                x_in_texture += x_start_sub_pixel
-                y_in_texture += y_start_sub_pixel
+                x_pixel_position_in_map += x_start_sub_pixel
+                y_pixel_position_in_map += y_start_sub_pixel
                 
                 for x in range(-96, 96):
              
-                    pixel_color = color_by_index[texture[int(y_in_texture)][int(x_in_texture)]]
+                    if do_clip and (int(y_pixel_position_in_map) // map_pixel_height != 0 or int(x_pixel_position_in_map) // map_pixel_width != 0):
+                        pixel_color = black_color
+                    else:
+                        pixel_color = color_by_index[texture[int(y_pixel_position_in_map) % map_pixel_height][int(x_pixel_position_in_map) % map_pixel_width]]
 # FIXME: +96 +64??
                     pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2+192, 2, 2))  # , width=border_width
                     
-                    x_in_texture += x_sub_pixel_step
-                    y_in_texture += y_sub_pixel_step
+                    x_pixel_position_in_map += x_sub_pixel_step
+                    y_pixel_position_in_map += y_sub_pixel_step
                     
-                    x_in_texture = x_in_texture % map_pixel_width
-                    y_in_texture = y_in_texture % map_pixel_height
+                    # FIXME: shouldnt we simulate that when in repeat-mode everything always has a position *inside* the map?
+                    
+                    # We simulate that the values inside of VERA (max 11 bit for position) will overflow automatically
+                    x_pixel_position_in_map = x_pixel_position_in_map % max_x_position_in_map
+                    y_pixel_position_in_map = y_pixel_position_in_map % max_y_position_in_map
                 
                 # pygame.display.update()
 
