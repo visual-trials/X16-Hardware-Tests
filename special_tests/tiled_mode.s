@@ -3,7 +3,7 @@ USE_CACHE_FOR_WRITING = 1
 USE_TABLE_FILES = 1
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 0
-TURN_AROUND = 0
+TURN_AROUND = 1
 
 BACKGROUND_COLOR = 255  ; 255 = Purple in this palette
 COLOR_TEXT  = $06       ; Background color = 0 (transparent), foreground color 6 (grey in this palette)
