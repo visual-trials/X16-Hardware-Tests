@@ -1,7 +1,7 @@
 
 USE_CACHE_FOR_WRITING = 1
 USE_TABLE_FILES = 0
-DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
+DRAW_TILED_PERSPECTIVE = 0  ; Otherwise FLAT tiles
 
 
 BACKGROUND_COLOR = 255  ; 255 = Purple in this palette
@@ -11,10 +11,10 @@ COLOR_TEXT  = $06       ; Background color = 0 (transparent), foreground color 6
 TEXTURE_WIDTH = 64
 TEXTURE_HEIGHT = 64
 
-MAP_WIDTH = 32
-MAP_HEIGHT = 32
-;MAP_WIDTH = 4
-;MAP_HEIGHT = 4
+;MAP_WIDTH = 32
+;MAP_HEIGHT = 32
+MAP_WIDTH = 4
+MAP_HEIGHT = 4
 
 TOP_MARGIN = 12
 LEFT_MARGIN = 16
@@ -599,9 +599,9 @@ flat_tiles_fast:
     
     ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
     ;                + 01010000 for 32x32 map
-    lda #%01010111
+;    lda #%01010111
     ;                + 00100000 for 4x4 map
-;        lda #%00100111
+    lda #%00100111
     sta VERA_L0_CONFIG
     
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
@@ -668,8 +668,8 @@ repetitive_copy_next_row_1:
 ;        sta $9F2B
 ; FIXME: We directly put register x in the x pixel position low atm
     txa
-    clc
-    adc #4
+;    clc
+;    adc #4
     sta $9F2B
 ;        lda #0                   ; Y pixel position high [10:8] = 0
     lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
@@ -1494,10 +1494,10 @@ irq:
 
   ; manual TILEMAP
   .org $E000
-;  .byte 9, 1, 2, 3
-;  .byte 3, 2, 1, 0
-;  .byte 5, 4, 5, 4
-;  .byte 6, 7, 8, 9
+  .byte 9, 1, 2, 3
+  .byte 3, 2, 1, 0
+  .byte 5, 4, 5, 4
+  .byte 6, 7, 8, 9
   
   .byte 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11
   .byte 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11
