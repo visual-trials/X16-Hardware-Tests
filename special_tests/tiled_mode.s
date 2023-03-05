@@ -1068,7 +1068,7 @@ next_byte_to_copy_to_banked_ram:
 
     inc TABLE_ROM_BANK
     lda TABLE_ROM_BANK
-    cmp #16               ; we go from 1-15 so we need to stop at 16
+    cmp #15               ; we go from 1-14 so we need to stop at 15
     bne next_table_to_copy
 
     ; Switching back to ROM bank 0
