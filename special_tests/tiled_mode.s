@@ -1,7 +1,7 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 0
-DRAW_TILED_PERSPECTIVE = 0  ; Otherwise FLAT tiles
+USE_TABLE_FILES = 1
+DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 
 
 BACKGROUND_COLOR = 255  ; 255 = Purple in this palette
@@ -11,10 +11,10 @@ COLOR_TEXT  = $06       ; Background color = 0 (transparent), foreground color 6
 TEXTURE_WIDTH = 64
 TEXTURE_HEIGHT = 64
 
-;MAP_WIDTH = 32
-;MAP_HEIGHT = 32
-MAP_WIDTH = 4
-MAP_HEIGHT = 4
+MAP_WIDTH = 32
+MAP_HEIGHT = 32
+;MAP_WIDTH = 4
+;MAP_HEIGHT = 4
 
 TOP_MARGIN = 12
 LEFT_MARGIN = 16
@@ -172,11 +172,16 @@ test_speed_of_tiled_perspective:
 turn_around:
         lda VIEWING_ANGLE
         sta RAM_BANK
-        
+
         jsr tiled_perspective_fast
 
         inc VIEWING_ANGLE
-
+        
+; FIXME: added this condition:
+;        lda VIEWING_ANGLE
+;        cmp #100
+;        bne turn_around
+        
         bra turn_around
     .else
         jsr start_timer
@@ -1494,10 +1499,10 @@ irq:
 
   ; manual TILEMAP
   .org $E000
-  .byte 9, 1, 2, 3
-  .byte 3, 2, 1, 0
-  .byte 5, 4, 5, 4
-  .byte 6, 7, 8, 9
+;  .byte 9, 1, 2, 3
+;  .byte 3, 2, 1, 0
+;  .byte 5, 4, 5, 4
+;  .byte 6, 7, 8, 9
   
   .byte 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11
   .byte 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11

@@ -13,9 +13,9 @@ green_color = (20,200,20)
 yellow_color = (200,200,20)
 purple_color = (200,0,200)
 
-do_draw_orig = True
+do_draw_orig = False
 do_draw_sim = True
-do_single_angle = True
+do_single_angle = False
 do_draw_border_lines = False
 do_clip = True
 
