@@ -1,21 +1,34 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 1
+USE_TABLE_FILES = 0
+DO_NO_TILE_LOOKUP = 1
+DO_CLIP = 0
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 0
-TURN_AROUND = 1
+TURN_AROUND = 0
 
+    .if(DO_NO_TILE_LOOKUP)
+BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
+COLOR_TEXT  = $03       ; Background color = 0 (transparent), foreground color 3 (white in this palette)
+MAP_WIDTH = 8    ; 8 * 8 = 64 pixels
+MAP_HEIGHT = 8   ; 8 * 8 = 64 pixels
+    .else
 BACKGROUND_COLOR = 255  ; 255 = Purple in this palette
 COLOR_TEXT  = $06       ; Background color = 0 (transparent), foreground color 6 (grey in this palette)
+MAP_WIDTH = 32
+MAP_HEIGHT = 32
+    .endif
+
+;MAP_WIDTH = 4
+;MAP_HEIGHT = 4
 
 ; FIXME: we use this for copying the minecraft textures (8x128 pixels). But we also use it to create copy-code. So this is actually wrong.
 TEXTURE_WIDTH = 64
 TEXTURE_HEIGHT = 64
 
-MAP_WIDTH = 32
-MAP_HEIGHT = 32
-;MAP_WIDTH = 4
-;MAP_HEIGHT = 4
+TILE_WIDTH = 8
+TILE_HEIGHT = 8
+
 
 TOP_MARGIN = 12
 LEFT_MARGIN = 16
@@ -82,6 +95,9 @@ STORE_ADDRESS             = $42 ; 43
 TABLE_ROM_BANK            = $44
 VIEWING_ANGLE             = $45
 
+TILE_X                    = $46
+TILE_Y                    = $47
+
 WORLD_X_POSITION          = $50 ; 51
 WORLD_Y_POSITION          = $52 ; 53
 
@@ -138,8 +154,12 @@ reset:
     ; Put orginal picture on screen (slow)
     jsr clear_screen_slow
     jsr copy_palette
-    jsr copy_pixels_to_high_vram
-    jsr copy_tilemap_to_high_vram
+    .if(DO_NO_TILE_LOOKUP)
+        jsr copy_texture_pixels_as_tile_pixels_to_high_vram
+    .else
+        jsr copy_pixels_to_high_vram
+        jsr copy_tilemap_to_high_vram
+    .endif
     
     .if(DRAW_TILED_PERSPECTIVE)
         ; Test speed of perspective style transformation
@@ -313,11 +333,18 @@ tiled_perspective_fast:
     sta VERA_L0_HSCROLL_L
     
     ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
-    ;                + 01010000 for 32x32 map
-    lda #%01010111
-    ;                + 00100000 for 4x4 map
-;        lda #%00100111
-    sta VERA_L0_CONFIG
+    .if(DO_NO_TILE_LOOKUP)
+        ;                + 00110000 for 8x8 map
+        lda #%00110111
+        sta VERA_L0_CONFIG
+    .else
+        ;                + 01010000 for 32x32 map
+        lda #%01010111
+        sta VERA_L0_CONFIG
+    .endif
+    ;            + 00100000 for 4x4 map
+    ;    lda #%00100111
+    ;    sta VERA_L0_CONFIG
     
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
     lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
@@ -343,8 +370,12 @@ tiled_perspective_fast:
     sta $9F2A
     lda #00
     sta $9F2B                ; Y increment low
-; FIXME: Clip is now 01!!
-    lda #%00100100           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 
+    .if(DO_CLIP)
+    ; FIXME: Clip is now 01!!
+        lda #%00100100           ; L0/L1 = 0, Clip (01) / Repeat (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 
+    .else
+        lda #%00000100           ; L0/L1 = 0, Clip (01) / Repeat (00) = 00, Y subpixel increment exponent = 001, Y increment high = 00 
+    .endif
     sta $9F2C                ; Y increment high
 
     ldx #0
@@ -415,9 +446,14 @@ tiled_perspective_copy_next_row_1:
     .else
         lda y_in_texture_fraction_corrections_high, x
     .endif
-; FIXME: Clip is now 01!!
-    ora #%00000000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
-;    ora #%00100000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
+    
+    
+    .if(DO_CLIP)
+    ; FIXME: Clip is now 01!!
+        ora #%00100000           ; L0/L1 = 0, Clip (01) / Repeat (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 
+    .else
+        ora #%00000000           ; L0/L1 = 0, Clip (01) / Repeat (00) = 00, Y subpixel increment exponent = 001, Y increment high = 00 
+    .endif
     sta $9F2C
 
     ; FIXME: we shouldnt need this if we didnt have to correct the subpixel position. We also should be calculating the subpixel position in the table generator.
@@ -462,9 +498,13 @@ tiled_perspective_copy_next_row_1:
     .else
         lda y_sub_pixel_steps_high, x
     .endif
-; FIXME: Clip is now 01!!
-    ora #%00000000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
-;    ora #%00100000           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 000, Y increment high = 00 (these two bits are already in a by the lda)
+    
+    .if(DO_CLIP)
+    ; FIXME: Clip is now 01!!
+        ora #%00100000           ; L0/L1 = 0, Clip (01) / Repeat (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 
+    .else
+        ora #%00000000           ; L0/L1 = 0, Clip (01) / Repeat (00) = 00, Y subpixel increment exponent = 001, Y increment high = 00 
+    .endif
     sta $9F2C
     
     lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
@@ -481,11 +521,13 @@ tiled_perspective_copy_next_row_1:
     lda #%00000111           ; DCSEL=1, ADDRSEL=1, with affine helper
     sta VERA_CTRL
 
+    .if(DO_NO_TILE_LOOKUP)
+    .else
 ; FIXME: WORKAROUND! WE HAVE TO TURN ON TILE LOOKUP BEFORE SETTING THE POSITION!! BUT THEY ARE IN THE SAME REGISTER!!
-    lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
-    sta $9F2C
+        lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
+        sta $9F2C
+    .endif
 
-    
     .if(USE_TABLE_FILES)
         lda X_PIXEL_POSITIONS_IN_MAP_LOW, x
         .if(MOVE_XY_POSITION)
@@ -523,9 +565,13 @@ tiled_perspective_copy_next_row_1:
     .else
         lda y_pixel_positions_in_map_high, x
     .endif
-    ora #%10000000           
-    sta $9F2C                ; Y pixel position high [10:8] = 0, tile lookup = 1
     
+    .if(DO_NO_TILE_LOOKUP)
+    .else
+; FIXME: WORKAROUND! WE HAVE TO TURN ON TILE LOOKUP BEFORE SETTING THE POSITION!! BUT THEY ARE IN THE SAME REGISTER!!
+        ora #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
+        sta $9F2C
+    .endif
 
     ; Copy three rows of 64 pixels (= 192 pixels)
     jsr COPY_ROW_CODE
@@ -639,11 +685,18 @@ flat_tiles_fast:
     sta VERA_L0_HSCROLL_L
     
     ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
-    ;                + 01010000 for 32x32 map
-;    lda #%01010111
-    ;                + 00100000 for 4x4 map
-    lda #%00100111
-    sta VERA_L0_CONFIG
+    .if(DO_NO_TILE_LOOKUP)
+        ;                + 00110000 for 8x8 map
+        lda #%00110111
+        sta VERA_L0_CONFIG
+    .else
+        ;                + 01010000 for 32x32 map
+        lda #%01010111
+        sta VERA_L0_CONFIG
+    .endif
+    ;            + 00100000 for 4x4 map
+    ;    lda #%00100111
+    ;    sta VERA_L0_CONFIG
     
     ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
     lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
@@ -669,8 +722,12 @@ flat_tiles_fast:
     sta $9F2A
     lda #00
     sta $9F2B                ; Y increment low
-; FIXME: Clip is now 01!!
-    lda #%00100100           ; L0/L1 = 0, Repeat (01) / Clip (10) / Combined (11) / None (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 
+    .if(DO_CLIP)
+    ; FIXME: Clip is now 01!!
+        lda #%00100100           ; L0/L1 = 0, Clip (01) / Repeat (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 
+    .else
+        lda #%00000100           ; L0/L1 = 0, Clip (01) / Repeat (00) = 00, Y subpixel increment exponent = 001, Y increment high = 00 
+    .endif
     sta $9F2C                ; Y increment high
 
     ldx #0
@@ -696,9 +753,12 @@ repetitive_copy_next_row_1:
     lda #%00000111           ; DCSEL=1, ADDRSEL=1, with affine helper
     sta VERA_CTRL
 
-; FIXME: WORKAROUND! WE HAVE TO TURN ON TILE LOOKUP BEFORE SETTING THE POSITION!! BUT THEY ARE IN THE SAME REGISTER!!
-    lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
-    sta $9F2C
+    .if(DO_NO_TILE_LOOKUP)
+    .else
+    ; FIXME: WORKAROUND! WE HAVE TO TURN ON TILE LOOKUP BEFORE SETTING THE POSITION!! BUT THEY ARE IN THE SAME REGISTER!!
+        lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
+        sta $9F2C
+    .endif
 
     
     lda #0                   ; X pixel position low [7:0]
@@ -713,9 +773,12 @@ repetitive_copy_next_row_1:
 ;    adc #4
     sta $9F2B
 ;        lda #0                   ; Y pixel position high [10:8] = 0
-    lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
-    sta $9F2C
-    
+    .if(DO_NO_TILE_LOOKUP)
+    .else
+    ; FIXME: WORKAROUND! WE HAVE TO TURN ON TILE LOOKUP BEFORE SETTING THE POSITION!! BUT THEY ARE IN THE SAME REGISTER!!
+        lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
+        sta $9F2C
+    .endif
     
     ; Copy three rows of 64 pixels
     jsr COPY_ROW_CODE
@@ -981,6 +1044,91 @@ next_horizontal_pixel_high_vram:
     
     rts
     
+
+copy_texture_pixels_as_tile_pixels_to_high_vram:  
+
+    lda #<PIXELS
+    sta DATA_PTR_ZP
+    lda #>PIXELS
+    sta DATA_PTR_ZP+1 
+    
+    ; For now copying to TILEDATA_VRAM_ADDRESS
+    ; TODO: we are ASSUMING here that TEXTURE_VRAM_ADDRESS has its bit16 set to 1!!
+    lda #%00010001      ; setting bit 16 of vram address to the highest bit in the tilebase (=1), setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+    lda #<(TILEDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_LOW
+    lda #>(TILEDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_HIGH
+    
+    lda #0
+    sta TILE_Y
+
+next_tile_row_high_vram_tx:
+
+    lda #0
+    sta TILE_X
+
+next_tile_high_vram_tx:    
+
+    ldx #0
+next_tile_pixel_row_high_vram:  
+
+    ldy #0
+next_horizontal_tile_pixel_high_vram:
+    lda (DATA_PTR_ZP),y
+
+    sta VERA_DATA0
+
+    iny
+    cpy #TILE_WIDTH
+    bne next_horizontal_tile_pixel_high_vram
+    inx
+    
+    ; Adding TEXTURE_WIDTH to the previous data address
+    clc
+    lda DATA_PTR_ZP
+    adc #TEXTURE_WIDTH
+    sta DATA_PTR_ZP
+    lda DATA_PTR_ZP+1
+    adc #0
+    sta DATA_PTR_ZP+1
+
+    cpx #TILE_HEIGHT
+    bne next_tile_pixel_row_high_vram
+    
+    ; Move the texture pixel 8 pixels upwards and one tile width to the right (this is where the next 'tile' starts)
+    sec
+    lda DATA_PTR_ZP
+    sbc #<(TEXTURE_WIDTH*TILE_HEIGHT-TILE_WIDTH)
+    sta DATA_PTR_ZP
+    lda DATA_PTR_ZP+1
+    sbc #>(TEXTURE_WIDTH*TILE_HEIGHT-TILE_WIDTH)
+    sta DATA_PTR_ZP+1
+    
+    inc TILE_X
+    lda TILE_X
+    cmp #MAP_WIDTH
+    bne next_tile_high_vram_tx
+
+    ; Move the texture pixel 7 pixels downwards (this is where the the next 'tile row' starts)
+
+    clc
+    lda DATA_PTR_ZP
+    adc #<(TEXTURE_WIDTH*7)
+    sta DATA_PTR_ZP
+    lda DATA_PTR_ZP+1
+    adc #>(TEXTURE_WIDTH*7)
+    sta DATA_PTR_ZP+1
+    
+    inc TILE_Y
+    lda TILE_Y
+    cmp #MAP_HEIGHT
+    bne next_tile_row_high_vram_tx
+
+    
+    rts
+
     
 copy_tilemap_to_high_vram:
 
@@ -1142,6 +1290,267 @@ irq:
     
     
   .org $CE00
+  
+  .if(DO_NO_TILE_LOOKUP)
+  
+  .byte $aa, $0a
+  .byte $88, $08
+  .byte $00, $00
+  .byte $ee, $0f
+  .byte $ee, $0f
+  .byte $ee, $0f
+  .byte $ee, $0f
+  .byte $ee, $0e
+  .byte $ee, $0f
+  .byte $ee, $0e
+  .byte $dd, $0e
+  .byte $dd, $0e
+  .byte $dc, $0e
+  .byte $cc, $0d
+  .byte $66, $06
+  .byte $56, $06
+  .byte $55, $06
+  .byte $ff, $0f
+  .byte $fe, $0f
+  .byte $fe, $0f
+  .byte $fe, $0f
+  .byte $fe, $0f
+  .byte $ff, $0f
+  .byte $fe, $0f
+  .byte $fd, $0f
+  .byte $fe, $0f
+  .byte $fd, $0f
+  .byte $ed, $0f
+  .byte $ee, $0f
+  .byte $ed, $0f
+  .byte $ed, $0f
+  .byte $ee, $0f
+  .byte $ed, $0f
+  .byte $ed, $0f
+  .byte $ed, $0f
+  .byte $ed, $0f
+  .byte $ed, $0f
+  .byte $ec, $0e
+  .byte $ec, $0e
+  .byte $ed, $0e
+  .byte $dd, $0f
+  .byte $ec, $0e
+  .byte $dc, $0f
+  .byte $dd, $0e
+  .byte $dc, $0e
+  .byte $dc, $0e
+  .byte $dc, $0e
+  .byte $dc, $0e
+  .byte $dc, $0e
+  .byte $dc, $0e
+  .byte $dc, $0e
+  .byte $dc, $0d
+  .byte $db, $0d
+  .byte $cb, $0d
+  .byte $cc, $0d
+  .byte $cc, $0d
+  .byte $cb, $0d
+  .byte $cb, $0c
+  .byte $ba, $0c
+  .byte $ba, $0c
+  .byte $bb, $0b
+  .byte $ba, $0b
+  .byte $55, $05
+  .byte $34, $03
+  .byte $34, $02
+  .byte $ab, $0b
+  .byte $44, $04
+  .byte $44, $04
+  .byte $34, $04
+  .byte $34, $03
+  .byte $34, $03
+  .byte $33, $03
+  .byte $34, $03
+  .byte $33, $03
+  .byte $33, $03
+  .byte $33, $03
+  .byte $33, $03
+  .byte $23, $02
+  .byte $23, $02
+  .byte $11, $01
+  .byte $ef, $0e
+  .byte $ee, $0e
+  .byte $dd, $0d
+  .byte $55, $05
+  .byte $45, $05
+  .byte $45, $05
+  .byte $45, $04
+  .byte $44, $04
+  .byte $44, $04
+  .byte $44, $04
+  .byte $44, $04
+  .byte $34, $04
+  .byte $34, $04
+  .byte $34, $03
+  .byte $ee, $0e
+  .byte $de, $0e
+  .byte $de, $0e
+  .byte $de, $0e
+  .byte $dd, $0e
+  .byte $dd, $0d
+  .byte $55, $06
+  .byte $55, $06
+  .byte $55, $05
+  .byte $55, $05
+  .byte $55, $05
+  .byte $55, $05
+  .byte $45, $05
+  .byte $45, $05
+  .byte $44, $05
+  .byte $22, $02
+  .byte $22, $02
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $00, $00
+  .byte $4a, $07   ; The last few palette I copied from affine_helper.s / finch.s
+  .byte $4e, $07
+  .byte $3e, $08
+  .byte $3b, $06
+  .byte $48, $06
+  .byte $39, $05
+  .byte $36, $04
+  .byte $27, $04
+  .byte $23, $02
+  .byte $02, $00
+  .byte $bc, $0b
+  .byte $ab, $0a
+  .byte $89, $09
+  .byte $69, $08
+  .byte $dd, $0d
+  .byte $cd, $0d
+  .byte $99, $0a
+  .byte $78, $08
+  .byte $67, $07
+  .byte $44, $04
+  .byte $34, $04
+  .byte $22, $02
+  .byte $12, $03
+
+  .else
 
   .byte $bb, $0b
   .byte $99, $09
@@ -1400,9 +1809,79 @@ irq:
   .byte $00, $00
   .byte $27, $04
 
+  .endif
 
   .org $D000
 
+  .if(DO_NO_TILE_LOOKUP)
+  
+  .byte $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $3e, $4a, $4a, $4a, $4e, $5d, $4a, $5b, $5b, $5b, $5b, $46, $5d, $47, $4b, $47, $5a, $47, $59, $5b, $49, $5c, $5c, $59, $57, $57, $5c, $45, $46, $5c, $5b, $57, $4f
+  .byte $00, $20, $24, $25, $20, $1e, $1e, $1b, $06, $1b, $29, $29, $22, $1b, $1b, $1b, $1b, $1b, $1e, $29, $20, $25, $24, $24, $1e, $20, $1e, $04, $08, $1b, $1e, $02, $47, $47, $4c, $5d, $5d, $5c, $5d, $5c, $5a, $5c, $47, $47, $5d, $47, $5c, $5a, $5a, $5b, $4b, $47, $44, $57, $57, $6c, $58, $59, $5a, $5a, $5c, $46, $5d, $02
+  .byte $00, $1e, $20, $20, $1d, $1e, $1b, $1c, $07, $04, $1e, $1e, $20, $1e, $1e, $1e, $20, $1b, $1b, $29, $1b, $24, $1b, $1b, $24, $1b, $1e, $21, $1b, $1e, $26, $02, $4a, $4a, $4d, $5d, $4a, $5d, $47, $5b, $46, $4c, $49, $5d, $4b, $4a, $5d, $4c, $47, $5a, $59, $59, $59, $5b, $5b, $59, $49, $46, $5b, $59, $49, $5c, $4b, $02
+  .byte $00, $24, $20, $1e, $20, $1e, $1b, $1e, $06, $1c, $2a, $22, $22, $1b, $1b, $1b, $1e, $1b, $25, $1b, $24, $1e, $1e, $1b, $1e, $24, $22, $1c, $21, $04, $1e, $02, $4a, $4c, $4a, $47, $5c, $5c, $5c, $5c, $59, $5b, $47, $4c, $47, $5d, $5b, $5b, $57, $5a, $5a, $5a, $5b, $57, $59, $5b, $46, $5c, $44, $5a, $47, $5b, $5c, $02
+  .byte $00, $20, $20, $24, $24, $1b, $1e, $24, $1e, $23, $2b, $07, $06, $2e, $0a, $19, $1f, $21, $1b, $1b, $1e, $1b, $1b, $1e, $04, $1f, $1b, $21, $1e, $22, $22, $02, $4b, $5d, $5d, $5d, $5c, $4c, $47, $5b, $47, $47, $47, $47, $5c, $47, $5c, $5b, $49, $5b, $5a, $59, $48, $5d, $44, $46, $5b, $5b, $69, $5a, $44, $46, $4c, $02
+  .byte $00, $1b, $20, $25, $1e, $20, $24, $2d, $1e, $24, $1e, $1e, $1b, $1e, $1e, $22, $1e, $21, $04, $04, $1c, $03, $03, $03, $09, $1c, $14, $1e, $1e, $25, $20, $02, $5c, $5a, $4a, $5c, $5d, $47, $5c, $5b, $5d, $49, $47, $47, $47, $4a, $47, $47, $47, $5a, $5d, $5b, $5b, $59, $5c, $46, $5b, $57, $59, $5d, $43, $5d, $48, $02
+  .byte $00, $1b, $30, $1b, $1d, $24, $25, $25, $24, $2c, $1e, $1b, $20, $25, $20, $1e, $1b, $1e, $1b, $1b, $22, $1c, $1b, $1b, $1b, $1b, $05, $1b, $1b, $22, $20, $02, $5d, $47, $4a, $5c, $5c, $5b, $59, $5b, $5b, $4a, $4c, $49, $4c, $4a, $4c, $4a, $5c, $49, $47, $44, $59, $43, $5c, $5c, $5a, $5b, $57, $5a, $44, $4b, $4c, $02
+  .byte $00, $20, $2c, $20, $26, $24, $1d, $1e, $20, $20, $1b, $20, $20, $2d, $2c, $24, $15, $15, $1e, $1b, $2a, $1e, $2c, $1b, $1b, $1b, $1b, $1f, $1d, $1e, $24, $02, $4b, $4c, $49, $5a, $5a, $5b, $5b, $47, $5d, $47, $4c, $5d, $4d, $5d, $4d, $4d, $4e, $4b, $5c, $5c, $5d, $5c, $4b, $5a, $59, $5a, $43, $48, $4c, $4b, $49, $02
+  .byte $00, $2d, $18, $1d, $1d, $13, $1d, $18, $20, $1e, $2c, $20, $26, $20, $20, $20, $12, $1b, $1b, $20, $25, $32, $1b, $1b, $18, $1b, $1b, $1b, $1b, $12, $1e, $02, $47, $5d, $57, $5c, $5a, $6c, $5a, $5b, $5c, $47, $4a, $4a, $4c, $4c, $4c, $4a, $5d, $4c, $47, $47, $5b, $5d, $5c, $57, $5b, $5c, $5b, $48, $4b, $4d, $5b, $02
+  .byte $00, $15, $20, $24, $1b, $1b, $1b, $1b, $18, $20, $1e, $20, $1b, $20, $26, $24, $1d, $1b, $1b, $1e, $25, $25, $24, $20, $29, $1b, $26, $1b, $1b, $1b, $12, $02, $44, $49, $5b, $59, $5b, $5d, $5b, $47, $48, $4d, $5d, $5d, $4a, $5c, $5c, $4c, $47, $47, $5b, $5c, $5b, $5c, $5a, $59, $6c, $59, $5a, $4b, $4b, $4a, $5b, $02
+  .byte $00, $1e, $24, $24, $24, $1b, $1b, $20, $1d, $25, $2c, $1d, $24, $18, $20, $1d, $15, $1d, $20, $20, $26, $29, $24, $29, $20, $20, $24, $1b, $1b, $20, $1b, $02, $57, $5a, $5b, $55, $5c, $5b, $5a, $4d, $47, $5c, $5b, $5c, $5c, $5d, $5c, $4c, $47, $47, $4a, $5c, $59, $47, $5a, $5a, $5a, $45, $46, $49, $5a, $5c, $5c, $02
+  .byte $00, $24, $1d, $20, $20, $24, $24, $20, $24, $26, $20, $25, $20, $18, $1d, $20, $1d, $13, $24, $24, $20, $24, $26, $2d, $24, $1d, $24, $24, $29, $1e, $15, $02, $55, $55, $6c, $44, $4b, $5d, $5d, $48, $47, $4c, $5c, $4a, $4c, $5c, $4a, $47, $47, $47, $4a, $5b, $59, $59, $55, $5c, $5b, $59, $5a, $4b, $47, $5d, $4b, $02
+  .byte $00, $1d, $26, $24, $25, $1d, $20, $1d, $24, $2c, $24, $1d, $20, $18, $1b, $18, $1b, $19, $1b, $25, $1d, $2c, $1e, $24, $29, $20, $26, $24, $20, $25, $24, $02, $57, $6a, $45, $49, $5a, $6c, $5d, $5b, $4c, $47, $5d, $47, $5b, $5b, $5c, $5b, $5c, $5d, $5d, $5a, $59, $57, $59, $43, $5b, $59, $44, $5d, $5c, $5d, $5b, $02
+  .byte $00, $20, $25, $26, $26, $25, $20, $20, $24, $26, $26, $20, $1b, $1b, $1a, $13, $18, $15, $18, $1b, $29, $2c, $29, $30, $29, $1b, $24, $26, $20, $24, $24, $02, $56, $57, $59, $59, $59, $46, $5d, $44, $4a, $4b, $5d, $5b, $5b, $5a, $55, $6c, $5d, $5b, $57, $5b, $57, $5c, $5b, $5b, $43, $5b, $48, $5c, $44, $5d, $5b, $02
+  .byte $00, $15, $20, $24, $20, $18, $1b, $1b, $20, $26, $24, $24, $20, $20, $13, $20, $20, $29, $1a, $25, $2c, $2d, $20, $2c, $24, $20, $20, $24, $1b, $20, $1e, $02, $55, $57, $43, $58, $45, $49, $59, $5b, $46, $4a, $57, $57, $6c, $55, $57, $59, $5a, $5c, $59, $57, $57, $5a, $5a, $5a, $59, $44, $5a, $5c, $57, $57, $59, $02
+  .byte $00, $24, $24, $20, $18, $1b, $1b, $1b, $20, $26, $24, $25, $24, $20, $11, $20, $2d, $20, $1d, $14, $13, $29, $30, $24, $20, $20, $24, $24, $20, $1b, $1b, $02, $6c, $45, $5a, $44, $5a, $44, $59, $5b, $5a, $5a, $6b, $6b, $69, $59, $55, $55, $44, $6c, $57, $6b, $59, $55, $6c, $43, $5a, $5c, $43, $55, $59, $5a, $5a, $02
+  .byte $00, $20, $20, $20, $1b, $1b, $1b, $1e, $24, $24, $25, $20, $1e, $19, $15, $24, $30, $20, $20, $26, $26, $29, $20, $14, $1d, $1b, $1b, $1b, $1e, $1b, $1b, $02, $42, $55, $42, $5a, $55, $43, $59, $46, $6c, $6b, $6c, $57, $68, $58, $68, $58, $59, $5a, $6c, $59, $55, $6a, $58, $59, $59, $59, $59, $57, $57, $43, $57, $02
+  .byte $00, $1e, $1e, $1e, $1d, $14, $18, $15, $12, $12, $1a, $17, $12, $12, $20, $1b, $26, $1b, $1b, $1d, $29, $25, $29, $19, $20, $20, $24, $1b, $1b, $1f, $08, $02, $6c, $55, $5a, $45, $58, $55, $59, $6c, $6b, $6a, $59, $68, $68, $6a, $6c, $46, $59, $45, $5a, $43, $5a, $56, $44, $48, $45, $59, $5a, $44, $5a, $43, $43, $02
+  .byte $00, $1e, $1b, $1b, $12, $20, $12, $15, $1a, $17, $20, $25, $1a, $20, $1b, $20, $13, $1b, $1b, $20, $24, $1e, $25, $24, $24, $1e, $22, $1e, $1e, $09, $1e, $02, $58, $43, $59, $55, $69, $57, $69, $6c, $68, $6b, $6c, $69, $6c, $56, $44, $45, $44, $43, $5a, $6c, $6c, $45, $59, $45, $57, $59, $6c, $57, $45, $5b, $57, $02
+  .byte $00, $22, $1e, $14, $22, $1e, $24, $20, $25, $24, $1d, $1e, $18, $1b, $1b, $19, $1e, $1d, $1b, $1b, $20, $1b, $24, $25, $25, $20, $1e, $20, $22, $21, $1b, $02, $6c, $56, $56, $6c, $6c, $69, $67, $69, $67, $65, $54, $6a, $54, $56, $42, $48, $44, $6c, $57, $58, $43, $55, $57, $43, $6b, $6c, $43, $59, $6c, $44, $59, $02
+  .byte $00, $1f, $14, $1e, $1c, $12, $14, $1e, $24, $20, $15, $1a, $15, $15, $13, $2d, $1b, $1b, $24, $18, $20, $1d, $20, $25, $29, $20, $20, $22, $24, $06, $1f, $02, $56, $43, $42, $59, $68, $55, $54, $67, $54, $67, $69, $42, $55, $59, $58, $45, $59, $57, $5a, $44, $55, $59, $43, $56, $59, $59, $58, $59, $46, $5a, $6c, $02
+  .byte $00, $07, $51, $1e, $04, $1c, $28, $1f, $1b, $31, $1f, $1e, $1b, $1e, $1e, $1b, $1b, $1b, $1d, $1b, $18, $1b, $24, $25, $24, $25, $29, $26, $20, $1e, $1c, $02, $46, $56, $5a, $69, $55, $67, $55, $53, $68, $65, $54, $54, $55, $56, $6c, $42, $55, $44, $44, $6c, $57, $5a, $44, $59, $43, $48, $5b, $48, $59, $5a, $55, $02
+  .byte $00, $1c, $1b, $1e, $1e, $22, $08, $06, $50, $5e, $05, $2b, $06, $1f, $08, $2a, $1b, $1b, $1b, $1b, $20, $20, $18, $1b, $20, $20, $24, $2c, $1e, $1e, $1e, $02, $43, $43, $43, $54, $6c, $6a, $68, $69, $66, $67, $54, $67, $42, $42, $42, $6c, $43, $59, $6b, $6b, $42, $43, $57, $45, $46, $45, $45, $5a, $5a, $55, $55, $02
+  .byte $00, $51, $08, $1f, $1e, $1e, $24, $21, $09, $20, $62, $21, $3d, $1e, $1b, $0b, $1e, $1e, $1b, $1b, $20, $1b, $1d, $20, $24, $20, $29, $2c, $24, $20, $1b, $02, $43, $43, $44, $6c, $56, $69, $6c, $67, $53, $65, $54, $56, $55, $40, $56, $6c, $58, $6a, $58, $6a, $6c, $43, $44, $43, $46, $5a, $5a, $44, $57, $69, $57, $02
+  .byte $00, $07, $09, $22, $1f, $08, $1e, $5f, $1e, $04, $27, $27, $30, $27, $04, $2f, $1e, $1b, $1b, $18, $20, $20, $1d, $1b, $18, $20, $20, $24, $1e, $18, $3c, $02, $59, $6a, $57, $6c, $67, $69, $64, $64, $53, $68, $56, $53, $42, $42, $6c, $56, $55, $43, $55, $43, $58, $42, $59, $46, $59, $59, $5a, $5a, $55, $69, $56, $02
+  .byte $00, $21, $21, $1f, $08, $1c, $07, $09, $08, $1b, $1e, $23, $18, $1e, $29, $24, $05, $03, $09, $22, $24, $24, $1d, $1b, $1d, $1e, $1d, $20, $1b, $1c, $1f, $02, $69, $5a, $59, $65, $10, $0f, $68, $69, $54, $65, $66, $42, $55, $43, $58, $42, $6c, $56, $55, $42, $42, $42, $46, $59, $59, $59, $55, $6b, $67, $65, $6a, $02
+  .byte $00, $1c, $07, $1f, $28, $1e, $1c, $23, $1c, $21, $1e, $1e, $1e, $1a, $22, $1b, $1c, $07, $23, $1e, $24, $13, $20, $20, $20, $24, $20, $20, $24, $1b, $27, $02, $45, $55, $68, $67, $69, $53, $56, $54, $68, $53, $54, $58, $55, $44, $59, $55, $55, $54, $6b, $58, $43, $55, $57, $69, $57, $55, $6a, $10, $68, $65, $66, $02
+  .byte $00, $28, $52, $1f, $07, $1b, $50, $60, $23, $1e, $2c, $2c, $2e, $1b, $1b, $1e, $32, $09, $24, $24, $18, $1b, $1d, $1e, $24, $20, $25, $26, $20, $1b, $2b, $02, $55, $69, $68, $67, $58, $6a, $54, $67, $54, $53, $53, $42, $55, $56, $54, $68, $68, $53, $68, $56, $55, $6c, $6a, $10, $54, $69, $10, $6c, $69, $64, $67, $02
+  .byte $00, $22, $07, $1c, $50, $1b, $1e, $28, $1e, $24, $2a, $18, $1b, $1b, $18, $1b, $24, $24, $25, $24, $20, $1a, $24, $24, $26, $29, $29, $20, $1e, $1e, $61, $02, $54, $69, $56, $55, $66, $54, $68, $66, $53, $10, $53, $53, $68, $56, $55, $56, $54, $67, $58, $54, $58, $53, $6b, $65, $69, $68, $53, $56, $10, $0f, $10, $02
+  .byte $00, $5f, $1c, $08, $62, $0a, $23, $32, $2c, $1e, $1b, $25, $1e, $1d, $25, $32, $2d, $29, $2c, $2c, $24, $1d, $26, $24, $26, $29, $20, $1e, $20, $1e, $12, $02, $56, $67, $68, $55, $54, $68, $65, $64, $68, $66, $65, $68, $58, $54, $54, $56, $68, $56, $56, $43, $56, $54, $53, $54, $54, $67, $54, $68, $65, $0f, $68, $02
+  .byte $00, $1b, $1e, $1e, $1e, $1e, $1e, $1e, $22, $20, $1e, $20, $1b, $1b, $24, $24, $24, $20, $1d, $24, $13, $26, $24, $25, $26, $25, $20, $1b, $24, $05, $1e, $02, $56, $64, $55, $69, $68, $65, $54, $53, $68, $66, $66, $64, $53, $68, $56, $54, $54, $54, $69, $55, $54, $55, $55, $65, $68, $66, $53, $54, $0e, $66, $0f, $02
+  .byte $3e, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $6d, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02
+  .byte $44, $43, $55, $6c, $43, $44, $6c, $58, $56, $6c, $56, $43, $6c, $58, $43, $58, $43, $56, $6b, $54, $6c, $67, $64, $66, $64, $54, $42, $6c, $54, $55, $54, $6e, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $3e
+  .byte $44, $58, $59, $56, $44, $3f, $44, $56, $44, $58, $55, $43, $45, $45, $58, $55, $42, $68, $6c, $43, $6a, $6b, $58, $56, $43, $3f, $46, $56, $54, $69, $53, $02, $00, $1f, $1b, $1f, $21, $1e, $24, $1e, $1b, $1e, $13, $1e, $1b, $24, $24, $12, $24, $24, $1e, $1b, $1e, $1b, $2a, $3b, $51, $1f, $1e, $5f, $05, $04, $13, $02
+  .byte $44, $43, $43, $45, $44, $40, $59, $5a, $42, $6c, $45, $46, $48, $45, $44, $57, $55, $56, $58, $56, $54, $6b, $56, $44, $43, $45, $58, $55, $55, $54, $54, $02, $00, $1e, $19, $15, $1e, $20, $20, $1e, $1e, $13, $18, $1b, $11, $24, $20, $05, $24, $12, $1d, $1e, $1e, $24, $2e, $08, $22, $2a, $0b, $28, $08, $1b, $19, $02
+  .byte $45, $42, $5a, $45, $46, $46, $47, $58, $5b, $45, $43, $44, $46, $46, $5a, $55, $56, $68, $59, $58, $6b, $43, $58, $45, $56, $56, $59, $58, $59, $55, $55, $02, $00, $24, $20, $1e, $1a, $1d, $1b, $1b, $1b, $13, $12, $1b, $22, $15, $29, $1b, $1d, $19, $1e, $20, $20, $24, $24, $63, $2a, $21, $38, $3a, $27, $17, $1e, $02
+  .byte $42, $44, $42, $45, $59, $45, $44, $59, $5b, $43, $46, $44, $59, $44, $6b, $6c, $55, $42, $58, $42, $43, $42, $55, $56, $40, $45, $43, $44, $55, $55, $68, $02, $00, $20, $1d, $1b, $19, $1a, $1e, $11, $18, $15, $1b, $1b, $20, $25, $20, $1b, $13, $11, $20, $1e, $20, $25, $22, $22, $2e, $29, $1e, $2a, $29, $12, $1b, $02
+  .byte $44, $42, $58, $5a, $57, $44, $6c, $59, $45, $45, $49, $5b, $46, $6c, $57, $55, $58, $58, $44, $44, $58, $43, $43, $48, $46, $59, $48, $59, $54, $6c, $55, $02, $00, $24, $25, $24, $20, $2c, $1f, $18, $18, $18, $13, $1b, $20, $1e, $1d, $15, $12, $12, $1e, $1d, $24, $24, $25, $24, $35, $1b, $1b, $1b, $1b, $1e, $1e, $02
+  .byte $56, $44, $59, $58, $46, $59, $57, $58, $46, $5c, $57, $59, $57, $59, $59, $57, $6c, $58, $58, $44, $44, $5b, $58, $46, $5b, $45, $5a, $57, $42, $43, $56, $02, $00, $1d, $24, $26, $30, $20, $18, $1b, $1b, $1b, $18, $20, $1b, $20, $25, $14, $1d, $12, $1b, $1b, $20, $20, $24, $25, $22, $20, $25, $18, $1e, $20, $2c, $02
+  .byte $6b, $58, $44, $57, $58, $6c, $45, $46, $46, $5d, $43, $5c, $46, $5a, $59, $43, $43, $59, $55, $5a, $6c, $43, $5a, $44, $46, $48, $5a, $45, $43, $43, $57, $02, $00, $1b, $1d, $20, $1d, $1d, $1a, $20, $1b, $1b, $1b, $24, $1a, $1e, $17, $1d, $12, $24, $20, $1e, $1d, $25, $24, $24, $20, $1e, $1e, $1e, $2c, $2c, $26, $02
+  .byte $46, $46, $5a, $6c, $43, $59, $48, $44, $44, $48, $5d, $5d, $59, $57, $5a, $5b, $57, $57, $42, $45, $43, $44, $59, $44, $48, $5c, $59, $59, $5a, $55, $42, $02, $00, $1d, $20, $1d, $15, $1e, $1e, $20, $1d, $1b, $20, $20, $1b, $1d, $24, $20, $12, $1b, $1d, $1d, $1b, $24, $20, $1b, $1e, $20, $1d, $29, $26, $20, $25, $02
+  .byte $44, $56, $55, $57, $6c, $45, $43, $43, $5c, $5c, $59, $5c, $5c, $6b, $57, $58, $59, $46, $5a, $43, $5a, $56, $59, $43, $5a, $57, $55, $59, $6c, $57, $68, $02, $00, $20, $20, $1d, $24, $1e, $1b, $1e, $20, $1e, $24, $18, $20, $20, $24, $15, $1d, $12, $1e, $1b, $1b, $20, $20, $1b, $1b, $1b, $24, $20, $34, $2c, $20, $02
+  .byte $45, $42, $58, $44, $43, $5a, $59, $5a, $46, $47, $59, $47, $59, $5b, $5b, $46, $43, $45, $5a, $43, $55, $57, $57, $57, $5a, $57, $6c, $58, $57, $58, $69, $02, $00, $20, $24, $1e, $1d, $1e, $1e, $1b, $1b, $1e, $1b, $1b, $1b, $1d, $1d, $24, $12, $14, $24, $20, $20, $1d, $1e, $20, $24, $20, $24, $26, $24, $20, $2c, $02
+  .byte $59, $43, $46, $42, $44, $59, $5a, $58, $45, $46, $44, $47, $5b, $57, $59, $46, $58, $5c, $57, $58, $57, $6c, $43, $58, $43, $55, $6b, $43, $43, $44, $58, $02, $00, $20, $24, $20, $1e, $1e, $1b, $1e, $15, $1b, $24, $24, $24, $20, $20, $20, $13, $1d, $20, $24, $25, $24, $1d, $20, $26, $24, $26, $26, $32, $20, $1e, $02
+  .byte $58, $58, $43, $57, $5a, $58, $44, $57, $46, $4c, $5d, $5c, $57, $6c, $45, $57, $5c, $43, $59, $6a, $42, $55, $44, $59, $57, $55, $58, $42, $5a, $58, $6b, $02, $00, $24, $1d, $1d, $20, $1e, $1b, $18, $1b, $1d, $1d, $24, $26, $15, $14, $26, $1e, $24, $14, $25, $29, $25, $20, $20, $26, $29, $26, $20, $32, $1b, $1e, $02
+  .byte $6c, $56, $43, $59, $59, $46, $43, $44, $48, $45, $5b, $5b, $5a, $49, $59, $5b, $5a, $48, $59, $5b, $6c, $43, $45, $5b, $44, $5b, $55, $5a, $56, $55, $6b, $02, $00, $20, $18, $20, $1b, $1e, $20, $1e, $20, $1d, $18, $1d, $20, $1d, $29, $24, $26, $20, $25, $14, $20, $24, $29, $26, $24, $24, $20, $2c, $20, $1b, $20, $02
+  .byte $42, $45, $55, $42, $44, $5a, $43, $44, $5d, $44, $5b, $59, $5b, $57, $5a, $5b, $5c, $5c, $59, $43, $5a, $45, $57, $58, $57, $55, $59, $58, $57, $43, $6c, $02, $00, $29, $20, $20, $1e, $1b, $1b, $1d, $1e, $15, $24, $24, $26, $24, $29, $1a, $2c, $20, $24, $24, $1b, $2c, $25, $24, $24, $20, $1e, $20, $1b, $1b, $20, $02
+  .byte $58, $6b, $59, $57, $43, $43, $6c, $45, $43, $59, $5b, $59, $55, $5c, $5b, $58, $6c, $5b, $5b, $59, $55, $69, $6b, $55, $56, $43, $59, $45, $56, $45, $58, $02, $00, $15, $20, $1b, $20, $1e, $1e, $1b, $18, $20, $25, $24, $20, $20, $26, $20, $24, $1d, $2c, $30, $24, $20, $1e, $26, $24, $24, $1d, $1e, $26, $1b, $20, $02
+  .byte $6c, $42, $42, $42, $44, $58, $45, $46, $5b, $43, $5c, $5a, $44, $59, $43, $57, $59, $5a, $44, $57, $59, $55, $6b, $6c, $42, $59, $55, $56, $59, $57, $57, $02, $00, $1b, $1e, $1b, $20, $1b, $13, $1b, $15, $1b, $20, $20, $24, $25, $26, $1e, $20, $20, $1e, $24, $24, $1e, $20, $24, $1e, $1d, $22, $1e, $20, $1b, $20, $02
+  .byte $58, $45, $44, $6c, $42, $46, $5b, $45, $59, $57, $46, $5b, $5a, $46, $44, $59, $57, $43, $46, $59, $5a, $58, $59, $43, $46, $56, $57, $58, $55, $59, $68, $02, $00, $24, $25, $1b, $14, $15, $1e, $1b, $18, $1e, $26, $25, $24, $1d, $20, $1b, $20, $20, $20, $24, $20, $1b, $1b, $24, $20, $2a, $23, $20, $1c, $1e, $24, $02
+  .byte $6c, $58, $55, $43, $48, $5b, $45, $5a, $44, $45, $57, $46, $47, $44, $59, $5a, $5a, $43, $59, $5b, $6c, $57, $42, $5b, $67, $44, $57, $6c, $58, $55, $55, $02, $00, $1b, $1b, $1b, $1b, $1d, $1b, $18, $1b, $20, $20, $15, $14, $20, $20, $1b, $24, $26, $24, $20, $1b, $1d, $1e, $1b, $1e, $37, $22, $5e, $28, $1c, $33, $02
+  .byte $55, $55, $59, $46, $44, $45, $5a, $4b, $57, $5a, $59, $40, $5d, $5a, $5c, $5c, $59, $44, $57, $58, $5a, $59, $57, $59, $6c, $57, $44, $58, $6b, $68, $55, $02, $00, $20, $22, $29, $24, $24, $20, $1e, $13, $16, $12, $20, $24, $20, $1e, $1d, $20, $24, $26, $25, $24, $1e, $1b, $20, $22, $31, $22, $27, $22, $41, $38, $02
+  .byte $69, $54, $45, $45, $43, $44, $45, $5a, $59, $57, $44, $40, $5b, $5c, $46, $5c, $57, $57, $5c, $44, $43, $59, $58, $59, $6c, $42, $5a, $6a, $6b, $56, $6c, $02, $00, $1e, $1e, $24, $24, $2c, $20, $14, $1b, $24, $20, $1e, $20, $1d, $1b, $24, $24, $1d, $25, $26, $25, $20, $1e, $1e, $1f, $23, $60, $22, $0c, $37, $3c, $02
+  .byte $6b, $42, $46, $48, $46, $48, $5a, $44, $47, $45, $47, $49, $5c, $5b, $59, $6c, $55, $55, $57, $6c, $6c, $6c, $43, $56, $57, $48, $56, $68, $6b, $55, $69, $02, $00, $1b, $20, $1e, $20, $25, $30, $29, $24, $25, $20, $20, $1b, $1b, $20, $1d, $1d, $24, $20, $24, $24, $1e, $20, $1b, $08, $03, $5e, $1e, $21, $61, $1c, $02
+  .byte $42, $44, $45, $49, $48, $5b, $45, $49, $5c, $57, $46, $5b, $5d, $5b, $5c, $6c, $69, $57, $44, $6c, $5a, $6b, $59, $55, $59, $6c, $6c, $67, $6c, $58, $54, $02, $00, $1b, $1e, $22, $20, $1b, $24, $1b, $1b, $1b, $18, $1b, $20, $20, $1d, $17, $20, $20, $20, $26, $20, $1b, $1e, $21, $1e, $5e, $1e, $28, $1c, $0d, $1e, $02
+  .byte $45, $4b, $43, $43, $57, $6c, $44, $46, $59, $49, $5a, $48, $59, $5b, $57, $6c, $6c, $57, $44, $59, $44, $6c, $6c, $56, $67, $55, $69, $69, $56, $58, $54, $02, $00, $20, $1e, $20, $1e, $20, $1d, $25, $19, $12, $15, $1b, $17, $17, $20, $14, $13, $1b, $1b, $20, $1d, $1b, $1b, $04, $5f, $06, $1e, $21, $1e, $36, $1c, $02
+  .byte $42, $45, $46, $5a, $45, $5b, $44, $5a, $5a, $5c, $5b, $5a, $5d, $44, $5b, $57, $57, $43, $6b, $59, $58, $68, $55, $54, $56, $6c, $58, $56, $56, $53, $6c, $02, $00, $1b, $12, $18, $1b, $18, $15, $13, $24, $24, $20, $20, $20, $24, $20, $20, $14, $11, $18, $20, $18, $1b, $1b, $05, $21, $08, $1c, $1e, $05, $1f, $1e, $02
+  .byte $57, $44, $57, $44, $46, $5c, $40, $47, $45, $49, $4b, $48, $4c, $4c, $5b, $57, $5a, $43, $54, $59, $59, $68, $6c, $59, $59, $69, $55, $53, $6b, $58, $6c, $02, $00, $20, $1b, $1b, $1a, $1b, $1b, $18, $20, $29, $20, $20, $20, $20, $18, $1e, $1b, $1d, $1a, $1a, $1e, $1b, $20, $22, $1c, $1c, $04, $1c, $2f, $1b, $1e, $02
+  .byte $44, $48, $48, $45, $46, $49, $5c, $46, $46, $47, $5d, $4a, $4b, $5d, $59, $5a, $57, $58, $57, $58, $57, $59, $43, $59, $54, $6c, $42, $58, $42, $58, $54, $02, $00, $1b, $1b, $20, $1b, $20, $24, $1b, $1e, $25, $20, $1b, $20, $24, $1d, $1b, $20, $26, $1e, $1b, $1d, $22, $1e, $1e, $04, $05, $08, $39, $37, $1e, $2a, $02
+  .byte $40, $3f, $49, $5c, $47, $4c, $5b, $4a, $49, $5d, $5c, $5d, $5b, $5c, $6b, $5c, $5b, $5b, $58, $58, $5b, $56, $57, $58, $46, $59, $56, $69, $6a, $54, $55, $02, $00, $24, $20, $24, $24, $24, $20, $1b, $24, $29, $26, $20, $26, $20, $1e, $1b, $1d, $20, $20, $1d, $18, $24, $22, $22, $21, $1c, $0a, $27, $28, $0c, $06, $02
+  .byte $44, $4c, $46, $46, $46, $49, $48, $5d, $49, $47, $5d, $5a, $6c, $59, $59, $45, $59, $55, $58, $42, $5a, $43, $43, $5a, $6c, $58, $54, $56, $43, $54, $6a, $02, $00, $25, $24, $25, $26, $24, $25, $29, $1a, $20, $24, $26, $24, $26, $20, $1b, $1e, $1b, $1e, $20, $12, $24, $24, $22, $5e, $1c, $04, $21, $22, $2e, $1e, $02
+  .byte $46, $4b, $43, $5c, $5a, $4a, $5c, $47, $5b, $5a, $59, $59, $6c, $5a, $5a, $5c, $5a, $6c, $59, $57, $43, $59, $45, $45, $42, $55, $56, $56, $56, $44, $43, $02, $00, $24, $22, $24, $24, $20, $24, $1e, $24, $30, $20, $1d, $1d, $1d, $1b, $1d, $20, $20, $20, $24, $1d, $1a, $2b, $22, $22, $1e, $1b, $1e, $1e, $24, $22, $02
+  .byte $45, $44, $5c, $5b, $44, $49, $47, $5b, $5d, $5a, $6c, $43, $5b, $44, $6c, $45, $6c, $6b, $44, $6c, $43, $59, $5b, $59, $59, $57, $45, $59, $58, $45, $43, $02, $00, $1e, $1b, $24, $1e, $1e, $1d, $20, $29, $26, $2d, $24, $20, $24, $20, $1b, $1b, $1b, $15, $1a, $15, $03, $16, $16, $24, $1e, $18, $1e, $1e, $25, $1e, $02
+  .byte $4f, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $3e, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02
+
+  .else 
+  
   .byte $7b, $85, $7b, $79, $7c, $7f, $7a, $85
   .byte $79, $7b, $7c, $7a, $76, $7e, $7c, $7a
   .byte $7c, $7a, $7b, $87, $85, $84, $81, $7c
@@ -1532,6 +2011,7 @@ irq:
   .byte $a6, $aa, $a5, $a7, $ac, $a6, $a9, $a3
   .byte $a5, $aa, $ac, $a3, $9f, $a1, $a9, $aa
 
+  .endif
 
   ; manual TILEMAP
   .org $E000
