@@ -558,7 +558,7 @@ output_3bits_as_debug_leds:
     pha
 
     lda #%11111111  ; Set all pins on port B to output
-    sta VIA1_DDRB
+    sta VIA2_DDRB
     
     ; We have 3 leds connected: red on bit 0, yellow on bit 2, greenon bit 4, so we need to convert the number to these output bits
     lda #0
@@ -592,7 +592,7 @@ yellow_light_set:
 green_light_set:
     
     lda TMP2
-    sta VIA1_PORTB 
+    sta VIA2_PORTB 
     
     pla
     
