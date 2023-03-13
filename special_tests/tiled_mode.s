@@ -6,6 +6,7 @@ DO_CLIP = 0
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 1
 TURN_AROUND = 0
+DEBUG_LEDS = 1
 
     .if(DO_NO_TILE_LOOKUP)
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
@@ -138,26 +139,31 @@ reset:
     ; Setup stack
     ldx #$ff
     txs
-    
-; FIXME: remove this!
-    lda #%11111111  ; Set all pins on port B to output
-    sta VIA1_DDRB
-    
-; FIXME: remove this!
-    lda #%00000001        ; Show first sign of life (RED LED)
-    sta VIA1_PORTB 
+
+    lda #1
+    jsr output_debug_leds
     
     jsr setup_vera_for_bitmap_and_tile_map
 
-; FIXME: remove this!
-    lda #%00000101        ; Show second sign of life (RED and YELLOW LED)
-    sta VIA1_PORTB 
+    lda #2
+    jsr output_debug_leds
     
     jsr copy_petscii_charset
+    
+    lda #3
+    jsr output_debug_leds
+    
     jsr clear_tilemap_screen
+    
+    lda #4
+    jsr output_debug_leds
+    
     jsr init_cursor
     jsr init_timer
 
+    lda #5
+    jsr output_debug_leds
+    
 ;    jsr clear_screen_slow
 ;    lda #$10                 ; 8:1 scale, so we can clearly see the pixels
 ;    sta VERA_DC_HSCALE
@@ -174,6 +180,9 @@ reset:
         jsr copy_tilemap_to_high_vram
     .endif
     
+    lda #6
+    jsr output_debug_leds
+    
     .if(DRAW_TILED_PERSPECTIVE)
         ; Test speed of perspective style transformation
         jsr test_speed_of_tiled_perspective
@@ -182,9 +191,8 @@ reset:
         jsr test_speed_of_flat_tiles
     .endif
   
-; FIXME: remove this!
-    lda #%00010101        ; Show finished (RED and YELLOW and GREEN LED)
-    sta VIA1_PORTB 
+    lda #7
+    jsr output_debug_leds
     
 loop:
   jmp loop
@@ -195,6 +203,14 @@ one_byte_per_write_message:
     .asciiz "Method: 1 byte per write"
 four_bytes_per_write_message: 
     .asciiz "Method: 4 bytes per write"
+
+
+output_debug_leds:
+    .if(DEBUG_LEDS)
+    sta BYTE_TO_PRINT
+    jsr output_3bits_as_debug_leds
+    .endif
+    rts
 
     
     

@@ -553,3 +553,47 @@ low_nibble_ready:
     rts
     
 
+output_3bits_as_debug_leds:
+
+    pha
+
+    lda #%11111111  ; Set all pins on port B to output
+    sta VIA1_DDRB
+    
+    ; We have 3 leds connected: red on bit 0, yellow on bit 2, greenon bit 4, so we need to convert the number to these output bits
+    lda #0
+    sta TMP2
+    
+    lda #%00000001
+    and BYTE_TO_PRINT
+    beq red_light_set
+    
+    lda TMP2
+    ora #%00000001  ; set RED light
+    sta TMP2
+red_light_set:
+
+    lda #%0000010
+    and BYTE_TO_PRINT
+    beq yellow_light_set
+
+    lda TMP2
+    ora #%00000100  ; set YELLOW light
+    sta TMP2
+yellow_light_set:
+
+    lda #%00000100
+    and BYTE_TO_PRINT
+    beq green_light_set
+
+    lda TMP2
+    ora #%00010000  ; set GREEN light
+    sta TMP2
+green_light_set:
+    
+    lda TMP2
+    sta VIA1_PORTB 
+    
+    pla
+    
+    rts
