@@ -139,7 +139,20 @@ reset:
     ldx #$ff
     txs
     
+; FIXME: remove this!
+    lda #%11111111  ; Set all pins on port B to output
+    sta VIA1_DDRB
+    
+; FIXME: remove this!
+    lda #$55        ; Show first sign of life (RED AND GREEN LED)
+    sta VIA1_PORTB 
+    
     jsr setup_vera_for_bitmap_and_tile_map
+
+; FIXME: remove this!
+    lda #$AA        ; Show first sign of life (YELLOW LED)
+    sta VIA1_PORTB 
+    
     jsr copy_petscii_charset
     jsr clear_tilemap_screen
     jsr init_cursor
@@ -169,6 +182,10 @@ reset:
         jsr test_speed_of_flat_tiles
     .endif
   
+; FIXME: remove this!
+    lda #$FF        ; Show first sign of life (RED, YELLOW and GREEN LED)
+    sta VIA1_PORTB 
+    
 loop:
   jmp loop
 
@@ -197,8 +214,8 @@ test_speed_of_tiled_perspective:
         sta WORLD_Y_POSITION
         sta WORLD_Y_POSITION+1
         
-;        lda #220
-        lda #60
+        lda #210
+;        lda #60
         sta VIEWING_ANGLE
 move_or_turn_around:
         lda VIEWING_ANGLE
