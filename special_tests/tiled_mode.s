@@ -1,10 +1,10 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 0
-DO_NO_TILE_LOOKUP = 1
+USE_TABLE_FILES = 1
+DO_NO_TILE_LOOKUP = 0
 DO_CLIP = 0
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
-MOVE_XY_POSITION = 0
+MOVE_XY_POSITION = 1
 TURN_AROUND = 0
 
     .if(DO_NO_TILE_LOOKUP)
@@ -144,13 +144,13 @@ reset:
     sta VIA1_DDRB
     
 ; FIXME: remove this!
-    lda #$55        ; Show first sign of life (RED AND GREEN LED)
+    lda #%00000001        ; Show first sign of life (RED LED)
     sta VIA1_PORTB 
     
     jsr setup_vera_for_bitmap_and_tile_map
 
 ; FIXME: remove this!
-    lda #$AA        ; Show first sign of life (YELLOW LED)
+    lda #%00000101        ; Show second sign of life (RED and YELLOW LED)
     sta VIA1_PORTB 
     
     jsr copy_petscii_charset
@@ -183,7 +183,7 @@ reset:
     .endif
   
 ; FIXME: remove this!
-    lda #$FF        ; Show first sign of life (RED, YELLOW and GREEN LED)
+    lda #%00010101        ; Show finished (RED and YELLOW and GREEN LED)
     sta VIA1_PORTB 
     
 loop:
