@@ -1,10 +1,10 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 1
-DO_NO_TILE_LOOKUP = 0
+USE_TABLE_FILES = 0
+DO_NO_TILE_LOOKUP = 1
 DO_CLIP = 0
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
-MOVE_XY_POSITION = 1
+MOVE_XY_POSITION = 0
 TURN_AROUND = 0
 DEBUG_LEDS = 1
 
@@ -158,6 +158,7 @@ reset:
     lda #4
     jsr output_debug_leds
     
+    ; FIXME: we sometimes HANG here!! (green light, with randomly looking bitmap)
     jsr init_cursor
     jsr init_timer
 
@@ -383,7 +384,7 @@ tiled_perspective_fast:
     
     lda #0                   ; X increment low
     sta $9F29
-    lda #%00100101           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 01
+    lda #%00000101           ; 00, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
     sta $9F2A
     lda #00
     sta $9F2B                ; Y increment low
@@ -726,7 +727,7 @@ flat_tiles_fast:
     
     lda #0                   ; X increment low
     sta $9F29
-    lda #%00100101           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 01
+    lda #%00000101           ; 00, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
     sta $9F2A
     lda #00
     sta $9F2B                ; Y increment low
