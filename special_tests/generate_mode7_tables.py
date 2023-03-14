@@ -15,7 +15,7 @@ purple_color = (200,0,200)
 
 do_draw_orig = True
 do_draw_sim = True
-do_single_angle = False
+do_single_angle = True
 do_draw_border_lines = False
 do_clip = False
 
@@ -203,7 +203,7 @@ def run():
                 x_sub_pixel_step = -x_sub_pixel_step
                 x_sub_pixel_step_decr = 1
                 
-            x_sub_pixel_steps_decr.append(x_sub_pixel_step_decr * 128)   # Bit 7 is the DECR bit for the EXTRA X-incrementer of ADDR1 (usually 1), so we multiply by 128 here
+            x_sub_pixel_steps_decr.append(x_sub_pixel_step_decr * 32)   # Bit 5 is the DECR bit for the X-incrementer, so we multiply by 32 here
 # FIXME: EXTEND THIS FURTHER!!
             if (x_sub_pixel_step >= 256 * 8):
                 x_sub_pixel_step = int(x_sub_pixel_step // 4)
@@ -224,7 +224,7 @@ def run():
                 y_sub_pixel_step = -y_sub_pixel_step
                 y_sub_pixel_step_decr = 1
                 
-            y_sub_pixel_steps_decr.append(y_sub_pixel_step_decr * 8)  # Bit 3 is the DECR bit for the NORMAL Y-incrementer of ADDR1 (usually 64), so we multiply by 8 here
+            y_sub_pixel_steps_decr.append(y_sub_pixel_step_decr * 32)   # Bit 5 is the DECR bit for the y-incrementer, so we multiply by 32 here
 # FIXME: EXTEND THIS FURTHER!!
             if (y_sub_pixel_step >= 256 * 8):
                 y_sub_pixel_step = int(y_sub_pixel_step // 4)

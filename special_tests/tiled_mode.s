@@ -1,7 +1,7 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 1
-DO_NO_TILE_LOOKUP = 0
+USE_TABLE_FILES = 0
+DO_NO_TILE_LOOKUP = 1
 DO_CLIP = 0
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 1
@@ -341,7 +341,7 @@ x_sub_pixel_steps_low:
 x_sub_pixel_steps_high:
     .byte 7,7,7,7,7,6,6,6,6,6,6,6,6,6,6,6,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 y_sub_pixel_steps_decr:
-    .byte 8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8
+    .byte 32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32
 y_sub_pixel_steps_low:
     .byte 190,164,141,120,101,84,68,54,41,29,18,8,255,246,238,230,223,216,210,204,198,193,188,183,178,174,170,166,162,158,155,152,148,145,142,140,137,134,132,129,127,125,123,121,119,117,115,113,111,109,108,106,105,103,102,100,99,97,96,95,94,92,91,90
 y_sub_pixel_steps_high:
@@ -404,10 +404,9 @@ tiled_perspective_fast:
     lda #00
     sta $9F2B                ; Y increment low
     .if(DO_CLIP)
-    ; FIXME: Clip is now 01!!
-        lda #%00100100           ; L0/L1 = 0, Clip (01) / Repeat (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 
+        lda #%01000100           ; L0/L1 = 0, Clip (1) / Repeat (0) = 1, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
     .else
-        lda #%00000100           ; L0/L1 = 0, Clip (01) / Repeat (00) = 00, Y subpixel increment exponent = 001, Y increment high = 00 
+        lda #%00000100           ; L0/L1 = 0, Clip (1) / Repeat (0) = 0, T decr, Y subpixel increment exponent = 001, Y increment high = 00 
     .endif
     sta $9F2C                ; Y increment high
 
@@ -459,12 +458,12 @@ tiled_perspective_copy_next_row_1:
     .else
         lda x_in_texture_fraction_corrections_high, x
     .endif
+; FIXME: REMOVE the DECR table! (can be put into HIGH table)
     .if(USE_TABLE_FILES)
-        lda X_SUB_PIXEL_STEPS_DECR, x
+        ora X_SUB_PIXEL_STEPS_DECR, x
     .else
-        ora x_sub_pixel_steps_decr, x   ; TODO: we could encode the decr value into the high value itself!
+        ora x_sub_pixel_steps_decr, x
     .endif
-    ora #%00100000           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 000, X increment high = 00 (these two bits are already in a by the lda)
     sta $9F2A
     
     .if(USE_TABLE_FILES)
@@ -479,23 +478,21 @@ tiled_perspective_copy_next_row_1:
     .else
         lda y_in_texture_fraction_corrections_high, x
     .endif
-    
-    
-    .if(DO_CLIP)
-    ; FIXME: Clip is now 01!!
-        ora #%00100000           ; L0/L1 = 0, Clip (01) / Repeat (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 
-    .else
-        ora #%00000000           ; L0/L1 = 0, Clip (01) / Repeat (00) = 00, Y subpixel increment exponent = 001, Y increment high = 00 
-    .endif
-    sta $9F2C
-
-    ; FIXME: we shouldnt need this if we didnt have to correct the subpixel position. We also should be calculating the subpixel position in the table generator.
-    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
+; FIXME: REMOVE the DECR table! (can be put into HIGH table)
     .if(USE_TABLE_FILES)
         ora Y_SUB_PIXEL_STEPS_DECR, x
     .else
         ora y_sub_pixel_steps_decr, x
     .endif
+    .if(DO_CLIP)
+        ora #%01000000           ; L0/L1 = 0, Clip (1) / Repeat (0) = 1, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
+    .else
+        ora #%00000000           ; L0/L1 = 0, Clip (1) / Repeat (0) = 0, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
+    .endif
+    sta $9F2C
+
+    ; FIXME: we shouldnt need this if we didnt have to correct the subpixel position. We also should be calculating the subpixel position in the table generator.
+    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
     sta VERA_ADDR_BANK
     
     ; We read once from ADDR1 which adds the corrections
@@ -508,35 +505,43 @@ tiled_perspective_copy_next_row_1:
         lda x_sub_pixel_steps_low, x
     .endif
     sta $9F29                ; X increment low
+    
     .if(USE_TABLE_FILES)
         lda X_SUB_PIXEL_STEPS_HIGH, x
     .else
         lda x_sub_pixel_steps_high, x
     .endif
+; FIXME: REMOVE the DECR table! (can be put into HIGH table)
     .if(USE_TABLE_FILES)
         ora X_SUB_PIXEL_STEPS_DECR, x
     .else
-        ora x_sub_pixel_steps_decr, x   ; TODO: we could encode the decr value into the high value itself!
+        ora x_sub_pixel_steps_decr, x
     .endif
-    ora #%00100000           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 000, X increment high = 00 (these two bits are already in a by the lda)
     sta $9F2A
+    
     .if(USE_TABLE_FILES)
         lda Y_SUB_PIXEL_STEPS_LOW, x
     .else
         lda y_sub_pixel_steps_low, x
     .endif
     sta $9F2B
+    
     .if(USE_TABLE_FILES)
         lda Y_SUB_PIXEL_STEPS_HIGH, x
     .else
         lda y_sub_pixel_steps_high, x
     .endif
-    
-    .if(DO_CLIP)
-    ; FIXME: Clip is now 01!!
-        ora #%00100000           ; L0/L1 = 0, Clip (01) / Repeat (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 
+; FIXME: REMOVE the DECR table! (can be put into HIGH table)
+    .if(USE_TABLE_FILES)
+        ora Y_SUB_PIXEL_STEPS_DECR, x
     .else
-        ora #%00000000           ; L0/L1 = 0, Clip (01) / Repeat (00) = 00, Y subpixel increment exponent = 001, Y increment high = 00 
+        ora y_sub_pixel_steps_decr, x
+    .endif
+
+    .if(DO_CLIP)
+        ora #%01000000           ; L0/L1 = 0, Clip (1) / Repeat (0) = 1, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
+    .else
+        ora #%00000000           ; L0/L1 = 0, Clip (1) / Repeat (0) = 0, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
     .endif
     sta $9F2C
     
@@ -756,10 +761,9 @@ flat_tiles_fast:
     lda #00
     sta $9F2B                ; Y increment low
     .if(DO_CLIP)
-    ; FIXME: Clip is now 01!!
-        lda #%00100100           ; L0/L1 = 0, Clip (01) / Repeat (00) = 01, Y subpixel increment exponent = 001, Y increment high = 00 
+        lda #%01000100           ; L0/L1 = 0, Clip (1) / Repeat (0) = 1, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
     .else
-        lda #%00000100           ; L0/L1 = 0, Clip (01) / Repeat (00) = 00, Y subpixel increment exponent = 001, Y increment high = 00 
+        lda #%00000100           ; L0/L1 = 0, Clip (1) / Repeat (0) = 0, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
     .endif
     sta $9F2C                ; Y increment high
 
