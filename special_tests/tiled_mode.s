@@ -1,11 +1,11 @@
 
 USE_CACHE_FOR_WRITING = 1
 USE_TABLE_FILES = 1
-DO_NO_TILE_LOOKUP = 1
+DO_NO_TILE_LOOKUP = 0
 DO_CLIP = 0
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
-MOVE_XY_POSITION = 0
-TURN_AROUND = 1
+MOVE_XY_POSITION = 1
+TURN_AROUND = 0
 DEBUG_LEDS = 1
 
     .if(DO_NO_TILE_LOOKUP)
@@ -360,40 +360,24 @@ tiled_perspective_fast:
     lda #>(TILEDATA_VRAM_ADDRESS)
     sta VERA_ADDR_ZP_FROM+1
 
+    ; Entering *affine helper mode*: selecting ADDR0
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; Setting base addresses and map size
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
-    sta VERA_L0_MAPBASE
+    sta $9F2B
     lda #(MAPDATA_VRAM_ADDRESS >> 9)
-    sta VERA_L0_HSCROLL_L
-    
-    ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
+    sta $9F2C
     .if(DO_NO_TILE_LOOKUP)
-        ;                + 00110000 for 8x8 map
-        lda #%00110111
-        sta VERA_L0_CONFIG
+        lda #%01100000  ; 01100000 for 8x8 map
+        sta $9F2A
     .else
-        ;                + 01010000 for 32x32 map
-        lda #%01010111
-        sta VERA_L0_CONFIG
+        lda #%10100000  ; 10100000 for 32x32 map
+        sta $9F2A
     .endif
-    ;            + 00100000 for 4x4 map
-    ;    lda #%00100111
-    ;    sta VERA_L0_CONFIG
     
-    ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
-    sta VERA_CTRL
-; FIXME: this is the *old* method of copying the incrementer!
-    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-    sta VERA_ADDR_BANK
-    
-    ; Setting up for reading from a new line from a texture/bitmap
-    
-    lda #%00000001           ; DCSEL=0, ADDRSEL=1
-    sta VERA_CTRL
-    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
-    sta VERA_ADDR_BANK
-    
-    ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the *current* one from ADDR0 (its settings are copied) and from itself
+    ; Entering *affine helper mode*: selecting ADDR1 
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
     
@@ -717,40 +701,26 @@ flat_tiles_fast:
     lda #>(TILEDATA_VRAM_ADDRESS)
     sta VERA_ADDR_ZP_FROM+1
 
+    ; Entering *affine helper mode*: selecting ADDR0
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; Setting base addresses and map size
+    
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
-    sta VERA_L0_MAPBASE
+    sta $9F2B
     lda #(MAPDATA_VRAM_ADDRESS >> 9)
-    sta VERA_L0_HSCROLL_L
+    sta $9F2C
     
-    ; VERA_L0_CONFIG = 100 + 011 ; enable bitmap mode and color depth = 8bpp on layer 0
     .if(DO_NO_TILE_LOOKUP)
-        ;                + 00110000 for 8x8 map
-        lda #%00110111
-        sta VERA_L0_CONFIG
+        lda #%01100000  ; 01100000 for 8x8 map
+        sta $9F2A
     .else
-        ;                + 01010000 for 32x32 map
-        lda #%01010111
-        sta VERA_L0_CONFIG
+        lda #%10100000  ; 10100000 for 32x32 map
+        sta $9F2A
     .endif
-    ;            + 00100000 for 4x4 map
-    ;    lda #%00100111
-    ;    sta VERA_L0_CONFIG
     
-    ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
-    sta VERA_CTRL
-; FIXME: this is the *old* method of copying the incrementer!
-    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-    sta VERA_ADDR_BANK
-    
-    ; Setting up for reading from a new line from a texture/bitmap
-    
-    lda #%00000001           ; DCSEL=0, ADDRSEL=1
-    sta VERA_CTRL
-    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
-    sta VERA_ADDR_BANK
-    
-    ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the *current* one from ADDR0 (its settings are copied) and from itself
+    ; Entering *affine helper mode*: selecting ADDR1 
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
     
