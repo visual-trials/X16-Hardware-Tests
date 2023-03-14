@@ -84,10 +84,11 @@ def run():
     #        
     #pygame.display.update()
     
-    all_angles_y_in_texture_fraction_corrections_low = []
-    all_angles_y_in_texture_fraction_corrections_high = []
-    all_angles_x_in_texture_fraction_corrections_low = []
-    all_angles_x_in_texture_fraction_corrections_high = []
+    all_angles_x_subpixel_positions_in_map_low = []
+    all_angles_x_subpixel_positions_in_map_high = []
+    all_angles_y_subpixel_positions_in_map_low = []
+    all_angles_y_subpixel_positions_in_map_high = []
+    all_angles_y_subpixel_positions_in_map_high_copy = []
     all_angles_x_pixel_positions_in_map_low = []
     all_angles_x_pixel_positions_in_map_high = []
     all_angles_y_pixel_positions_in_map_low = []
@@ -106,10 +107,11 @@ def run():
         angle_max = 1 # This is a workaround/hack to make sure only one angle is drawn/generated
     for angle_index in range(angle_max):
 
-        y_in_texture_fraction_corrections_low = []
-        y_in_texture_fraction_corrections_high = []
-        x_in_texture_fraction_corrections_low = []
-        x_in_texture_fraction_corrections_high = []
+        x_subpixel_positions_in_map_low = []
+        x_subpixel_positions_in_map_high = []
+        y_subpixel_positions_in_map_low = []
+        y_subpixel_positions_in_map_high = []
+        y_subpixel_positions_in_map_high_copy = []
         x_pixel_positions_in_map_low = []
         x_pixel_positions_in_map_high = []
         y_pixel_positions_in_map_low = []
@@ -177,7 +179,6 @@ def run():
                         pixel_color = black_color
                     else:
                         pixel_color = color_by_index[texture[int(sy_rotated * scaling) % map_pixel_height][int(sx_rotated * scaling) % map_pixel_width]]
-# FIXME: +96 +64??
                     pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2, 2, 2))  # , width=border_width
                 
                 previous_sx_rotated = sx_rotated
@@ -205,6 +206,8 @@ def run():
                 
             x_sub_pixel_steps_decr.append(x_sub_pixel_step_decr * 32)   # Bit 5 is the DECR bit for the X-incrementer, so we multiply by 32 here
 # FIXME: EXTEND THIS FURTHER!!
+# FIXME: EXTEND THIS FURTHER!!
+# FIXME: EXTEND THIS FURTHER!!
             if (x_sub_pixel_step >= 256 * 8):
                 x_sub_pixel_step = int(x_sub_pixel_step // 4)
                 x_sub_pixel_step_exp = 2
@@ -216,8 +219,8 @@ def run():
             x_sub_pixel_steps_low.append(int(x_sub_pixel_step) % 256)
             x_sub_pixel_steps_high.append(int(x_sub_pixel_step) // 256)
             x_sub_pixel_steps_exp.append(x_sub_pixel_step_exp)
-            # We also pack both exp and high into a single value exp_high
-            x_sub_pixel_steps_exp_high.append(x_sub_pixel_step_exp*4+int(x_sub_pixel_step) // 256) # We "shift" the exp part by two bits to the left
+            # We also pack the decr, the exp and high into a single value exp_high
+            x_sub_pixel_steps_exp_high.append(x_sub_pixel_step_decr*32 + x_sub_pixel_step_exp*4 + int(x_sub_pixel_step) // 256) # We "shift" the exp part by two bits to the left
             
             y_sub_pixel_step_decr = 0
             if y_sub_pixel_step < 0:
@@ -225,6 +228,8 @@ def run():
                 y_sub_pixel_step_decr = 1
                 
             y_sub_pixel_steps_decr.append(y_sub_pixel_step_decr * 32)   # Bit 5 is the DECR bit for the y-incrementer, so we multiply by 32 here
+# FIXME: EXTEND THIS FURTHER!!
+# FIXME: EXTEND THIS FURTHER!!
 # FIXME: EXTEND THIS FURTHER!!
             if (y_sub_pixel_step >= 256 * 8):
                 y_sub_pixel_step = int(y_sub_pixel_step // 4)
@@ -237,24 +242,18 @@ def run():
             y_sub_pixel_steps_low.append(int(y_sub_pixel_step) % 256)
             y_sub_pixel_steps_high.append(int(y_sub_pixel_step) // 256)
             y_sub_pixel_steps_exp.append(y_sub_pixel_step_exp)
-            # We also pack both exp and high into a single value exp_high
-            y_sub_pixel_steps_exp_high.append(y_sub_pixel_step_exp*4+int(y_sub_pixel_step) // 256) # We "shift" the exp part by two bits to the left
+            y_sub_pixel_steps_exp_high.append(y_sub_pixel_step_decr*32 + y_sub_pixel_step_exp*4 + int(y_sub_pixel_step) // 256) # We "shift" the exp part by two bits to the left
 
-# FIXME: rename x/y_in_texture_fraction_correction to x/y_subpixel_position_in_map_correction
-
-            # TODO: give an explanation why we are doing this: 512 - ...
-            x_in_texture_fraction_correction = int(((x_pixel_position_in_map % 1)*512-256)%512)
-            if x_sub_pixel_step_decr:
-                x_in_texture_fraction_correction = 512 - x_in_texture_fraction_correction
-            y_in_texture_fraction_correction = int(((y_pixel_position_in_map % 1)*512-256)%512)
-            if y_sub_pixel_step_decr:
-                y_in_texture_fraction_correction = 512 - y_in_texture_fraction_correction
+            x_subpixel_position_in_map = int(((x_pixel_position_in_map % 1)*512)%512)
+            y_subpixel_position_in_map = int(((y_pixel_position_in_map % 1)*512)%512)
             
-            x_in_texture_fraction_corrections_low.append(x_in_texture_fraction_correction % 256)
-            x_in_texture_fraction_corrections_high.append(x_in_texture_fraction_correction // 256)
+            x_subpixel_positions_in_map_low.append(int(x_subpixel_position_in_map % 256))
+            x_subpixel_positions_in_map_high.append(int(x_subpixel_position_in_map // 256))
             
-            y_in_texture_fraction_corrections_low.append(y_in_texture_fraction_correction % 256)
-            y_in_texture_fraction_corrections_high.append(y_in_texture_fraction_correction // 256)
+            y_subpixel_positions_in_map_low.append(int(y_subpixel_position_in_map % 256))
+            y_subpixel_positions_in_map_high.append(int(y_subpixel_position_in_map // 256))
+            # We also pack the copy-from-incr-to-pos-bit (=128) into the high_copy value
+            y_subpixel_positions_in_map_high_copy.append(128 + int(y_subpixel_position_in_map // 256))
             
             x_pixel_positions_in_map_low.append(int(x_pixel_position_in_map % 256))
             x_pixel_positions_in_map_high.append(int(x_pixel_position_in_map // 256))
@@ -271,26 +270,19 @@ def run():
                 x_pixel_position_in_map = x_pixel_positions_in_map_low[y_index] + x_pixel_positions_in_map_high[y_index]*256
                 y_pixel_position_in_map = y_pixel_positions_in_map_low[y_index] + y_pixel_positions_in_map_high[y_index]*256
                 
-                x_start_sub_pixel = 0.5
-                y_start_sub_pixel = 0.5
-
-                x_sub_pixel_correction = (x_in_texture_fraction_corrections_low[y_index] + x_in_texture_fraction_corrections_high[y_index] * 256) / 512
-                y_sub_pixel_correction = (y_in_texture_fraction_corrections_low[y_index] + y_in_texture_fraction_corrections_high[y_index] * 256) / 512
-# FIXME: when looking at the SIM if far away parts, its doesnt look quite right...                
+                x_subpixel_position_in_map = (x_subpixel_positions_in_map_low[y_index] + x_subpixel_positions_in_map_high[y_index]*256) / 512
+                y_subpixel_position_in_map = (y_subpixel_positions_in_map_low[y_index] + y_subpixel_positions_in_map_high[y_index]*256) / 512
+                
+                x_pixel_position_in_map += x_subpixel_position_in_map
+                y_pixel_position_in_map += y_subpixel_position_in_map
+                
+# FIXME: OLD? when looking at the SIM if far away parts, its doesnt look quite right...                
                 x_sub_pixel_step = (x_sub_pixel_steps_low[y_index] * (2**x_sub_pixel_steps_exp[y_index]) + x_sub_pixel_steps_high[y_index] * 256 * (2**x_sub_pixel_steps_exp[y_index]) )/512 
                 if x_sub_pixel_steps_decr[y_index]:
                     x_sub_pixel_step = -x_sub_pixel_step
-                    x_sub_pixel_correction = 512 - x_sub_pixel_correction
                 y_sub_pixel_step = (y_sub_pixel_steps_low[y_index] * (2**x_sub_pixel_steps_exp[y_index]) + y_sub_pixel_steps_high[y_index] * 256 * (2**y_sub_pixel_steps_exp[y_index]))/512
                 if y_sub_pixel_steps_decr[y_index]:
                     y_sub_pixel_step = -y_sub_pixel_step
-                    y_sub_pixel_correction = 512 - y_sub_pixel_correction
-                
-                x_start_sub_pixel = (x_start_sub_pixel + x_sub_pixel_correction) % 1
-                y_start_sub_pixel = (y_start_sub_pixel + y_sub_pixel_correction) % 1
-                
-                x_pixel_position_in_map += x_start_sub_pixel
-                y_pixel_position_in_map += y_start_sub_pixel
                 
                 for x in range(-96, 96):
              
@@ -317,15 +309,15 @@ def run():
         pygame.display.update()
         
         if do_single_angle:
-            print('x_in_texture_fraction_corrections_low:')
-            print('    .byte ' + ','.join(str(x) for x in x_in_texture_fraction_corrections_low))
-            print('x_in_texture_fraction_corrections_high:')
-            print('    .byte ' + ','.join(str(x) for x in x_in_texture_fraction_corrections_high))
+            print('x_subpixel_positions_in_map_low:')
+            print('    .byte ' + ','.join(str(x) for x in x_subpixel_positions_in_map_low))
+            print('x_subpixel_positions_in_map_high:')
+            print('    .byte ' + ','.join(str(x) for x in x_subpixel_positions_in_map_high))
             
-            print('y_in_texture_fraction_corrections_low:')
-            print('    .byte ' + ','.join(str(x) for x in y_in_texture_fraction_corrections_low))
-            print('y_in_texture_fraction_corrections_high:')
-            print('    .byte ' + ','.join(str(x) for x in y_in_texture_fraction_corrections_high))
+            print('y_subpixel_positions_in_map_low:')
+            print('    .byte ' + ','.join(str(x) for x in y_subpixel_positions_in_map_low))
+            print('y_subpixel_positions_in_map_high:')
+            print('    .byte ' + ','.join(str(x) for x in y_subpixel_positions_in_map_high_copy)) # packed
                 
             print('x_pixel_positions_in_map_low:')
             print('    .byte ' + ','.join(str(x) for x in x_pixel_positions_in_map_low))
@@ -343,7 +335,7 @@ def run():
             print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_low))
 # FIXME: rename this to exp_high
             print('x_sub_pixel_steps_high:')
-            print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_exp_high))
+            print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_exp_high)) # packed
                 
             print('y_sub_pixel_steps_decr:')
             print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_decr))
@@ -351,13 +343,13 @@ def run():
             print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_low))
 # FIXME: rename this to exp_high
             print('y_sub_pixel_steps_high:')
-            print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_exp_high))
+            print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_exp_high)) # packed
         else:
-            all_angles_x_in_texture_fraction_corrections_low += x_in_texture_fraction_corrections_low
-            all_angles_x_in_texture_fraction_corrections_high += x_in_texture_fraction_corrections_high
+            all_angles_x_subpixel_positions_in_map_low += x_subpixel_positions_in_map_low
+            all_angles_x_subpixel_positions_in_map_high += x_subpixel_positions_in_map_high
             
-            all_angles_y_in_texture_fraction_corrections_low += y_in_texture_fraction_corrections_low
-            all_angles_y_in_texture_fraction_corrections_high += y_in_texture_fraction_corrections_high
+            all_angles_y_subpixel_positions_in_map_low += y_subpixel_positions_in_map_low
+            all_angles_y_subpixel_positions_in_map_high += y_subpixel_positions_in_map_high_copy # packed
             
             all_angles_x_pixel_positions_in_map_low += x_pixel_positions_in_map_low
             all_angles_x_pixel_positions_in_map_high += x_pixel_positions_in_map_high
@@ -368,28 +360,28 @@ def run():
             all_angles_x_sub_pixel_steps_decr += x_sub_pixel_steps_decr
             all_angles_x_sub_pixel_steps_low += x_sub_pixel_steps_low
 # FIXME: rename this to exp_high
-            all_angles_x_sub_pixel_steps_high += x_sub_pixel_steps_exp_high
+            all_angles_x_sub_pixel_steps_high += x_sub_pixel_steps_exp_high  # packed
             
             all_angles_y_sub_pixel_steps_decr += y_sub_pixel_steps_decr
             all_angles_y_sub_pixel_steps_low += y_sub_pixel_steps_low
 # FIXME: rename this to exp_high            
-            all_angles_y_sub_pixel_steps_high += y_sub_pixel_steps_exp_high
+            all_angles_y_sub_pixel_steps_high += y_sub_pixel_steps_exp_high   # packed
         
     if not do_single_angle:
-        tableFile = open("special_tests/tables/x_in_texture_fraction_corrections_low.bin", "wb")
-        tableFile.write(bytearray(all_angles_x_in_texture_fraction_corrections_low))
+        tableFile = open("special_tests/tables/x_subpixel_positions_in_map_low.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_subpixel_positions_in_map_low))
         tableFile.close()
-        tableFile = open("special_tests/tables/x_in_texture_fraction_corrections_high.bin", "wb")
-        tableFile.write(bytearray(all_angles_x_in_texture_fraction_corrections_low))
-        tableFile.close()
-        
-        tableFile = open("special_tests/tables/y_in_texture_fraction_corrections_low.bin", "wb")
-        tableFile.write(bytearray(all_angles_y_in_texture_fraction_corrections_low))
-        tableFile.close()
-        tableFile = open("special_tests/tables/y_in_texture_fraction_corrections_high.bin", "wb")
-        tableFile.write(bytearray(all_angles_y_in_texture_fraction_corrections_low))
+        tableFile = open("special_tests/tables/x_subpixel_positions_in_map_high.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_subpixel_positions_in_map_high))
         tableFile.close()
         
+        tableFile = open("special_tests/tables/y_subpixel_positions_in_map_low.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_subpixel_positions_in_map_low))
+        tableFile.close()
+        tableFile = open("special_tests/tables/y_subpixel_positions_in_map_high.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_subpixel_positions_in_map_high))
+        tableFile.close()
+
         tableFile = open("special_tests/tables/x_pixel_positions_in_map_low.bin", "wb")
         tableFile.write(bytearray(all_angles_x_pixel_positions_in_map_low))
         tableFile.close()

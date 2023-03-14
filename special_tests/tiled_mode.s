@@ -1,10 +1,10 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 0
+USE_TABLE_FILES = 1
 DO_NO_TILE_LOOKUP = 1
-DO_CLIP = 1
-DRAW_TILED_PERSPECTIVE = 0  ; Otherwise FLAT tiles
-MOVE_XY_POSITION = 0
+DO_CLIP = 0
+DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
+MOVE_XY_POSITION = 1
 TURN_AROUND = 0
 DEBUG_LEDS = 1
 
@@ -107,10 +107,10 @@ COPY_ROW_CODE               = $7800
 COPY_TABLES_TO_BANKED_RAM   = $8000
 
 
-Y_IN_TEXTURE_FRACTION_CORRECTIONS_LOW  = $A000
-Y_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH = $A100
-X_IN_TEXTURE_FRACTION_CORRECTIONS_LOW  = $A200
-X_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH = $A300
+X_SUBPIXEL_POSITIONS_IN_MAP_LOW        = $A000
+X_SUBPIXEL_POSITIONS_IN_MAP_HIGH       = $A100
+Y_SUBPIXEL_POSITIONS_IN_MAP_LOW        = $A200
+Y_SUBPIXEL_POSITIONS_IN_MAP_HIGH       = $A300
 X_PIXEL_POSITIONS_IN_MAP_LOW           = $A400
 X_PIXEL_POSITIONS_IN_MAP_HIGH          = $A500
 Y_PIXEL_POSITIONS_IN_MAP_LOW           = $A600
@@ -319,14 +319,14 @@ tiled_perspective_192x64_8bpp_message:
 ; We also have to set the sub pixel increment for each pixel row on the screen.
 ; We generated this using the python script (see same folder) and put the data here.
     
-x_in_texture_fraction_corrections_low:
+x_subpixel_positions_in_map_low:
     .byte 4,244,230,204,103,86,23,22,170,30,176,151,255,16,237,180,126,99,119,203,112,116,227,201,49,35,169,200,138,243,9,210,83,144,141,78,215,41,74,58,254,151,7,80,117,120,89,26,190,69,176,2,58,91,100,88,55,2,185,94,241,114,228,69
-x_in_texture_fraction_corrections_high:
-    .byte 0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,1,0,0,1,1,1,0,0,0,0,1,1,1,1,0,0,0,1,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,1,1,0,0,1,0,1,0,1,0,0,1,1,0,0,1
-y_in_texture_fraction_corrections_low:
-    .byte 240,181,72,14,142,99,60,213,247,115,32,220,139,20,96,93,250,41,221,10,166,168,9,193,201,27,179,139,159,236,108,29,253,7,59,148,17,176,111,77,71,92,139,210,49,166,47,205,126,65,21,250,239,243,6,38,84,142,213,39,133,238,97,222
-y_in_texture_fraction_corrections_high:
-    .byte 0,0,0,1,0,0,0,1,0,1,1,1,1,0,1,1,1,1,0,1,1,0,0,1,1,0,0,1,0,1,1,1,0,1,1,1,0,0,1,0,1,0,1,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,0,1,1,1,0,0
+x_subpixel_positions_in_map_high:
+    .byte 1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,0,1,1,0,0,0,1,1,1,1,0,0,0,0,1,1,1,0,0,0,0,1,1,0,1,1,0,1,1,1,1,1,1,0,0,1,1,0,1,0,1,0,1,1,0,0,1,1,0
+y_subpixel_positions_in_map_low:
+    .byte 16,75,184,242,114,157,196,43,9,141,224,36,117,236,160,163,6,215,35,246,90,88,247,63,55,229,77,117,97,20,148,227,3,249,197,108,239,80,145,179,185,164,117,46,207,90,209,51,130,191,235,6,17,13,250,218,172,114,43,217,123,18,159,34
+y_subpixel_positions_in_map_high:
+    .byte 128,128,128,129,128,128,128,129,128,129,129,129,129,128,129,129,129,129,128,129,129,128,128,129,129,128,128,129,128,129,129,129,128,129,129,129,128,128,129,128,129,128,129,128,128,129,129,128,128,128,128,129,129,129,128,128,128,128,128,129,129,129,128,128
 x_pixel_positions_in_map_low:
     .byte 189,216,240,5,25,42,58,73,86,98,109,120,129,139,147,155,162,169,176,182,188,193,198,203,208,213,217,221,225,228,232,235,239,242,245,248,250,253,0,2,4,7,9,11,13,15,17,19,21,23,24,26,28,29,31,32,34,35,36,38,39,40,41,43
 x_pixel_positions_in_map_high:
@@ -346,7 +346,7 @@ y_sub_pixel_steps_decr:
 y_sub_pixel_steps_low:
     .byte 190,164,141,120,101,84,68,54,41,29,18,8,255,246,238,230,223,216,210,204,198,193,188,183,178,174,170,166,162,158,155,152,148,145,142,140,137,134,132,129,127,125,123,121,119,117,115,113,111,109,108,106,105,103,102,100,99,97,96,95,94,92,91,90
 y_sub_pixel_steps_high:
-    .byte 1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 33,33,33,33,33,33,33,33,33,33,33,33,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32
 
     
 tiled_perspective_fast:
@@ -420,69 +420,36 @@ tiled_perspective_copy_next_row_1:
     lda VERA_ADDR_ZP_TO
     sta VERA_ADDR_LOW
     
-    ; We reset so both x and y sub pixels positions are reset to 128 
+    ; We have to set both x and y subpixels positions, so we change to the appropiate selectors
     lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
     sta VERA_CTRL
     
-    ; FIXME: Since loading *once* screws up my cache byte index, we need to load 3 times first!
-    .if(USE_CACHE_FOR_WRITING)
-    stz $9F29                ; X increment low
-    stz $9F2A                ; X increment high (only 1 bit is used)
-    stz $9F2B                ; Y increment low
-    stz $9F2C                ; Y increment high (only 1 bit is used)
-    lda VERA_DATA1
-    lda VERA_DATA1
-    lda VERA_DATA1
-    .endif
-    
-    
-    ; We correct both x and y sub pixels positions to the correct starting value by setting the deltas 
     .if(USE_TABLE_FILES)
-        lda X_IN_TEXTURE_FRACTION_CORRECTIONS_LOW, x
+        lda X_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
     .else
-        lda x_in_texture_fraction_corrections_low, x
+        lda x_subpixel_positions_in_map_low, x
     .endif
-    sta $9F29
+    sta $9F29                ; X subpixel increment low [7:0] -> to be copied to subpixel position
+    .if(USE_TABLE_FILES)
+        lda X_SUBPIXEL_POSITIONS_IN_MAP_HIGH, x
+    .else
+        lda x_subpixel_positions_in_map_high, x
+    .endif
+    sta $9F2A                ; X subpixel increment high [8] -> to be copied to subpixel position
+    .if(USE_TABLE_FILES)
+        lda Y_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
+    .else
+        lda y_subpixel_positions_in_map_low, x
+    .endif
+    sta $9F2B                ; Y subpixel increment low [7:0] -> to be copied to subpixel position
+    .if(USE_TABLE_FILES)
+        lda Y_SUBPIXEL_POSITIONS_IN_MAP_HIGH, x
+    .else
+        lda y_subpixel_positions_in_map_high, x
+    .endif
+    ; Note: the bit to copy subpixel increment to subpixel positions is packed into the table-data
+    sta $9F2C                ; Y subpixel increment high [10:8] + copy from subpixel increment to subpixel position
 
-    .if(USE_TABLE_FILES)
-        lda X_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH, x
-    .else
-        lda x_in_texture_fraction_corrections_high, x
-    .endif
-; FIXME: REMOVE the DECR table! (can be put into HIGH table)
-    .if(USE_TABLE_FILES)
-        ora X_SUB_PIXEL_STEPS_DECR, x
-    .else
-        ora x_sub_pixel_steps_decr, x
-    .endif
-    sta $9F2A
-    
-    .if(USE_TABLE_FILES)
-        lda Y_IN_TEXTURE_FRACTION_CORRECTIONS_LOW, x
-    .else
-        lda y_in_texture_fraction_corrections_low, x
-    .endif
-    sta $9F2B
-
-    .if(USE_TABLE_FILES)
-        lda Y_IN_TEXTURE_FRACTION_CORRECTIONS_HIGH, x
-    .else
-        lda y_in_texture_fraction_corrections_high, x
-    .endif
-; FIXME: REMOVE the DECR table! (can be put into HIGH table)
-    .if(USE_TABLE_FILES)
-        ora Y_SUB_PIXEL_STEPS_DECR, x
-    .else
-        ora y_sub_pixel_steps_decr, x
-    .endif
-    sta $9F2C
-
-    ; FIXME: we shouldnt need this if we didnt have to correct the subpixel position. We also should be calculating the subpixel position in the table generator.
-    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
-    sta VERA_ADDR_BANK
-    
-    ; We read once from ADDR1 which adds the corrections
-    lda VERA_DATA1
     
     ; We now set the actual increments
     .if(USE_TABLE_FILES)
@@ -497,12 +464,7 @@ tiled_perspective_copy_next_row_1:
     .else
         lda x_sub_pixel_steps_high, x
     .endif
-; FIXME: REMOVE the DECR table! (can be put into HIGH table)
-    .if(USE_TABLE_FILES)
-        ora X_SUB_PIXEL_STEPS_DECR, x
-    .else
-        ora x_sub_pixel_steps_decr, x
-    .endif
+    ; Note: the decr, exp and high are packed into the table-data
     sta $9F2A
     
     .if(USE_TABLE_FILES)
@@ -517,23 +479,9 @@ tiled_perspective_copy_next_row_1:
     .else
         lda y_sub_pixel_steps_high, x
     .endif
-; FIXME: REMOVE the DECR table! (can be put into HIGH table)
-    .if(USE_TABLE_FILES)
-        ora Y_SUB_PIXEL_STEPS_DECR, x
-    .else
-        ora y_sub_pixel_steps_decr, x
-    .endif
+    ; Note: the decr, exp and high are packed into the table-data
     sta $9F2C
-    
-    lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
-    .if(USE_TABLE_FILES)
-        ora Y_SUB_PIXEL_STEPS_DECR, x
-    .else
-        ora y_sub_pixel_steps_decr, x
-    .endif
-    sta VERA_ADDR_BANK
-    
-    
+        
     ; Setting the position
     
     lda #%00000111           ; DCSEL=1, ADDRSEL=1, with affine helper
@@ -2091,10 +2039,10 @@ irq:
     .word irq
     
     .if(USE_TABLE_FILES)
-    .binary "special_tests/tables/x_in_texture_fraction_corrections_low.bin"
-    .binary "special_tests/tables/x_in_texture_fraction_corrections_high.bin"
-    .binary "special_tests/tables/y_in_texture_fraction_corrections_low.bin"
-    .binary "special_tests/tables/y_in_texture_fraction_corrections_high.bin"
+    .binary "special_tests/tables/x_subpixel_positions_in_map_low.bin"
+    .binary "special_tests/tables/x_subpixel_positions_in_map_high.bin"
+    .binary "special_tests/tables/y_subpixel_positions_in_map_low.bin"
+    .binary "special_tests/tables/y_subpixel_positions_in_map_high.bin"
     .binary "special_tests/tables/x_pixel_positions_in_map_low.bin"
     .binary "special_tests/tables/x_pixel_positions_in_map_high.bin"
     .binary "special_tests/tables/y_pixel_positions_in_map_low.bin"
