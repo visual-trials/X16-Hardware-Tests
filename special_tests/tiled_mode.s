@@ -2,8 +2,8 @@
 USE_CACHE_FOR_WRITING = 1
 USE_TABLE_FILES = 0
 DO_NO_TILE_LOOKUP = 1
-DO_CLIP = 0
-DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
+DO_CLIP = 1
+DRAW_TILED_PERSPECTIVE = 0  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 0
 TURN_AROUND = 0
 DEBUG_LEDS = 1
@@ -370,13 +370,23 @@ tiled_perspective_fast:
     sta $9F2B
     lda #(MAPDATA_VRAM_ADDRESS >> 9)
     sta $9F2C
+    
     .if(DO_NO_TILE_LOOKUP)
         lda #%01100000  ; 01100000 for 8x8 map
-        sta $9F2A
     .else
         lda #%10100000  ; 10100000 for 32x32 map
-        sta $9F2A
     .endif
+    .if(DO_CLIP)
+        ora #%00010000  ; 1 for Clip
+    .else
+        ora #%00000000  ; 0 for Repeat
+    .endif
+    .if(DO_NO_TILE_LOOKUP)
+        ora #%00000000  ; 0 for no tile lookup
+    .else
+        ora #%00001000  ; 1 for tile lookup
+    .endif
+    sta $9F2A
     
     ; Entering *affine helper mode*: selecting ADDR1 
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
@@ -386,14 +396,10 @@ tiled_perspective_fast:
     sta $9F29
     lda #%00000101           ; 00, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
     sta $9F2A
-    lda #00
-    sta $9F2B                ; Y increment low
-    .if(DO_CLIP)
-        lda #%01000100           ; L0/L1 = 0, Clip (1) / Repeat (0) = 1, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
-    .else
-        lda #%00000100           ; L0/L1 = 0, Clip (1) / Repeat (0) = 0, T decr, Y subpixel increment exponent = 001, Y increment high = 00 
-    .endif
-    sta $9F2C                ; Y increment high
+    lda #00                  ; Y increment low
+    sta $9F2B
+    lda #%00000100           ; 00, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
+    sta $9F2C
 
     ldx #0
     
@@ -469,11 +475,6 @@ tiled_perspective_copy_next_row_1:
     .else
         ora y_sub_pixel_steps_decr, x
     .endif
-    .if(DO_CLIP)
-        ora #%01000000           ; L0/L1 = 0, Clip (1) / Repeat (0) = 1, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
-    .else
-        ora #%00000000           ; L0/L1 = 0, Clip (1) / Repeat (0) = 0, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
-    .endif
     sta $9F2C
 
     ; FIXME: we shouldnt need this if we didnt have to correct the subpixel position. We also should be calculating the subpixel position in the table generator.
@@ -522,12 +523,6 @@ tiled_perspective_copy_next_row_1:
     .else
         ora y_sub_pixel_steps_decr, x
     .endif
-
-    .if(DO_CLIP)
-        ora #%01000000           ; L0/L1 = 0, Clip (1) / Repeat (0) = 1, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
-    .else
-        ora #%00000000           ; L0/L1 = 0, Clip (1) / Repeat (0) = 0, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
-    .endif
     sta $9F2C
     
     lda #%01110001           ; Setting auto-increment value to 64 byte increment (=%0111) and bit16 to 1
@@ -543,13 +538,6 @@ tiled_perspective_copy_next_row_1:
     
     lda #%00000111           ; DCSEL=1, ADDRSEL=1, with affine helper
     sta VERA_CTRL
-
-    .if(DO_NO_TILE_LOOKUP)
-    .else
-; FIXME: WORKAROUND! WE HAVE TO TURN ON TILE LOOKUP BEFORE SETTING THE POSITION!! BUT THEY ARE IN THE SAME REGISTER!!
-        lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
-        sta $9F2C
-    .endif
 
     .if(USE_TABLE_FILES)
         lda X_PIXEL_POSITIONS_IN_MAP_LOW, x
@@ -588,13 +576,7 @@ tiled_perspective_copy_next_row_1:
     .else
         lda y_pixel_positions_in_map_high, x
     .endif
-    
-    .if(DO_NO_TILE_LOOKUP)
-    .else
-; FIXME: WORKAROUND! WE HAVE TO TURN ON TILE LOOKUP BEFORE SETTING THE POSITION!! BUT THEY ARE IN THE SAME REGISTER!!
-        ora #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
-        sta $9F2C
-    .endif
+    sta $9F2C                ; Y pixel position high [10:8]
 
     ; Copy three rows of 64 pixels (= 192 pixels)
     jsr COPY_ROW_CODE
@@ -715,11 +697,20 @@ flat_tiles_fast:
     
     .if(DO_NO_TILE_LOOKUP)
         lda #%01100000  ; 01100000 for 8x8 map
-        sta $9F2A
     .else
         lda #%10100000  ; 10100000 for 32x32 map
-        sta $9F2A
     .endif
+    .if(DO_CLIP)
+        ora #%00010000  ; 1 for Clip
+    .else
+        ora #%00000000  ; 0 for Repeat
+    .endif
+    .if(DO_NO_TILE_LOOKUP)
+        ora #%00000000  ; 0 for no tile lookup
+    .else
+        ora #%00001000  ; 1 for tile lookup
+    .endif
+    sta $9F2A
     
     ; Entering *affine helper mode*: selecting ADDR1 
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
@@ -729,14 +720,10 @@ flat_tiles_fast:
     sta $9F29
     lda #%00000101           ; 00, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
     sta $9F2A
-    lda #00
-    sta $9F2B                ; Y increment low
-    .if(DO_CLIP)
-        lda #%01000100           ; L0/L1 = 0, Clip (1) / Repeat (0) = 1, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
-    .else
-        lda #%00000100           ; L0/L1 = 0, Clip (1) / Repeat (0) = 0, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
-    .endif
-    sta $9F2C                ; Y increment high
+    lda #00                  ; Y increment low
+    sta $9F2B
+    lda #%00000100           ; 00, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
+    sta $9F2C
 
     ldx #0
     
@@ -760,14 +747,6 @@ repetitive_copy_next_row_1:
     
     lda #%00000111           ; DCSEL=1, ADDRSEL=1, with affine helper
     sta VERA_CTRL
-
-    .if(DO_NO_TILE_LOOKUP)
-    .else
-    ; FIXME: WORKAROUND! WE HAVE TO TURN ON TILE LOOKUP BEFORE SETTING THE POSITION!! BUT THEY ARE IN THE SAME REGISTER!!
-        lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
-        sta $9F2C
-    .endif
-
     
     lda #0                   ; X pixel position low [7:0]
     sta $9F29
@@ -781,12 +760,8 @@ repetitive_copy_next_row_1:
 ;    adc #4
     sta $9F2B
 ;        lda #0                   ; Y pixel position high [10:8] = 0
-    .if(DO_NO_TILE_LOOKUP)
-    .else
-    ; FIXME: WORKAROUND! WE HAVE TO TURN ON TILE LOOKUP BEFORE SETTING THE POSITION!! BUT THEY ARE IN THE SAME REGISTER!!
-        lda #%10000000                   ; Y pixel position high [10:8] = 0, tile lookup = 1
-        sta $9F2C
-    .endif
+    lda #%00000000                   ; Y pixel position high [10:8] = 0
+    sta $9F2C
     
     ; Copy three rows of 64 pixels
     jsr COPY_ROW_CODE
