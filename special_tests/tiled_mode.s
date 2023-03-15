@@ -115,12 +115,10 @@ X_PIXEL_POSITIONS_IN_MAP_LOW           = $A400
 X_PIXEL_POSITIONS_IN_MAP_HIGH          = $A500
 Y_PIXEL_POSITIONS_IN_MAP_LOW           = $A600
 Y_PIXEL_POSITIONS_IN_MAP_HIGH          = $A700
-X_SUB_PIXEL_STEPS_DECR                 = $A800
-X_SUB_PIXEL_STEPS_LOW                  = $A900
-X_SUB_PIXEL_STEPS_HIGH                 = $AA00
-Y_SUB_PIXEL_STEPS_DECR                 = $AB00
-Y_SUB_PIXEL_STEPS_LOW                  = $AC00
-Y_SUB_PIXEL_STEPS_HIGH                 = $AD00
+X_SUB_PIXEL_STEPS_LOW                  = $A800
+X_SUB_PIXEL_STEPS_HIGH                 = $A900
+Y_SUB_PIXEL_STEPS_LOW                  = $AA00
+Y_SUB_PIXEL_STEPS_HIGH                 = $AB00
 
 
 ; ROM addresses
@@ -335,14 +333,10 @@ y_pixel_positions_in_map_low:
     .byte 101,118,133,146,159,170,180,189,198,205,212,219,225,231,236,241,246,250,255,2,6,10,13,16,19,22,25,27,30,32,34,36,39,40,42,44,46,48,49,51,52,54,55,57,58,59,60,62,63,64,65,66,67,68,69,70,71,72,73,73,74,75,76,77
 y_pixel_positions_in_map_high:
     .byte 7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-x_sub_pixel_steps_decr:
-    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 x_sub_pixel_steps_low:
     .byte 231,172,120,73,31,249,214,183,154,127,102,80,59,39,20,3,231,201,172,145,120,96,73,51,31,11,249,231,214,198,183,168,154,140,127,115,102,91,80,69,59,49,39,30,20,12,3,251,243,235,228,221,214,207,200,194,188,182,176,170,164,159,153,148
 x_sub_pixel_steps_high:
     .byte 7,7,7,7,7,6,6,6,6,6,6,6,6,6,6,6,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
-y_sub_pixel_steps_decr:
-    .byte 32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32
 y_sub_pixel_steps_low:
     .byte 190,164,141,120,101,84,68,54,41,29,18,8,255,246,238,230,223,216,210,204,198,193,188,183,178,174,170,166,162,158,155,152,148,145,142,140,137,134,132,129,127,125,123,121,119,117,115,113,111,109,108,106,105,103,102,100,99,97,96,95,94,92,91,90
 y_sub_pixel_steps_high:
@@ -2047,10 +2041,8 @@ irq:
     .binary "special_tests/tables/x_pixel_positions_in_map_high.bin"
     .binary "special_tests/tables/y_pixel_positions_in_map_low.bin"
     .binary "special_tests/tables/y_pixel_positions_in_map_high.bin"
-    .binary "special_tests/tables/x_sub_pixel_steps_decr.bin"
     .binary "special_tests/tables/x_sub_pixel_steps_low.bin"
     .binary "special_tests/tables/x_sub_pixel_steps_high.bin"
-    .binary "special_tests/tables/y_sub_pixel_steps_decr.bin"
     .binary "special_tests/tables/y_sub_pixel_steps_low.bin"
     .binary "special_tests/tables/y_sub_pixel_steps_high.bin"
     .endif

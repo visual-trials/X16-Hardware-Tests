@@ -95,10 +95,8 @@ def run():
     all_angles_y_pixel_positions_in_map_high = []
     all_angles_addresses_in_texture_low = []
     all_angles_addresses_in_texture_high = []
-    all_angles_x_sub_pixel_steps_decr = []
     all_angles_x_sub_pixel_steps_low = []
     all_angles_x_sub_pixel_steps_high = []
-    all_angles_y_sub_pixel_steps_decr = []
     all_angles_y_sub_pixel_steps_low = []
     all_angles_y_sub_pixel_steps_high = []
 
@@ -329,16 +327,12 @@ def run():
             print('y_pixel_positions_in_map_high:')
             print('    .byte ' + ','.join(str(x) for x in y_pixel_positions_in_map_high))
                 
-            print('x_sub_pixel_steps_decr:')
-            print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_decr))
             print('x_sub_pixel_steps_low:')
             print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_low))
 # FIXME: rename this to exp_high
             print('x_sub_pixel_steps_high:')
             print('    .byte ' + ','.join(str(x) for x in x_sub_pixel_steps_exp_high)) # packed
                 
-            print('y_sub_pixel_steps_decr:')
-            print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_decr))
             print('y_sub_pixel_steps_low:')
             print('    .byte ' + ','.join(str(x) for x in y_sub_pixel_steps_low))
 # FIXME: rename this to exp_high
@@ -357,12 +351,10 @@ def run():
             all_angles_y_pixel_positions_in_map_low += y_pixel_positions_in_map_low
             all_angles_y_pixel_positions_in_map_high += y_pixel_positions_in_map_high
             
-            all_angles_x_sub_pixel_steps_decr += x_sub_pixel_steps_decr
             all_angles_x_sub_pixel_steps_low += x_sub_pixel_steps_low
 # FIXME: rename this to exp_high
             all_angles_x_sub_pixel_steps_high += x_sub_pixel_steps_exp_high  # packed
             
-            all_angles_y_sub_pixel_steps_decr += y_sub_pixel_steps_decr
             all_angles_y_sub_pixel_steps_low += y_sub_pixel_steps_low
 # FIXME: rename this to exp_high            
             all_angles_y_sub_pixel_steps_high += y_sub_pixel_steps_exp_high   # packed
@@ -396,9 +388,6 @@ def run():
         tableFile.write(bytearray(all_angles_y_pixel_positions_in_map_high))
         tableFile.close()
 
-        tableFile = open("special_tests/tables/x_sub_pixel_steps_decr.bin", "wb")
-        tableFile.write(bytearray(all_angles_x_sub_pixel_steps_decr))
-        tableFile.close()
         tableFile = open("special_tests/tables/x_sub_pixel_steps_low.bin", "wb")
         tableFile.write(bytearray(all_angles_x_sub_pixel_steps_low))
         tableFile.close()
@@ -407,9 +396,6 @@ def run():
         tableFile.write(bytearray(all_angles_x_sub_pixel_steps_high))
         tableFile.close()
 
-        tableFile = open("special_tests/tables/y_sub_pixel_steps_decr.bin", "wb")
-        tableFile.write(bytearray(all_angles_y_sub_pixel_steps_decr))
-        tableFile.close()
         tableFile = open("special_tests/tables/y_sub_pixel_steps_low.bin", "wb")
         tableFile.write(bytearray(all_angles_y_sub_pixel_steps_low))
         tableFile.close()
