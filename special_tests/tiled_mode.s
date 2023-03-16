@@ -518,6 +518,7 @@ tiled_perspective_copy_next_row_1:
     .else
         lda y_pixel_positions_in_map_high, x
     .endif
+    ora #%10000000           ; Reset cache byte index = 1
     sta $9F2C                ; Y pixel position high [10:8]
 
     ; Copy three rows of 64 pixels (= 192 pixels)
@@ -702,7 +703,7 @@ repetitive_copy_next_row_1:
 ;    adc #4
     sta $9F2B
 ;        lda #0                   ; Y pixel position high [10:8] = 0
-    lda #%00000000                   ; Y pixel position high [10:8] = 0
+    lda #%10000000           ; Reset cache byte index = 1, Y pixel position high [10:8] = 0
     sta $9F2C
     
     ; Copy three rows of 64 pixels
