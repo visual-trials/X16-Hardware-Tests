@@ -1,5 +1,8 @@
 
-DO_SPEED_TEST = 1
+DO_SPEED_TEST = 0
+; FIXME: remove this!!
+; FIXME: remove this!!
+; FIXME: remove this!!
 USE_LINKED_MODE = 1
 USE_AFFINE_HELPER = 1  ; this exludes/overrules USE_LINKED_MODE
 
@@ -125,32 +128,40 @@ loop:
 test_sub_pixel_increments:
 
     ; Setting up for drawing a new line
-    
-    lda #%00000001           ; DCSEL=0, ADDRSEL=1
+
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    sta VERA_ADDR_BANK
+    
+    ; Entering *line draw mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
+; FIXME: make sure we are in line-draw mode (=default) (NOTE: we need to be in ADDRSEL=0 for this!)
+    
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
     lda #0
     sta VERA_ADDR_HIGH       ; Setting $00000
     lda #0
     sta VERA_ADDR_LOW        ; Setting $00000
     
-    ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
-    sta VERA_CTRL
-
-    lda #00                  ; X increment low
+; FIXME: how do we reset to half a pixel subposition? -> maybe highest bit of 9F2A?
+    
+    lda #73                  ; X increment low
     sta $9F29
-    lda #%00100101           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 01
+    lda #%00000100           ; 00, DECR = 0, X subpixel increment exponent = 001, (X) increment high = 00
     sta $9F2A
-    lda #80
-    sta $9F2B                ; Y increment low
-    lda #%00000100           ; L0/L1 = 0, Repeat / Clip / Combined / None = 00, Y subpixel increment exponent = 001, Y increment high = 00 
-    sta $9F2C                ; Y increment high (only 1 bit is used)
+; FIXME: THIS IS NOT NEEDED ANYMORE!!
+;    lda #80
+;    sta $9F2B                ; Y increment low
+;    lda #%00000100           ; L0/L1 = 0, Repeat / Clip / Combined / None = 00, Y subpixel increment exponent = 001, Y increment high = 00 
+;    sta $9F2C                ; Y increment high (only 1 bit is used)
     
     ; Starting to draw: 4 cpu cycles per pixel
     
     ldy #TEST_LINE_COLOR     ; We use y as color
+    
     sty VERA_DATA1
     sty VERA_DATA1
     sty VERA_DATA1
@@ -169,6 +180,24 @@ test_sub_pixel_increments:
     sty VERA_DATA1
     sty VERA_DATA1
 
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    sty VERA_DATA1
+    
     rts
   
 draw_test_pixels:

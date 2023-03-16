@@ -1,7 +1,7 @@
 
 USE_CACHE_FOR_WRITING = 1
 USE_TABLE_FILES = 1
-DO_NO_TILE_LOOKUP = 1
+DO_NO_TILE_LOOKUP = 0
 DO_CLIP = 0
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 1
@@ -376,9 +376,9 @@ tiled_perspective_fast:
         ora #%00000000  ; 0 for Repeat
     .endif
     .if(DO_NO_TILE_LOOKUP)
-        ora #%00000000  ; 0 for no tile lookup
+        ora #%00001000  ; 10 for no tile lookup
     .else
-        ora #%00001000  ; 1 for tile lookup
+        ora #%00001100  ; 11 for tile lookup
     .endif
     sta $9F2A
     
@@ -648,9 +648,9 @@ flat_tiles_fast:
         ora #%00000000  ; 0 for Repeat
     .endif
     .if(DO_NO_TILE_LOOKUP)
-        ora #%00000000  ; 0 for no tile lookup
+        ora #%00001000  ; 10 for no tile lookup
     .else
-        ora #%00001000  ; 1 for tile lookup
+        ora #%00001100  ; 11 for tile lookup
     .endif
     sta $9F2A
     
