@@ -119,24 +119,32 @@ test_simple_polygon_filler:
     sta VERA_CTRL
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     sta VERA_ADDR_BANK
-    lda #>(TRIANGLE_TOP_POINT_Y*320+TRIANGLE_TOP_POINT_X)
+    ; Note: we are setting ADDR0 to the left most pixel of a pixel row. This means it will be aligned to 4-bytes (which is needed for the polygon filler to work nicely).
+    lda #>(TRIANGLE_TOP_POINT_Y*320)
     sta VERA_ADDR_HIGH
-    lda #<(TRIANGLE_TOP_POINT_Y*320+TRIANGLE_TOP_POINT_X)
+    lda #<(TRIANGLE_TOP_POINT_Y*320)
     sta VERA_ADDR_LOW
     
     ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
     lda #%00000100
     sta $9F2A
-    
+
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
+    
+; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
+; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
+; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
+
+; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
+; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
+; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
+; FIXME: We need to read VERA_ADDR_BANK and FLIP bit 1 of the incrementer (which is bit 5 of VERA_ADDR_BANK)
     lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
-; FIXME: is this really needed? Since we start at x1,x2 = 0 and ADDR1 will be set to ADDR0 + x1?
-    lda #>(TRIANGLE_TOP_POINT_Y*320+TRIANGLE_TOP_POINT_X)
-    sta VERA_ADDR_HIGH
-    lda #<(TRIANGLE_TOP_POINT_Y*320+TRIANGLE_TOP_POINT_X)
-    sta VERA_ADDR_LOW
+    
+    
+    ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
     
     lda #173                  ; X increment low
     sta $9F29
@@ -145,26 +153,24 @@ test_simple_polygon_filler:
     lda #130                 ; Y increment low
     sta $9F2B                
     lda #%00000100           ; Copy icnr to subpos = 0, 0, DECR = 0, Y subpixel increment exponent = 001, (Y) increment high = 00
-    sta $9F2C
+    sta $9F2C    
     
     
-    ; Resetting x1 and x2 pixel position
+    ; Setting x1 and x2 pixel position
     
     lda #%00000111           ; Affine helper = 1, DCSEL=1, ADDRSEL=1
     sta VERA_CTRL
     
-    lda #0
-    sta $9F29                ; X pixel position low [7:0]
-    sta $9F2A                ; X pixel position high [10:8]
-    sta $9F2B                ; Y pixel position low [7:0]
-    sta $9F2C                ; Y pixel position high [10:8]
+    lda #<TRIANGLE_TOP_POINT_X
+    sta $9F29                ; X (=X1) pixel position low [7:0]
+    sta $9F2B                ; Y (=X2) pixel position low [7:0]
+    
+    lda #>TRIANGLE_TOP_POINT_X
+    sta $9F2A                ; X (=X1) pixel position high [10:8]
+    sta $9F2C                ; Y (=X2) pixel position high [10:8]
     
     ldy #TEST_FILL_COLOR     ; We use y as color
 
-; FIXME: its not convenient to switch back to ADDRSEL=0, but this is now needed to read the number of pixels to draw    
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
-    sta VERA_CTRL
-    
 ; FIXME: hardcoded!
     lda #50
     sta NUMBER_OF_ROWS
@@ -183,10 +189,6 @@ test_simple_polygon_filler:
     lda #%00000100           ; Copy icnr to subpos = 0, 0, DECR = 0, Y subpixel increment exponent = 001, (Y) increment high = 00
     sta $9F2C
 
-; FIXME: its not convenient to switch back to ADDRSEL=0, but this is now needed to read the number of pixels to draw    
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
-    sta VERA_CTRL
-    
 ; FIXME: hardcoded!
     lda #99
     sta NUMBER_OF_ROWS
@@ -198,14 +200,58 @@ test_simple_polygon_filler:
 
 
 draw_polygon_part:
+
+; FIXME: its not convenient to switch back to ADDRSEL=0, but this is now needed to read the number of pixels to draw    
+    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    sta VERA_CTRL
     
 draw_triangle_row_next:
 
-    ; Reading the number of pixels to draw on this horizontal line
-    ldx $9F29
+; FIXME: this can be done more efficiently!!
+; FIXME: this can be done more efficiently!!
+; FIXME: this can be done more efficiently!!
+    ; Reading the number of pixels (divided by 4) to draw on this horizontal line
+    lda $9F29
+    bne x1_and_x2_are_not_in_same_32bit_column
+
+    ; we simply take the difference between (x2 % 4) - (x1 % 4) and do + 1
+    sec
+    lda $9F2B
+    sbc $9F2A
+    inc
+
+    bra nr_of_pixels_to_be_drawn_calculated
     
-; FIXME: if x == 255, we should read it *again* after drawing 255 pixels!
-; FIXME: We should check if the result is zero! We are now always adding 1!!
+x1_and_x2_are_not_in_same_32bit_column:
+; FIXME: we remove 1 since a 0 means both x1 and x2 fall into the same 32-bit aligned column. And 1 means they are adjacent, but this means there are no additional 4-pixels needed
+    dec
+; FIXME: we are multiplying by 4, but we could lose information here!!
+    asl
+    asl
+    sta TMP2
+
+    ; We use the lower two bits of the x1 pixel position to determine the number of pixel to draw at the *start*
+    sec
+    lda #4
+    sbc $9F2A
+    
+    ; We add the amount of pixel to-be-drawn at the start to the ones we already have
+    clc
+    adc TMP2
+    sta TMP2
+    
+    ; We use the lower two bits of the x2 pixel position to determine the number of pixels to draw at the *end*
+    ; We add the amount of pixel to-be-drawn at the start to the ones we already have
+    lda $9F2B
+; FIXME: for now we add one, since a pixel on index 0 means we have to draw that *one* pixel
+;          BUT: when we see a index=3, we should *interchange* this with a 4-write command!
+    inc  
+    clc
+    adc TMP2
+
+nr_of_pixels_to_be_drawn_calculated:
+    
+    tax
     
     ; Note: we can speed this up *massively*, by unrolling this loop, but this is just an example to explain how the feature works
 draw_triangle_pixel_next:
