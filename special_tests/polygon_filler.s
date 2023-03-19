@@ -118,7 +118,7 @@ test_simple_polygon_filler:
 
     ; Setting up for drawing a polygon, setting both addresses at the same starting point
 
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
     sta VERA_CTRL
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     sta VERA_ADDR_BANK
@@ -130,25 +130,10 @@ test_simple_polygon_filler:
     
     ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
     lda #%00000100
-    sta $9F2A
+    sta $9F29
 
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
-    
-; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
-; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
-; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
-
-; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
-; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
-; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
-; FIXME: We need to read VERA_ADDR_BANK and FLIP bit 1 of the incrementer (which is bit 5 of VERA_ADDR_BANK)
-; IDEA: maybe use TRB or TSB opcodes here!
-    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-    sta VERA_ADDR_BANK
-    
-    
-    ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
     
     lda #173                  ; X increment low
     sta $9F29
@@ -162,7 +147,7 @@ test_simple_polygon_filler:
     
     ; Setting x1 and x2 pixel position
     
-    lda #%00000111           ; Affine helper = 1, DCSEL=1, ADDRSEL=1
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
     
     lda #<TRIANGLE_TOP_POINT_X
@@ -172,6 +157,21 @@ test_simple_polygon_filler:
     lda #>TRIANGLE_TOP_POINT_X
     sta $9F2A                ; X (=X1) pixel position high [10:8]
     sta $9F2C                ; Y (=X2) pixel position high [10:8]
+
+
+; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
+; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
+; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
+
+; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
+; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
+; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
+; FIXME: We need to read VERA_ADDR_BANK and FLIP bit 1 of the incrementer (which is bit 5 of VERA_ADDR_BANK)
+; IDEA: maybe use TRB or TSB opcodes here!
+    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
+    ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
+
     
     ldy #TEST_FILL_COLOR     ; We use y as color
 
@@ -181,7 +181,7 @@ test_simple_polygon_filler:
     
     jsr draw_polygon_part
     
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
     lda #30                  ; X increment low
@@ -205,8 +205,7 @@ test_simple_polygon_filler:
 
 draw_polygon_part:
 
-; FIXME: its not convenient to switch back to ADDRSEL=0, but this is now needed to read the number of pixels to draw    
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000111           ; Affine helper = 1, DCSEL=1, ADDRSEL=1
     sta VERA_CTRL
     
 draw_triangle_row_next:
