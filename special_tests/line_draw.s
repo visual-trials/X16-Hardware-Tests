@@ -9,9 +9,6 @@ BACKGROUND_COLOR = 06  ; Blue
     .endif
 
 ;FOREGROUND_COLOR = 1
-DATA0_UNLINKED_COLOR = 1
-DATA0_LINKED_COLOR = 5
-DATA1_LINKED_COLOR = 4
 
 TEST_LINE_COLOR = 1
 TEST_LINE_SLOPE = 70  ; the number of sub pixels (SLOPE/256 of a pixel) that the line moves down each horizontal step
@@ -118,22 +115,28 @@ test_sub_pixel_increments:
 
     ; Setting up for drawing a new line
 
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
     sta VERA_CTRL
+    
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     sta VERA_ADDR_BANK
     
     ; Entering *line draw mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
-; FIXME: make sure we are in line-draw mode (=default) (NOTE: we need to be in ADDRSEL=0 for this!)
+    lda #%00000000
+    sta $9F29
     
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
+    
     lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
     lda #0
     sta VERA_ADDR_HIGH       ; Setting $00000
     lda #0
     sta VERA_ADDR_LOW        ; Setting $00000
+    
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
     
     lda #73                  ; X increment low
     sta $9F29
@@ -229,9 +232,9 @@ test_speed_of_drawing_lines:
     .else
         lda #6
         sta CURSOR_X
-        lda #<draw_lines_without_linked_mode_message
+        lda #<draw_lines_without_affine_helper_message
         sta TEXT_TO_PRINT
-        lda #>draw_lines_without_linked_mode_message
+        lda #>draw_lines_without_affine_helper_message
         sta TEXT_TO_PRINT + 1
     .endif
     
@@ -248,7 +251,7 @@ test_speed_of_drawing_lines:
 
 draw_lines_320x240_8bpp_message: 
     .asciiz "Drew 32 lines 320x240 (8bpp) "
-draw_lines_without_linked_mode_message: 
+draw_lines_without_affine_helper_message: 
     ; TODO: maybe specify what method exactly is used!
     .asciiz "Method: not using affine helper"
 draw_lines_with_affine_helper_message: 
@@ -284,22 +287,28 @@ draw_line_to_the_right_from_left_top_corner_next:
     .if(USE_AFFINE_HELPER)
         ; Setting up for drawing a new line
 
-        lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+        lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
         sta VERA_CTRL
+        
         lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
         sta VERA_ADDR_BANK
         
         ; Entering *line draw mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
-    ; FIXME: make sure we are in line-draw mode (=default) (NOTE: we need to be in ADDRSEL=0 for this!)
+        lda #%00000000
+        sta $9F29
         
         lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
         sta VERA_CTRL
+        
         lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
         sta VERA_ADDR_BANK
         lda #0
         sta VERA_ADDR_HIGH       ; Resetting back to $00000
         lda #0
         sta VERA_ADDR_LOW        ; Resetting back to $00000
+        
+        lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+        sta VERA_CTRL
         
         lda SLOPE                ; X increment low -> HERE used as Y increment!
         sta $9F29
@@ -364,14 +373,17 @@ draw_line_to_the_bottom_from_left_top_corner_next:
 
         lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
         sta VERA_CTRL
+        
         lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
         sta VERA_ADDR_BANK
         
         ; Entering *line draw mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
-    ; FIXME: make sure we are in line-draw mode (=default) (NOTE: we need to be in ADDRSEL=0 for this!)
+        lda #%00000000
+        sta $9F29
         
         lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
         sta VERA_CTRL
+        
         lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
         sta VERA_ADDR_BANK
         lda #0
@@ -379,10 +391,9 @@ draw_line_to_the_bottom_from_left_top_corner_next:
         lda #0
         sta VERA_ADDR_LOW        ; Resetting back to $00000
         
-        ; Entering *affine helper mode*: this should copy ADDR1_INCR(and DECR) to ADDR0_INCR(and DECR)
-        lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+        lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
         sta VERA_CTRL
-
+        
         lda SLOPE                ; X increment low -> HERE used as Y increment!
         sta $9F29
         lda #%10000100           ; Subpixel position reset = 1, 0, DECR = 0, X subpixel increment exponent = 001, (X) increment high = 00
@@ -422,7 +433,7 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     
     .if(USE_AFFINE_HELPER)
         ; Turn off affine helper mode
-        lda #%00000000           ; Linked Mode=1, Affine helper = 1, DCSEL=0, ADDRSEL=0
+        lda #%00000000           ; Affine helper = 0, DCSEL=0, ADDRSEL=0
         sta VERA_CTRL
     .endif
     
