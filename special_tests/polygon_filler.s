@@ -66,6 +66,9 @@ LINE_COLOR                 = $27
 
 ; Polygon filler
 NUMBER_OF_ROWS             = $30
+LINE_LENGTH_DIV_4          = $31
+X1_TWO_LOWER_BITS          = $32
+X2_TWO_LOWER_BITS          = $33
 
 
 ; RAM addresses
@@ -208,17 +211,45 @@ draw_polygon_part:
     
 draw_triangle_row_next:
 
-; FIXME: this can be done more efficiently!!
-; FIXME: this can be done more efficiently!!
-; FIXME: this can be done more efficiently!!
-    ; Reading the number of pixels (divided by 4) to draw on this horizontal line
-    lda $9F29
+    ; HACK: we are reconstructing the separate bits we are getting into three 8-bit values. But this should normally *not*
+    ;       be done! The bits are crafted in such a way to be used for a jump table. But for this example we dont use a jump table,
+    ;       since it will be a bit more readably that way.
+    
+    ; Reading the number of pixels (divided by 4) to draw on this horizontal line: (x2 // 4) - (x1 // 4)
+    
+    lda $9F29                ; This contains: X1[1:0], X2[1:0], LINE_LENGTH_DIV_4 >= 8, LINE_LENGTH_DIV_4[2:0]
+    sta LINE_LENGTH_DIV_4
+    
+    ; We remove the 3 lower bits of the line length div 4
+    lsr
+    lsr
+    lsr
+    
+    ; We remove (and ignore) the 1 other bit that says whether the line_length_div_4 >= 4
+    lsr 
+    
+    pha
+    and #%00000011 
+    sta X2_TWO_LOWER_BITS
+    pla
+    
+    lsr
+    lsr
+    sta X1_TWO_LOWER_BITS
+    
+    lda LINE_LENGTH_DIV_4
+    and #%00000111          ; we keep the 3 lower bits
+    ora $9F2A               ; This contains LINE_LENGTH_DIV_4[7:3], 000
+    sta LINE_LENGTH_DIV_4
+    
+    ; Now that we have restored the three variables we can proceed using them
+    
     bne x1_and_x2_are_not_in_same_32bit_column
 
     ; we simply take the difference between (x2 % 4) - (x1 % 4) and do + 1
     sec
-    lda $9F2B
-    sbc $9F2A
+    lda X2_TWO_LOWER_BITS
+    sbc X1_TWO_LOWER_BITS
     inc
 
     bra nr_of_pixels_to_be_drawn_calculated
@@ -234,7 +265,7 @@ x1_and_x2_are_not_in_same_32bit_column:
     ; We use the lower two bits of the x1 pixel position to determine the number of pixel to draw at the *start*
     sec
     lda #4
-    sbc $9F2A
+    sbc X1_TWO_LOWER_BITS
     
     ; We add the amount of pixel to-be-drawn at the start to the ones we already have
     clc
@@ -243,7 +274,7 @@ x1_and_x2_are_not_in_same_32bit_column:
     
     ; We use the lower two bits of the x2 pixel position to determine the number of pixels to draw at the *end*
     ; We add the amount of pixel to-be-drawn at the start to the ones we already have
-    lda $9F2B
+    lda X2_TWO_LOWER_BITS
 ; FIXME: for now we add one, since a pixel on index 0 means we have to draw that *one* pixel
 ;          BUT: when we see a index=3, we should *interchange* this with a 4-write command!
     inc  
