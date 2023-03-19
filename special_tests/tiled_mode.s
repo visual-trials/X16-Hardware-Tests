@@ -350,10 +350,10 @@ tiled_perspective_fast:
     sta VERA_ADDR_ZP_TO
     lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_TO+1
-    lda #<(TILEDATA_VRAM_ADDRESS)
-    sta VERA_ADDR_ZP_FROM
-    lda #>(TILEDATA_VRAM_ADDRESS)
-    sta VERA_ADDR_ZP_FROM+1
+;    lda #<(TILEDATA_VRAM_ADDRESS)
+;    sta VERA_ADDR_ZP_FROM
+;    lda #>(TILEDATA_VRAM_ADDRESS)
+;    sta VERA_ADDR_ZP_FROM+1
 
     ; Entering *affine helper mode*: selecting ADDR0
     lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
@@ -624,10 +624,10 @@ flat_tiles_fast:
     sta VERA_ADDR_ZP_TO
     lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_TO+1
-    lda #<(TILEDATA_VRAM_ADDRESS)
-    sta VERA_ADDR_ZP_FROM
-    lda #>(TILEDATA_VRAM_ADDRESS)
-    sta VERA_ADDR_ZP_FROM+1
+;    lda #<(TILEDATA_VRAM_ADDRESS)
+;    sta VERA_ADDR_ZP_FROM
+;    lda #>(TILEDATA_VRAM_ADDRESS)
+;    sta VERA_ADDR_ZP_FROM+1
 
     ; Entering *affine helper mode*: selecting ADDR0
     lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0

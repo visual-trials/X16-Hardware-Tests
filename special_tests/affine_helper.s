@@ -9,6 +9,16 @@ USE_CACHE_FOR_WRITING = 1
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 FOREGROUND_COLOR = 1
 
+MAP_WIDTH = 16    ; 16 * 8 = 128 pixels
+MAP_HEIGHT = 16   ; 16 * 8 = 128 pixels
+
+TEXTURE_WIDTH = 100
+TEXTURE_HEIGHT = 75
+
+TILE_WIDTH = 8
+TILE_HEIGHT = 8
+
+
 TOP_MARGIN = 12
 LEFT_MARGIN = 16
 VSPACING = 10
@@ -19,6 +29,7 @@ ORIGINAL_PICTURE_POS_Y = 65
 DESTINATION_PICTURE_POS_X = 160
 DESTINATION_PICTURE_POS_Y = 51
 
+TILEDATA_VRAM_ADDRESS = $12000
 
 
 ; === Zero page addresses ===
@@ -60,8 +71,11 @@ BAD_VALUE                 = $3A
 CODE_ADDRESS              = $3D ; 3E
 
 ; Affine transformation
-X_SUB_PIXEL               = $40
-Y_SUB_PIXEL               = $41
+X_SUB_PIXEL               = $40 ; 41
+Y_SUB_PIXEL               = $42 ; 43
+
+TILE_X                    = $46
+TILE_Y                    = $47
 
 ; RAM addresses
 COPY_ROW_CODE               = $7800
@@ -98,11 +112,16 @@ reset:
     ; Put orginal picture on screen (slow)
     jsr clear_screen_slow
     jsr copy_palette
+    jsr copy_texture_pixels_as_tile_pixels_to_high_vram
+    
     ; Copy bitmap image to VRAM from ROM
     lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_TO
     lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_TO+1
+    
+; FIXME: we should copy the pixels to the TILEDATA_VRAM_ADDRESS!!
+    
     jsr copy_pixels
     
     
@@ -229,29 +248,49 @@ affine_transform_some_bytes:
 test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
 
     .if(DO_SHEAR)
-    jsr generate_copy_row_code_data0_to_data1
+        jsr generate_copy_row_code_data0_to_data1
     .endif
     .if(DO_ROTATE)
-    jsr generate_copy_row_code
+        jsr generate_copy_row_code
     .endif
 
     jsr start_timer
 
     ; Setup FROM and TO VRAM addresses
-    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_FROM
-    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_FROM+1
     lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_TO
     lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_TO+1
+;    lda #<(TILEDATA_VRAM_ADDRESS)
+;    sta VERA_ADDR_ZP_FROM
+;    lda #>(TILEDATA_VRAM_ADDRESS)
+;    sta VERA_ADDR_ZP_FROM+1
+    
+    ; Entering *affine helper mode*: selecting ADDR0
+    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; Setting base address and map size
+    
+    lda #(TILEDATA_VRAM_ADDRESS >> 9)
+    sta $9F2A
+
+; FIXME: set the CORRECT map size!    
+    lda #%01100000  ; 01100000 for 8x8 map
+; FIXME    
+; FIXME    
+; FIXME    
+; FIXME    
+; FIXME    
+;   ora #%00010000  ; 1 for Clip
+    ora #%00001000  ; 10 for no tile lookup
+    sta $9F29
     
     .if(DO_SHEAR)
-    jsr shear_bitmap_fast_1_byte_per_copy
+        jsr shear_bitmap_fast_1_byte_per_copy
     .endif
     .if(DO_ROTATE)
-    jsr rotate_bitmap_fast_1_byte_per_copy
+        jsr rotate_bitmap_fast_1_byte_per_copy
     .endif
 
     
@@ -425,45 +464,39 @@ SINE_ROTATE = 67
 
 rotate_bitmap_fast_1_byte_per_copy:
 
-    ; Setting up for reading from a new line from a texture/bitmap
-    
-    lda #%00000001           ; DCSEL=0, ADDRSEL=1
-    sta VERA_CTRL
-    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
-    sta VERA_ADDR_BANK
-    
-    ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the *current* one from ADDR0 (its settings are copied) and from itself
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    ; Entering *affine helper mode*: selecting ADDR1 
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
 
-    ; HACK: adjusting the source start point a bit, to make sure we catch the whole picture!
-    lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320-28*320)
-    sta VERA_ADDR_ZP_FROM
-    lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320-28*320)
-    sta VERA_ADDR_ZP_FROM+1
-    
+
     ; Maybe do 15.2 degrees: 
     ;   cos(15.2 degrees)*256 = 247.0  -> +247 = x_delta for row, -67  x_delta for column (start of row)
     ;   sin(15.2 degrees)*256 = 67.1   -> +67  = y_delta for row, +247  x_delta for column (start or row)
-    
+
+; FIXME: what should be our starting position?!    
     lda #128
     sta Y_SUB_PIXEL
+    lda #0
+    sta Y_SUB_PIXEL+1
     lda #128
     sta X_SUB_PIXEL
-
+    lda #0
+    sta X_SUB_PIXEL+1
+    
     lda #247                 ; X increment low
     sta $9F29
-    lda #%00100100           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 00
+; FIXME: is DECR correct here?
+    lda #%00100100           ; 00, X decr = 1, X subpixel increment exponent = 001, X increment high = 00
     sta $9F2A
     lda #67
     sta $9F2B                ; Y increment low
-    lda #%00000100           ; L0/L1 = 0, Repeat / Clip / Combined / None = 00, Y subpixel increment exponent = 001, Y increment high = 00 
+    lda #%00000100           ; 00, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
     sta $9F2C
 
     ldx #0
     
 rotate_copy_next_row_1:
-    lda #%00000100           ; DCSEL=0, ADDRSEL=0, with affine helper
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
 
     .if (USE_CACHE_FOR_WRITING)
@@ -477,16 +510,21 @@ rotate_copy_next_row_1:
     sta VERA_ADDR_HIGH
     lda VERA_ADDR_ZP_TO
     sta VERA_ADDR_LOW
+
+    ; Setting the position
     
-    lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
     
-    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
-    sta VERA_ADDR_BANK
-    lda VERA_ADDR_ZP_FROM+1
-    sta VERA_ADDR_HIGH
-    lda VERA_ADDR_ZP_FROM
-    sta VERA_ADDR_LOW
+; FIXME: we should probably also set the subpixel positions!!
+    lda X_SUB_PIXEL+1
+    sta $9F29                ; X pixel position low [7:0]
+    lda #0                   
+    sta $9F2A                ; X pixel position high [10:8]
+    lda Y_SUB_PIXEL+1
+    sta $9F2B                ; Y pixel position low [7:0]
+    lda #%10000000           
+    sta $9F2C                ; Reset cache byte index = 1, Y pixel position high [10:8] = 0
 
     ; Copy one row of 100 pixels
     jsr COPY_ROW_CODE
@@ -504,38 +542,18 @@ rotate_copy_next_row_1:
     lda Y_SUB_PIXEL
     adc #COSINE_ROTATE
     sta Y_SUB_PIXEL
+    lda Y_SUB_PIXEL+1
+    adc #0
+    sta Y_SUB_PIXEL+1
     
-    bcc rotate_correct_pixel_row  ; if we have no overflow, we are at the correct pixel row
-
-    ; We increment our VERA_ADDR_FROM with 320 if we should proceed to the next pixel row
-    clc
-    lda VERA_ADDR_ZP_FROM
-    adc #<(320)
-    sta VERA_ADDR_ZP_FROM
-    lda VERA_ADDR_ZP_FROM+1
-    adc #>(320)
-    sta VERA_ADDR_ZP_FROM+1
-    
-rotate_correct_pixel_row:
-
     sec
     lda X_SUB_PIXEL
     sbc #SINE_ROTATE
     sta X_SUB_PIXEL
+    lda X_SUB_PIXEL+1
+    sbc #0
+    sta X_SUB_PIXEL+1
     
-    bcs rotate_correct_pixel_column  ; if we have the carry still set (no borrow), we are at the correct pixel column
-
-    ; We decrement our VERA_ADDR_FROM with 1 if we should proceed to the next pixel row (one to the left)
-    sec
-    lda VERA_ADDR_ZP_FROM
-    sbc #<(1)
-    sta VERA_ADDR_ZP_FROM
-    lda VERA_ADDR_ZP_FROM+1
-    sbc #>(1)
-    sta VERA_ADDR_ZP_FROM+1
-
-rotate_correct_pixel_column:
-
     inx
 ;    cpx #75             ; we do 75 rows
     cpx #100             ; we do 75 rows diagonally ~= 100
@@ -792,6 +810,91 @@ next_packed_color2:
     iny
     bne next_packed_color2
 
+    rts
+
+    
+copy_texture_pixels_as_tile_pixels_to_high_vram:  
+
+    lda #<PIXELS
+    sta DATA_PTR_ZP
+    lda #>PIXELS
+    sta DATA_PTR_ZP+1 
+    
+    ; For now copying to TILEDATA_VRAM_ADDRESS
+    ; TODO: we are ASSUMING here that TEXTURE_VRAM_ADDRESS has its bit16 set to 1!!
+    lda #%00010001      ; setting bit 16 of vram address to the highest bit in the tilebase (=1), setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+    lda #<(TILEDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_LOW
+    lda #>(TILEDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_HIGH
+    
+    lda #0
+    sta TILE_Y
+
+next_tile_row_high_vram_tx:
+
+    lda #0
+    sta TILE_X
+
+next_tile_high_vram_tx:    
+
+    ldx #0
+next_tile_pixel_row_high_vram:  
+
+    ldy #0
+next_horizontal_tile_pixel_high_vram:
+    lda (DATA_PTR_ZP),y
+
+    sta VERA_DATA0
+
+    iny
+    cpy #TILE_WIDTH
+    bne next_horizontal_tile_pixel_high_vram
+    inx
+    
+    ; Adding TEXTURE_WIDTH to the previous data address
+    clc
+    lda DATA_PTR_ZP
+    adc #TEXTURE_WIDTH
+    sta DATA_PTR_ZP
+    lda DATA_PTR_ZP+1
+    adc #0
+    sta DATA_PTR_ZP+1
+
+    cpx #TILE_HEIGHT
+    bne next_tile_pixel_row_high_vram
+    
+    ; Move the texture pixel 8 pixels upwards and one tile width to the right (this is where the next 'tile' starts)
+    sec
+    lda DATA_PTR_ZP
+    sbc #<(TEXTURE_WIDTH*TILE_HEIGHT-TILE_WIDTH)
+    sta DATA_PTR_ZP
+    lda DATA_PTR_ZP+1
+    sbc #>(TEXTURE_WIDTH*TILE_HEIGHT-TILE_WIDTH)
+    sta DATA_PTR_ZP+1
+    
+    inc TILE_X
+    lda TILE_X
+    cmp #MAP_WIDTH
+    bne next_tile_high_vram_tx
+
+    ; Move the texture pixel 7 pixels downwards (this is where the the next 'tile row' starts)
+
+    clc
+    lda DATA_PTR_ZP
+    adc #<(TEXTURE_WIDTH*7)
+    sta DATA_PTR_ZP
+    lda DATA_PTR_ZP+1
+    adc #>(TEXTURE_WIDTH*7)
+    sta DATA_PTR_ZP+1
+    
+    inc TILE_Y
+    lda TILE_Y
+    cmp #MAP_HEIGHT
+    bne next_tile_row_high_vram_tx
+
+    
     rts
 
 
