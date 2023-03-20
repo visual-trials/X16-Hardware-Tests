@@ -281,14 +281,35 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
     sta $9F2A
 
-; FIXME: set the CORRECT map size!    
+; FIXME: set the CORRECT map size! -> should we make this more flexible?
     lda #%10000000  ; 10000000 for 16x16 map
-; FIXME    
-; FIXME    
-; FIXME    
-; FIXME    
-; FIXME    
-;   ora #%00010000  ; 1 for Clip
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+;    ora #%00010000  ; 1 for Clip
     ora #%00001000  ; 10 for no tile lookup
     sta $9F29
     
@@ -482,6 +503,9 @@ rotate_bitmap_fast_1_byte_per_copy:
 ; FIXME: what should be our starting position?!    
     lda #128
     sta Y_SUB_PIXEL
+    
+; FIXME: WHAT SHOULD WE SET THIS ON?
+;    lda #256-10
     lda #0
     sta Y_SUB_PIXEL+1
     lda #128
@@ -490,22 +514,24 @@ rotate_bitmap_fast_1_byte_per_copy:
     sta X_SUB_PIXEL+1
     
 ; FIXME: remove flat draw
-    .if(1)
+    .if(0)
     lda #0                   ; X increment low
     sta $9F29
-    lda #%00000101           ; 00, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
+; HALF SIZE:    lda #%00001001           ; 00, X decr = 0, X subpixel increment exponent = 010, X increment high = 01
+    lda #%00000101           ; reset subpixel position = 0, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
     sta $9F2A
     lda #00                  ; Y increment low
     sta $9F2B
     lda #%00000100           ; 00, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
     sta $9F2C
     .endif
+    
 ; FIXME: enable rotated draw
-    .if(0)
+    .if(1)
     lda #247                 ; X increment low
     sta $9F29
-; FIXME: is DECR correct here?
-    lda #%00100100           ; 00, X decr = 1, X subpixel increment exponent = 001, X increment high = 00
+; FIXME: do we need to do a subpixel RESET, OR should we SET the subpixel positions here?
+    lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 00
     sta $9F2A
     lda #67
     sta $9F2B                ; Y increment low
@@ -540,14 +566,15 @@ rotate_copy_next_row_1:
 
 
 ; FIXME:
-    lda #0
-;    lda X_SUB_PIXEL+1
+;    lda #0
+    lda X_SUB_PIXEL+1
     sta $9F29                ; X pixel position low [7:0]
     lda #0                   
     sta $9F2A                ; X pixel position high [10:8]
 ; FIXME:
-    txa
-;    lda Y_SUB_PIXEL+1
+;    txa
+; HALF SIZE:    asl
+    lda Y_SUB_PIXEL+1
     sta $9F2B                ; Y pixel position low [7:0]
     lda #%10000000           
     sta $9F2C                ; Reset cache byte index = 1, Y pixel position high [10:8] = 0
@@ -839,6 +866,32 @@ next_packed_color2:
     rts
 
     
+clear_all_tiledata_in_map_slow:
+  
+    ; FIXME: we are ASSUMING here that this VRAM ADDRESS has its bit16 set to 1!!
+    lda #%00010001           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1px (=14=%0001)
+    sta VERA_ADDR_BANK
+    lda VERA_ADDR_ZP_TO+1
+    sta VERA_ADDR_HIGH
+    lda VERA_ADDR_ZP_TO
+    sta VERA_ADDR_LOW
+    
+    ; TODO: should we allow clearing with a different value?
+    lda #0   ; we clear with the 0-byte
+    
+    ldx #(MAP_HEIGHT*TILE_HEIGHT)
+clear_tiledata_row:
+    ldy #(MAP_WIDTH*TILE_WIDTH)
+clear_tiledata_pixel:
+    sta VERA_DATA0           ; clear pixel
+    dey
+    bne clear_tiledata_pixel
+    dex
+    bne clear_tiledata_row
+    
+    rts
+    
+    
 copy_texture_pixels_as_tile_pixels_to_high_vram:
 
 ; FIXME: move this to *OUTSIDE* this routine!!
@@ -876,9 +929,8 @@ copy_texture_pixels_as_tile_pixels_to_high_vram:
     lda #>PIXELS
     sta DATA_PTR_ZP+1 
     
-    
-    ; FIXME: clear all tiledata beforehand!
-
+    ; Clearing all tiledata beforehand
+    jsr clear_all_tiledata_in_map_slow
 
     ; Note: We should create this : 0 00yy yyxx xxyy yxxx
     
