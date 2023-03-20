@@ -29,7 +29,7 @@ ORIGINAL_PICTURE_POS_Y = 65
 DESTINATION_PICTURE_POS_X = 160
 DESTINATION_PICTURE_POS_Y = 51
 
-TILEDATA_VRAM_ADDRESS = $12000
+TILEDATA_VRAM_ADDRESS = $13000 ; right behind the 320x240 bitmap layer (which ends at $12C00)
 
 
 ; === Zero page addresses ===
@@ -62,10 +62,16 @@ DATA_PTR_ZP               = $26 ; 27
 PALLETE_PTR_ZP            = $28 ; 29
 VERA_ADDR_ZP_FROM         = $2A ; 2B
 VERA_ADDR_ZP_TO           = $2C ; 2D
+VERA_ADDR_ZP_PIXEL        = $2E ; 2F
 
+PIXEL_ADDR_LOWER_X        = $30
+PIXEL_ADDR_LOWER_Y        = $31
+PIXEL_ADDR_HIGHER_X_LOW   = $32
+PIXEL_ADDR_HIGHER_X_HIGH  = $33
+PIXEL_ADDR_HIGHER_Y       = $34
 
 ; FIXME: these are leftovers of memory tests in the general hardware tester (needed by utils.s atm). We dont use them, but cant remove them right now
-BANK_TESTING              = $32   
+BANK_TESTING              = $39
 BAD_VALUE                 = $3A
 
 CODE_ADDRESS              = $3D ; 3E
@@ -276,7 +282,7 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     sta $9F2A
 
 ; FIXME: set the CORRECT map size!    
-    lda #%01100000  ; 01100000 for 8x8 map
+    lda #%10000000  ; 10000000 for 16x16 map
 ; FIXME    
 ; FIXME    
 ; FIXME    
@@ -483,6 +489,19 @@ rotate_bitmap_fast_1_byte_per_copy:
     lda #0
     sta X_SUB_PIXEL+1
     
+; FIXME: remove flat draw
+    .if(1)
+    lda #0                   ; X increment low
+    sta $9F29
+    lda #%00000101           ; 00, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
+    sta $9F2A
+    lda #00                  ; Y increment low
+    sta $9F2B
+    lda #%00000100           ; 00, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
+    sta $9F2C
+    .endif
+; FIXME: enable rotated draw
+    .if(0)
     lda #247                 ; X increment low
     sta $9F29
 ; FIXME: is DECR correct here?
@@ -492,6 +511,7 @@ rotate_bitmap_fast_1_byte_per_copy:
     sta $9F2B                ; Y increment low
     lda #%00000100           ; 00, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
     sta $9F2C
+    .endif
 
     ldx #0
     
@@ -517,11 +537,17 @@ rotate_copy_next_row_1:
     sta VERA_CTRL
     
 ; FIXME: we should probably also set the subpixel positions!!
-    lda X_SUB_PIXEL+1
+
+
+; FIXME:
+    lda #0
+;    lda X_SUB_PIXEL+1
     sta $9F29                ; X pixel position low [7:0]
     lda #0                   
     sta $9F2A                ; X pixel position high [10:8]
-    lda Y_SUB_PIXEL+1
+; FIXME:
+    txa
+;    lda Y_SUB_PIXEL+1
     sta $9F2B                ; Y pixel position low [7:0]
     lda #%10000000           
     sta $9F2C                ; Reset cache byte index = 1, Y pixel position high [10:8] = 0
@@ -813,86 +839,132 @@ next_packed_color2:
     rts
 
     
-copy_texture_pixels_as_tile_pixels_to_high_vram:  
+copy_texture_pixels_as_tile_pixels_to_high_vram:
+
+; FIXME: move this to *OUTSIDE* this routine!!
+    lda #<(TILEDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_ZP_TO
+    lda #>(TILEDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_ZP_TO+1
+
+
+    ; Copying a bitmap picture (aka texture) as tiles of 8x8 into VRAM
+    
+    ; - the following assumes there is no padding: the number of texture bytes = TEXTURE_WIDTH*TEXTURE_HEIGHT
+    ; - the following also assumes a map size of 16x16 tiles
+    
+    ; Steps:
+    ;
+    ; - clear all tiledata (of 'vitual' map) with 0-bytes (so MAP_WIDTH*8 * MAP_HEIGHT*8 pixels)
+    ; - set y to 0
+    ; - for each row in the original texture (so: 0 to TEXTURE_HEIGHT-1)
+    ;   - set x to 0
+    ;   - for each pixel in the row of the original texture (so: 0 to TEXTURE_WIDTH-1)
+    ;     - determine the address to write to:
+    ;        - VRAM tile address = Y[7:4] * TILE_WIDTH * TILE_HEIGHT * MAP_WIDTH + X[7:4] * TILE_WIDTH * TILE_HEIGHT 
+    ;        - VRAM address in tile = VRAM tile address + y[3:0]*TILE_WIDTH + x[3:0]
+    ;                 this translates to : 0 00yy yyxx xxyy yxxx
+    ;        - VRAM pixel address = VRAM tile base address + VRAM tile address + VRAM address in tile
+    ;     - read from texture
+    ;     - write to VRAM
+    ;     - inxcrement x
+    ;   - increment y
+
 
     lda #<PIXELS
     sta DATA_PTR_ZP
     lda #>PIXELS
     sta DATA_PTR_ZP+1 
     
-    ; For now copying to TILEDATA_VRAM_ADDRESS
-    ; TODO: we are ASSUMING here that TEXTURE_VRAM_ADDRESS has its bit16 set to 1!!
+    
+    ; FIXME: clear all tiledata beforehand!
+
+
+    ; Note: We should create this : 0 00yy yyxx xxyy yxxx
+    
+    ldx #0               ; Note: register x represents the Y-coordinate!
+next_pixel_row_tiled:  
+
+    txa
+    and #%00000111            ; We take y[2:0] = Y_IN_TILE
+    asl
+    asl
+    asl                      ; We shift the Y_IN_TILE-bits 3 places to the left
+    sta PIXEL_ADDR_LOWER_Y
+    
+    txa
+    and #%01111000            ; We take y[6:3] = TILE_Y
+    lsr                      ; we shift the TILE_Y-bits 1 place to the right
+    sta PIXEL_ADDR_HIGHER_Y
+    
+    ldy #0               ; Note: register y represents the X-coordinate!
+next_horizontal_pixel_tiled:
+
+; FIXME: make this more flexible: now only allows for map size 16x16!
+
+    tya
+    and #%00000111            ; We take x[2:0] = X_IN_TILE
+    sta PIXEL_ADDR_LOWER_X   ; We use the X_IN_TILE-bits directly
+
+    ; We reset X_HIGH
+    lda #0
+    sta PIXEL_ADDR_HIGHER_X_HIGH
+    
+    tya
+    and #%01111000            ; We take x[6:3] = TILE_X
+    asl
+    asl
+    rol PIXEL_ADDR_HIGHER_X_HIGH
+    asl
+    rol PIXEL_ADDR_HIGHER_X_HIGH  ; We shift the two higher x-bits (of TILE_X) into X_HIGH
+    sta PIXEL_ADDR_HIGHER_X_LOW   ; We keep the two lower x-bits (of TILE_X) into X_LOW
+    
+    ; We put all the bits together
+    lda PIXEL_ADDR_HIGHER_Y
+    ora PIXEL_ADDR_HIGHER_X_HIGH
+    sta VERA_ADDR_ZP_PIXEL+1       ; 00yy yyxx .... ....
+
+    lda PIXEL_ADDR_HIGHER_X_LOW
+    ora PIXEL_ADDR_LOWER_Y
+    ora PIXEL_ADDR_LOWER_X
+    sta VERA_ADDR_ZP_PIXEL         ; .... .... xxyy yxxx
+    
+    ; Loading VRAM *pixel* address into VERA  
+    ; FIXME: we are ASSUMING here that this VRAM ADDRESS has its bit16 set to 1!!
     lda #%00010001      ; setting bit 16 of vram address to the highest bit in the tilebase (=1), setting auto-increment value to 1
     sta VERA_ADDR_BANK
-    lda #<(TILEDATA_VRAM_ADDRESS)
-    sta VERA_ADDR_LOW
-    lda #>(TILEDATA_VRAM_ADDRESS)
-    sta VERA_ADDR_HIGH
     
-    lda #0
-    sta TILE_Y
+    ; Adding pixel address to the base address
+    clc
+    lda VERA_ADDR_ZP_TO
+    adc VERA_ADDR_ZP_PIXEL
+    sta VERA_ADDR_LOW
+    lda VERA_ADDR_ZP_TO+1
+    adc VERA_ADDR_ZP_PIXEL+1
+    sta VERA_ADDR_HIGH
 
-next_tile_row_high_vram_tx:
-
-    lda #0
-    sta TILE_X
-
-next_tile_high_vram_tx:    
-
-    ldx #0
-next_tile_pixel_row_high_vram:  
-
-    ldy #0
-next_horizontal_tile_pixel_high_vram:
+    ; Load pixel data
     lda (DATA_PTR_ZP),y
 
+    ; Write pixel data
     sta VERA_DATA0
 
     iny
-    cpy #TILE_WIDTH
-    bne next_horizontal_tile_pixel_high_vram
+    cpy #TEXTURE_WIDTH
+    bne next_horizontal_pixel_tiled
     inx
-    
+
     ; Adding TEXTURE_WIDTH to the previous data address
     clc
     lda DATA_PTR_ZP
-    adc #TEXTURE_WIDTH
+    adc #<TEXTURE_WIDTH
     sta DATA_PTR_ZP
     lda DATA_PTR_ZP+1
-    adc #0
-    sta DATA_PTR_ZP+1
-
-    cpx #TILE_HEIGHT
-    bne next_tile_pixel_row_high_vram
-    
-    ; Move the texture pixel 8 pixels upwards and one tile width to the right (this is where the next 'tile' starts)
-    sec
-    lda DATA_PTR_ZP
-    sbc #<(TEXTURE_WIDTH*TILE_HEIGHT-TILE_WIDTH)
-    sta DATA_PTR_ZP
-    lda DATA_PTR_ZP+1
-    sbc #>(TEXTURE_WIDTH*TILE_HEIGHT-TILE_WIDTH)
+    adc #>TEXTURE_WIDTH
     sta DATA_PTR_ZP+1
     
-    inc TILE_X
-    lda TILE_X
-    cmp #MAP_WIDTH
-    bne next_tile_high_vram_tx
-
-    ; Move the texture pixel 7 pixels downwards (this is where the the next 'tile row' starts)
-
-    clc
-    lda DATA_PTR_ZP
-    adc #<(TEXTURE_WIDTH*7)
-    sta DATA_PTR_ZP
-    lda DATA_PTR_ZP+1
-    adc #>(TEXTURE_WIDTH*7)
-    sta DATA_PTR_ZP+1
-    
-    inc TILE_Y
-    lda TILE_Y
-    cmp #MAP_HEIGHT
-    bne next_tile_row_high_vram_tx
+    cpx #TEXTURE_HEIGHT
+    bne next_pixel_row_tiled
 
     
     rts
@@ -922,7 +994,7 @@ next_pixel_row:
     lda VERA_ADDR_ZP_TO+1
     sta VERA_ADDR_HIGH
 
-  ldy #0
+    ldy #0
 next_horizontal_pixel:
     ; tya  ; ----> This is to generate a pattern!
     lda (DATA_PTR_ZP),y
