@@ -382,9 +382,9 @@ rotate_or_shear_bitmap_fast_1_byte_per_copy:
         lda #%00000100           ; 00, Y decr = 0, Y subpixel increment exponent = 001, Y increment high = 00 
         sta $9F2C
     .else
-        lda #240                 ; X increment low
+        lda #0                   ; X increment low
         sta $9F29
-        lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
+        lda #%10000101           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
                                  ; FIXME: **THIS IS DONE BELOW ALSO!!**
         sta $9F2A
         lda #60
@@ -401,7 +401,7 @@ rotate_copy_next_row_1:
 
     ; FIXME: we are resetting the subpixel positions here, but this is kinda awkward! **IT DONE ABOVE ALSO!!**
     ; FIXME: we do a subpixel RESET here, BUT should do a SET of the subpixel positions here (which is more precise)
-    lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 00
+    lda #%10000101           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
     sta $9F2A
     
     .if (USE_CACHE_FOR_WRITING)
