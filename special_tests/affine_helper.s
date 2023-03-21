@@ -1,9 +1,8 @@
 
 DO_ROTATE = 0  ; otherwise SHEAR
 
-; NOTE: Cache WONT work for SHEARING!
 USE_CACHE_FOR_WRITING = 1
-
+USE_TRANSPARENT_WRITING = 1
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 FOREGROUND_COLOR = 1
@@ -405,7 +404,11 @@ rotate_copy_next_row_1:
     sta $9F2A
     
     .if (USE_CACHE_FOR_WRITING)
-        lda #%00110110           ; Setting auto-increment value to 4 byte increment (=%0011) and wrpattern = 11b
+        .if(USE_TRANSPARENT_WRITING)
+            lda #%00110100           ; Setting auto-increment value to 4 byte increment (=%0011) and wrpattern = 10b (=transparent blit)
+        .else
+            lda #%00110110           ; Setting auto-increment value to 4 byte increment (=%0011) and wrpattern = 11b (=blit)
+        .endif
         sta VERA_ADDR_BANK
     .else
         lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
