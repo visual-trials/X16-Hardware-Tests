@@ -8,6 +8,7 @@ USE_CACHE_FOR_WRITING = 1
 
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 FOREGROUND_COLOR = 1
+CLEAR_COLOR = 0
 
 MAP_WIDTH = 16    ; 16 * 8 = 128 pixels
 MAP_HEIGHT = 16   ; 16 * 8 = 128 pixels
@@ -283,33 +284,7 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
 
 ; FIXME: set the CORRECT map size! -> should we make this more flexible?
     lda #%10000000  ; 10000000 for 16x16 map
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-;    ora #%00010000  ; 1 for Clip
+    ora #%00010000  ; 1 for Clip
     ora #%00001000  ; 10 for no tile lookup
     sta $9F29
     
@@ -574,15 +549,25 @@ rotate_copy_next_row_1:
 ;    lda #0
     lda X_SUB_PIXEL+1
     sta $9F29                ; X pixel position low [7:0]
-    lda #0                   
-    sta $9F2A                ; X pixel position high [10:8]
+    bpl x_pixel_pos_high_positive
+    lda #%00000111           ; sign extending X pixel position (when negative)
+    bra x_pixel_pos_high_correct
+x_pixel_pos_high_positive:
+    lda #%00000000
+x_pixel_pos_high_correct:
+    sta $9F2A                ; X pixel position high [10:8] = 000 or 111
 ; FIXME:
 ;    txa
 ; HALF SIZE:    asl
     lda Y_SUB_PIXEL+1
     sta $9F2B                ; Y pixel position low [7:0]
-    lda #%10000000           
-    sta $9F2C                ; Reset cache byte index = 1, Y pixel position high [10:8] = 0
+    bpl y_pixel_pos_high_positive
+    lda #%10000111           ; sign extending X pixel position (when negative)
+    bra y_pixel_pos_high_correct
+y_pixel_pos_high_positive:
+    lda #%10000000
+y_pixel_pos_high_correct:
+    sta $9F2C                ; Reset cache byte index = 1, Y pixel position high [10:8] = 000 or 111
 
     ; Copy one row of 100 pixels
     jsr COPY_ROW_CODE
@@ -882,7 +867,7 @@ clear_all_tiledata_in_map_slow:
     sta VERA_ADDR_LOW
     
     ; TODO: should we allow clearing with a different value?
-    lda #0   ; we clear with the 0-byte
+    lda #CLEAR_COLOR
     
     ldx #(MAP_HEIGHT*TILE_HEIGHT)
 clear_tiledata_row:
