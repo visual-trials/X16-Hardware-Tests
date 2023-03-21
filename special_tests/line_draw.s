@@ -115,7 +115,7 @@ test_sub_pixel_increments:
 
     ; Setting up for drawing a new line
 
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
@@ -135,7 +135,7 @@ test_sub_pixel_increments:
     lda #0
     sta VERA_ADDR_LOW        ; Setting $00000
     
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
     sta VERA_CTRL
     
     lda #73                  ; X increment low
@@ -287,7 +287,7 @@ draw_line_to_the_right_from_left_top_corner_next:
     .if(USE_AFFINE_HELPER)
         ; Setting up for drawing a new line
 
-        lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+        lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
         sta VERA_CTRL
         
         lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
@@ -307,7 +307,7 @@ draw_line_to_the_right_from_left_top_corner_next:
         lda #0
         sta VERA_ADDR_LOW        ; Resetting back to $00000
         
-        lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+        lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
         sta VERA_CTRL
         
         lda SLOPE                ; X increment low -> HERE used as Y increment!
@@ -371,7 +371,7 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     
         ; Setting up for drawing a new line
 
-        lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+        lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
         sta VERA_CTRL
         
         lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
@@ -391,7 +391,7 @@ draw_line_to_the_bottom_from_left_top_corner_next:
         lda #0
         sta VERA_ADDR_LOW        ; Resetting back to $00000
         
-        lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+        lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
         sta VERA_CTRL
         
         lda SLOPE                ; X increment low -> HERE used as Y increment!
@@ -509,7 +509,7 @@ clear_screen_fast_4_bytes:
     ldx #0
     
 clear_next_column_left_4_bytes:
-    lda #%11100100           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%11100010           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110) and wrpatter to 01
     sta VERA_ADDR_BANK
     lda #$00
     sta VERA_ADDR_HIGH
@@ -530,7 +530,7 @@ clear_next_column_left_4_bytes:
     ldx #0
 
 clear_next_column_right_4_bytes:
-    lda #%11100100           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%11100010           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110) and wrpatter to 01
     sta VERA_ADDR_BANK
     lda #$01
     sta VERA_ADDR_HIGH

@@ -118,7 +118,7 @@ test_simple_polygon_filler:
 
     ; Setting up for drawing a polygon, setting both addresses at the same starting point
 
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     sta VERA_ADDR_BANK
@@ -129,10 +129,10 @@ test_simple_polygon_filler:
     sta VERA_ADDR_LOW
     
     ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
-    lda #%00000100
+    lda #%00000001
     sta $9F29
 
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
     sta VERA_CTRL
     
     lda #173                  ; X increment low
@@ -154,9 +154,11 @@ test_simple_polygon_filler:
     sta $9F29                ; X (=X1) pixel position low [7:0]
     sta $9F2B                ; Y (=X2) pixel position low [7:0]
     
+    ; NOTE: we are also *setting* the subpixel position (bit0) here! Even though we just resetted it! 
+    ;       but its ok, since its reset to half a pixel (see above), meaning bit0 is 0 anyway
     lda #>TRIANGLE_TOP_POINT_X
-    sta $9F2A                ; X (=X1) pixel position high [10:8]
-    sta $9F2C                ; Y (=X2) pixel position high [10:8]
+    sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
+    sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
 
 ; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
@@ -181,7 +183,7 @@ test_simple_polygon_filler:
     
     jsr draw_polygon_part
     
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
     sta VERA_CTRL
     
     lda #30                  ; X increment low
@@ -216,7 +218,7 @@ draw_triangle_row_next:
     
     ; Reading the number of pixels (divided by 4) to draw on this horizontal line: (x2 // 4) - (x1 // 4)
     
-    lda $9F29                ; This contains: X1[1:0], X2[1:0], LINE_LENGTH_DIV_4 >= 8, LINE_LENGTH_DIV_4[2:0]
+    lda $9F2B                ; This contains: X1[1:0], X2[1:0], LINE_LENGTH_DIV_4 >= 8, LINE_LENGTH_DIV_4[2:0]
     sta LINE_LENGTH_DIV_4
     
     ; We remove the 3 lower bits of the line length div 4
@@ -238,7 +240,7 @@ draw_triangle_row_next:
     
     lda LINE_LENGTH_DIV_4
     and #%00000111          ; we keep the 3 lower bits
-    ora $9F2A               ; This contains LINE_LENGTH_DIV_4[7:3], 000
+    ora $9F2C               ; This contains LINE_LENGTH_DIV_4[7:3], 000
     sta LINE_LENGTH_DIV_4
     
     ; Now that we have restored the three variables we can proceed using them
@@ -388,7 +390,7 @@ clear_screen_fast_4_bytes:
     ldx #0
     
 clear_next_column_left_4_bytes:
-    lda #%11100100           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%11100010           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110) and wrpatter to 01
     sta VERA_ADDR_BANK
     lda #$00
     sta VERA_ADDR_HIGH
@@ -409,7 +411,7 @@ clear_next_column_left_4_bytes:
     ldx #0
 
 clear_next_column_right_4_bytes:
-    lda #%11100100           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%11100010           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110) and wrpatter to 01
     sta VERA_ADDR_BANK
     lda #$01
     sta VERA_ADDR_HIGH

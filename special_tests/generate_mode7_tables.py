@@ -88,7 +88,6 @@ def run():
     all_angles_x_subpixel_positions_in_map_high = []
     all_angles_y_subpixel_positions_in_map_low = []
     all_angles_y_subpixel_positions_in_map_high = []
-    all_angles_y_subpixel_positions_in_map_high_copy = []
     all_angles_x_pixel_positions_in_map_low = []
     all_angles_x_pixel_positions_in_map_high = []
     all_angles_y_pixel_positions_in_map_low = []
@@ -109,7 +108,6 @@ def run():
         x_subpixel_positions_in_map_high = []
         y_subpixel_positions_in_map_low = []
         y_subpixel_positions_in_map_high = []
-        y_subpixel_positions_in_map_high_copy = []
         x_pixel_positions_in_map_low = []
         x_pixel_positions_in_map_high = []
         y_pixel_positions_in_map_low = []
@@ -245,13 +243,14 @@ def run():
             x_subpixel_position_in_map = int(((x_pixel_position_in_map % 1)*512)%512)
             y_subpixel_position_in_map = int(((y_pixel_position_in_map % 1)*512)%512)
             
-            x_subpixel_positions_in_map_low.append(int(x_subpixel_position_in_map % 256))
-            x_subpixel_positions_in_map_high.append(int(x_subpixel_position_in_map // 256))
+            # Note: we need only the lowest bit into the _low array here. And it has to be put into the slot of the 7th bit, so a multiply by 128
+            x_subpixel_positions_in_map_low.append(int(x_subpixel_position_in_map % 2) * 128)
+            x_subpixel_positions_in_map_high.append(int(x_subpixel_position_in_map // 2))
             
-            y_subpixel_positions_in_map_low.append(int(y_subpixel_position_in_map % 256))
-            y_subpixel_positions_in_map_high.append(int(y_subpixel_position_in_map // 256))
-            # We also pack the copy-from-incr-to-pos-bit (=128) into the high_copy value
-            y_subpixel_positions_in_map_high_copy.append(128 + int(y_subpixel_position_in_map // 256))
+# FIXME: we could also pack the reset cache reset bit into y_subpixel_positions_in_map_low!
+            # Note: we need only the lowest bit into the _low array here. And it has to be put into the slot of the 7th bit, so a multiply by 128
+            y_subpixel_positions_in_map_low.append(int(y_subpixel_position_in_map % 2) * 128)
+            y_subpixel_positions_in_map_high.append(int(y_subpixel_position_in_map // 2))
             
             x_pixel_positions_in_map_low.append(int(x_pixel_position_in_map % 256))
             x_pixel_positions_in_map_high.append(int(x_pixel_position_in_map // 256))
@@ -315,7 +314,7 @@ def run():
             print('y_subpixel_positions_in_map_low:')
             print('    .byte ' + ','.join(str(x) for x in y_subpixel_positions_in_map_low))
             print('y_subpixel_positions_in_map_high:')
-            print('    .byte ' + ','.join(str(x) for x in y_subpixel_positions_in_map_high_copy)) # packed
+            print('    .byte ' + ','.join(str(x) for x in y_subpixel_positions_in_map_high))
                 
             print('x_pixel_positions_in_map_low:')
             print('    .byte ' + ','.join(str(x) for x in x_pixel_positions_in_map_low))
@@ -343,7 +342,7 @@ def run():
             all_angles_x_subpixel_positions_in_map_high += x_subpixel_positions_in_map_high
             
             all_angles_y_subpixel_positions_in_map_low += y_subpixel_positions_in_map_low
-            all_angles_y_subpixel_positions_in_map_high += y_subpixel_positions_in_map_high_copy # packed
+            all_angles_y_subpixel_positions_in_map_high += y_subpixel_positions_in_map_high
             
             all_angles_x_pixel_positions_in_map_low += x_pixel_positions_in_map_low
             all_angles_x_pixel_positions_in_map_high += x_pixel_positions_in_map_high

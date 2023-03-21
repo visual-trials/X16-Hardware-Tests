@@ -1,10 +1,10 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 0
+USE_TABLE_FILES = 1
 DO_NO_TILE_LOOKUP = 1
-DO_CLIP = 1
+DO_CLIP = 0
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
-MOVE_XY_POSITION = 0
+MOVE_XY_POSITION = 1
 TURN_AROUND = 0
 DEBUG_LEDS = 1
 
@@ -318,13 +318,13 @@ tiled_perspective_192x64_8bpp_message:
 ; We generated this using the python script (see same folder) and put the data here.
     
 x_subpixel_positions_in_map_low:
-    .byte 4,244,230,204,103,86,23,22,170,30,176,151,255,16,237,180,126,99,119,203,112,116,227,201,49,35,169,200,138,243,9,210,83,144,141,78,215,41,74,58,254,151,7,80,117,120,89,26,190,69,176,2,58,91,100,88,55,2,185,94,241,114,228,69
+    .byte 0,0,0,0,128,0,128,0,0,0,0,128,128,0,128,0,0,128,128,128,0,0,128,128,128,128,128,0,0,128,128,0,128,0,128,0,128,128,0,0,0,128,128,0,128,0,128,0,0,128,0,0,0,128,0,0,128,0,128,0,128,0,0,128
 x_subpixel_positions_in_map_high:
-    .byte 1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,0,1,1,0,0,0,1,1,1,1,0,0,0,0,1,1,1,0,0,0,0,1,1,0,1,1,0,1,1,1,1,1,1,0,0,1,1,0,1,0,1,0,1,1,0,0,1,1,0
+    .byte 130,122,115,230,51,171,139,11,85,143,216,75,255,8,118,90,191,177,59,101,56,186,241,228,152,17,84,100,69,249,132,233,41,72,70,39,235,148,37,157,255,75,131,168,186,188,172,141,95,34,216,129,29,173,50,172,27,129,220,47,120,185,242,34
 y_subpixel_positions_in_map_low:
-    .byte 16,75,184,242,114,157,196,43,9,141,224,36,117,236,160,163,6,215,35,246,90,88,247,63,55,229,77,117,97,20,148,227,3,249,197,108,239,80,145,179,185,164,117,46,207,90,209,51,130,191,235,6,17,13,250,218,172,114,43,217,123,18,159,34
+    .byte 0,128,0,0,0,128,0,128,128,128,0,0,128,0,0,128,0,128,128,0,0,0,128,128,128,128,128,128,128,0,0,128,128,128,128,0,128,0,128,128,128,0,128,0,128,0,128,128,0,128,128,0,128,128,0,0,0,0,128,128,128,0,128,0
 y_subpixel_positions_in_map_high:
-    .byte 128,128,128,129,128,128,128,129,128,129,129,129,129,128,129,129,129,129,128,129,129,128,128,129,129,128,128,129,128,129,129,129,128,129,129,129,128,128,129,128,129,128,129,128,128,129,129,128,128,128,128,129,129,129,128,128,128,128,128,129,129,129,128,128
+    .byte 8,37,92,249,57,78,98,149,4,198,240,146,186,118,208,209,131,235,17,251,173,44,123,159,155,114,38,186,48,138,202,241,1,252,226,182,119,40,200,89,220,82,186,23,103,173,232,25,65,95,117,131,136,134,125,109,86,57,21,236,189,137,79,17
 x_pixel_positions_in_map_low:
     .byte 189,216,240,5,25,42,58,73,86,98,109,120,129,139,147,155,162,169,176,182,188,193,198,203,208,213,217,221,225,228,232,235,239,242,245,248,250,253,0,2,4,7,9,11,13,15,17,19,21,23,24,26,28,29,31,32,34,35,36,38,39,40,41,43
 x_pixel_positions_in_map_high:
@@ -356,7 +356,7 @@ tiled_perspective_fast:
 ;    sta VERA_ADDR_ZP_FROM+1
 
     ; Entering *affine helper mode*: selecting ADDR0
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
     ; Setting base addresses and map size
@@ -376,14 +376,14 @@ tiled_perspective_fast:
         ora #%00000000  ; 0 for Repeat
     .endif
     .if(DO_NO_TILE_LOOKUP)
-        ora #%00001000  ; 10 for no tile lookup
+        ora #%00000010  ; 10 for no tile lookup
     .else
-        ora #%00001100  ; 11 for tile lookup
+        ora #%00000011  ; 11 for tile lookup
     .endif
     sta $9F29
     
     ; Entering *affine helper mode*: selecting ADDR1 
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
     sta VERA_CTRL
     
     lda #0                   ; X increment low
@@ -399,7 +399,7 @@ tiled_perspective_fast:
     
 tiled_perspective_copy_next_row_1:
     
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
     sta VERA_CTRL
 
     .if (USE_CACHE_FOR_WRITING)
@@ -414,39 +414,13 @@ tiled_perspective_copy_next_row_1:
     lda VERA_ADDR_ZP_TO
     sta VERA_ADDR_LOW
     
-    ; We have to set both x and y subpixels positions, so we change to the appropiate selectors
+    ; We have to set both x and y subpixels incrementers, so we change to the appropiate selectors
     ; NOTE: since we already in this setting, we dont have to set it again
-    ; lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    ; lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
     ; sta VERA_CTRL
     
-    .if(USE_TABLE_FILES)
-        lda X_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
-    .else
-        lda x_subpixel_positions_in_map_low, x
-    .endif
-    sta $9F29                ; X subpixel increment low [7:0] -> to be copied to subpixel position
-    .if(USE_TABLE_FILES)
-        lda X_SUBPIXEL_POSITIONS_IN_MAP_HIGH, x
-    .else
-        lda x_subpixel_positions_in_map_high, x
-    .endif
-    sta $9F2A                ; X subpixel increment high [8] -> to be copied to subpixel position
-    .if(USE_TABLE_FILES)
-        lda Y_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
-    .else
-        lda y_subpixel_positions_in_map_low, x
-    .endif
-    sta $9F2B                ; Y subpixel increment low [7:0] -> to be copied to subpixel position
-    .if(USE_TABLE_FILES)
-        lda Y_SUBPIXEL_POSITIONS_IN_MAP_HIGH, x
-    .else
-        lda y_subpixel_positions_in_map_high, x
-    .endif
-    ; Note: the bit to copy subpixel increment to subpixel positions is packed into the table-data
-    sta $9F2C                ; Y subpixel increment high [10:8] + copy from subpixel increment to subpixel position
-
     
-    ; We now set the actual increments
+    ; We now set the increments
     .if(USE_TABLE_FILES)
         lda X_SUB_PIXEL_STEPS_LOW, x
     .else
@@ -500,7 +474,12 @@ tiled_perspective_copy_next_row_1:
     .else
         lda x_pixel_positions_in_map_high, x
     .endif
-    sta $9F2A                ; X pixel position high [10:8]
+    .if(USE_TABLE_FILES)
+        ora X_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
+    .else
+        ora x_subpixel_positions_in_map_low, x
+    .endif
+    sta $9F2A                ; X subpixel position[0], X pixel position high [10:8]
     .if(USE_TABLE_FILES)
         lda Y_PIXEL_POSITIONS_IN_MAP_LOW, x
         .if(MOVE_XY_POSITION)
@@ -519,8 +498,34 @@ tiled_perspective_copy_next_row_1:
     .else
         lda y_pixel_positions_in_map_high, x
     .endif
-    ora #%10000000           ; Reset cache byte index = 1
-    sta $9F2C                ; Y pixel position high [10:8]
+    .if(USE_TABLE_FILES)
+        ora Y_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
+    .else
+        ora y_subpixel_positions_in_map_low, x
+    .endif
+    ora #%01000000           ; Reset cache byte index = 1
+    sta $9F2C                ; Y subpixel position[0], Reset cache byte index, Y pixel position high [10:8]
+    
+    
+    ; Setting the sub position
+    
+    lda #%00000111           ; Affine helper = 1, DCSEL=1, ADDRSEL=1
+    sta VERA_CTRL
+    
+    .if(USE_TABLE_FILES)
+        lda X_SUBPIXEL_POSITIONS_IN_MAP_HIGH, x
+    .else
+        lda x_subpixel_positions_in_map_high, x
+    .endif
+    sta $9F29                ; X subpixel increment [8:1]
+    
+    .if(USE_TABLE_FILES)
+        lda Y_SUBPIXEL_POSITIONS_IN_MAP_HIGH, x
+    .else
+        lda y_subpixel_positions_in_map_high, x
+    .endif
+    sta $9F2A                ; Y subpixel increment [8:1]
+    
 
     ; Copy three rows of 64 pixels (= 192 pixels)
     jsr COPY_ROW_CODE
@@ -630,7 +635,7 @@ flat_tiles_fast:
 ;    sta VERA_ADDR_ZP_FROM+1
 
     ; Entering *affine helper mode*: selecting ADDR0
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
     ; Setting base addresses and map size
@@ -651,14 +656,14 @@ flat_tiles_fast:
         ora #%00000000  ; 0 for Repeat
     .endif
     .if(DO_NO_TILE_LOOKUP)
-        ora #%00001000  ; 10 for no tile lookup
+        ora #%00000010  ; 10 for no tile lookup
     .else
-        ora #%00001100  ; 11 for tile lookup
+        ora #%00000011  ; 11 for tile lookup
     .endif
     sta $9F29
     
     ; Entering *affine helper mode*: selecting ADDR1 
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
     sta VERA_CTRL
     
     lda #0                   ; X increment low
@@ -673,7 +678,7 @@ flat_tiles_fast:
     ldx #0
     
 repetitive_copy_next_row_1:
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
     sta VERA_CTRL
 
     .if (USE_CACHE_FOR_WRITING)
@@ -695,7 +700,7 @@ repetitive_copy_next_row_1:
     
     lda #0                   ; X pixel position low [7:0]
     sta $9F29
-    lda #0                   ; X pixel position high [10:8]
+    lda #0                   ; X subpixel position[0] = 0, X pixel position high [10:8]
     sta $9F2A
 ;        lda #0                   ; Y pixel position low [7:0]
 ;        sta $9F2B
@@ -705,7 +710,7 @@ repetitive_copy_next_row_1:
 ;    adc #4
     sta $9F2B
 ;        lda #0                   ; Y pixel position high [10:8] = 0
-    lda #%10000000           ; Reset cache byte index = 1, Y pixel position high [10:8] = 0
+    lda #%01000000           ; Y subpixel position[0] = 0, Reset cache byte index = 1, Y pixel position high [10:8] = 0
     sta $9F2C
     
     ; Copy three rows of 64 pixels
