@@ -1,6 +1,5 @@
 
-DO_SHEAR = 0  ; FIXME: broken atm (the copier is now the other way around!)
-DO_ROTATE = 1
+DO_ROTATE = 0  ; otherwise SHEAR
 
 ; NOTE: Cache WONT work for SHEARING!
 USE_CACHE_FOR_WRITING = 1
@@ -254,12 +253,7 @@ affine_transform_some_bytes:
   
 test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
 
-    .if(DO_SHEAR)
-        jsr generate_copy_row_code_data0_to_data1
-    .endif
-    .if(DO_ROTATE)
-        jsr generate_copy_row_code
-    .endif
+    jsr generate_copy_row_code
 
     jsr start_timer
 
@@ -268,10 +262,6 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     sta VERA_ADDR_ZP_TO
     lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_TO+1
-;    lda #<(TILEDATA_VRAM_ADDRESS)
-;    sta VERA_ADDR_ZP_FROM
-;    lda #>(TILEDATA_VRAM_ADDRESS)
-;    sta VERA_ADDR_ZP_FROM+1
     
     ; Entering *affine helper mode*: selecting ADDR0
     lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
@@ -282,20 +272,13 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
     sta $9F2A
 
-; FIXME: set the CORRECT map size! -> should we make this more flexible?
     lda #%10000000  ; 10000000 for 16x16 map
     ora #%00010000  ; 1 for Clip
     ora #%00001000  ; 10 for no tile lookup
     sta $9F29
     
-    .if(DO_SHEAR)
-        jsr shear_bitmap_fast_1_byte_per_copy
-    .endif
-    .if(DO_ROTATE)
-        jsr rotate_bitmap_fast_1_byte_per_copy
-    .endif
+    jsr rotate_or_shear_bitmap_fast_1_byte_per_copy
 
-    
     jsr stop_timer
 
     lda #COLOR_TRANSPARANT
@@ -306,18 +289,16 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     lda #4
     sta CURSOR_Y
 
-    .if(DO_SHEAR)
-    lda #<shear_bitmap_3x100x75_8bpp_message
-    sta TEXT_TO_PRINT
-    lda #>shear_bitmap_3x100x75_8bpp_message
-    sta TEXT_TO_PRINT + 1
-    .endif
-
     .if(DO_ROTATE)
-    lda #<rotate_bitmap_3x100x75_8bpp_message
-    sta TEXT_TO_PRINT
-    lda #>rotate_bitmap_3x100x75_8bpp_message
-    sta TEXT_TO_PRINT + 1
+        lda #<rotate_bitmap_3x100x75_8bpp_message
+        sta TEXT_TO_PRINT
+        lda #>rotate_bitmap_3x100x75_8bpp_message
+        sta TEXT_TO_PRINT + 1
+    .else 
+        lda #<shear_bitmap_3x100x75_8bpp_message
+        sta TEXT_TO_PRINT
+        lda #>shear_bitmap_3x100x75_8bpp_message
+        sta TEXT_TO_PRINT + 1
     .endif
     
     jsr print_text_zero
@@ -364,107 +345,12 @@ one_byte_per_write_message:
 four_bytes_per_write_message: 
     .asciiz "Method: 4 bytes per write"
 
-    
-    
-shear_bitmap_fast_1_byte_per_copy:
-
-
-; FIXME: SHEARING IS BROKEN!!
-; FIXME: SHEARING IS BROKEN!!
-; FIXME: SHEARING IS BROKEN!!
-
-
-    ; Making sure the increment for ADDR0 is set correctly (which is used in affine mode by ADDR1)
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0, no affine helper
-    sta VERA_CTRL
-; FIXME: this is the *old* method of copying the incrementer!
-    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-    sta VERA_ADDR_BANK
-    
-    ; Setting up for reading from a new line from a texture/bitmap
-    
-    lda #%00000001           ; DCSEL=0, ADDRSEL=1
-    sta VERA_CTRL
-    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
-    sta VERA_ADDR_BANK
-    
-    ; Entering *affine helper mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
-    sta VERA_CTRL
-
-    lda #00                  ; X increment low
-    sta $9F29
-    lda #%00100101           ; DECR = 0, Address increment = 01, X subpixel increment exponent = 001, X increment high = 01
-; OLD way:    lda #01                  ; X increment high (only 1 bit is used)
-    sta $9F2A
-    lda #60
-    sta $9F2B                ; Y increment low
-    lda #%00000100           ; L0/L1 = 0, Repeat / Clip / Combined / None = 00, Y subpixel increment exponent = 001, Y increment high = 00 
-; OLD way:        lda #00
-    sta $9F2C                ; Y increment high (only 1 bit is used)
-
-    ldx #0
-    
-shear_copy_next_row_1:
-    lda #%00000100           ; DCSEL=0, ADDRSEL=0, with affine helper
-    sta VERA_CTRL
-
-    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-    sta VERA_ADDR_BANK
-    lda VERA_ADDR_ZP_FROM+1
-    sta VERA_ADDR_HIGH
-    lda VERA_ADDR_ZP_FROM
-    sta VERA_ADDR_LOW
-    
-    lda #%00000101           ; DCSEL=0, ADDRSEL=1, with affine helper
-    sta VERA_CTRL
-    
-    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
-    sta VERA_ADDR_BANK
-    lda VERA_ADDR_ZP_TO+1
-    sta VERA_ADDR_HIGH
-    lda VERA_ADDR_ZP_TO
-    sta VERA_ADDR_LOW
-
-    ; Copy one row of 100 pixels
-    jsr COPY_ROW_CODE
-    
-    ; We increment our VERA_ADDR_FROM with 1
-    clc
-    lda VERA_ADDR_ZP_FROM
-    adc #<(320)
-    sta VERA_ADDR_ZP_FROM
-    lda VERA_ADDR_ZP_FROM+1
-    adc #>(320)
-    sta VERA_ADDR_ZP_FROM+1
-
-    ; We increment our VERA_ADDR_TO with 1
-    clc
-    lda VERA_ADDR_ZP_TO
-    adc #<(320)
-    sta VERA_ADDR_ZP_TO
-    lda VERA_ADDR_ZP_TO+1
-    adc #>(320)
-    sta VERA_ADDR_ZP_TO+1
-
-    inx
-    cpx #75             ; we do 75 rows
-    bne shear_copy_next_row_1
-    
-done_shear_copy: 
-
-    ; Exiting affine helper mode
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0
-    sta VERA_CTRL
-    
-    rts
-
 
 
 COSINE_ROTATE = 247
 SINE_ROTATE = 67
 
-rotate_bitmap_fast_1_byte_per_copy:
+rotate_or_shear_bitmap_fast_1_byte_per_copy:
 
     ; Entering *affine helper mode*: selecting ADDR1 
     lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
@@ -475,43 +361,36 @@ rotate_bitmap_fast_1_byte_per_copy:
     ;   cos(15.2 degrees)*256 = 247.0  -> +247 = x_delta for row, -67  x_delta for column (start of row)
     ;   sin(15.2 degrees)*256 = 67.1   -> +67  = y_delta for row, +247  x_delta for column (start or row)
 
-; FIXME: what should be our starting position?!    
     lda #128
     sta Y_SUB_PIXEL
     
-; FIXME: WHAT SHOULD WE SET THIS ON?
-    lda #256-28
-;    lda #0
+    lda #256-28          ; We start a litte above the pixture, so (when rotated) the right top part fits into the drawing rectangle
     sta Y_SUB_PIXEL+1
     lda #128
     sta X_SUB_PIXEL
     lda #0
     sta X_SUB_PIXEL+1
     
-; FIXME: remove flat draw
-    .if(0)
-    lda #0                   ; X increment low
-    sta $9F29
-; HALF SIZE:    lda #%00001001           ; 00, X decr = 0, X subpixel increment exponent = 010, X increment high = 01
-    lda #%00000101           ; reset subpixel position = 0, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
-    sta $9F2A
-    lda #00                  ; Y increment low
-    sta $9F2B
-    lda #%00000100           ; 00, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
-    sta $9F2C
-    .endif
-    
-; FIXME: enable rotated draw
-    .if(1)
-    lda #247                 ; X increment low
-    sta $9F29
-; FIXME: do we need to do a subpixel RESET, OR should we SET the subpixel positions here?
-    lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 00
-    sta $9F2A
-    lda #67
-    sta $9F2B                ; Y increment low
-    lda #%00000100           ; 00, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
-    sta $9F2C
+    .if(DO_ROTATE)
+        lda #COSINE_ROTATE       ; X increment low
+        sta $9F29
+        lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 00
+                                 ; FIXME: **THIS IS DONE BELOW ALSO!!**
+        sta $9F2A
+        lda #SINE_ROTATE
+        sta $9F2B                ; Y increment low
+        lda #%00000100           ; 00, Y decr = 0, Y subpixel increment exponent = 001, Y increment high = 00 
+        sta $9F2C
+    .else
+        lda #240                 ; X increment low
+        sta $9F29
+        lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
+                                 ; FIXME: **THIS IS DONE BELOW ALSO!!**
+        sta $9F2A
+        lda #60
+        sta $9F2B                ; Y increment low
+        lda #%00100100           ; 00, Y decr = 1, Y subpixel increment exponent = 001, Y increment high = 00 
+        sta $9F2C
     .endif
 
     ldx #0
@@ -520,8 +399,8 @@ rotate_copy_next_row_1:
     lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
 
-; FIXME: we are resetting the subpixel positions here, but this is kinda awkward!
-; FIXME: do we need to do a subpixel RESET, OR should we SET the subpixel positions here?
+    ; FIXME: we are resetting the subpixel positions here, but this is kinda awkward! **IT DONE ABOVE ALSO!!**
+    ; FIXME: we do a subpixel RESET here, BUT should do a SET of the subpixel positions here (which is more precise)
     lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 00
     sta $9F2A
     
@@ -542,32 +421,44 @@ rotate_copy_next_row_1:
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
     
-; FIXME: we should probably also set the subpixel positions!!
+    ; FIXME: we should probably set the subpixel positions! (for more precision)
 
-
-; FIXME:
-;    lda #0
-    lda X_SUB_PIXEL+1
-    sta $9F29                ; X pixel position low [7:0]
-    bpl x_pixel_pos_high_positive
-    lda #%00000111           ; sign extending X pixel position (when negative)
-    bra x_pixel_pos_high_correct
+    .if(DO_ROTATE)
+        ; == ROTATE ==
+    
+        lda X_SUB_PIXEL+1
+        sta $9F29                ; X pixel position low [7:0]
+        bpl x_pixel_pos_high_positive
+        lda #%00000111           ; sign extending X pixel position (when negative)
+        bra x_pixel_pos_high_correct
 x_pixel_pos_high_positive:
-    lda #%00000000
+        lda #%00000000
 x_pixel_pos_high_correct:
-    sta $9F2A                ; X pixel position high [10:8] = 000 or 111
-; FIXME:
-;    txa
-; HALF SIZE:    asl
-    lda Y_SUB_PIXEL+1
-    sta $9F2B                ; Y pixel position low [7:0]
-    bpl y_pixel_pos_high_positive
-    lda #%10000111           ; sign extending X pixel position (when negative)
-    bra y_pixel_pos_high_correct
+        sta $9F2A                ; X pixel position high [10:8] = 000 or 111
+    ; FIXME:
+    ;    txa
+    ; HALF SIZE:    asl
+        lda Y_SUB_PIXEL+1
+        sta $9F2B                ; Y pixel position low [7:0]
+        bpl y_pixel_pos_high_positive
+        lda #%10000111           ; sign extending X pixel position (when negative)
+        bra y_pixel_pos_high_correct
 y_pixel_pos_high_positive:
-    lda #%10000000
+        lda #%10000000
 y_pixel_pos_high_correct:
-    sta $9F2C                ; Reset cache byte index = 1, Y pixel position high [10:8] = 000 or 111
+        sta $9F2C                ; Reset cache byte index = 1, Y pixel position high [10:8] = 000 or 111
+    .else
+        ; == SHEAR ==
+    
+        lda #0
+        sta $9F29                ; X pixel position low [7:0]
+        lda #%00000000
+        sta $9F2A                ; X pixel position high [10:8] = 000
+        txa
+        sta $9F2B                ; Y pixel position low [7:0]
+        lda #%10000000
+        sta $9F2C                ; Reset cache byte index = 1, Y pixel position high [10:8] = 000
+    .endif
 
     ; Copy one row of 100 pixels
     jsr COPY_ROW_CODE
@@ -715,51 +606,6 @@ next_copy_instruction:
     rts
 
 
-generate_copy_row_code_data0_to_data1:
-
-    lda #<COPY_ROW_CODE
-    sta CODE_ADDRESS
-    lda #>COPY_ROW_CODE
-    sta CODE_ADDRESS+1
-    
-    ldy #0                 ; generated code byte counter
-    
-    ldx #0                 ; counts nr of copy instructions
-
-next_copy_instruction_data0_to_data1:
-
-    ; -- lda VERA_DATA0 ($9F23)
-    lda #$AD               ; lda ....
-    jsr add_code_byte
-    
-    lda #$23               ; VERA_DATA0
-    jsr add_code_byte
-    
-    lda #$9F         
-    jsr add_code_byte
-
-    
-    ; -- sta VERA_DATA1 ($9F24)
-    lda #$8D               ; sta ....
-    jsr add_code_byte
-
-    lda #$24               ; $24
-    jsr add_code_byte
-    
-    lda #$9F               ; $9F
-    jsr add_code_byte
-    
-    inx
-    cpx #100               ; 100 copy pixels written to VERA
-    bne next_copy_instruction_data0_to_data1
-
-    ; -- rts --
-    lda #$60
-    jsr add_code_byte
-
-    rts
-
-    
     
 add_code_byte:
     sta (CODE_ADDRESS),y   ; store code byte at address (located at CODE_ADDRESS) + y
