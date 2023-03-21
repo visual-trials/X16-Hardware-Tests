@@ -505,8 +505,8 @@ rotate_bitmap_fast_1_byte_per_copy:
     sta Y_SUB_PIXEL
     
 ; FIXME: WHAT SHOULD WE SET THIS ON?
-;    lda #256-10
-    lda #0
+    lda #256-28
+;    lda #0
     sta Y_SUB_PIXEL+1
     lda #128
     sta X_SUB_PIXEL
@@ -545,6 +545,11 @@ rotate_copy_next_row_1:
     lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
 
+; FIXME: we are resetting the subpixel positions here, but this is kinda awkward!
+; FIXME: do we need to do a subpixel RESET, OR should we SET the subpixel positions here?
+    lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 00
+    sta $9F2A
+    
     .if (USE_CACHE_FOR_WRITING)
         lda #%00110110           ; Setting auto-increment value to 4 byte increment (=%0011) and wrpattern = 11b
         sta VERA_ADDR_BANK
