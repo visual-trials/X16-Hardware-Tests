@@ -6,6 +6,7 @@ DO_CLIP = 1
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 1
 TURN_AROUND = 0
+MOVE_SLOWLY = 0
 DEBUG_LEDS = 1
 
     .if(DO_NO_TILE_LOOKUP)
@@ -243,36 +244,35 @@ move_or_turn_around:
         .endif
         
         .if(MOVE_XY_POSITION)
-            dec WORLD_X_POSITION
-            bne  done_moving_x_position
-            dec WORLD_X_POSITION+1
-done_moving_x_position:
-            dec WORLD_Y_POSITION
-            bne  done_moving_y_position
-            dec WORLD_Y_POSITION+1
-done_moving_y_position:
+            sec
+            lda WORLD_X_POSITION
+            sbc #1
+            sta WORLD_X_POSITION
+            lda WORLD_X_POSITION+1
+            sbc #0
+            sta WORLD_X_POSITION+1
+            
+            sec
+            lda WORLD_Y_POSITION
+            sbc #1
+            sta WORLD_Y_POSITION
+            lda WORLD_Y_POSITION+1
+            sbc #0
+            sta WORLD_Y_POSITION+1
+        .endif
 
-; FIXME: HACK! 
-; FIXME: HACK! 
-; FIXME: HACK! 
+        .if(MOVE_SLOWLY)
             lda #0
             sta TMP1
 wait_a_bit_1:
-            lda #0
+            lda #70
             sta TMP2
 wait_a_bit_2:
-            lda #1
-            sta TMP3
-wait_a_bit_3:
-            dec TMP3
-            bne wait_a_bit_3
-            
-            inc TMP2
+            dec TMP2
             bne wait_a_bit_2
             
             inc TMP1
             bne wait_a_bit_1
-
         .endif
         
         bra move_or_turn_around
@@ -496,12 +496,14 @@ tiled_perspective_copy_next_row_1:
     .else
         lda x_pixel_positions_in_map_high, x
     .endif
+; FIXME: and #%00000111
     .if(USE_TABLE_FILES)
         ora X_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
     .else
         ora x_subpixel_positions_in_map_low, x
     .endif
     sta $9F2A                ; X subpixel position[0], X pixel position high [10:8]
+    
     .if(USE_TABLE_FILES)
         lda Y_PIXEL_POSITIONS_IN_MAP_LOW, x
         .if(MOVE_XY_POSITION)
@@ -520,13 +522,14 @@ tiled_perspective_copy_next_row_1:
     .else
         lda y_pixel_positions_in_map_high, x
     .endif
+; FIXME: and #%00000111
     .if(USE_TABLE_FILES)
         ora Y_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
     .else
         ora y_subpixel_positions_in_map_low, x
     .endif
     ora #%01000000           ; Reset cache byte index = 1
-    sta $9F2C                ; Y subpixel position[0], Reset cache byte index, Y pixel position high [10:8]
+    sta $9F2C                ; Y subpixel position[0], Reset cache byte index = 1, Y pixel position high [10:8]
     
     
     ; Setting the sub position
