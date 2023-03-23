@@ -1,8 +1,8 @@
 
 USE_CACHE_FOR_WRITING = 1
 USE_TABLE_FILES = 1
-DO_NO_TILE_LOOKUP = 1
-DO_CLIP = 0
+DO_NO_TILE_LOOKUP = 0
+DO_CLIP = 1
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 1
 TURN_AROUND = 0
@@ -251,6 +251,28 @@ done_moving_x_position:
             bne  done_moving_y_position
             dec WORLD_Y_POSITION+1
 done_moving_y_position:
+
+; FIXME: HACK! 
+; FIXME: HACK! 
+; FIXME: HACK! 
+            lda #0
+            sta TMP1
+wait_a_bit_1:
+            lda #0
+            sta TMP2
+wait_a_bit_2:
+            lda #1
+            sta TMP3
+wait_a_bit_3:
+            dec TMP3
+            bne wait_a_bit_3
+            
+            inc TMP2
+            bne wait_a_bit_2
+            
+            inc TMP1
+            bne wait_a_bit_1
+
         .endif
         
         bra move_or_turn_around

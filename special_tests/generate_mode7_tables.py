@@ -267,8 +267,8 @@ def run():
                 x_pixel_position_in_map = x_pixel_positions_in_map_low[y_index] + x_pixel_positions_in_map_high[y_index]*256
                 y_pixel_position_in_map = y_pixel_positions_in_map_low[y_index] + y_pixel_positions_in_map_high[y_index]*256
                 
-                x_subpixel_position_in_map = (x_subpixel_positions_in_map_low[y_index] + x_subpixel_positions_in_map_high[y_index]*256) / 512
-                y_subpixel_position_in_map = (y_subpixel_positions_in_map_low[y_index] + y_subpixel_positions_in_map_high[y_index]*256) / 512
+                x_subpixel_position_in_map = (x_subpixel_positions_in_map_low[y_index]/128 + x_subpixel_positions_in_map_high[y_index]*2) / 512
+                y_subpixel_position_in_map = (y_subpixel_positions_in_map_low[y_index]/128 + y_subpixel_positions_in_map_high[y_index]*2) / 512
                 
                 x_pixel_position_in_map += x_subpixel_position_in_map
                 y_pixel_position_in_map += y_subpixel_position_in_map
