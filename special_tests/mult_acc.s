@@ -115,15 +115,15 @@ test_multiplier_16x16:
     sta VERA_ADDR_LOW
     
     ; First 16-bit value
-    lda #$00
-    sta VERA_DATA0
     lda #$02
+    sta VERA_DATA0
+    lda #$00
     sta VERA_DATA0
     
     ; Second 16-bit value
-    lda #$00
-    sta VERA_DATA0
     lda #$03
+    sta VERA_DATA0
+    lda #$00
     sta VERA_DATA0
 
 ; FIXME: we now need affine helper to be 1 to load into cache, but that ALSO puts us into a certain FX helper mode! Which we DONT want!!
