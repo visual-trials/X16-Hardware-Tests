@@ -1,10 +1,10 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 1
-DO_NO_TILE_LOOKUP = 0
+USE_TABLE_FILES = 0
+DO_NO_TILE_LOOKUP = 1
 DO_CLIP = 1
-DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
-MOVE_XY_POSITION = 1
+DRAW_TILED_PERSPECTIVE = 0  ; Otherwise FLAT tiles
+MOVE_XY_POSITION = 0
 TURN_AROUND = 0
 MOVE_SLOWLY = 0
 DEBUG_LEDS = 1
@@ -102,6 +102,8 @@ TILE_Y                    = $47
 
 WORLD_X_POSITION          = $50 ; 51
 WORLD_Y_POSITION          = $52 ; 53
+
+AFFINE_SETTINGS           = $60
 
 ; RAM addresses
 COPY_ROW_CODE               = $7800
@@ -570,7 +572,7 @@ tiled_perspective_copy_next_row_1:
 ; FIXME: this is a bad name! We are not doing textures anymore!
     cpx #TEXTURE_HEIGHT          ; we do 64 rows
     beq done_tiled_perspective_copy
-    
+
     jmp tiled_perspective_copy_next_row_1
 done_tiled_perspective_copy:
     
@@ -685,6 +687,11 @@ flat_tiles_fast:
     .else
         ora #%00000011  ; 11 for tile lookup
     .endif
+; FIXME: remove this!
+;    ora #%00001000           ; turn on multiplier
+    sta AFFINE_SETTINGS
+    
+    lda AFFINE_SETTINGS
     sta $9F29
     
     ; Entering *affine helper mode*: selecting ADDR1 
@@ -753,6 +760,18 @@ repetitive_copy_next_row_1:
     sta VERA_ADDR_ZP_TO+1
 
     inx
+; FIXME: ======== HACK! =========
+    cpx #32
+    bne keep_on_going
+    
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda AFFINE_SETTINGS
+    eor #%00001000           ; turn on multiplier
+    sta $9F29
+keep_on_going:
+; FIXME: ======= / HACK! ========
     cpx #TEXTURE_HEIGHT          ; we do 64 rows
     bne repetitive_copy_next_row_1
     
