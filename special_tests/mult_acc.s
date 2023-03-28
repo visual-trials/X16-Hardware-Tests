@@ -498,7 +498,7 @@ load_and_print_4_bytes_of_vram:
 
     ; == Read result from VRAM ==
     
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000000           ; Affine helper = 0, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 1
