@@ -64,8 +64,8 @@ VALUE                     = $2B ; 2C
 VRAM_ADDR_VALUE           = $2D ; 2E ; 2F
 
 
-VERA_ADDR_LEFT_OPERAND    = $30 ; 31 ; 32
-VERA_ADDR_RIGHT_OPERAND   = $33 ; 34 ; 35
+VERA_ADDR_HIGH_OPERAND    = $30 ; 31 ; 32
+VERA_ADDR_LOW_OPERAND     = $33 ; 34 ; 35
 VERA_ADDR_MULT_RESULT_ACC = $36 ; 37 ; 38
 
 MULT_RESULT_ACC           = $3A ; 3B ; 3C ; 3D
@@ -167,24 +167,23 @@ test_multiplier_16x16:
     lda #%00000000           ; Multiplier NOT enabled, line draw mode
     sta $9F29
     
-
-    lda #(VRAM_ADDR_SAMPLE_CONST_C>>16)
-    sta VERA_ADDR_LEFT_OPERAND+2
-    lda #>VRAM_ADDR_SAMPLE_CONST_C
-    sta VERA_ADDR_LEFT_OPERAND+1
-    lda #<VRAM_ADDR_SAMPLE_CONST_C
-    sta VERA_ADDR_LEFT_OPERAND
-    
-    jsr load_left_operand_into_cache
-    
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
-    sta VERA_ADDR_RIGHT_OPERAND+2
+    sta VERA_ADDR_LOW_OPERAND+2
     lda #>VRAM_ADDR_SAMPLE_VALUE_X1
-    sta VERA_ADDR_RIGHT_OPERAND+1
+    sta VERA_ADDR_LOW_OPERAND+1
     lda #<VRAM_ADDR_SAMPLE_VALUE_X1
-    sta VERA_ADDR_RIGHT_OPERAND
+    sta VERA_ADDR_LOW_OPERAND
     
-    jsr load_right_operand_into_cache
+    jsr load_low_operand_into_cache
+    
+    lda #(VRAM_ADDR_SAMPLE_CONST_C>>16)
+    sta VERA_ADDR_HIGH_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_CONST_C
+    sta VERA_ADDR_HIGH_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_CONST_C
+    sta VERA_ADDR_HIGH_OPERAND
+    
+    jsr load_high_operand_into_cache
     
     lda #(VRAM_ADDR_MULT_ACC_OUTPUT>>16)
     sta VERA_ADDR_MULT_RESULT_ACC+2
@@ -222,22 +221,22 @@ test_multiplier_16x16:
 
     
     lda #(VRAM_ADDR_SAMPLE_CONST_C>>16)
-    sta VERA_ADDR_LEFT_OPERAND+2
+    sta VERA_ADDR_HIGH_OPERAND+2
     lda #>VRAM_ADDR_SAMPLE_CONST_C
-    sta VERA_ADDR_LEFT_OPERAND+1
+    sta VERA_ADDR_HIGH_OPERAND+1
     lda #<VRAM_ADDR_SAMPLE_CONST_C
-    sta VERA_ADDR_LEFT_OPERAND
+    sta VERA_ADDR_HIGH_OPERAND
     
-    jsr load_left_operand_into_cache
+    jsr load_high_operand_into_cache
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
-    sta VERA_ADDR_RIGHT_OPERAND+2
+    sta VERA_ADDR_LOW_OPERAND+2
     lda #>VRAM_ADDR_SAMPLE_VALUE_X1
-    sta VERA_ADDR_RIGHT_OPERAND+1
+    sta VERA_ADDR_LOW_OPERAND+1
     lda #<VRAM_ADDR_SAMPLE_VALUE_X1
-    sta VERA_ADDR_RIGHT_OPERAND
+    sta VERA_ADDR_LOW_OPERAND
     
-    jsr load_right_operand_into_cache
+    jsr load_low_operand_into_cache
     
     lda #(VRAM_ADDR_MULT_ACC_OUTPUT>>16)
     sta VERA_ADDR_MULT_RESULT_ACC+2
@@ -270,20 +269,19 @@ test_multiplier_16x16:
     rts
     
     
-    
-load_left_operand_into_cache:
+load_low_operand_into_cache:
 
-    ; == Load value into left side of cache32 ==
+    ; == Load value into low side of cache32 ==
     
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
     
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 1
-    ora VERA_ADDR_LEFT_OPERAND+2
+    ora VERA_ADDR_LOW_OPERAND+2
     sta VERA_ADDR_BANK
-    lda VERA_ADDR_LEFT_OPERAND+1
+    lda VERA_ADDR_LOW_OPERAND+1
     sta VERA_ADDR_HIGH
-    lda VERA_ADDR_LEFT_OPERAND
+    lda VERA_ADDR_LOW_OPERAND
     sta VERA_ADDR_LOW
 
 ; FIXME: we should set the cache byte index to 0 here!
@@ -295,20 +293,20 @@ load_left_operand_into_cache:
     lda VERA_DATA1
 
     rts
+    
+load_high_operand_into_cache:
 
-load_right_operand_into_cache:
-
-    ; == Load value into left side of cache32 ==
+    ; == Load value into high side of cache32 ==
     
     lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
     
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 1
-    ora VERA_ADDR_RIGHT_OPERAND+2
+    ora VERA_ADDR_HIGH_OPERAND+2
     sta VERA_ADDR_BANK
-    lda VERA_ADDR_RIGHT_OPERAND+1
+    lda VERA_ADDR_HIGH_OPERAND+1
     sta VERA_ADDR_HIGH
-    lda VERA_ADDR_RIGHT_OPERAND
+    lda VERA_ADDR_HIGH_OPERAND
     sta VERA_ADDR_LOW
 
 ; FIXME: we should set the cache byte index to 2 here!
