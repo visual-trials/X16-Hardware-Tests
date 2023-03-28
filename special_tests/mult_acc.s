@@ -2,8 +2,36 @@
 TOP_MARGIN = 12
 LEFT_MARGIN = 16
 
-COLOR_TEXT  = $01       ; Background color = 0 (transparent), foreground color 1 (white)
+TITLE_COLOR    = $01   ; Background color = 0 (transparent), foreground color 1 (white)
+VARIABLE_COLOR = $03
+VALUE_COLOR    = $05
 BACKGROUND_COLOR = 04   ; 4 = Purple in this palette
+
+CONST_C = $0002
+VALUE_X1 = $0003
+
+VRAM_ADDR_SAMPLE_CONST_C      = $00000
+VRAM_ADDR_SAMPLE_CONST_D      = $00002
+
+VRAM_ADDR_SAMPLE_VALUE_X1     = $00010
+VRAM_ADDR_SAMPLE_VALUE_X2     = $00012
+VRAM_ADDR_SAMPLE_VALUE_X3     = $00014
+VRAM_ADDR_SAMPLE_VALUE_Y1     = $00020
+VRAM_ADDR_SAMPLE_VALUE_Y2     = $00022
+VRAM_ADDR_SAMPLE_VALUE_Y3     = $00024
+VRAM_ADDR_SAMPLE_VALUE_Z1     = $00030
+VRAM_ADDR_SAMPLE_VALUE_Z2     = $00032
+VRAM_ADDR_SAMPLE_VALUE_Z3     = $00034
+VRAM_ADDR_SAMPLE_VALUE_INV_Z1 = $00040
+VRAM_ADDR_SAMPLE_VALUE_INV_Z2 = $00042
+VRAM_ADDR_SAMPLE_VALUE_INV_Z3 = $00044
+
+;VRAM_ADDR_SAMPLE_VALUE_CAM_DIR_X = $00050
+;VRAM_ADDR_SAMPLE_VALUE_CAM_DIR_Y = $00052
+;VRAM_ADDR_SAMPLE_VALUE_CAM_DIR_Z = $00054
+
+VRAM_ADDR_MULT_ACC_OUTPUT     = $00060
+
 
 
 ; === Zero page addresses ===
@@ -32,10 +60,21 @@ TIMING_COUNTER            = $14 ; 15
 TIME_ELAPSED_MS           = $16
 TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
 
+VALUE                     = $2B ; 2C
+VRAM_ADDR_VALUE           = $2D ; 2E ; 2F
+
+
+VERA_ADDR_LEFT_OPERAND    = $30 ; 31 ; 32
+VERA_ADDR_RIGHT_OPERAND   = $33 ; 34 ; 35
+VERA_ADDR_MULT_RESULT_ACC = $36 ; 37 ; 38
+
+MULT_RESULT_ACC           = $3A ; 3B ; 3C ; 3D
 
 ; FIXME: these are leftovers of memory tests in the general hardware tester (needed by utils.s atm). We dont use them, but cant remove them right now
-BANK_TESTING              = $32   
-BAD_VALUE                 = $3A
+BANK_TESTING              = $52   
+BAD_VALUE                 = $5A
+
+
 
 ; RAM addresses
 
@@ -62,9 +101,9 @@ reset:
 
     jsr clear_screen_slow
     
-    lda #$10                 ; 8:1 scale, so we can clearly see the pixels
-    sta VERA_DC_HSCALE
-    sta VERA_DC_VSCALE
+    ;lda #$10                 ; 8:1 scale, so we can clearly see the pixels
+    ;sta VERA_DC_HSCALE
+    ;sta VERA_DC_VSCALE
 
     jsr test_mult_acc
     
@@ -76,12 +115,12 @@ loop:
     
 test_mult_acc:
 
-    lda #COLOR_TEXT
+    lda #TITLE_COLOR
     sta TEXT_COLOR
     
-    lda #5
+    lda #7
     sta CURSOR_X
-    lda #4
+    lda #2
     sta CURSOR_Y
 
     lda #<multi_acc_message
@@ -99,80 +138,80 @@ test_mult_acc:
     
 
 multi_acc_message: 
-    .asciiz "`Multiplier and accumilator "
+    .asciiz "Multiplier and accumilator "
 
+    
+const_c_message: 
+    .asciiz "C:  "
+value_x1_message: 
+    .asciiz "X1: "
+
+no_multiply_c_x1_message: 
+    .asciiz "C , X1 = "
+multiply_c_x1_message: 
+    .asciiz "C * X1 = "
     
 test_multiplier_16x16:
 
-    lda #%00000000           ; Affine helper = 0, DCSEL=0, ADDRSEL=0
-    sta VERA_CTRL
     
-    lda #%00010000           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 1
-    sta VERA_ADDR_BANK
-    lda #$00
-    sta VERA_ADDR_HIGH
-    lda #$00
-    sta VERA_ADDR_LOW
+    jsr place_sample_input_values_into_vram
     
-    ; First 16-bit value
-    lda #$02
-    sta VERA_DATA0
-    lda #$00
-    sta VERA_DATA0
-    
-    ; Second 16-bit value
-    lda #$03
-    sta VERA_DATA0
-    lda #$00
-    sta VERA_DATA0
 
-; FIXME: we now need affine helper to be 1 to load into cache, but that ALSO puts us into a certain FX helper mode! Which we DONT want!!
-; FIXME: we now need affine helper to be 1 to load into cache, but that ALSO puts us into a certain FX helper mode! Which we DONT want!!
-; FIXME: we now need affine helper to be 1 to load into cache, but that ALSO puts us into a certain FX helper mode! Which we DONT want!!
+; TODO: should we put this in a routine?
+
+    ; == Set multiplier mode: off ==
 
     lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%00000000           ; Multiplier NOT enabled, line draw mode
     sta $9F29
+    
+
+    lda #(VRAM_ADDR_SAMPLE_CONST_C>>16)
+    sta VERA_ADDR_LEFT_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_CONST_C
+    sta VERA_ADDR_LEFT_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_CONST_C
+    sta VERA_ADDR_LEFT_OPERAND
+    
+    jsr load_left_operand_into_cache
+    
+    lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
+    sta VERA_ADDR_RIGHT_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_X1
+    sta VERA_ADDR_RIGHT_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_VALUE_X1
+    sta VERA_ADDR_RIGHT_OPERAND
+    
+    jsr load_right_operand_into_cache
+    
+    lda #(VRAM_ADDR_MULT_ACC_OUTPUT>>16)
+    sta VERA_ADDR_MULT_RESULT_ACC+2
+    lda #>(VRAM_ADDR_MULT_ACC_OUTPUT)
+    sta VERA_ADDR_MULT_RESULT_ACC+1
+    lda #<(VRAM_ADDR_MULT_ACC_OUTPUT)
+    sta VERA_ADDR_MULT_RESULT_ACC
+    
+    jsr write_mult_acc_result_into_vram
+
+    lda #2
+    sta CURSOR_X
+    lda #9
+    sta CURSOR_Y
+    
+    lda #<no_multiply_c_x1_message
+    sta TEXT_TO_PRINT
+    lda #>no_multiply_c_x1_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr load_and_print_4_bytes_of_vram
+    
+
+; TODO: should we put this in a routine?
 
 
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
-    sta VERA_CTRL
-    
-; FIXME: workaround: in line draw mode (=default), we set the x-increment (high bits) to 0, so ADDR1 work work as normal!
-; FIXME: workaround: in line draw mode (=default), we set the x-increment (high bits) to 0, so ADDR1 work work as normal!
-; FIXME: workaround: in line draw mode (=default), we set the x-increment (high bits) to 0, so ADDR1 work work as normal!
-    lda #%00000000
-    sta $9F2A
-
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
-    sta VERA_CTRL
-    
-    lda #%00010000           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 1
-    sta VERA_ADDR_BANK
-    lda #$00
-    sta VERA_ADDR_HIGH
-    lda #$00
-    sta VERA_ADDR_LOW
-
-    ; Loading both 16-bit values into the cache32
-    lda VERA_DATA1
-    lda VERA_DATA1
-    lda VERA_DATA1
-    lda VERA_DATA1
-    
-    ; Writing to vram without multiplication
-    
-    lda #%00110110           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 4, with wrpattern = 11 (blit)
-    sta VERA_ADDR_BANK
-    lda #$00
-    sta VERA_ADDR_HIGH
-    lda #$04
-    sta VERA_ADDR_LOW
-    
-    stz VERA_DATA1
-    
+    ; == Set multiplier mode: on ==
     
     lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
@@ -180,42 +219,330 @@ test_multiplier_16x16:
     lda #%00001000           ; Multiplier enabled, line draw mode
     sta $9F29
 
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
-    sta VERA_CTRL
-    
-    lda #%00010000           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 1
-    sta VERA_ADDR_BANK
-    lda #$00
-    sta VERA_ADDR_HIGH
-    lda #$00
-    sta VERA_ADDR_LOW
 
-    ; Loading both 16-bit values into the cache32
-    lda VERA_DATA1
-    lda VERA_DATA1
-    lda VERA_DATA1
-    lda VERA_DATA1
     
-    ; Writing to vram with multiplication
+    lda #(VRAM_ADDR_SAMPLE_CONST_C>>16)
+    sta VERA_ADDR_LEFT_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_CONST_C
+    sta VERA_ADDR_LEFT_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_CONST_C
+    sta VERA_ADDR_LEFT_OPERAND
     
-    lda #%00110110           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 4, with wrpattern = 11 (blit)
-    sta VERA_ADDR_BANK
-    lda #$00
-    sta VERA_ADDR_HIGH
-    lda #$08
-    sta VERA_ADDR_LOW
+    jsr load_left_operand_into_cache
     
-    stz VERA_DATA1
+    lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
+    sta VERA_ADDR_RIGHT_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_X1
+    sta VERA_ADDR_RIGHT_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_VALUE_X1
+    sta VERA_ADDR_RIGHT_OPERAND
     
+    jsr load_right_operand_into_cache
     
+    lda #(VRAM_ADDR_MULT_ACC_OUTPUT>>16)
+    sta VERA_ADDR_MULT_RESULT_ACC+2
+    lda #>(VRAM_ADDR_MULT_ACC_OUTPUT)
+    sta VERA_ADDR_MULT_RESULT_ACC+1
+    lda #<(VRAM_ADDR_MULT_ACC_OUTPUT)
+    sta VERA_ADDR_MULT_RESULT_ACC
     
+    jsr write_mult_acc_result_into_vram
+
+    lda #2
+    sta CURSOR_X
+    lda #10
+    sta CURSOR_Y
+    
+    lda #<multiply_c_x1_message
+    sta TEXT_TO_PRINT
+    lda #>multiply_c_x1_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr load_and_print_4_bytes_of_vram
+    
+
+
     
     ; Exiting affine helper mode
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
     rts
+    
+    
+    
+load_left_operand_into_cache:
 
+    ; == Load value into left side of cache32 ==
+    
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%00010000           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 1
+    ora VERA_ADDR_LEFT_OPERAND+2
+    sta VERA_ADDR_BANK
+    lda VERA_ADDR_LEFT_OPERAND+1
+    sta VERA_ADDR_HIGH
+    lda VERA_ADDR_LEFT_OPERAND
+    sta VERA_ADDR_LOW
+
+; FIXME: we should set the cache byte index to 0 here!
+; FIXME: we should set the cache byte index to 0 here!
+; FIXME: we should set the cache byte index to 0 here!
+    
+    ; Loading the 16-bit value into the cache32
+    lda VERA_DATA1
+    lda VERA_DATA1
+
+    rts
+
+load_right_operand_into_cache:
+
+    ; == Load value into left side of cache32 ==
+    
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%00010000           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 1
+    ora VERA_ADDR_RIGHT_OPERAND+2
+    sta VERA_ADDR_BANK
+    lda VERA_ADDR_RIGHT_OPERAND+1
+    sta VERA_ADDR_HIGH
+    lda VERA_ADDR_RIGHT_OPERAND
+    sta VERA_ADDR_LOW
+
+; FIXME: we should set the cache byte index to 2 here!
+; FIXME: we should set the cache byte index to 2 here!
+; FIXME: we should set the cache byte index to 2 here!
+    
+    ; Loading the 16-bit value into the cache32
+    lda VERA_DATA1
+    lda VERA_DATA1
+
+    rts
+
+    
+write_mult_acc_result_into_vram:
+
+    ; == Write result into VRAM ==
+    
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; Writing cache to vram 
+    
+    lda #%00110110           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 4, with wrpattern = 11 (blit)
+    ora VERA_ADDR_MULT_RESULT_ACC+2
+    sta VERA_ADDR_BANK
+    lda VERA_ADDR_MULT_RESULT_ACC+1
+    sta VERA_ADDR_HIGH
+    lda VERA_ADDR_MULT_RESULT_ACC
+    sta VERA_ADDR_LOW
+    
+    stz VERA_DATA0
+    
+    rts
+    
+
+    
+place_sample_input_values_into_vram:
+
+    ; == Set orginal input values ==
+
+    lda #%00000000           ; Affine helper = 0, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; === Constant C ===
+    lda #(VRAM_ADDR_SAMPLE_CONST_C>>16)
+    sta VRAM_ADDR_VALUE+2
+    lda #>VRAM_ADDR_SAMPLE_CONST_C
+    sta VRAM_ADDR_VALUE+1
+    lda #<VRAM_ADDR_SAMPLE_CONST_C
+    sta VRAM_ADDR_VALUE
+
+    lda #>CONST_C
+    sta VALUE+1
+    lda #<CONST_C
+    sta VALUE
+    
+    jsr store_vram_value
+    jsr load_vram_value
+    
+    lda #2
+    sta CURSOR_X
+    lda #6
+    sta CURSOR_Y
+    
+    lda #<const_c_message
+    sta TEXT_TO_PRINT
+    lda #>const_c_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_value
+    
+    ; === VALUE X1 ===
+    lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
+    sta VRAM_ADDR_VALUE+2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_X1
+    sta VRAM_ADDR_VALUE+1
+    lda #<VRAM_ADDR_SAMPLE_VALUE_X1
+    sta VRAM_ADDR_VALUE
+
+    lda #>VALUE_X1
+    sta VALUE+1
+    lda #<VALUE_X1
+    sta VALUE
+    
+    jsr store_vram_value
+    jsr load_vram_value
+    
+    lda #2
+    sta CURSOR_X
+    lda #7
+    sta CURSOR_Y
+    
+    lda #<value_x1_message
+    sta TEXT_TO_PRINT
+    lda #>value_x1_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_value
+    
+    
+    rts
+
+    
+    
+; Note: this routines assumes you have setup VALUE, CURSOR_X/Y and TEXT_TO_PRINT!
+print_value:
+
+    jsr setup_cursor
+    
+    lda #VARIABLE_COLOR
+    sta TEXT_COLOR
+    
+    jsr print_text_zero
+    
+    lda #VALUE_COLOR
+    sta TEXT_COLOR
+    
+    lda #'$'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda VALUE+1
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    lda VALUE
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    
+    rts
+    
+; Note: this routines assumes you have setup VERA_ADDR_MULT_RESULT_ACC, CURSOR_X/Y and TEXT_TO_PRINT!
+load_and_print_4_bytes_of_vram:
+
+    ; == Read result from VRAM ==
+    
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00010000           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 1
+    ora VERA_ADDR_MULT_RESULT_ACC+2
+    sta VERA_ADDR_BANK
+    lda VERA_ADDR_MULT_RESULT_ACC+1
+    sta VERA_ADDR_HIGH
+    lda VERA_ADDR_MULT_RESULT_ACC
+    sta VERA_ADDR_LOW
+    
+    lda VERA_DATA0
+    sta MULT_RESULT_ACC
+    lda VERA_DATA0
+    sta MULT_RESULT_ACC+1
+    lda VERA_DATA0
+    sta MULT_RESULT_ACC+2
+    lda VERA_DATA0
+    sta MULT_RESULT_ACC+3
+    
+    jsr setup_cursor
+    
+    lda #VARIABLE_COLOR
+    sta TEXT_COLOR
+    
+    jsr print_text_zero
+    
+    lda #VALUE_COLOR
+    sta TEXT_COLOR
+    
+    lda #'$'
+    sta VERA_DATA0
+    lda TEXT_COLOR
+    sta VERA_DATA0
+    inc CURSOR_X
+    
+    lda MULT_RESULT_ACC+3
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    lda MULT_RESULT_ACC+2
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    lda MULT_RESULT_ACC+1
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    lda MULT_RESULT_ACC
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    
+    rts
+
+    
+store_vram_value:
+
+    lda #%00000000           ; Affine helper = 0, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; Set VRAM address for storing the 16-bit value
+    lda #%00010000           
+    ora VRAM_ADDR_VALUE+2
+    sta VERA_ADDR_BANK
+    lda VRAM_ADDR_VALUE+1
+    sta VERA_ADDR_HIGH
+    lda VRAM_ADDR_VALUE
+    sta VERA_ADDR_LOW
+
+    ; Store the 16-bit value
+    lda VALUE
+    sta VERA_DATA0
+    lda VALUE+1
+    sta VERA_DATA0
+    
+    rts
+
+load_vram_value:
+
+    lda #%00000000           ; Affine helper = 0, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; Set VRAM address for loading the 16-bit value
+    lda #%00010000           
+    ora VRAM_ADDR_VALUE+2
+    sta VERA_ADDR_BANK
+    lda VRAM_ADDR_VALUE+1
+    sta VERA_ADDR_HIGH
+    lda VRAM_ADDR_VALUE
+    sta VERA_ADDR_LOW
+
+    ; Store the 16-bit value
+    lda VERA_DATA0
+    sta VALUE
+    lda VERA_DATA0
+    sta VALUE+1
+    
+    rts
+
+    
     
 change_palette_colors:
 
