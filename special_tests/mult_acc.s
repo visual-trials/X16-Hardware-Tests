@@ -9,6 +9,7 @@ BACKGROUND_COLOR = 04   ; 4 = Purple in this palette
 
 CONST_C = $0002
 VALUE_X1 = $0003
+VALUE_X2 = $0007
 
 VRAM_ADDR_SAMPLE_CONST_C      = $00000
 VRAM_ADDR_SAMPLE_CONST_D      = $00002
@@ -145,11 +146,15 @@ const_c_message:
     .asciiz "C:  "
 value_x1_message: 
     .asciiz "X1: "
+value_x2_message: 
+    .asciiz "X2: "
 
 no_multiply_c_x1_message: 
-    .asciiz "C , X1 = "
+    .asciiz "X1 , C = "
 multiply_c_x1_message: 
-    .asciiz "C * X1 = "
+    .asciiz "X1 * C = "
+multiply_c_x2_message: 
+    .asciiz "X2 * C = "
     
 test_multiplier_16x16:
 
@@ -196,7 +201,7 @@ test_multiplier_16x16:
 
     lda #2
     sta CURSOR_X
-    lda #9
+    lda #10
     sta CURSOR_Y
     
     lda #<no_multiply_c_x1_message
@@ -217,17 +222,6 @@ test_multiplier_16x16:
     
     lda #%00001000           ; Multiplier enabled, line draw mode
     sta $9F29
-
-
-    
-    lda #(VRAM_ADDR_SAMPLE_CONST_C>>16)
-    sta VERA_ADDR_HIGH_OPERAND+2
-    lda #>VRAM_ADDR_SAMPLE_CONST_C
-    sta VERA_ADDR_HIGH_OPERAND+1
-    lda #<VRAM_ADDR_SAMPLE_CONST_C
-    sta VERA_ADDR_HIGH_OPERAND
-    
-    jsr load_high_operand_into_cache
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -237,6 +231,15 @@ test_multiplier_16x16:
     sta VERA_ADDR_LOW_OPERAND
     
     jsr load_low_operand_into_cache
+    
+    lda #(VRAM_ADDR_SAMPLE_CONST_C>>16)
+    sta VERA_ADDR_HIGH_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_CONST_C
+    sta VERA_ADDR_HIGH_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_CONST_C
+    sta VERA_ADDR_HIGH_OPERAND
+    
+    jsr load_high_operand_into_cache
     
     lda #(VRAM_ADDR_MULT_ACC_OUTPUT>>16)
     sta VERA_ADDR_MULT_RESULT_ACC+2
@@ -249,7 +252,7 @@ test_multiplier_16x16:
 
     lda #2
     sta CURSOR_X
-    lda #10
+    lda #11
     sta CURSOR_Y
     
     lda #<multiply_c_x1_message
@@ -258,8 +261,31 @@ test_multiplier_16x16:
     sta TEXT_TO_PRINT + 1
     
     jsr load_and_print_4_bytes_of_vram
-    
 
+
+
+    
+    lda #(VRAM_ADDR_SAMPLE_VALUE_X2>>16)
+    sta VERA_ADDR_LOW_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_X2
+    sta VERA_ADDR_LOW_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_VALUE_X2
+    sta VERA_ADDR_LOW_OPERAND
+    
+    jsr load_low_operand_into_cache
+    jsr write_mult_acc_result_into_vram
+
+    lda #2
+    sta CURSOR_X
+    lda #12
+    sta CURSOR_Y
+    
+    lda #<multiply_c_x2_message
+    sta TEXT_TO_PRINT
+    lda #>multiply_c_x2_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr load_and_print_4_bytes_of_vram
 
     
     ; Exiting affine helper mode
@@ -406,6 +432,34 @@ place_sample_input_values_into_vram:
     
     jsr print_value
     
+    
+    ; === VALUE X2 ===
+    lda #(VRAM_ADDR_SAMPLE_VALUE_X2>>16)
+    sta VRAM_ADDR_VALUE+2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_X2
+    sta VRAM_ADDR_VALUE+1
+    lda #<VRAM_ADDR_SAMPLE_VALUE_X2
+    sta VRAM_ADDR_VALUE
+
+    lda #>VALUE_X2
+    sta VALUE+1
+    lda #<VALUE_X2
+    sta VALUE
+    
+    jsr store_vram_value
+    jsr load_vram_value
+    
+    lda #2
+    sta CURSOR_X
+    lda #8
+    sta CURSOR_Y
+    
+    lda #<value_x2_message
+    sta TEXT_TO_PRINT
+    lda #>value_x2_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_value
     
     rts
 
