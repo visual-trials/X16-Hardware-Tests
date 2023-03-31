@@ -139,7 +139,7 @@ test_mult_acc:
     
 
 multi_acc_message: 
-    .asciiz "Multiplier and accumilator "
+    .asciiz "Multiplier and accumulator "
 
     
 const_c_message: 
@@ -223,6 +223,9 @@ test_multiplier_16x16:
     lda #%00001000           ; Multiplier enabled, line draw mode
     sta $9F29
     
+    lda #%00000001           ; Adding, Reset accumulator
+    sta $9F2C
+    
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
     sta VERA_ADDR_LOW_OPERAND+2
     lda #>VRAM_ADDR_SAMPLE_VALUE_X1
@@ -247,6 +250,14 @@ test_multiplier_16x16:
     sta VERA_ADDR_MULT_RESULT_ACC+1
     lda #<(VRAM_ADDR_MULT_ACC_OUTPUT)
     sta VERA_ADDR_MULT_RESULT_ACC
+
+; FIXME: HACK for testing!    
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+; FIXME: the switch to subtracting will immidiatly have an effect, which means the cant do an add and *then* do the switch to subtracting!
+    lda #%00000110           ; Switch to subtracting, Reset accumulator
+;    lda #%00000010           ; Adding, accumulate
+    sta $9F2C
     
     jsr write_mult_acc_result_into_vram
 
@@ -262,9 +273,6 @@ test_multiplier_16x16:
     
     jsr load_and_print_4_bytes_of_vram
 
-
-
-    
     lda #(VRAM_ADDR_SAMPLE_VALUE_X2>>16)
     sta VERA_ADDR_LOW_OPERAND+2
     lda #>VRAM_ADDR_SAMPLE_VALUE_X2
@@ -273,6 +281,14 @@ test_multiplier_16x16:
     sta VERA_ADDR_LOW_OPERAND
     
     jsr load_low_operand_into_cache
+
+; FIXME: switching VERA_CTRL is slow!
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    lda #%00000000           ; Adding, DONT reset accumulator
+;    lda #%00000001           ; Adding, Reset accumulator
+    sta $9F2C
+    
     jsr write_mult_acc_result_into_vram
 
     lda #2
