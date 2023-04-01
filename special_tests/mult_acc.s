@@ -610,7 +610,7 @@ x1_times_c_plus_y1_times_s:
     
 
 x2_times_s_minus_y2_times_c_message: 
-    .asciiz "X1 * S - Y2 * C = "
+    .asciiz "X2 * S - Y2 * C = "
     
 x2_times_s_minus_y2_times_c:
 
