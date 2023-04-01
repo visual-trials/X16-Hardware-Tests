@@ -8,11 +8,14 @@ VALUE_COLOR    = $05
 BACKGROUND_COLOR = 04   ; 4 = Purple in this palette
 
 CONST_C = $0002
+CONST_S = $F4C3
 VALUE_X1 = $0003
 VALUE_X2 = $0007
+VALUE_Y1 = $0123
+VALUE_Y2 = $FFF3
 
 VRAM_ADDR_SAMPLE_CONST_C      = $00000
-VRAM_ADDR_SAMPLE_CONST_D      = $00002
+VRAM_ADDR_SAMPLE_CONST_S      = $00002
 
 VRAM_ADDR_SAMPLE_VALUE_X1     = $00010
 VRAM_ADDR_SAMPLE_VALUE_X2     = $00012
@@ -114,6 +117,9 @@ loop:
   
     
     
+multi_acc_message: 
+    .asciiz "Multiplier and accumulator "
+
 test_mult_acc:
 
     lda #TITLE_COLOR
@@ -121,7 +127,7 @@ test_mult_acc:
     
     lda #7
     sta CURSOR_X
-    lda #2
+    lda #1
     sta CURSOR_Y
 
     lda #<multi_acc_message
@@ -138,32 +144,219 @@ test_mult_acc:
     rts
     
 
-multi_acc_message: 
-    .asciiz "Multiplier and accumulator "
+    
+test_multiplier_16x16:
 
+    lda #2
+    sta INDENTATION
+    sta CURSOR_X
+    lda #4
+    sta CURSOR_Y
+    
+    jsr setup_cursor
+    
+    jsr place_sample_input_values_into_vram
+    jsr move_cursor_to_next_line
+
+    jsr passthrough_of_c_and_x1
+    jsr multiply_c_and_x1
+    jsr multiply_s_and_x2
+    jsr x1_times_c_plus_y1_times_s
+    
+    ; Exiting affine helper mode
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    rts
+    
     
 const_c_message: 
-    .asciiz "C:  "
+    .asciiz "C: "
+const_s_message: 
+    .asciiz "S: "
 value_x1_message: 
     .asciiz "X1: "
 value_x2_message: 
     .asciiz "X2: "
-
-no_multiply_c_x1_message: 
-    .asciiz "X1 , C = "
-multiply_c_x1_message: 
-    .asciiz "X1 * C = "
-multiply_c_x2_message: 
-    .asciiz "X2 * C = "
+value_y1_message: 
+    .asciiz "Y1: "
+value_y2_message: 
+    .asciiz "Y2: "
     
-test_multiplier_16x16:
+place_sample_input_values_into_vram:
+
+    ; == Set orginal input values ==
+
+    lda #%00000000           ; Affine helper = 0, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; === Constant C ===
+    lda #(VRAM_ADDR_SAMPLE_CONST_C>>16)
+    sta VRAM_ADDR_VALUE+2
+    lda #>VRAM_ADDR_SAMPLE_CONST_C
+    sta VRAM_ADDR_VALUE+1
+    lda #<VRAM_ADDR_SAMPLE_CONST_C
+    sta VRAM_ADDR_VALUE
+
+    lda #>CONST_C
+    sta VALUE+1
+    lda #<CONST_C
+    sta VALUE
+    
+    jsr store_vram_value
+    jsr load_vram_value
+    
+    lda #<const_c_message
+    sta TEXT_TO_PRINT
+    lda #>const_c_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_value
+
+    ; === Constant S ===
+    lda #(VRAM_ADDR_SAMPLE_CONST_S>>16)
+    sta VRAM_ADDR_VALUE+2
+    lda #>VRAM_ADDR_SAMPLE_CONST_S
+    sta VRAM_ADDR_VALUE+1
+    lda #<VRAM_ADDR_SAMPLE_CONST_S
+    sta VRAM_ADDR_VALUE
+
+    lda #>CONST_S
+    sta VALUE+1
+    lda #<CONST_S
+    sta VALUE
+    
+    jsr store_vram_value
+    jsr load_vram_value
+    
+    lda #<const_s_message
+    sta TEXT_TO_PRINT
+    lda #>const_s_message
+    sta TEXT_TO_PRINT + 1
+    
+    lda #11
+    sta CURSOR_X
+    
+    jsr print_value
+    jsr move_cursor_to_next_line
+    
+    jsr move_cursor_to_next_line
+    
+    ; === VALUE X1 ===
+    lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
+    sta VRAM_ADDR_VALUE+2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_X1
+    sta VRAM_ADDR_VALUE+1
+    lda #<VRAM_ADDR_SAMPLE_VALUE_X1
+    sta VRAM_ADDR_VALUE
+
+    lda #>VALUE_X1
+    sta VALUE+1
+    lda #<VALUE_X1
+    sta VALUE
+    
+    jsr store_vram_value
+    jsr load_vram_value
+    
+    lda #<value_x1_message
+    sta TEXT_TO_PRINT
+    lda #>value_x1_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_value
+    
+    lda #12
+    sta CURSOR_X
+
+    ; === VALUE Y1 ===
+    lda #(VRAM_ADDR_SAMPLE_VALUE_Y1>>16)
+    sta VRAM_ADDR_VALUE+2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_Y1
+    sta VRAM_ADDR_VALUE+1
+    lda #<VRAM_ADDR_SAMPLE_VALUE_Y1
+    sta VRAM_ADDR_VALUE
+
+    lda #>VALUE_Y1
+    sta VALUE+1
+    lda #<VALUE_Y1
+    sta VALUE
+    
+    jsr store_vram_value
+    jsr load_vram_value
+    
+    lda #<value_y1_message
+    sta TEXT_TO_PRINT
+    lda #>value_y1_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_value
+    jsr move_cursor_to_next_line
 
     
-    jsr place_sample_input_values_into_vram
+    ; === VALUE X2 ===
+    lda #(VRAM_ADDR_SAMPLE_VALUE_X2>>16)
+    sta VRAM_ADDR_VALUE+2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_X2
+    sta VRAM_ADDR_VALUE+1
+    lda #<VRAM_ADDR_SAMPLE_VALUE_X2
+    sta VRAM_ADDR_VALUE
+
+    lda #>VALUE_X2
+    sta VALUE+1
+    lda #<VALUE_X2
+    sta VALUE
     
+    jsr store_vram_value
+    jsr load_vram_value
+    
+    lda #<value_x2_message
+    sta TEXT_TO_PRINT
+    lda #>value_x2_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_value
+    
+    lda #12
+    sta CURSOR_X
+    
+    ; === VALUE Y2 ===
+    lda #(VRAM_ADDR_SAMPLE_VALUE_Y2>>16)
+    sta VRAM_ADDR_VALUE+2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_Y2
+    sta VRAM_ADDR_VALUE+1
+    lda #<VRAM_ADDR_SAMPLE_VALUE_Y2
+    sta VRAM_ADDR_VALUE
 
-; TODO: should we put this in a routine?
+    lda #>VALUE_Y2
+    sta VALUE+1
+    lda #<VALUE_Y2
+    sta VALUE
+    
+    jsr store_vram_value
+    jsr load_vram_value
+    
+    lda #<value_y2_message
+    sta TEXT_TO_PRINT
+    lda #>value_y2_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_value
+    jsr move_cursor_to_next_line
+    rts
+    
+    
+passthrough_of_c_and_x1_message: 
+    .asciiz "X1, C = "
+    
+passthrough_of_c_and_x1:
 
+; FIXME: we dont want to switch again here!
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%01000000           ; Reset cache byte index
+    sta $9F2C
+    
     ; == Set multiplier mode: off ==
 
     lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
@@ -199,24 +392,29 @@ test_multiplier_16x16:
     
     jsr write_mult_acc_result_into_vram
 
-    lda #2
-    sta CURSOR_X
-    lda #10
-    sta CURSOR_Y
-    
-    lda #<no_multiply_c_x1_message
+    lda #<passthrough_of_c_and_x1_message
     sta TEXT_TO_PRINT
-    lda #>no_multiply_c_x1_message
+    lda #>passthrough_of_c_and_x1_message
     sta TEXT_TO_PRINT + 1
     
     jsr load_and_print_4_bytes_of_vram
+    jsr move_cursor_to_next_line
     
-
-; TODO: should we put this in a routine?
-
-
-    ; == Set multiplier mode: on ==
+    rts
     
+multiply_c_and_x1_message: 
+    .asciiz "X1 * C = "
+    
+multiply_c_and_x1:
+
+; FIXME: we dont want to switch again here!
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%01000000           ; Reset cache byte index
+    sta $9F2C
+    
+; FIXME: we dont want to switch again here!
     lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
@@ -251,28 +449,41 @@ test_multiplier_16x16:
     lda #<(VRAM_ADDR_MULT_ACC_OUTPUT)
     sta VERA_ADDR_MULT_RESULT_ACC
 
-; FIXME: HACK for testing!    
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
-    sta VERA_CTRL
-; FIXME: the switch to subtracting will immidiatly have an effect, which means the cant do an add and *then* do the switch to subtracting!
-    lda #%00000110           ; Switch to subtracting, Reset accumulator
-;    lda #%00000010           ; Adding, accumulate
-    sta $9F2C
-    
     jsr write_mult_acc_result_into_vram
 
-    lda #2
-    sta CURSOR_X
-    lda #11
-    sta CURSOR_Y
-    
-    lda #<multiply_c_x1_message
+    lda #<multiply_c_and_x1_message
     sta TEXT_TO_PRINT
-    lda #>multiply_c_x1_message
+    lda #>multiply_c_and_x1_message
     sta TEXT_TO_PRINT + 1
     
     jsr load_and_print_4_bytes_of_vram
-
+    jsr move_cursor_to_next_line
+    
+    rts
+    
+    
+multiply_s_and_x2_message: 
+    .asciiz "X2 * S = "
+    
+multiply_s_and_x2:
+    
+; FIXME: we dont want to switch again here!
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%01000000           ; Reset cache byte index
+    sta $9F2C
+    
+; FIXME: we dont want to switch again here!
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00001000           ; Multiplier enabled, line draw mode
+    sta $9F29
+    
+    lda #%00000001           ; Adding, Reset accumulator
+    sta $9F2C
+    
     lda #(VRAM_ADDR_SAMPLE_VALUE_X2>>16)
     sta VERA_ADDR_LOW_OPERAND+2
     lda #>VRAM_ADDR_SAMPLE_VALUE_X2
@@ -282,33 +493,131 @@ test_multiplier_16x16:
     
     jsr load_low_operand_into_cache
 
-; FIXME: switching VERA_CTRL is slow!
+    lda #(VRAM_ADDR_SAMPLE_CONST_S>>16)
+    sta VERA_ADDR_HIGH_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_CONST_S
+    sta VERA_ADDR_HIGH_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_CONST_S
+    sta VERA_ADDR_HIGH_OPERAND
+    
+    jsr load_high_operand_into_cache
+    
+    lda #(VRAM_ADDR_MULT_ACC_OUTPUT>>16)
+    sta VERA_ADDR_MULT_RESULT_ACC+2
+    lda #>(VRAM_ADDR_MULT_ACC_OUTPUT)
+    sta VERA_ADDR_MULT_RESULT_ACC+1
+    lda #<(VRAM_ADDR_MULT_ACC_OUTPUT)
+    sta VERA_ADDR_MULT_RESULT_ACC
+
+    jsr write_mult_acc_result_into_vram
+
+    lda #<multiply_s_and_x2_message
+    sta TEXT_TO_PRINT
+    lda #>multiply_s_and_x2_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr load_and_print_4_bytes_of_vram
+    jsr move_cursor_to_next_line
+
+    rts
+    
+
+
+x1_times_c_plus_y1_times_s_message: 
+    .asciiz "X1 * C + Y1 * S = "
+    
+x1_times_c_plus_y1_times_s:
+
+; FIXME: we dont want to switch again here!
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%01000000           ; Reset cache byte index
+    sta $9F2C
+    
+    ; == Set multiplier mode: on ==
+    
     lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
-    lda #%00000000           ; Adding, DONT reset accumulator
-;    lda #%00000001           ; Adding, Reset accumulator
+    
+    lda #%00001000           ; Multiplier enabled, line draw mode
+    sta $9F29
+    
+    lda #%00000001           ; Adding, Reset accumulator
+    sta $9F2C
+    
+    lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
+    sta VERA_ADDR_LOW_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_X1
+    sta VERA_ADDR_LOW_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_VALUE_X1
+    sta VERA_ADDR_LOW_OPERAND
+    
+    jsr load_low_operand_into_cache
+    
+    lda #(VRAM_ADDR_SAMPLE_CONST_C>>16)
+    sta VERA_ADDR_HIGH_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_CONST_C
+    sta VERA_ADDR_HIGH_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_CONST_C
+    sta VERA_ADDR_HIGH_OPERAND
+    
+    jsr load_high_operand_into_cache
+    
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+; FIXME: the switch to subtracting will immidiatly have an effect, which means the cant do an add and *then* do the switch to subtracting!
+;    lda #%00000110           ; Switch to subtracting, Reset accumulator
+    lda #%00000010           ; Adding, accumulate
     sta $9F2C
     
     jsr write_mult_acc_result_into_vram
 
-    lda #2
-    sta CURSOR_X
-    lda #12
-    sta CURSOR_Y
+; FIXME: this time we get away with the fact that the cache byte index is set correctly, but we should manage this more correctly!
+    lda #(VRAM_ADDR_SAMPLE_VALUE_Y2>>16)
+    sta VERA_ADDR_LOW_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_Y2
+    sta VERA_ADDR_LOW_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_VALUE_Y2
+    sta VERA_ADDR_LOW_OPERAND
     
-    lda #<multiply_c_x2_message
+    jsr load_low_operand_into_cache
+
+    lda #(VRAM_ADDR_SAMPLE_CONST_S>>16)
+    sta VERA_ADDR_HIGH_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_CONST_S
+    sta VERA_ADDR_HIGH_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_CONST_S
+    sta VERA_ADDR_HIGH_OPERAND
+    
+    jsr load_high_operand_into_cache
+    
+; FIXME: switching VERA_CTRL is slow!
+;    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+;    sta VERA_CTRL
+;    lda #%00000000           ; Adding, DONT reset accumulator
+;    lda #%00000001           ; Adding, Reset accumulator
+;    sta $9F2C
+    
+    lda #(VRAM_ADDR_MULT_ACC_OUTPUT>>16)
+    sta VERA_ADDR_MULT_RESULT_ACC+2
+    lda #>(VRAM_ADDR_MULT_ACC_OUTPUT)
+    sta VERA_ADDR_MULT_RESULT_ACC+1
+    lda #<(VRAM_ADDR_MULT_ACC_OUTPUT)
+    sta VERA_ADDR_MULT_RESULT_ACC
+
+    jsr write_mult_acc_result_into_vram
+
+    lda #<x1_times_c_plus_y1_times_s_message
     sta TEXT_TO_PRINT
-    lda #>multiply_c_x2_message
+    lda #>x1_times_c_plus_y1_times_s_message
     sta TEXT_TO_PRINT + 1
     
     jsr load_and_print_4_bytes_of_vram
+    jsr move_cursor_to_next_line
 
-    
-    ; Exiting affine helper mode
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0
-    sta VERA_CTRL
-    
     rts
+    
     
     
 load_low_operand_into_cache:
@@ -383,101 +692,6 @@ write_mult_acc_result_into_vram:
     
     rts
     
-
-    
-place_sample_input_values_into_vram:
-
-    ; == Set orginal input values ==
-
-    lda #%00000000           ; Affine helper = 0, DCSEL=0, ADDRSEL=0
-    sta VERA_CTRL
-    
-    ; === Constant C ===
-    lda #(VRAM_ADDR_SAMPLE_CONST_C>>16)
-    sta VRAM_ADDR_VALUE+2
-    lda #>VRAM_ADDR_SAMPLE_CONST_C
-    sta VRAM_ADDR_VALUE+1
-    lda #<VRAM_ADDR_SAMPLE_CONST_C
-    sta VRAM_ADDR_VALUE
-
-    lda #>CONST_C
-    sta VALUE+1
-    lda #<CONST_C
-    sta VALUE
-    
-    jsr store_vram_value
-    jsr load_vram_value
-    
-    lda #2
-    sta CURSOR_X
-    lda #6
-    sta CURSOR_Y
-    
-    lda #<const_c_message
-    sta TEXT_TO_PRINT
-    lda #>const_c_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_value
-    
-    ; === VALUE X1 ===
-    lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
-    sta VRAM_ADDR_VALUE+2
-    lda #>VRAM_ADDR_SAMPLE_VALUE_X1
-    sta VRAM_ADDR_VALUE+1
-    lda #<VRAM_ADDR_SAMPLE_VALUE_X1
-    sta VRAM_ADDR_VALUE
-
-    lda #>VALUE_X1
-    sta VALUE+1
-    lda #<VALUE_X1
-    sta VALUE
-    
-    jsr store_vram_value
-    jsr load_vram_value
-    
-    lda #2
-    sta CURSOR_X
-    lda #7
-    sta CURSOR_Y
-    
-    lda #<value_x1_message
-    sta TEXT_TO_PRINT
-    lda #>value_x1_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_value
-    
-    
-    ; === VALUE X2 ===
-    lda #(VRAM_ADDR_SAMPLE_VALUE_X2>>16)
-    sta VRAM_ADDR_VALUE+2
-    lda #>VRAM_ADDR_SAMPLE_VALUE_X2
-    sta VRAM_ADDR_VALUE+1
-    lda #<VRAM_ADDR_SAMPLE_VALUE_X2
-    sta VRAM_ADDR_VALUE
-
-    lda #>VALUE_X2
-    sta VALUE+1
-    lda #<VALUE_X2
-    sta VALUE
-    
-    jsr store_vram_value
-    jsr load_vram_value
-    
-    lda #2
-    sta CURSOR_X
-    lda #8
-    sta CURSOR_Y
-    
-    lda #<value_x2_message
-    sta TEXT_TO_PRINT
-    lda #>value_x2_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_value
-    
-    rts
 
     
     
