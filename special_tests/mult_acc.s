@@ -162,6 +162,7 @@ test_multiplier_16x16:
     jsr multiply_c_and_x1
     jsr multiply_s_and_x2
     jsr x1_times_c_plus_y1_times_s
+    jsr x2_times_s_minus_y2_times_c
     
     ; Exiting affine helper mode
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
@@ -566,13 +567,9 @@ x1_times_c_plus_y1_times_s:
     
     lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
-; FIXME: the switch to subtracting will immidiatly have an effect, which means the cant do an add and *then* do the switch to subtracting!
-;    lda #%00000110           ; Switch to subtracting, Reset accumulator
     lda #%00000010           ; Adding, accumulate
     sta $9F2C
     
-;    jsr write_mult_acc_result_into_vram
-
 ; FIXME: this time we get away with the fact that the cache byte index is set correctly, but we should manage this more correctly!
     lda #(VRAM_ADDR_SAMPLE_VALUE_Y1>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -591,13 +588,6 @@ x1_times_c_plus_y1_times_s:
     sta VERA_ADDR_HIGH_OPERAND
     
     jsr load_high_operand_into_cache
-    
-; FIXME: switching VERA_CTRL is slow!
-;    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
-;    sta VERA_CTRL
-;    lda #%00000000           ; Adding, DONT reset accumulator
-;    lda #%00000001           ; Adding, Reset accumulator
-;    sta $9F2C
     
     lda #(VRAM_ADDR_MULT_ACC_OUTPUT>>16)
     sta VERA_ADDR_MULT_RESULT_ACC+2
@@ -618,6 +608,96 @@ x1_times_c_plus_y1_times_s:
 
     rts
     
+
+x2_times_s_minus_y2_times_c_message: 
+    .asciiz "X1 * S - Y2 * C = "
+    
+x2_times_s_minus_y2_times_c:
+
+; FIXME: we dont want to switch again here!
+    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%01000000           ; Reset cache byte index
+    sta $9F2C
+    
+    ; == Set multiplier mode: on ==
+    
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00001000           ; Multiplier enabled, line draw mode
+    sta $9F29
+    
+    lda #%00000001           ; Adding, Reset accumulator
+    sta $9F2C
+    
+    lda #(VRAM_ADDR_SAMPLE_VALUE_X2>>16)
+    sta VERA_ADDR_LOW_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_X2
+    sta VERA_ADDR_LOW_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_VALUE_X2
+    sta VERA_ADDR_LOW_OPERAND
+    
+    jsr load_low_operand_into_cache
+    
+    lda #(VRAM_ADDR_SAMPLE_CONST_S>>16)
+    sta VERA_ADDR_HIGH_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_CONST_S
+    sta VERA_ADDR_HIGH_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_CONST_S
+    sta VERA_ADDR_HIGH_OPERAND
+    
+    jsr load_high_operand_into_cache
+    
+    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000010           ; Adding, accumulate
+    sta $9F2C
+    
+; FIXME: a switch to subtracting will immidiatly have an effect, which means the cant do an accumulate and *then* do the switch to subtracting in one write! So we first do an accumulate, then switch to subtracting
+    lda #%00000100           ; Switch to subtracting
+    sta $9F2C
+    
+; FIXME: this time we get away with the fact that the cache byte index is set correctly, but we should manage this more correctly!
+    lda #(VRAM_ADDR_SAMPLE_VALUE_Y2>>16)
+    sta VERA_ADDR_LOW_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_Y2
+    sta VERA_ADDR_LOW_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_VALUE_Y2
+    sta VERA_ADDR_LOW_OPERAND
+    
+    jsr load_low_operand_into_cache
+
+    lda #(VRAM_ADDR_SAMPLE_CONST_C>>16)
+    sta VERA_ADDR_HIGH_OPERAND+2
+    lda #>VRAM_ADDR_SAMPLE_CONST_C
+    sta VERA_ADDR_HIGH_OPERAND+1
+    lda #<VRAM_ADDR_SAMPLE_CONST_C
+    sta VERA_ADDR_HIGH_OPERAND
+    
+    jsr load_high_operand_into_cache
+    
+    lda #(VRAM_ADDR_MULT_ACC_OUTPUT>>16)
+    sta VERA_ADDR_MULT_RESULT_ACC+2
+    lda #>(VRAM_ADDR_MULT_ACC_OUTPUT)
+    sta VERA_ADDR_MULT_RESULT_ACC+1
+    lda #<(VRAM_ADDR_MULT_ACC_OUTPUT)
+    sta VERA_ADDR_MULT_RESULT_ACC
+
+    jsr write_mult_acc_result_into_vram
+
+    lda #<x2_times_s_minus_y2_times_c_message
+    sta TEXT_TO_PRINT
+    lda #>x2_times_s_minus_y2_times_c_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr load_and_print_4_bytes_of_vram
+    jsr move_cursor_to_next_line
+
+    rts
+
     
     
 load_low_operand_into_cache:
