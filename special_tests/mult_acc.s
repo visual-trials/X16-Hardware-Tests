@@ -188,7 +188,7 @@ place_sample_input_values_into_vram:
 
     ; == Set orginal input values ==
 
-    lda #%00000000           ; Affine helper = 0, DCSEL=0, ADDRSEL=0
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
     ; === Constant C ===
@@ -352,7 +352,7 @@ passthrough_of_c_and_x1_message:
 passthrough_of_c_and_x1:
 
 ; FIXME: we dont want to switch again here!
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    lda #%00001000           ; DCSEL=4, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%01000000           ; Reset cache byte index
@@ -360,7 +360,7 @@ passthrough_of_c_and_x1:
     
     ; == Set multiplier mode: off ==
 
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%00000000           ; Multiplier NOT enabled, line draw mode
@@ -409,14 +409,14 @@ multiply_c_and_x1_message:
 multiply_c_and_x1:
 
 ; FIXME: we dont want to switch again here!
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    lda #%00001000           ; DCSEL=4, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%01000000           ; Reset cache byte index
     sta $9F2C
     
 ; FIXME: we dont want to switch again here!
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%00001000           ; Multiplier enabled, line draw mode
@@ -469,14 +469,14 @@ multiply_s_and_x2_message:
 multiply_s_and_x2:
     
 ; FIXME: we dont want to switch again here!
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    lda #%00001000           ; DCSEL=4, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%01000000           ; Reset cache byte index
     sta $9F2C
     
 ; FIXME: we dont want to switch again here!
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%00001000           ; Multiplier enabled, line draw mode
@@ -530,7 +530,7 @@ x1_times_c_plus_y1_times_s_message:
 x1_times_c_plus_y1_times_s:
 
 ; FIXME: we dont want to switch again here!
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    lda #%00001000           ; DCSEL=4, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%01000000           ; Reset cache byte index
@@ -538,7 +538,7 @@ x1_times_c_plus_y1_times_s:
     
     ; == Set multiplier mode: on ==
     
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%00001000           ; Multiplier enabled, line draw mode
@@ -565,7 +565,7 @@ x1_times_c_plus_y1_times_s:
     
     jsr load_high_operand_into_cache
     
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     lda #%00000010           ; Adding, accumulate
     sta $9F2C
@@ -615,7 +615,7 @@ x2_times_s_minus_y2_times_c_message:
 x2_times_s_minus_y2_times_c:
 
 ; FIXME: we dont want to switch again here!
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    lda #%00001000           ; DCSEL=4, ADDRSEL=1
     sta VERA_CTRL
     
     lda #%01000000           ; Reset cache byte index
@@ -623,7 +623,7 @@ x2_times_s_minus_y2_times_c:
     
     ; == Set multiplier mode: on ==
     
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%00001000           ; Multiplier enabled, line draw mode
@@ -650,7 +650,7 @@ x2_times_s_minus_y2_times_c:
     
     jsr load_high_operand_into_cache
     
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%00000010           ; Adding, accumulate
@@ -704,7 +704,8 @@ load_low_operand_into_cache:
 
     ; == Load value into low side of cache32 ==
     
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+; FIXME: this is probably not needed here! We could have changed ADDRSEL beforehand!
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
     sta VERA_CTRL
     
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 1
@@ -729,7 +730,8 @@ load_high_operand_into_cache:
 
     ; == Load value into high side of cache32 ==
     
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+; FIXME: this is probably not needed here! We could have changed ADDRSEL beforehand!
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
     sta VERA_CTRL
     
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 1
@@ -755,7 +757,7 @@ write_mult_acc_result_into_vram:
 
     ; == Write result into VRAM ==
     
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     ; Writing cache to vram 
@@ -808,7 +810,7 @@ load_and_print_4_bytes_of_vram:
 
     ; == Read result from VRAM ==
     
-    lda #%00000000           ; Affine helper = 0, DCSEL=0, ADDRSEL=0
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 1
@@ -862,7 +864,7 @@ load_and_print_4_bytes_of_vram:
     
 store_vram_value:
 
-    lda #%00000000           ; Affine helper = 0, DCSEL=0, ADDRSEL=0
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
     ; Set VRAM address for storing the 16-bit value
@@ -884,7 +886,7 @@ store_vram_value:
 
 load_vram_value:
 
-    lda #%00000000           ; Affine helper = 0, DCSEL=0, ADDRSEL=0
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
     ; Set VRAM address for loading the 16-bit value

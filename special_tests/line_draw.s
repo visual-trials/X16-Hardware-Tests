@@ -115,7 +115,7 @@ test_sub_pixel_increments:
 
     ; Setting up for drawing a new line
 
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
@@ -125,7 +125,7 @@ test_sub_pixel_increments:
     lda #%00000000
     sta $9F29
     
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
     sta VERA_CTRL
     
     lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
@@ -135,7 +135,7 @@ test_sub_pixel_increments:
     lda #0
     sta VERA_ADDR_LOW        ; Setting $00000
     
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
     lda #73                  ; X increment low
@@ -287,7 +287,7 @@ draw_line_to_the_right_from_left_top_corner_next:
     .if(USE_AFFINE_HELPER)
         ; Setting up for drawing a new line
 
-        lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+        lda #%00000100           ; DCSEL=2, ADDRSEL=0
         sta VERA_CTRL
         
         lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
@@ -297,7 +297,7 @@ draw_line_to_the_right_from_left_top_corner_next:
         lda #%00000000
         sta $9F29
         
-        lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+        lda #%00000101           ; DCSEL=2, ADDRSEL=1
         sta VERA_CTRL
         
         lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
@@ -307,7 +307,7 @@ draw_line_to_the_right_from_left_top_corner_next:
         lda #0
         sta VERA_ADDR_LOW        ; Resetting back to $00000
         
-        lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+        lda #%00000110           ; DCSEL=3, ADDRSEL=0
         sta VERA_CTRL
         
         lda SLOPE                ; X increment low -> HERE used as Y increment!
@@ -371,7 +371,7 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     
         ; Setting up for drawing a new line
 
-        lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+        lda #%00000100           ; DCSEL=2, ADDRSEL=0
         sta VERA_CTRL
         
         lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
@@ -381,7 +381,7 @@ draw_line_to_the_bottom_from_left_top_corner_next:
         lda #%00000000
         sta $9F29
         
-        lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+        lda #%00000101           ; DCSEL=2, ADDRSEL=1
         sta VERA_CTRL
         
         lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
@@ -391,7 +391,7 @@ draw_line_to_the_bottom_from_left_top_corner_next:
         lda #0
         sta VERA_ADDR_LOW        ; Resetting back to $00000
         
-        lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+        lda #%00000110           ; DCSEL=3, ADDRSEL=0
         sta VERA_CTRL
         
         lda SLOPE                ; X increment low -> HERE used as Y increment!
@@ -433,7 +433,7 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     
     .if(USE_AFFINE_HELPER)
         ; Turn off affine helper mode
-        lda #%00000000           ; Affine helper = 0, DCSEL=0, ADDRSEL=0
+        lda #%00000000           ; DCSEL=0, ADDRSEL=0
         sta VERA_CTRL
     .endif
     

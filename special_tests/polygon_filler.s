@@ -118,7 +118,7 @@ test_simple_polygon_filler:
 
     ; Setting up for drawing a polygon, setting both addresses at the same starting point
 
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     sta VERA_ADDR_BANK
@@ -132,7 +132,7 @@ test_simple_polygon_filler:
     lda #%00000001
     sta $9F29
 
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
     lda #173                  ; X increment low
@@ -147,7 +147,7 @@ test_simple_polygon_filler:
     
     ; Setting x1 and x2 pixel position
     
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    lda #%00001001           ; DCSEL=4, ADDRSEL=1
     sta VERA_CTRL
     
     lda #<TRIANGLE_TOP_POINT_X
@@ -183,7 +183,7 @@ test_simple_polygon_filler:
     
     jsr draw_polygon_part
     
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
     lda #30                  ; X increment low
@@ -207,7 +207,7 @@ test_simple_polygon_filler:
 
 draw_polygon_part:
 
-    lda #%00000111           ; Affine helper = 1, DCSEL=1, ADDRSEL=1
+    lda #%00001011           ; DCSEL=5, ADDRSEL=1
     sta VERA_CTRL
     
 draw_triangle_row_next:

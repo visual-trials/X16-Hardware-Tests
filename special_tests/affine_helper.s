@@ -263,7 +263,7 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     sta VERA_ADDR_ZP_TO+1
     
     ; Entering *affine helper mode*: selecting ADDR0
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     ; Setting base address and map size
@@ -352,7 +352,7 @@ SINE_ROTATE = 67
 rotate_or_shear_bitmap_fast_1_byte_per_copy:
 
     ; Entering *affine helper mode*
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
 
 
@@ -395,13 +395,17 @@ rotate_or_shear_bitmap_fast_1_byte_per_copy:
     ldx #0
     
 rotate_copy_next_row_1:
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
 
     ; FIXME: we are resetting the subpixel positions here, but this is kinda awkward! 
     ; FIXME: we do a subpixel RESET here, BUT should do a SET of the subpixel positions here (which is more precise)
     ; FIXME: **IT DONE ABOVE ALSO!!**
-    lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
+    .if(DO_ROTATE)
+        lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
+    .else
+        lda #%10000101           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
+    .endif
     sta $9F2A
     
     .if (USE_CACHE_FOR_WRITING)
@@ -422,7 +426,7 @@ rotate_copy_next_row_1:
 
     ; Setting the position
     
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    lda #%00001001           ; DCSEL=4, ADDRSEL=1
     sta VERA_CTRL
     
     ; FIXME: we should probably set the subpixel positions! (for more precision)

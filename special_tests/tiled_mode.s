@@ -1,10 +1,10 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 0
+USE_TABLE_FILES = 1
 DO_NO_TILE_LOOKUP = 1
-DO_CLIP = 1
-DRAW_TILED_PERSPECTIVE = 0  ; Otherwise FLAT tiles
-MOVE_XY_POSITION = 0
+DO_CLIP = 0
+DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
+MOVE_XY_POSITION = 1
 TURN_AROUND = 0
 MOVE_SLOWLY = 0
 DEBUG_LEDS = 1
@@ -380,7 +380,7 @@ tiled_perspective_fast:
 ;    sta VERA_ADDR_ZP_FROM+1
 
     ; Entering *affine helper mode*: selecting ADDR0
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     ; Setting base addresses and map size
@@ -407,7 +407,7 @@ tiled_perspective_fast:
     sta $9F29
     
     ; Entering *affine helper mode*: selecting ADDR1 
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
     lda #0                   ; X increment low
@@ -423,7 +423,7 @@ tiled_perspective_fast:
     
 tiled_perspective_copy_next_row_1:
     
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
 
     .if (USE_CACHE_FOR_WRITING)
@@ -440,7 +440,7 @@ tiled_perspective_copy_next_row_1:
     
     ; We have to set both x and y subpixels incrementers, so we change to the appropiate selectors
     ; NOTE: since we already in this setting, we dont have to set it again
-    ; lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    ; lda #%00000110           ; DCSEL=3, ADDRSEL=0
     ; sta VERA_CTRL
     
     
@@ -477,7 +477,7 @@ tiled_perspective_copy_next_row_1:
         
     ; Setting the position
     
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    lda #%00001001           ; DCSEL=4, ADDRSEL=1
     sta VERA_CTRL
 
     .if(USE_TABLE_FILES)
@@ -536,7 +536,7 @@ tiled_perspective_copy_next_row_1:
     
     ; Setting the sub position
     
-    lda #%00000111           ; Affine helper = 1, DCSEL=1, ADDRSEL=1
+    lda #%00001011           ; DCSEL=5, ADDRSEL=1
     sta VERA_CTRL
     
     .if(USE_TABLE_FILES)
@@ -662,7 +662,7 @@ flat_tiles_fast:
 ;    sta VERA_ADDR_ZP_FROM+1
 
     ; Entering *affine helper mode*: selecting ADDR0
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     ; Setting base addresses and map size
@@ -687,15 +687,10 @@ flat_tiles_fast:
     .else
         ora #%00000011  ; 11 for tile lookup
     .endif
-; FIXME: remove this!
-;    ora #%00001000           ; turn on multiplier
-    sta AFFINE_SETTINGS
-    
-    lda AFFINE_SETTINGS
     sta $9F29
     
     ; Entering *affine helper mode*: selecting ADDR1 
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
     lda #0                   ; X increment low
@@ -710,7 +705,7 @@ flat_tiles_fast:
     ldx #0
     
 repetitive_copy_next_row_1:
-    lda #%00000110           ; Affine helper = 1, DCSEL=1, ADDRSEL=0
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
 
     .if (USE_CACHE_FOR_WRITING)
@@ -727,7 +722,7 @@ repetitive_copy_next_row_1:
 
     ; Setting the position
     
-    lda #%00000101           ; Affine helper = 1, DCSEL=0, ADDRSEL=1
+    lda #%00001001           ; DCSEL=4, ADDRSEL=1
     sta VERA_CTRL
     
     lda #0                   ; X pixel position low [7:0]
@@ -760,18 +755,6 @@ repetitive_copy_next_row_1:
     sta VERA_ADDR_ZP_TO+1
 
     inx
-; FIXME: ======== HACK! =========
-    cpx #32
-    bne keep_on_going
-    
-    lda #%00000100           ; Affine helper = 1, DCSEL=0, ADDRSEL=0
-    sta VERA_CTRL
-    
-    lda AFFINE_SETTINGS
-    eor #%00001000           ; turn on multiplier
-    sta $9F29
-keep_on_going:
-; FIXME: ======= / HACK! ========
     cpx #TEXTURE_HEIGHT          ; we do 64 rows
     bne repetitive_copy_next_row_1
     

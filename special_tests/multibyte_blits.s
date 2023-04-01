@@ -190,7 +190,8 @@ blit_some_bytes:
     
     ; Reading first 4 bytes of the palette one-by-one and show them on screen
     
-    lda #%00000001           ; DCSEL=0, ADDRSEL=1
+; FIXME: We are setting to DCSEL=2, but this is just to enable affine_helper, which is probably not the way we want to enable the wrpatterns
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
     sta VERA_CTRL
 
     lda #%00010001           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 1 byte increment (=%0001)
@@ -200,7 +201,8 @@ blit_some_bytes:
     lda #>VERA_PALETTE
     sta VERA_ADDR_HIGH
     
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+; FIXME: We are setting to DCSEL=2, but this is just to enable affine_helper, which is probably not the way we want to enable the wrpatterns
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
 
     ; Setting wrpattern to 11b and address % 4 = 00b
@@ -414,7 +416,8 @@ copy_bitmap_fast_1_byte_per_copy:
     ldx #0
     
 copy_next_column_1:
-    lda #%00000001           ; DCSEL=0, ADDRSEL=1
+; FIXME: We are setting to DCSEL=2, but this is just to enable affine_helper, which is probably not the way we want to enable the wrpatterns
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
     sta VERA_CTRL
 
     lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
@@ -424,7 +427,8 @@ copy_next_column_1:
     lda VERA_ADDR_ZP_FROM
     sta VERA_ADDR_LOW
     
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+; FIXME: We are setting to DCSEL=2, but this is just to enable affine_helper, which is probably not the way we want to enable the wrpatterns
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
@@ -469,7 +473,8 @@ copy_bitmap_fast_4_bytes_per_copy:
     ldx #0
     
 copy_next_column_4:
-    lda #%00000001           ; DCSEL=0, ADDRSEL=1
+; FIXME: We are setting to DCSEL=2, but this is just to enable affine_helper, which is probably not the way we want to enable the wrpatterns
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
     sta VERA_CTRL
 
     lda #%11100110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
@@ -480,7 +485,8 @@ copy_next_column_4:
     lda VERA_ADDR_ZP_FROM
     sta VERA_ADDR_LOW
     
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+; FIXME: We are setting to DCSEL=2, but this is just to enable affine_helper, which is probably not the way we want to enable the wrpatterns
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     lda #%11100110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
