@@ -571,14 +571,14 @@ x1_times_c_plus_y1_times_s:
     lda #%00000010           ; Adding, accumulate
     sta $9F2C
     
-    jsr write_mult_acc_result_into_vram
+;    jsr write_mult_acc_result_into_vram
 
 ; FIXME: this time we get away with the fact that the cache byte index is set correctly, but we should manage this more correctly!
-    lda #(VRAM_ADDR_SAMPLE_VALUE_Y2>>16)
+    lda #(VRAM_ADDR_SAMPLE_VALUE_Y1>>16)
     sta VERA_ADDR_LOW_OPERAND+2
-    lda #>VRAM_ADDR_SAMPLE_VALUE_Y2
+    lda #>VRAM_ADDR_SAMPLE_VALUE_Y1
     sta VERA_ADDR_LOW_OPERAND+1
-    lda #<VRAM_ADDR_SAMPLE_VALUE_Y2
+    lda #<VRAM_ADDR_SAMPLE_VALUE_Y1
     sta VERA_ADDR_LOW_OPERAND
     
     jsr load_low_operand_into_cache
