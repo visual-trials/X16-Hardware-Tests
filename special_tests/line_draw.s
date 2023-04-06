@@ -122,7 +122,7 @@ test_sub_pixel_increments:
     sta VERA_ADDR_BANK
     
     ; Entering *line draw mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
-    lda #%00000000
+    lda #%00000010
     sta $9F29
     
     lda #%00000101           ; DCSEL=2, ADDRSEL=1
@@ -138,15 +138,13 @@ test_sub_pixel_increments:
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #73                  ; X increment low
+    lda #<(73<<1)            ; X increment low
     sta $9F29
-    lda #%10000100           ; Subpixel position reset = 1, 0, DECR = 0, X subpixel increment exponent = 001, (X) increment high = 00
+    lda #>(73<<1)            ; X increment high
     sta $9F2A
-; FIXME: THIS IS NOT NEEDED ANYMORE!!
-;    lda #80
-;    sta $9F2B                ; Y increment low
-;    lda #%00000100           ; L0/L1 = 0, Repeat / Clip / Combined / None = 00, Y subpixel increment exponent = 001, Y increment high = 00 
-;    sta $9F2C                ; Y increment high (only 1 bit is used)
+    
+    ; Note: we do not need to set the Y low/high increments.
+    
     
     ; Starting to draw: 4 cpu cycles per pixel
     
@@ -294,7 +292,7 @@ draw_line_to_the_right_from_left_top_corner_next:
         sta VERA_ADDR_BANK
         
         ; Entering *line draw mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
-        lda #%00000000
+        lda #%00000010
         sta $9F29
         
         lda #%00000101           ; DCSEL=2, ADDRSEL=1
@@ -311,9 +309,13 @@ draw_line_to_the_right_from_left_top_corner_next:
         sta VERA_CTRL
         
         lda SLOPE                ; X increment low -> HERE used as Y increment!
+        asl
         sta $9F29
-        lda #%10000100           ; Subpixel position reset = 1, 0, DECR = 0, X subpixel increment exponent = 001, (X) increment high = 00
+        lda #0                   ; X increment high
+        rol
         sta $9F2A
+
+; FIXME: there is no easy way to reset the subpixel position! (without setting a pixel position that is not relevant for line drawing!
         
     .else
         lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
@@ -378,7 +380,7 @@ draw_line_to_the_bottom_from_left_top_corner_next:
         sta VERA_ADDR_BANK
         
         ; Entering *line draw mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
-        lda #%00000000
+        lda #%00000010
         sta $9F29
         
         lda #%00000101           ; DCSEL=2, ADDRSEL=1
@@ -395,10 +397,14 @@ draw_line_to_the_bottom_from_left_top_corner_next:
         sta VERA_CTRL
         
         lda SLOPE                ; X increment low -> HERE used as Y increment!
+        asl
         sta $9F29
-        lda #%10000100           ; Subpixel position reset = 1, 0, DECR = 0, X subpixel increment exponent = 001, (X) increment high = 00
+        lda #0                   ; X increment high
+        rol
         sta $9F2A
 
+; FIXME: there is no easy way to reset the subpixel position! (without setting a pixel position that is not relevant for line drawing!
+        
     .else
         lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 byte increment (=%1110)
         sta VERA_ADDR_BANK

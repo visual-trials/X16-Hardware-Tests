@@ -358,13 +358,13 @@ y_pixel_positions_in_map_low:
 y_pixel_positions_in_map_high:
     .byte 7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 x_sub_pixel_steps_low:
-    .byte 231,172,120,73,31,249,214,183,154,127,102,80,59,39,20,3,231,201,172,145,120,96,73,51,31,11,249,231,214,198,183,168,154,140,127,115,102,91,80,69,59,49,39,30,20,12,3,251,243,235,228,221,214,207,200,194,188,182,176,170,164,159,153,148
+    .byte 206,88,240,147,62,242,173,110,52,255,205,160,118,78,41,7,231,201,172,145,120,96,73,51,31,11,249,231,214,198,183,168,154,140,127,115,102,91,80,69,59,49,39,30,20,12,3,251,243,235,228,221,214,207,200,194,188,182,176,170,164,159,153,148
 x_sub_pixel_steps_high:
-    .byte 7,7,7,7,7,6,6,6,6,6,6,6,6,6,6,6,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+    .byte 7,7,6,6,6,5,5,5,5,4,4,4,4,4,4,4,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 y_sub_pixel_steps_low:
-    .byte 190,164,141,120,101,84,68,54,41,29,18,8,255,246,238,230,223,216,210,204,198,193,188,183,178,174,170,166,162,158,155,152,148,145,142,140,137,134,132,129,127,125,123,121,119,117,115,113,111,109,108,106,105,103,102,100,99,97,96,95,94,92,91,90
+    .byte 66,92,115,136,155,172,188,202,215,227,238,248,1,10,18,26,33,40,46,52,58,63,68,73,78,82,86,90,94,98,101,104,108,111,114,116,119,122,124,127,129,131,133,135,137,139,141,143,145,147,148,150,151,153,154,156,157,159,160,161,162,164,165,166
 y_sub_pixel_steps_high:
-    .byte 33,33,33,33,33,33,33,33,33,33,33,33,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32
+    .byte 254,254,254,254,254,254,254,254,254,254,254,254,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255
 
     
 tiled_perspective_fast:
@@ -400,24 +400,25 @@ tiled_perspective_fast:
         ora #%00000000  ; 0 for Repeat
     .endif
     .if(DO_NO_TILE_LOOKUP)
-        ora #%00000010  ; 10 for no tile lookup
+        ora #%00000100  ; 100 for no tile lookup
     .else
-        ora #%00000011  ; 11 for tile lookup
+        ora #%00000101  ; 101 for tile lookup
     .endif
     sta $9F29
     
     ; Entering *affine helper mode*: selecting ADDR1 
-    lda #%00000110           ; DCSEL=3, ADDRSEL=0
-    sta VERA_CTRL
+;    lda #%00000110           ; DCSEL=3, ADDRSEL=0
+;    sta VERA_CTRL
     
-    lda #0                   ; X increment low
-    sta $9F29
-    lda #%00000101           ; 00, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
-    sta $9F2A
-    lda #00                  ; Y increment low
-    sta $9F2B
-    lda #%00000100           ; 00, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
-    sta $9F2C
+; FIXME: why are we setting the increment here??
+;    lda #0                   ; X increment low
+;    sta $9F29
+;    lda #%00000101           ; 00, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
+;    sta $9F2A
+;    lda #00                  ; Y increment low
+;    sta $9F2B
+;    lda #%00000100           ; 00, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
+;    sta $9F2C
 
     ldx #0
     
@@ -683,9 +684,9 @@ flat_tiles_fast:
         ora #%00000000  ; 0 for Repeat
     .endif
     .if(DO_NO_TILE_LOOKUP)
-        ora #%00000010  ; 10 for no tile lookup
+        ora #%00000100  ; 100 for no tile lookup
     .else
-        ora #%00000011  ; 11 for tile lookup
+        ora #%00000101  ; 101 for tile lookup
     .endif
     sta $9F29
     
@@ -693,13 +694,13 @@ flat_tiles_fast:
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #0                   ; X increment low
+    lda #0                   ; X increment low = 0
     sta $9F29
-    lda #%00000101           ; 00, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
+    lda #%00000010           ; X increment high = 10b
     sta $9F2A
-    lda #00                  ; Y increment low
+    lda #00                  ; Y increment low = 0
     sta $9F2B
-    lda #%00000100           ; 00, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
+    lda #%00000000           ; Y increment high = 0
     sta $9F2C
 
     ldx #0

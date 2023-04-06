@@ -164,7 +164,6 @@ test_multiplier_16x16:
     jsr x1_times_c_plus_y1_times_s
     jsr x2_times_s_minus_y2_times_c
     
-    ; Exiting affine helper mode
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
@@ -363,7 +362,7 @@ passthrough_of_c_and_x1:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00000000           ; Multiplier NOT enabled, line draw mode
+    lda #%00000000           ; Multiplier NOT enabled, normal addr1 mode
     sta $9F29
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
@@ -419,7 +418,7 @@ multiply_c_and_x1:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00001000           ; Multiplier enabled, line draw mode
+    lda #%00001000           ; Multiplier enabled, normal addr1 mode
     sta $9F29
     
     lda #%00000001           ; Adding, Reset accumulator
@@ -479,7 +478,7 @@ multiply_s_and_x2:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00001000           ; Multiplier enabled, line draw mode
+    lda #%00001000           ; Multiplier enabled, normal addr1 mode
     sta $9F29
     
     lda #%00000001           ; Adding, Reset accumulator
@@ -541,7 +540,7 @@ x1_times_c_plus_y1_times_s:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00001000           ; Multiplier enabled, line draw mode
+    lda #%00001000           ; Multiplier enabled, normal addr1 mode
     sta $9F29
     
     lda #%00000001           ; Adding, Reset accumulator
@@ -626,7 +625,7 @@ x2_times_s_minus_y2_times_c:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00001000           ; Multiplier enabled, line draw mode
+    lda #%00001000           ; Multiplier enabled, normal addr1 mode
     sta $9F29
     
     lda #%00000001           ; Adding, Reset accumulator

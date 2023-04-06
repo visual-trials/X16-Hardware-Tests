@@ -129,19 +129,19 @@ test_simple_polygon_filler:
     sta VERA_ADDR_LOW
     
     ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
-    lda #%00000001
+    lda #%00000011
     sta $9F29
 
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #173                  ; X increment low
+    lda #<(-173<<1)           ; X increment low (signed)
     sta $9F29
-    lda #%10100100           ; Subpixel position reset = 1, 0, DECR = 1, X subpixel increment exponent = 001, (X) increment high = 00
+    lda #>(-173<<1)           ; X increment high (signed)
     sta $9F2A
-    lda #130                 ; Y increment low
+    lda #<(130<<1)            ; Y increment low (signed)
     sta $9F2B                
-    lda #%00000100           ; Copy icnr to subpos = 0, 0, DECR = 0, Y subpixel increment exponent = 001, (Y) increment high = 00
+    lda #>(130<<1)            ; Y increment high (signed)
     sta $9F2C    
     
     
@@ -186,17 +186,19 @@ test_simple_polygon_filler:
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #30                  ; X increment low
+; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
+    
+    lda #<(286<<1)           ; X increment low
     sta $9F29
-    lda #%10000101           ; Subpixel position reset = 1, 0, DECR = 0, X subpixel increment exponent = 001, (X) increment high = 00
+    lda #>(286<<1)           ; X increment high
     sta $9F2A
-    lda #130                 ; Y increment low
+    lda #<(130<<1)           ; Y increment low
     sta $9F2B                
-    lda #%00000100           ; Copy icnr to subpos = 0, 0, DECR = 0, Y subpixel increment exponent = 001, (Y) increment high = 00
+    lda #>(130<<1)           ; Y increment high
     sta $9F2C
 
 ; FIXME: hardcoded!
-    lda #99
+    lda #98
     sta NUMBER_OF_ROWS
     
     jsr draw_polygon_part

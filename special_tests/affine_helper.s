@@ -273,7 +273,7 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
 
     lda #%10000000  ; 10000000 for 16x16 map
     ora #%00010000  ; 1 for Clip
-    ora #%00000010  ; 10 for no tile lookup
+    ora #%00000100  ; 100 for no tile lookup
     sta $9F29
     
     jsr rotate_or_shear_bitmap_fast_1_byte_per_copy
@@ -372,23 +372,27 @@ rotate_or_shear_bitmap_fast_1_byte_per_copy:
     
     .if(DO_ROTATE)
         lda #COSINE_ROTATE       ; X increment low
+        asl
         sta $9F29
-        lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 00
+        lda #0
+        rol                      
                                  ; FIXME: **THIS IS DONE BELOW ALSO!!**
         sta $9F2A
         lda #SINE_ROTATE
+        asl
         sta $9F2B                ; Y increment low
-        lda #%00000100           ; 00, Y decr = 0, Y subpixel increment exponent = 001, Y increment high = 00 
+        lda #0
+        rol
         sta $9F2C
     .else
         lda #0                   ; X increment low
         sta $9F29
-        lda #%10000101           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
+        lda #%00000010           ; X increment high = 10
                                  ; FIXME: **THIS IS DONE BELOW ALSO!!**
         sta $9F2A
-        lda #60
-        sta $9F2B                ; Y increment low
-        lda #%00100100           ; 00, Y decr = 1, Y subpixel increment exponent = 001, Y increment high = 00 
+        lda #<(-60<<1)            ; Y increment low
+        sta $9F2B                
+        lda #>(-60<<1)            ; Y increment high
         sta $9F2C
     .endif
 
@@ -401,12 +405,15 @@ rotate_copy_next_row_1:
     ; FIXME: we are resetting the subpixel positions here, but this is kinda awkward! 
     ; FIXME: we do a subpixel RESET here, BUT should do a SET of the subpixel positions here (which is more precise)
     ; FIXME: **IT DONE ABOVE ALSO!!**
-    .if(DO_ROTATE)
-        lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
-    .else
-        lda #%10000101           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
-    .endif
-    sta $9F2A
+; FIXME!
+; FIXME!
+; FIXME!
+;    .if(DO_ROTATE)
+;        lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
+;    .else
+;        lda #%10000101           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
+;    .endif
+;    sta $9F2A
     
     .if (USE_CACHE_FOR_WRITING)
         .if(USE_TRANSPARENT_WRITING)
@@ -453,9 +460,9 @@ x_pixel_pos_high_correct:
         lda #%01000111           ; sign extending X pixel position (when negative)
         bra y_pixel_pos_high_correct
 y_pixel_pos_high_positive:
-        lda #%01000000
+        lda #%01100000
 y_pixel_pos_high_correct:
-        sta $9F2C                ; Y subpixel position[0] = 0, Reset cache byte index = 1, Y pixel position high [10:8] = 000 or 111
+        sta $9F2C                ; Y subpixel position[0] = 0, Reset cache byte index = 1, Reset subpixel position = 1, Y pixel position high [10:8] = 000 or 111
     .else
         ; == SHEAR ==
     
@@ -465,8 +472,8 @@ y_pixel_pos_high_correct:
         sta $9F2A                ; X subpixel position[0] = 0, X pixel position high [10:8] = 000
         txa
         sta $9F2B                ; Y pixel position low [7:0]
-        lda #%01000000
-        sta $9F2C                ; Y subpixel position[0] = 0, Reset cache byte index = 1, Y pixel position high [10:8] = 000
+        lda #%01100000
+        sta $9F2C                ; Y subpixel position[0] = 0, Reset cache byte index = 1, Reset subpixel position = 1, Y pixel position high [10:8] = 000
     .endif
 
     ; Copy one row of 100 pixels
