@@ -109,13 +109,14 @@ reset:
     ;sta VERA_DC_HSCALE
     ;sta VERA_DC_VSCALE
 
+    ; jsr HACK_test_8x8_multiplier
+    
     jsr test_mult_acc
     
 loop:
   jmp loop
 
   
-    
     
 multi_acc_message: 
     .asciiz "Multiplier and accumulator "
@@ -905,6 +906,131 @@ load_vram_value:
     
     rts
 
+    
+; -- This part is/was for testing DSPs in dual 8x8 multiplier mode. --
+;          It can be removed if/when this testing is done.
+    
+HACK_test_8x8_multiplier_message: 
+    .asciiz "Testing 8x8 multiplier"
+
+HACK_test_8x8_multiplier:
+
+    lda #TITLE_COLOR
+    sta TEXT_COLOR
+    
+    lda #7
+    sta CURSOR_X
+    lda #1
+    sta CURSOR_Y
+
+    lda #<HACK_test_8x8_multiplier_message
+    sta TEXT_TO_PRINT
+    lda #>HACK_test_8x8_multiplier_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+    lda #10
+    sta CURSOR_X
+    lda #3
+    sta CURSOR_Y
+    jsr setup_cursor
+    
+; == 1a ==
+    lda #$FF
+    sta VERA_L0_HSCROLL_L
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    
+    inc CURSOR_X
+    jsr setup_cursor
+    
+; == 1b ==
+    lda #$FF
+    sta VERA_L0_VSCROLL_L
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    
+    inc CURSOR_X
+    jsr setup_cursor
+    
+    lda #%00001100           ; DCSEL=6, ADDRSEL=0
+    sta VERA_CTRL
+    
+; -- output1[7:0] --
+    lda $9F29
+    sta VALUE
+    
+; -- output1[15:8] --
+    lda $9F2A
+    sta VALUE+1
+    
+    lda VALUE+1
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    lda VALUE
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    
+
+
+    lda #10
+    sta CURSOR_X
+    lda #5
+    sta CURSOR_Y
+    jsr setup_cursor
+
+; == 2a ==
+    lda #$20
+    sta VERA_L0_MAPBASE
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    
+    inc CURSOR_X
+    jsr setup_cursor
+    
+; == 2b ==
+    lda #$57
+    sta TMP2
+    and #$0F
+    sta VERA_L0_VSCROLL_H
+    
+    lda VERA_L0_CONFIG
+    and #$0F
+    sta TMP3
+    
+    lda TMP2
+    and #$F0
+    ora TMP3
+    sta VERA_L0_CONFIG
+    lda TMP2
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    
+    inc CURSOR_X
+    jsr setup_cursor
+    
+    lda #%00001100           ; DCSEL=6, ADDRSEL=0
+    sta VERA_CTRL
+    
+; -- output2[7:0] --
+    lda $9F2B
+    sta VALUE
+    
+; -- output2[15:8] --
+    lda $9F2C
+    sta VALUE+1
+    
+    lda VALUE+1
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+    lda VALUE
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_hex
+
+    rts
+
+; / -- DSP dual 8x8 mult test code --
     
     
 change_palette_colors:
