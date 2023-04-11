@@ -67,7 +67,7 @@ TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
 
 
 ; RAM addresses
-COPY_COLUMN_CODE        = $7E00    ; 152 * 3 bytes + 1 byte = 457 bytes
+COPY_ROW_CODE             = $7E00
 
 
 ; ROM addresses
@@ -122,6 +122,12 @@ loop:
   jmp loop
 
 blit_some_bytes:
+
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000001           ; Map size = 000, cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
+    sta $9F2C
 
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
@@ -190,8 +196,7 @@ blit_some_bytes:
     
     ; Reading first 4 bytes of the palette one-by-one and show them on screen
     
-; FIXME: We are setting to DCSEL=2, but this is just to enable affine_helper, which is probably not the way we want to enable the wrpatterns
-    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    lda #%00000001           ; DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
 
     lda #%00010001           ; Setting bit 16 of vram address to the highest bit (=1), setting auto-increment value to 1 byte increment (=%0001)
@@ -201,8 +206,7 @@ blit_some_bytes:
     lda #>VERA_PALETTE
     sta VERA_ADDR_HIGH
     
-; FIXME: We are setting to DCSEL=2, but this is just to enable affine_helper, which is probably not the way we want to enable the wrpatterns
-    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
 
     ; Setting wrpattern to 11b and address % 4 = 00b
@@ -234,7 +238,7 @@ blit_some_bytes:
   
 test_speed_of_copying_bitmap_1_byte_per_copy:
 
-    jsr generate_copy_column_code
+    jsr generate_copy_row_code
 
     jsr start_timer
 
@@ -320,9 +324,18 @@ test_speed_of_copying_bitmap_1_byte_per_copy:
 
 test_speed_of_copying_bitmap_4_bytes_per_copy:
 
-    jsr generate_copy_column_code
+    jsr generate_copy_row_code
 
     jsr start_timer
+    
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000000           ; reset accumulator = 0, accumulate = 0, add or sub = 0, multiplier enabled = 10, addr1 mode = 000
+    sta $9F29
+    
+    lda #%00000001           ; Map size = 000, cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
+    sta $9F2C
 
     ; Setup FROM and TO VRAM addresses
     lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
@@ -413,55 +426,62 @@ copy_bitmap_4_bytes_message:
     
 copy_bitmap_fast_1_byte_per_copy:
 
+    stz TMP1  ; contains bit16 of FROM address
+    stz TMP2  ; contains bit16 of TO address
+    
     ldx #0
     
-copy_next_column_1:
-; FIXME: We are setting to DCSEL=2, but this is just to enable affine_helper, which is probably not the way we want to enable the wrpatterns
-    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+copy_next_row_1:
+    lda #%00000001           ; DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
 
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte
     sta VERA_ADDR_BANK
     lda VERA_ADDR_ZP_FROM+1
     sta VERA_ADDR_HIGH
     lda VERA_ADDR_ZP_FROM
     sta VERA_ADDR_LOW
     
-; FIXME: We are setting to DCSEL=2, but this is just to enable affine_helper, which is probably not the way we want to enable the wrpatterns
-    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte
+    ora TMP2                 ; Set bit16
     sta VERA_ADDR_BANK
     lda VERA_ADDR_ZP_TO+1
     sta VERA_ADDR_HIGH
     lda VERA_ADDR_ZP_TO
     sta VERA_ADDR_LOW
 
-    ; Copy one column of 75 pixels
-    jsr COPY_COLUMN_CODE
+    ; Copy one row of 100 pixels
+    jsr COPY_ROW_CODE
     
-    ; We increment our VERA_ADDR_FROM with 1
+    ; We increment our VERA_ADDR_FROM with 320
     clc
     lda VERA_ADDR_ZP_FROM
-    adc #1
+    adc #<320
     sta VERA_ADDR_ZP_FROM
     lda VERA_ADDR_ZP_FROM+1
-    adc #0
+    adc #>320
     sta VERA_ADDR_ZP_FROM+1
 
-    ; We increment our VERA_ADDR_TO with 1
+    ; We increment our VERA_ADDR_TO with 320
     clc
     lda VERA_ADDR_ZP_TO
-    adc #1
+    adc #<320
     sta VERA_ADDR_ZP_TO
     lda VERA_ADDR_ZP_TO+1
-    adc #0
+    adc #>320
     sta VERA_ADDR_ZP_TO+1
+    ; TODO: this is a quick and dirty way of incrementing bit16 of the address when to go into the higher half of vram
+    bcc addr_bank_is_ok_1
+    lda #1
+    sta TMP2
+addr_bank_is_ok_1:
 
     inx
-    cpx #100             ; we do 100 columns
-    bne copy_next_column_1
+    cpx #75             ; we do 75 rows
+    bne copy_next_row_1
     
     rts
     
@@ -470,14 +490,16 @@ copy_next_column_1:
 
 copy_bitmap_fast_4_bytes_per_copy:
 
+    stz TMP1  ; contains bit16 of FROM address
+    stz TMP2  ; contains bit16 of TO address
+
     ldx #0
     
-copy_next_column_4:
-; FIXME: We are setting to DCSEL=2, but this is just to enable affine_helper, which is probably not the way we want to enable the wrpatterns
-    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+copy_next_row_4:
+    lda #%00000001           ; DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
 
-    lda #%11100110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%00010110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte
                              ; We also set the write pattern bytes to 11, indicating we are going to fill the blit-cache with reads from DATA1
     sta VERA_ADDR_BANK
     lda VERA_ADDR_ZP_FROM+1
@@ -485,51 +507,58 @@ copy_next_column_4:
     lda VERA_ADDR_ZP_FROM
     sta VERA_ADDR_LOW
     
-; FIXME: We are setting to DCSEL=2, but this is just to enable affine_helper, which is probably not the way we want to enable the wrpatterns
-    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%11100110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    lda #%00110110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 4 bytes
                              ; We also set the write pattern bytes to 11, indicating we are going to use the blit-cache to write to VRAM (ignoring the byte of data stored into DATA0)
+    ora TMP2                 ; Set bit16
     sta VERA_ADDR_BANK
     lda VERA_ADDR_ZP_TO+1
     sta VERA_ADDR_HIGH
     lda VERA_ADDR_ZP_TO
     sta VERA_ADDR_LOW
 
-    ; Copy one column of 75 pixels
-    jsr COPY_COLUMN_CODE
+    ; Copy one row of 100 pixels
+    jsr COPY_ROW_CODE
     
-    ; We increment our VERA_ADDR_FROM with 4
+    ; We increment our VERA_ADDR_FROM with 320
     clc
     lda VERA_ADDR_ZP_FROM
-    adc #4
+    adc #<320
     sta VERA_ADDR_ZP_FROM
     lda VERA_ADDR_ZP_FROM+1
-    adc #0
+    adc #>320
     sta VERA_ADDR_ZP_FROM+1
+    ; TODO: we should also check bit 16 of the FROM address!
 
-    ; We increment our VERA_ADDR_TO with 4
+    ; We increment our VERA_ADDR_TO with 320
     clc
     lda VERA_ADDR_ZP_TO
-    adc #4
+    adc #<320
     sta VERA_ADDR_ZP_TO
     lda VERA_ADDR_ZP_TO+1
-    adc #0
+    adc #>320
     sta VERA_ADDR_ZP_TO+1
+    ; TODO: this is a quick and dirty way of incrementing bit16 of the address when to go into the higher half of vram
+    bcc addr_bank_is_ok_4
+    lda #1
+    sta TMP2
+addr_bank_is_ok_4:
+    
 
     inx
-    cpx #25             ; we do 25 * 4 = 100 columns
-    bne copy_next_column_4
+    cpx #75             ; we do 75 rows
+    bne copy_next_row_4
 
     rts
     
     
-generate_copy_column_code:
+generate_copy_row_code:
 
-    lda #<COPY_COLUMN_CODE
+    lda #<COPY_ROW_CODE
     sta CODE_ADDRESS
-    lda #>COPY_COLUMN_CODE
+    lda #>COPY_ROW_CODE
     sta CODE_ADDRESS+1
     
     ldy #0                 ; generated code byte counter
@@ -548,26 +577,93 @@ next_copy_instruction:
     lda #$9F         
     jsr add_code_byte
 
+    .if(!DO_4_BYTES_PER_COPY)
+      ; -- sta VERA_DATA0 ($9F23)
+      lda #$8D               ; sta ....
+      jsr add_code_byte
+      
+      lda #$23               ; $23
+      jsr add_code_byte
+    
+      lda #$9F               ; $9F
+      jsr add_code_byte
+    .endif
+      
+    lda #$AD               ; lda ....
+    jsr add_code_byte
+    
+    lda #$24               ; VERA_DATA1
+    jsr add_code_byte
+    
+    lda #$9F         
+    jsr add_code_byte
+
+    .if(!DO_4_BYTES_PER_COPY)
+      ; -- sta VERA_DATA0 ($9F23)
+      lda #$8D               ; sta ....
+      jsr add_code_byte
+      
+      lda #$23               ; $23
+      jsr add_code_byte
+    
+      lda #$9F               ; $9F
+      jsr add_code_byte
+    .endif
+      
+    lda #$AD               ; lda ....
+    jsr add_code_byte
+    
+    lda #$24               ; VERA_DATA1
+    jsr add_code_byte
+    
+    lda #$9F         
+    jsr add_code_byte
+
+    .if(!DO_4_BYTES_PER_COPY)
+      ; -- sta VERA_DATA0 ($9F23)
+      lda #$8D               ; sta ....
+      jsr add_code_byte
+      
+      lda #$23               ; $23
+      jsr add_code_byte
+    
+      lda #$9F               ; $9F
+      jsr add_code_byte
+    .endif
+      
+    lda #$AD               ; lda ....
+    jsr add_code_byte
+    
+    lda #$24               ; VERA_DATA1
+    jsr add_code_byte
+    
+    lda #$9F         
+    jsr add_code_byte
     
     .if(DO_4_BYTES_PER_COPY)
       ; -- stz VERA_DATA0 ($9F23)
       lda #$9C               ; stz ....  ; During full blit, we need to send 00 to DATA0, so no nibbles are masked
       jsr add_code_byte
+      
+      lda #$23               ; $23
+      jsr add_code_byte
+        
+      lda #$9F               ; $9F
+      jsr add_code_byte
     .else
       ; -- sta VERA_DATA0 ($9F23)
       lda #$8D               ; sta ....
       jsr add_code_byte
-    .endif
-
-
-    lda #$23               ; $23
-    jsr add_code_byte
+      
+      lda #$23               ; $23
+      jsr add_code_byte
     
-    lda #$9F               ; $9F
-    jsr add_code_byte
+      lda #$9F               ; $9F
+      jsr add_code_byte
+    .endif
     
     inx
-    cpx #75               ; 75 copy pixels written to VERA
+    cpx #(100/4)           ; 100 copy pixels written to VERA
     bne next_copy_instruction
 
     ; -- rts --

@@ -1,5 +1,5 @@
 
-DO_ROTATE = 1  ; otherwise SHEAR
+DO_ROTATE = 0  ; otherwise SHEAR
 
 USE_CACHE_FOR_WRITING = 1
 USE_TRANSPARENT_WRITING = 1
@@ -262,18 +262,22 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_TO+1
     
-    ; Entering *affine helper mode*: selecting ADDR0
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     ; Setting base address and map size
     
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
+    and #$FE   ; only the 7 highest bits of the address can be set
     sta $9F2A
 
-    lda #%10000000  ; 10000000 for 16x16 map
-    ora #%00010000  ; 1 for Clip
-    ora #%00000100  ; 100 for no tile lookup
+    lda #%10000001  ; Map size = 100 (16x16 map), cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
+    sta $9F2C
+    
+    lda #%00000001  ; 1 for Clip
+    sta $9F2B
+    
+    lda #%00000100  ; 100 for no tile lookup
     sta $9F29
     
     jsr rotate_or_shear_bitmap_fast_1_byte_per_copy
@@ -351,7 +355,6 @@ SINE_ROTATE = 67
 
 rotate_or_shear_bitmap_fast_1_byte_per_copy:
 
-    ; Entering *affine helper mode*
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
 
@@ -511,7 +514,6 @@ y_pixel_pos_high_correct:
     
 done_rotate_copy: 
 
-    ; Exiting affine helper mode
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     

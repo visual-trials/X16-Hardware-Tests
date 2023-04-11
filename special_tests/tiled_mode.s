@@ -36,8 +36,8 @@ TOP_MARGIN = 12
 LEFT_MARGIN = 16
 VSPACING = 10
 
-MAPDATA_VRAM_ADDRESS = $17000
-TILEDATA_VRAM_ADDRESS = $18000
+MAPDATA_VRAM_ADDRESS = $17000   ; should be aligned to 1kB
+TILEDATA_VRAM_ADDRESS = $18000  ; should be aligned to 1kB
 
 DESTINATION_PICTURE_POS_X = 64
 DESTINATION_PICTURE_POS_Y = 65
@@ -379,34 +379,36 @@ tiled_perspective_fast:
 ;    lda #>(TILEDATA_VRAM_ADDRESS)
 ;    sta VERA_ADDR_ZP_FROM+1
 
-    ; Entering *affine helper mode*: selecting ADDR0
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     ; Setting base addresses and map size
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
+    and #$FE   ; only the 7 highest bits of the address can be set
     sta $9F2A
     lda #(MAPDATA_VRAM_ADDRESS >> 9)
-    sta $9F2B
-    
-    .if(DO_NO_TILE_LOOKUP)
-        lda #%01100000  ; 01100000 for 8x8 map
-    .else
-        lda #%10100000  ; 10100000 for 32x32 map
-    .endif
+    and #$FE   ; only the 7 highest bits of the address can be set
     .if(DO_CLIP)
-        ora #%00010000  ; 1 for Clip
+        ora #%00000001  ; 1 for Clip
     .else
         ora #%00000000  ; 0 for Repeat
     .endif
+    sta $9F2B
+    
     .if(DO_NO_TILE_LOOKUP)
-        ora #%00000100  ; 100 for no tile lookup
+        lda #%01100001  ; Map size = 011 (8x8 map), cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
     .else
-        ora #%00000101  ; 101 for tile lookup
+        lda #%10100001  ; Map size = 101 (32x32 map), cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
+    .endif
+    sta $9F2C
+    
+    .if(DO_NO_TILE_LOOKUP)
+        lda #%00000100  ; 100 for no tile lookup
+    .else
+        lda #%00000101  ; 101 for tile lookup
     .endif
     sta $9F29
     
-    ; Entering *affine helper mode*: selecting ADDR1 
 ;    lda #%00000110           ; DCSEL=3, ADDRSEL=0
 ;    sta VERA_CTRL
     
@@ -577,7 +579,6 @@ tiled_perspective_copy_next_row_1:
     jmp tiled_perspective_copy_next_row_1
 done_tiled_perspective_copy:
     
-    ; Exiting affine helper mode
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
@@ -662,35 +663,37 @@ flat_tiles_fast:
 ;    lda #>(TILEDATA_VRAM_ADDRESS)
 ;    sta VERA_ADDR_ZP_FROM+1
 
-    ; Entering *affine helper mode*: selecting ADDR0
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
     ; Setting base addresses and map size
     
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
+    and #$FE   ; only the 7 highest bits of the address can be set
     sta $9F2A
     lda #(MAPDATA_VRAM_ADDRESS >> 9)
-    sta $9F2B
-    
-    .if(DO_NO_TILE_LOOKUP)
-        lda #%01100000  ; 01100000 for 8x8 map
-    .else
-        lda #%10100000  ; 10100000 for 32x32 map
-    .endif
+    and #$FE   ; only the 7 highest bits of the address can be set
     .if(DO_CLIP)
-        ora #%00010000  ; 1 for Clip
+        ora #%00000001  ; 1 for Clip
     .else
         ora #%00000000  ; 0 for Repeat
     .endif
+    sta $9F2B
+    
     .if(DO_NO_TILE_LOOKUP)
-        ora #%00000100  ; 100 for no tile lookup
+        lda #%01100001  ; Map size = 011 (8x8 map), cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
     .else
-        ora #%00000101  ; 101 for tile lookup
+        lda #%10100001  ; Map size = 101 (32x32 map), cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
+    .endif
+    sta $9F2C
+    
+    .if(DO_NO_TILE_LOOKUP)
+        lda #%00000100  ; 100 for no tile lookup
+    .else
+        lda #%00000101  ; 101 for tile lookup
     .endif
     sta $9F29
     
-    ; Entering *affine helper mode*: selecting ADDR1 
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
@@ -759,7 +762,6 @@ repetitive_copy_next_row_1:
     cpx #TEXTURE_HEIGHT          ; we do 64 rows
     bne repetitive_copy_next_row_1
     
-    ; Exiting affine helper mode
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
