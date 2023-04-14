@@ -66,9 +66,10 @@ LINE_COLOR                 = $27
 
 ; Polygon filler
 NUMBER_OF_ROWS             = $30
-LINE_LENGTH_DIV_4          = $31
-X1_TWO_LOWER_BITS          = $32
-X2_TWO_LOWER_BITS          = $33
+FILL_LENGTH_LOW            = $31
+FILL_LENGTH_HIGH           = $32
+X1_THREE_LOWER_BITS        = $33
+; REMOVE:  X2_TWO_LOWER_BITS          = $34
 
 
 ; RAM addresses
@@ -135,13 +136,16 @@ test_simple_polygon_filler:
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #<(-173<<1)           ; X increment low (signed)
+    ; FIXME: NOTE that these increments are *HALF* steps!!
+    lda #<(-173)           ; X increment low (signed)
     sta $9F29
-    lda #>(-173<<1)           ; X increment high (signed)
+    lda #>(-173)           ; X increment high (signed)
+    and #%01111111            ; increment is only 15-bits long
     sta $9F2A
-    lda #<(130<<1)            ; Y increment low (signed)
+    lda #<(130)            ; Y increment low (signed)
     sta $9F2B                
-    lda #>(130<<1)            ; Y increment high (signed)
+    lda #>(130)            ; Y increment high (signed)
+    and #%01111111            ; increment is only 15-bits long
     sta $9F2C    
     
     
@@ -158,6 +162,7 @@ test_simple_polygon_filler:
     ;       but its ok, since its reset to half a pixel (see above), meaning bit0 is 0 anyway
     lda #>TRIANGLE_TOP_POINT_X
     sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
+    ora #%00100000           ; Reset subpixel position
     sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
 
@@ -188,13 +193,17 @@ test_simple_polygon_filler:
     
 ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
     
-    lda #<(286<<1)           ; X increment low
+    ; FIXME: NOTE that these increments are *HALF* steps!!
+    lda #<(286)            ; X increment low
     sta $9F29
-    lda #>(286<<1)           ; X increment high
+    lda #>(286)            ; X increment high
+    and #%01111111            ; increment is only 15-bits long
     sta $9F2A
-    lda #<(130<<1)           ; Y increment low
+; FIXME: there is no need to set increment Y again!
+    lda #<(130)            ; Y increment low
     sta $9F2B                
-    lda #>(130<<1)           ; Y increment high
+    and #%01111111            ; increment is only 15-bits long
+    lda #>(130)            ; Y increment high
     sta $9F2C
 
 ; FIXME: hardcoded!
@@ -212,81 +221,48 @@ draw_polygon_part:
     lda #%00001011           ; DCSEL=5, ADDRSEL=1
     sta VERA_CTRL
     
+    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+; FIXME: right now getting fill length via DATA1 is not enabled!    
+;    sta FILL_LENGTH_LOW ; we get important information back, so we store it
+
+    
 draw_triangle_row_next:
+
+; FIXME: when we reset VERA things look a bit different. This is most likely due to the fact we are not resetting the subpixel position!
+; FIXME: when we reset VERA things look a bit different. This is most likely due to the fact we are not resetting the subpixel position!
+; FIXME: when we reset VERA things look a bit different. This is most likely due to the fact we are not resetting the subpixel position!
 
     ; HACK: we are reconstructing the separate bits we are getting into three 8-bit values. But this should normally *not*
     ;       be done! The bits are crafted in such a way to be used for a jump table. But for this example we dont use a jump table,
     ;       since it will be a bit more readably that way.
     
-    ; Reading the number of pixels (divided by 4) to draw on this horizontal line: (x2 // 4) - (x1 // 4)
+; FIXME: actually use the X1 and "FILL_LENGTH >= 16"-bit information!
     
-    lda $9F2B                ; This contains: X1[1:0], X2[1:0], LINE_LENGTH_DIV_4 >= 8, LINE_LENGTH_DIV_4[2:0]
-    sta LINE_LENGTH_DIV_4
+    lda $9F2B      ; This contains: X1[2:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0]
+;    lda FILL_LENGTH_LOW      ; This contains: X1[2:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0]
+    and #%00001111          ; we keep the 4 lower bits
+    sta FILL_LENGTH_LOW
     
-    ; We remove the 3 lower bits of the line length div 4
-    lsr
-    lsr
-    lsr
-    
-    ; We remove (and ignore) the 1 other bit that says whether the line_length_div_4 >= 4
-    lsr 
-    
-    pha
-    and #%00000011 
-    sta X2_TWO_LOWER_BITS
-    pla
-    
-    lsr
-    lsr
-    sta X1_TWO_LOWER_BITS
-    
-    lda LINE_LENGTH_DIV_4
-    and #%00000111          ; we keep the 3 lower bits
-    ora $9F2C               ; This contains LINE_LENGTH_DIV_4[7:3], 000
-    sta LINE_LENGTH_DIV_4
-    
-    ; Now that we have restored the three variables we can proceed using them
-    
-    bne x1_and_x2_are_not_in_same_32bit_column
+; FIXME: we should check the bit that says if FILL_LENGTH >= 16!! (now we always assume this is the case)
 
-    ; we simply take the difference between (x2 % 4) - (x1 % 4) and do + 1
-    sec
-    lda X2_TWO_LOWER_BITS
-    sbc X1_TWO_LOWER_BITS
-    inc
-
-    bra nr_of_pixels_to_be_drawn_calculated
-    
-x1_and_x2_are_not_in_same_32bit_column:
-; FIXME: we remove 1 since a 0 means both x1 and x2 fall into the same 32-bit aligned column. And 1 means they are adjacent, but this means there are no additional 4-pixels needed
-    dec
-; FIXME: we are multiplying by 4, but we could lose information here!!
+    lda $9F2C               ; This contains 00, FILL_LENGTH[9:4]
     asl
     asl
-    sta TMP2
+    asl
+    rol FILL_LENGTH_HIGH
+    asl
+    rol FILL_LENGTH_HIGH
+    ora FILL_LENGTH_LOW
+    sta FILL_LENGTH_LOW
+    
+; FIXME: what if FILL_LENGTH_LOW/FILL_LENGTH_HIGH are 0 or NEGATIVE?
+    
+; FIXME: we are ignoring if length > 256 atm!!
 
-    ; We use the lower two bits of the x1 pixel position to determine the number of pixel to draw at the *start*
-    sec
-    lda #4
-    sbc X1_TWO_LOWER_BITS
-    
-    ; We add the amount of pixel to-be-drawn at the start to the ones we already have
-    clc
-    adc TMP2
-    sta TMP2
-    
-    ; We use the lower two bits of the x2 pixel position to determine the number of pixels to draw at the *end*
-    ; We add the amount of pixel to-be-drawn at the start to the ones we already have
-    lda X2_TWO_LOWER_BITS
-; FIXME: for now we add one, since a pixel on index 0 means we have to draw that *one* pixel
-;          BUT: when we see a index=3, we should *interchange* this with a 4-write command!
-    inc  
-    clc
-    adc TMP2
-
-nr_of_pixels_to_be_drawn_calculated:
-    
     tax
+    
+; FIXME: should we do this +1 here or inside of VERA?
+    inx
     
     ; Note: we can speed this up *massively*, by unrolling this loop, but this is just an example to explain how the feature works
 draw_triangle_pixel_next:
@@ -301,6 +277,8 @@ draw_triangle_pixel_next:
 ;    sta VERA_DATA0
     lda VERA_DATA0   ; this will increment ADDR0 with 320 bytes (+1 vertically)
     lda VERA_DATA1   ; this will increment x1 and x2 and the fill_line_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+; FIXME: right now getting fill length via DATA1 is not enabled!    
+;    sta FILL_LENGTH_LOW ; we get important information back, so we store it
     
     dec NUMBER_OF_ROWS
     bne draw_triangle_row_next

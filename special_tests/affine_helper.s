@@ -1,5 +1,5 @@
 
-DO_ROTATE = 0  ; otherwise SHEAR
+DO_ROTATE = 1  ; otherwise SHEAR
 
 USE_CACHE_FOR_WRITING = 1
 USE_TRANSPARENT_WRITING = 1
@@ -380,22 +380,26 @@ rotate_or_shear_bitmap_fast_1_byte_per_copy:
         lda #0
         rol                      
                                  ; FIXME: **THIS IS DONE BELOW ALSO!!**
+        and #%01111111            ; increment is only 15 bits long
         sta $9F2A
         lda #SINE_ROTATE
         asl
         sta $9F2B                ; Y increment low
         lda #0
         rol
+        and #%01111111            ; increment is only 15 bits long
         sta $9F2C
     .else
         lda #0                   ; X increment low
         sta $9F29
         lda #%00000010           ; X increment high = 10
                                  ; FIXME: **THIS IS DONE BELOW ALSO!!**
+        and #%01111111            ; increment is only 15 bits long
         sta $9F2A
         lda #<(-60<<1)            ; Y increment low
         sta $9F2B                
         lda #>(-60<<1)            ; Y increment high
+        and #%01111111            ; increment is only 15 bits long
         sta $9F2C
     .endif
 

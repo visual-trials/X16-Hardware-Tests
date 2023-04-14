@@ -364,8 +364,8 @@ x_sub_pixel_steps_high:
 y_sub_pixel_steps_low:
     .byte 66,92,115,136,155,172,188,202,215,227,238,248,1,10,18,26,33,40,46,52,58,63,68,73,78,82,86,90,94,98,101,104,108,111,114,116,119,122,124,127,129,131,133,135,137,139,141,143,145,147,148,150,151,153,154,156,157,159,160,161,162,164,165,166
 y_sub_pixel_steps_high:
-    .byte 254,254,254,254,254,254,254,254,254,254,254,254,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255
-
+    .byte 126,126,126,126,126,126,126,126,126,126,126,126,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127
+   
     
 tiled_perspective_fast:
 
@@ -460,7 +460,7 @@ tiled_perspective_copy_next_row_1:
     .else
         lda x_sub_pixel_steps_high, x
     .endif
-    ; Note: the decr, exp and high are packed into the table-data
+    ; Note: the x32 is packed into the table-data
     sta $9F2A
     
     .if(USE_TABLE_FILES)
@@ -475,7 +475,7 @@ tiled_perspective_copy_next_row_1:
     .else
         lda y_sub_pixel_steps_high, x
     .endif
-    ; Note: the decr, exp and high are packed into the table-data
+    ; Note: the x32 is packed into the table-data
     sta $9F2C
         
     ; Setting the position

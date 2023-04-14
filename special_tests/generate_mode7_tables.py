@@ -191,13 +191,13 @@ def run():
             # print('y in texture: ' + str(y_pixel_position_in_map) + ' - x in texture: ' + str(x_pixel_position_in_map) + ' - x,y sub pixel step: ' + str(int(x_sub_pixel_step)) + ',' + str(int(y_sub_pixel_step)))
             
             if x_sub_pixel_step < 0:
-                x_sub_pixel_step = 65536 + x_sub_pixel_step  # We convert to a two complement 16-bit number 
+                x_sub_pixel_step = 32768 + x_sub_pixel_step  # We convert to a two complement 15-bit number 
                 
             x_sub_pixel_steps_low.append(int(x_sub_pixel_step) % 256)
             x_sub_pixel_steps_high.append(int(x_sub_pixel_step) // 256)
 
             if y_sub_pixel_step < 0:
-                y_sub_pixel_step = 65536 + y_sub_pixel_step  # We convert to a two complement 16-bit number 
+                y_sub_pixel_step = 32768 + y_sub_pixel_step  # We convert to a two complement 15-bit number 
 
             y_sub_pixel_steps_low.append(int(y_sub_pixel_step) % 256)
             y_sub_pixel_steps_high.append(int(y_sub_pixel_step) // 256)
