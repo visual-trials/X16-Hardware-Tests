@@ -1,16 +1,19 @@
 
-DO_SPEED_TEST = 0
-USE_AFFINE_HELPER = 1
+DO_SPEED_TEST = 1
+USE_POLYGON_FILLER = 1
 
-    .if (USE_AFFINE_HELPER)
+    .if (USE_POLYGON_FILLER)
 BACKGROUND_COLOR = 251  ; Nice purple
     .else
 BACKGROUND_COLOR = 06  ; Blue 
     .endif
 
+NR_OF_TRIANGLES_TO_DRAW = 1
+    
+    
 TEST_FILL_COLOR = 1
-TRIANGLE_TOP_POINT_X = 90
-TRIANGLE_TOP_POINT_Y = 30
+TEST_TRIANGLE_TOP_POINT_X = 90
+TEST_TRIANGLE_TOP_POINT_Y = 20
     
 ; FIXME
 ;TOP_MARGIN = 12
@@ -51,33 +54,45 @@ TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
 ; For geneating code
 CODE_ADDRESS              = $1D ; 1E
 
-; Line drawing
-
-; FIXME: remove this line drawing stuff!!
-; FIXME: remove this line drawing stuff!!
-; FIXME: remove this line drawing stuff!!
-
-START_ADDRESS              = $20 ; 21
-NR_OF_LINES_TO_DRAW        = $22
-SLOPE                      = $23 ; 24? TODO: do we want a more precise SLOPE?
-LINE_LENGTH                = $25 ; 26 ; This is the length of the line in the axis we are essentially drawing
-LINE_COLOR                 = $27
-
+LOAD_ADDRESS              = $20 ; 21
+STORE_ADDRESS             = $22 ; 23
 
 ; Polygon filler
 NUMBER_OF_ROWS             = $30
 FILL_LENGTH_LOW            = $31
 FILL_LENGTH_HIGH           = $32
 X1_THREE_LOWER_BITS        = $33
-; REMOVE:  X2_TWO_LOWER_BITS          = $34
 
+; Note: a triangle either has:
+;   - a single top-point, which means it also has a bottom-left point and bottom-right point
+;   - a double top-point (two points are at the same top-y), which means top-left point and top-right point and a single bottom-point
+;   TODO: we still need to deal with "triangles" that have three points with the same x or the same y coordinate (which is in fact a vertical or horizontal *line*, not a triangle).
+TOP_POINT_X              = $40 ; 41
+TOP_POINT_Y              = $42 ; 43
+LEFT_POINT_X             = $44 ; 45
+LEFT_POINT_Y             = $46 ; 47
+RIGHT_POINT_X            = $48 ; 49
+RIGHT_POINT_Y            = $4A ; 4B
+BOTTOM_POINT_X           = TOP_POINT_X
+BOTTOM_POINT_Y           = TOP_POINT_Y
 
 ; RAM addresses
-CLEAR_COLUMN_CODE     = $7000
-AFFINE_DRAW_256_CODE  = $7C00
-AFFINE_DRAW_240_CODE  = $8000
-AFFINE_DRAW_64_CODE   = $8400
+CLEAR_COLUMN_CODE        = $7000
 
+; Triangle data is (easely) accessed through an single index (0-255)
+TRIANGLES_POINT1_X_LOW   = $7400
+TRIANGLES_POINT1_X_HIGH  = $7500
+TRIANGLES_POINT1_Y_LOW   = $7600
+TRIANGLES_POINT1_Y_HIGH  = $7700
+TRIANGLES_POINT2_X_LOW   = $7800
+TRIANGLES_POINT2_X_HIGH  = $7900
+TRIANGLES_POINT2_Y_LOW   = $7A00
+TRIANGLES_POINT2_Y_HIGH  = $7B00
+TRIANGLES_POINT3_X_LOW   = $7C00
+TRIANGLES_POINT3_X_HIGH  = $7D00
+TRIANGLES_POINT3_Y_LOW   = $7E00
+TRIANGLES_POINT3_Y_HIGH  = $7F00
+TRIANGLES_COLOR          = $8000
 
   .org $C000
 
@@ -101,7 +116,7 @@ reset:
     
     
     .if(DO_SPEED_TEST)
-; FIXME: IMPLEMENT THIS!      jsr test_speed_of_filling_triangle
+       jsr test_speed_of_filling_triangle
     .else
     
 ;      lda #$10                 ; 8:1 scale (320 x 240 pixels on screen)
@@ -114,6 +129,182 @@ reset:
 loop:
   jmp loop
 
+  
+filling_a_rectangle_with_triangles_message: 
+    .asciiz "Filling a rectangle with triangles"
+rectangle_300x150_8bpp_message: 
+    .asciiz "Size: 300x150 (8bpp) "
+using_polygon_filler_message: 
+    .asciiz "Method: polygon filler (naively)"
+without_polygon_filler_message: 
+    .asciiz "Method: without polygon filler"
+  
+  
+test_speed_of_filling_triangle:
+
+
+; FIXME: we need to create a jump table (and the code it jumps to)
+;    jsr generate_fill_line_jump_table
+    jsr load_triangle_data_into_ram
+
+    jsr start_timer
+
+    jsr draw_many_triangles_in_a_rectangle
+
+    jsr stop_timer
+
+    lda #COLOR_TRANSPARANT
+    sta TEXT_COLOR
+    
+    lda #3
+    sta CURSOR_X
+    lda #2
+    sta CURSOR_Y
+
+    lda #<filling_a_rectangle_with_triangles_message
+    sta TEXT_TO_PRINT
+    lda #>filling_a_rectangle_with_triangles_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    lda #10
+    sta CURSOR_X
+    lda #4
+    sta CURSOR_Y
+    
+    lda #<rectangle_300x150_8bpp_message
+    sta TEXT_TO_PRINT
+    lda #>rectangle_300x150_8bpp_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    lda #4
+    sta CURSOR_X
+    lda #24
+    sta CURSOR_Y
+
+    .if(USE_POLYGON_FILLER)
+        lda #<using_polygon_filler_message
+        sta TEXT_TO_PRINT
+        lda #>using_polygon_filler_message
+        sta TEXT_TO_PRINT + 1
+    .else
+        lda #<without_polygon_filler_message
+        sta TEXT_TO_PRINT
+        lda #>without_polygon_filler_message
+        sta TEXT_TO_PRINT + 1
+    .endif
+    
+    jsr print_text_zero
+    
+    lda #COLOR_TRANSPARANT
+    sta TEXT_COLOR
+    
+    lda #8
+    sta CURSOR_X
+    lda #27
+    sta CURSOR_Y
+    
+    jsr print_time_elapsed
+
+    rts
+
+    
+    
+triangles_points:
+    ;    x  , y
+   .word 100, 30
+   .word 200, 70
+   .word 100, 50
+    
+triangles_colors:
+    ;     color
+    .byte 04
+    
+    
+    
+load_triangle_data_into_ram:
+
+    lda #<(triangles_points)
+    sta LOAD_ADDRESS
+    lda #>(triangles_points)
+    sta LOAD_ADDRESS+1
+    
+
+    lda #<(triangles_points)
+    sta STORE_ADDRESS
+    lda #>(triangles_points)
+    sta STORE_ADDRESS+1
+
+
+    rts
+    
+    
+draw_many_triangles_in_a_rectangle:
+    
+    
+    ; FIXME: loop though a series of 3-points
+    ;   check which type of triangle this is (single top-point or double top-point_
+    ;   Store in appropiate variables: TOP_POINT_X/Y, LEFT_POINT_X/Y, RIGHT_POINT_X/Y, BOTTOM_POINT_X/Y
+    ;   jump to correct draw_triangle-function
+    
+    
+    ; HACK we are directly loading from triangles_points!! We should load it into the RAM TABLES first!
+    
+    ; HACK: we are hardcoding the top/bottom points right now!
+    
+    
+    
+    jsr draw_triangle_with_single_top_point
+    
+    
+    
+    
+    
+    rts
+    
+    
+draw_triangle_with_single_top_point:
+
+    ; FIXME: implement this:
+    ; calculate 3 slopes for the 2 triangle parts
+    ; set starting location on screen (ADDR0 = y, x1, x2 = x)
+    ; determine how many rows have to be drawn for both triangle parts
+    ; draw each triangle part
+
+    .if(USE_POLYGON_FILLER)
+        jsr draw_polygon_part_fast
+    .else
+        jsr draw_polygon_part_slow
+    .endif
+    
+    rts
+    
+    
+draw_triangle_with_double_top_points:
+
+    ; FIXME: implement this!
+
+    rts
+    
+    
+draw_polygon_part_fast:
+
+    ; FIXME: implement this!
+
+    rts
+    
+    
+draw_polygon_part_slow:
+
+    ; FIXME: implement this!
+
+    rts
+    
+
+    
 
 test_simple_polygon_filler:
 
@@ -124,9 +315,9 @@ test_simple_polygon_filler:
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     sta VERA_ADDR_BANK
     ; Note: we are setting ADDR0 to the left most pixel of a pixel row. This means it will be aligned to 4-bytes (which is needed for the polygon filler to work nicely).
-    lda #>(TRIANGLE_TOP_POINT_Y*320)
+    lda #>(TEST_TRIANGLE_TOP_POINT_Y*320)
     sta VERA_ADDR_HIGH
-    lda #<(TRIANGLE_TOP_POINT_Y*320)
+    lda #<(TEST_TRIANGLE_TOP_POINT_Y*320)
     sta VERA_ADDR_LOW
     
     ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
@@ -137,15 +328,15 @@ test_simple_polygon_filler:
     sta VERA_CTRL
     
     ; FIXME: NOTE that these increments are *HALF* steps!!
-    lda #<(-173)           ; X increment low (signed)
+    lda #<(-110)             ; X1 increment low (signed)
     sta $9F29
-    lda #>(-173)           ; X increment high (signed)
-    and #%01111111            ; increment is only 15-bits long
+    lda #>(-110)             ; X1 increment high (signed)
+    and #%01111111           ; increment is only 15-bits long
     sta $9F2A
-    lda #<(130)            ; Y increment low (signed)
+    lda #<(380)              ; X2 increment low (signed)
     sta $9F2B                
-    lda #>(130)            ; Y increment high (signed)
-    and #%01111111            ; increment is only 15-bits long
+    lda #>(380)              ; X2 increment high (signed)
+    and #%01111111           ; increment is only 15-bits long
     sta $9F2C    
     
     
@@ -154,13 +345,13 @@ test_simple_polygon_filler:
     lda #%00001001           ; DCSEL=4, ADDRSEL=1
     sta VERA_CTRL
     
-    lda #<TRIANGLE_TOP_POINT_X
+    lda #<TEST_TRIANGLE_TOP_POINT_X
     sta $9F29                ; X (=X1) pixel position low [7:0]
     sta $9F2B                ; Y (=X2) pixel position low [7:0]
     
     ; NOTE: we are also *setting* the subpixel position (bit0) here! Even though we just resetted it! 
     ;       but its ok, since its reset to half a pixel (see above), meaning bit0 is 0 anyway
-    lda #>TRIANGLE_TOP_POINT_X
+    lda #>TEST_TRIANGLE_TOP_POINT_X
     sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
     ora #%00100000           ; Reset subpixel position
     sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
@@ -183,10 +374,10 @@ test_simple_polygon_filler:
     ldy #TEST_FILL_COLOR     ; We use y as color
 
 ; FIXME: hardcoded!
-    lda #50
+    lda #150
     sta NUMBER_OF_ROWS
     
-    jsr draw_polygon_part
+    jsr draw_polygon_part_using_polygon_filler
     
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
@@ -194,56 +385,46 @@ test_simple_polygon_filler:
 ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
     
     ; FIXME: NOTE that these increments are *HALF* steps!!
-    lda #<(286)            ; X increment low
+    lda #<(-110)              ; X1 increment low
     sta $9F29
-    lda #>(286)            ; X increment high
+    lda #>(-110)              ; X1 increment high
     and #%01111111            ; increment is only 15-bits long
     sta $9F2A
 ; FIXME: there is no need to set increment Y again!
-    lda #<(130)            ; Y increment low
+    lda #<(-1590)             ; X2 increment low
     sta $9F2B                
+    lda #>(-1590)             ; X2 increment high
     and #%01111111            ; increment is only 15-bits long
-    lda #>(130)            ; Y increment high
     sta $9F2C
 
 ; FIXME: hardcoded!
-    lda #98
+    lda #50
     sta NUMBER_OF_ROWS
     
-    jsr draw_polygon_part
+    jsr draw_polygon_part_using_polygon_filler
     
     rts
 
 
 
-draw_polygon_part:
+draw_polygon_part_using_polygon_filler:
 
     lda #%00001011           ; DCSEL=5, ADDRSEL=1
     sta VERA_CTRL
     
     lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
-; FIXME: right now getting fill length via DATA1 is not enabled!    
-;    sta FILL_LENGTH_LOW ; we get important information back, so we store it
-
     
-draw_triangle_row_next:
+polygon_fill_triangle_row_next:
 
-; FIXME: when we reset VERA things look a bit different. This is most likely due to the fact we are not resetting the subpixel position!
-; FIXME: when we reset VERA things look a bit different. This is most likely due to the fact we are not resetting the subpixel position!
-; FIXME: when we reset VERA things look a bit different. This is most likely due to the fact we are not resetting the subpixel position!
-
-    ; HACK: we are reconstructing the separate bits we are getting into three 8-bit values. But this should normally *not*
+    ; SLOW: we are not using all the information we get and are only reconstructing the 10-bit value. But this should normally *not*
     ;       be done! The bits are crafted in such a way to be used for a jump table. But for this example we dont use a jump table,
     ;       since it will be a bit more readably that way.
     
-; FIXME: actually use the X1 and "FILL_LENGTH >= 16"-bit information!
+    stz FILL_LENGTH_HIGH
     
-    lda $9F2B      ; This contains: X1[2:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0]
-;    lda FILL_LENGTH_LOW      ; This contains: X1[2:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0]
+    lda $9F2B               ; This contains: X1[2:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0]
     and #%00001111          ; we keep the 4 lower bits
     sta FILL_LENGTH_LOW
-    
-; FIXME: we should check the bit that says if FILL_LENGTH >= 16!! (now we always assume this is the case)
 
     lda $9F2C               ; This contains 00, FILL_LENGTH[9:4]
     asl
@@ -255,111 +436,42 @@ draw_triangle_row_next:
     ora FILL_LENGTH_LOW
     sta FILL_LENGTH_LOW
     
-; FIXME: what if FILL_LENGTH_LOW/FILL_LENGTH_HIGH are 0 or NEGATIVE?
+    ; FIXME: what if FILL_LENGTH_LOW/FILL_LENGTH_HIGH are 0 or NEGATIVE? -> OR deal with this on the VERA side?
     
-; FIXME: we are ignoring if length > 256 atm!!
-
     tax
     
-; FIXME: should we do this +1 here or inside of VERA?
+    ; FIXME: should we do this +1 here or inside of VERA? -> note: when x = 255, 256 pixels will be drawn (which is what we want right now)
     inx
     
-    ; Note: we can speed this up *massively*, by unrolling this loop, but this is just an example to explain how the feature works
-draw_triangle_pixel_next:
-    
+    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using wrpatterns), but this is just an example to explain how the feature works
+polygon_fill_triangle_pixel_next_0:
     sty VERA_DATA1
-    
     dex
-    bne draw_triangle_pixel_next
+    bne polygon_fill_triangle_pixel_next_0
+
+    ; We draw an additional FILL_LENGTH_HIGH * 256 pixels on this row
+    lda FILL_LENGTH_HIGH
+    beq polygon_fill_triangle_row_done
+
+    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using wrpatterns), but this is just an example to explain how the feature works
+polygon_fill_triangle_pixel_next_256:
+    ldx #0
+polygon_fill_triangle_pixel_next_256_0:
+    sty VERA_DATA1
+    dex
+    bne polygon_fill_triangle_pixel_next_256_0
+    dec FILL_LENGTH_HIGH
+    bne polygon_fill_triangle_pixel_next_256
     
-; FIXME
-;    lda #0
-;    sta VERA_DATA0
-    lda VERA_DATA0   ; this will increment ADDR0 with 320 bytes (+1 vertically)
+polygon_fill_triangle_row_done:
+    
+    lda VERA_DATA0   ; this will increment ADDR0 with 320 bytes (= +1 vertically)
     lda VERA_DATA1   ; this will increment x1 and x2 and the fill_line_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
-; FIXME: right now getting fill length via DATA1 is not enabled!    
-;    sta FILL_LENGTH_LOW ; we get important information back, so we store it
     
     dec NUMBER_OF_ROWS
-    bne draw_triangle_row_next
+    bne polygon_fill_triangle_row_next
     
     rts
-
-    
-
-    .if(0)
-; FIXME: implement this!!
-; FIXME: implement this!!
-; FIXME: implement this!!
-test_speed_of_drawing_triangle:
-        
-    ; TODO: do we want to unroll the loop when doing a comparison? Probably.
-    .if(USE_AFFINE_HELPER)
-        jsr generate_affine_draw_line_code
-    .endif
-
-    jsr start_timer
-    jsr draw_lines
-    jsr stop_timer
-
-    ; TODO: do we want non-transparent text here? (due to all the lines)
-    lda #COLOR_TRANSPARANT
-    sta TEXT_COLOR
-    
-    lda #7
-    sta CURSOR_X
-    lda #8
-    sta CURSOR_Y
-
-    lda #<draw_lines_320x240_8bpp_message
-    sta TEXT_TO_PRINT
-    lda #>draw_lines_320x240_8bpp_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
-    
-    lda #12
-    sta CURSOR_Y
-
-    .if(USE_AFFINE_HELPER)
-    
-        lda #6
-        sta CURSOR_X
-        lda #<draw_lines_with_affine_helper_message
-        sta TEXT_TO_PRINT
-        lda #>draw_lines_with_affine_helper_message
-        sta TEXT_TO_PRINT + 1
-    .else
-        lda #6
-        sta CURSOR_X
-        lda #<draw_lines_without_linked_mode_message
-        sta TEXT_TO_PRINT
-        lda #>draw_lines_without_linked_mode_message
-        sta TEXT_TO_PRINT + 1
-    .endif
-    
-    jsr print_text_zero
-    
-    lda #9
-    sta CURSOR_X
-    lda #24
-    sta CURSOR_Y
-    
-    jsr print_time_elapsed
-
-    rts
-    .endif
-    
-;draw_lines_320x240_8bpp_message: 
-;    .asciiz "Drew 32 lines 320x240 (8bpp) "
-;draw_lines_without_linked_mode_message: 
-;    ; TODO: maybe specify what method exactly is used!
-;    .asciiz "Method: not using affine helper"
-;draw_lines_with_affine_helper_message: 
-;    .asciiz "Method: using affine helper"
-    
-    
-
     
     
 clear_screen_fast_4_bytes:
@@ -412,96 +524,6 @@ clear_next_column_right_4_bytes:
 
 
     
-generate_affine_draw_line_code:
-    lda #<AFFINE_DRAW_256_CODE
-    sta CODE_ADDRESS
-    lda #>AFFINE_DRAW_256_CODE
-    sta CODE_ADDRESS+1
-    
-    ldy #0                 ; generated code byte counter
-    ldx #0                 ; counts nr of clear instructions
-next_affine_line_draw_instruction_256:
-
-    ; -- sty VERA_DATA1 ($9F24)
-    lda #$8C               ; sty ....
-    jsr add_code_byte
-
-    lda #$24               ; $24
-    jsr add_code_byte
-    
-    lda #$9F               ; $9F
-    jsr add_code_byte
-    
-    inx
-    cpx #0                 ; 256 draw pixels written to VERA
-    bne next_affine_line_draw_instruction_256
-
-    ; -- rts --
-    lda #$60
-    jsr add_code_byte
-    
-
-
-    lda #<AFFINE_DRAW_240_CODE
-    sta CODE_ADDRESS
-    lda #>AFFINE_DRAW_240_CODE
-    sta CODE_ADDRESS+1
-    
-    ldy #0                 ; generated code byte counter
-    ldx #0                 ; counts nr of clear instructions
-next_affine_line_draw_instruction_240:
-
-    ; -- sty VERA_DATA1 ($9F24)
-    lda #$8C               ; sty ....
-    jsr add_code_byte
-
-    lda #$24               ; $24
-    jsr add_code_byte
-    
-    lda #$9F               ; $9F
-    jsr add_code_byte
-    
-    inx
-    cpx #240                 ; 256 draw pixels written to VERA
-    bne next_affine_line_draw_instruction_240
-
-    ; -- rts --
-    lda #$60
-    jsr add_code_byte
-    
-
-
-
-    lda #<AFFINE_DRAW_64_CODE
-    sta CODE_ADDRESS
-    lda #>AFFINE_DRAW_64_CODE
-    sta CODE_ADDRESS+1
-    
-    ldy #0                 ; generated code byte counter
-    ldx #0                 ; counts nr of clear instructions
-next_affine_line_draw_instruction_64:
-
-    ; -- sty VERA_DATA1 ($9F24)
-    lda #$8C               ; sty ....
-    jsr add_code_byte
-
-    lda #$24               ; $24
-    jsr add_code_byte
-    
-    lda #$9F               ; $9F
-    jsr add_code_byte
-    
-    inx
-    cpx #64                 ; 64 draw pixels written to VERA
-    bne next_affine_line_draw_instruction_64
-
-    ; -- rts --
-    lda #$60
-    jsr add_code_byte
-    
-
-    rts
-
 generate_clear_column_code:
 
     lda #<CLEAR_COLUMN_CODE
