@@ -10,6 +10,10 @@ BACKGROUND_COLOR = 06  ; Blue
 
 NR_OF_TRIANGLES_TO_DRAW = 1
     
+BASE_X = 20
+BASE_Y = 50
+BX = BASE_X
+BY = BASE_Y
     
 TEST_FILL_COLOR = 1
 TEST_TRIANGLE_TOP_POINT_X = 90
@@ -51,11 +55,16 @@ TIMING_COUNTER            = $14 ; 15
 TIME_ELAPSED_MS           = $16
 TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
 
-; For geneating code
-CODE_ADDRESS              = $1D ; 1E
+; Used only by (slow) 16bit multiplier (multply_16bits)
+MULTIPLIER                = $18 ; 19
+MULTIPLICAND              = $1A ; 1B
+PRODUCT                   = $1C ; 1D ; 1E ; 1F
 
-LOAD_ADDRESS              = $20 ; 21
-STORE_ADDRESS             = $22 ; 23
+; For geneating code
+CODE_ADDRESS              = $20 ; 21
+
+LOAD_ADDRESS              = $22 ; 23
+STORE_ADDRESS             = $24 ; 25
 
 ; Polygon filler
 NUMBER_OF_ROWS             = $30
@@ -75,6 +84,7 @@ RIGHT_POINT_X            = $48 ; 49
 RIGHT_POINT_Y            = $4A ; 4B
 BOTTOM_POINT_X           = TOP_POINT_X
 BOTTOM_POINT_Y           = TOP_POINT_Y
+TRIANGLE_COLOR           = $4C
 
 ; RAM addresses
 CLEAR_COLUMN_CODE        = $7000
@@ -132,8 +142,8 @@ loop:
   
 filling_a_rectangle_with_triangles_message: 
     .asciiz "Filling a rectangle with triangles"
-rectangle_300x150_8bpp_message: 
-    .asciiz "Size: 300x150 (8bpp) "
+rectangle_280x140_8bpp_message: 
+    .asciiz "Size: 280x140 (8bpp) "
 using_polygon_filler_message: 
     .asciiz "Method: polygon filler (naively)"
 without_polygon_filler_message: 
@@ -173,9 +183,9 @@ test_speed_of_filling_triangle:
     lda #4
     sta CURSOR_Y
     
-    lda #<rectangle_300x150_8bpp_message
+    lda #<rectangle_280x140_8bpp_message
     sta TEXT_TO_PRINT
-    lda #>rectangle_300x150_8bpp_message
+    lda #>rectangle_280x140_8bpp_message
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
@@ -214,10 +224,10 @@ test_speed_of_filling_triangle:
     
     
 triangles_points:
-    ;    x  , y
-   .word 100, 30
-   .word 200, 70
-   .word 100, 50
+    ;        x ,     y
+   .word BX+  0, BY+  0
+   .word BX+100, BY+ 70
+   .word BX+  0, BY+ 50
     
 triangles_colors:
     ;     color
@@ -255,13 +265,32 @@ draw_many_triangles_in_a_rectangle:
     
     ; HACK: we are hardcoding the top/bottom points right now!
     
+    lda triangles_points
+    sta TOP_POINT_X
+    lda triangles_points+1
+    sta TOP_POINT_X+1
     
+    lda triangles_points+2
+    sta TOP_POINT_Y
+    lda triangles_points+3
+    sta TOP_POINT_Y+1
+    
+    lda triangles_colors
+    sta TRIANGLE_COLOR
     
     jsr draw_triangle_with_single_top_point
     
     
+    ; Turning off polygon filler mode
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
     
+    ; Normal addr1 mode
+    lda #%00000000
+    sta $9F29
     
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
     
     rts
     
@@ -273,15 +302,161 @@ draw_triangle_with_single_top_point:
     ; set starting location on screen (ADDR0 = y, x1, x2 = x)
     ; determine how many rows have to be drawn for both triangle parts
     ; draw each triangle part
-
+    
+    
+    ; -- We setup the starting x and y and the color --
     .if(USE_POLYGON_FILLER)
-        jsr draw_polygon_part_fast
-    .else
-        jsr draw_polygon_part_slow
+        ; Setting up for drawing a polygon, setting both addresses at the same starting point
+
+        lda #%00000100           ; DCSEL=2, ADDRSEL=0
+        sta VERA_CTRL
+        
+; FIXME: we should do this *much* earlier and not for every triangle!
+        lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+        sta VERA_ADDR_BANK
+        
+        ; -- THIS IS SLOW! --
+        ; We need to multiply the Y-coordinate with 320
+        lda TOP_POINT_Y
+        sta MULTIPLICAND
+        lda TOP_POINT_Y+1
+        sta MULTIPLICAND+1
+        
+        lda #<320
+        sta MULTIPLIER
+        lda #>320
+        sta MULTIPLIER+1
+        
+        jsr multply_16bits
+        
+        ; HACK: we are assuming our bitmap address starts at 00000 here! AND we assume we never exceed 64kB!! (bit16 is always assumed to be 0)
+        ; Note: we are setting ADDR0 to the left most pixel of a pixel row. This means it will be aligned to 4-bytes (which is needed for the polygon filler to work nicely).
+        lda PRODUCT+1
+        sta VERA_ADDR_HIGH
+        lda PRODUCT
+        sta VERA_ADDR_LOW
+    
+; FIXME: we should do this *much* earlier and not for every triangle!
+        ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
+        lda #%00000011
+        sta $9F29
+        
+        ; Setting x1 and x2 pixel position
+        
+        lda #%00001001           ; DCSEL=4, ADDRSEL=1
+        sta VERA_CTRL
+        
+        lda TOP_POINT_X
+        sta $9F29                ; X (=X1) pixel position low [7:0]
+        sta $9F2B                ; Y (=X2) pixel position low [7:0]
+        
+        ; NOTE: we are also *setting* the subpixel position (bit0) here! Even though we just resetted it! 
+        ;       but its ok, since its reset to half a pixel (see above), meaning bit0 is 0 anyway
+        lda TOP_POINT_X+1
+        sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
+        ora #%00100000           ; Reset subpixel position
+        sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
+
+; FIXME: cant we make sure the draw_part routines always end up  with the increment being set to 1? Then we dont have to do this here!
+        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+        ; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
+        ; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
+        ; FIXME: We need to read VERA_ADDR_BANK and FLIP bit 1 of the incrementer (which is bit 5 of VERA_ADDR_BANK)
+        ; IDEA: maybe use TRB or TSB opcodes here!
+        sta VERA_ADDR_BANK
+        ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
+    
+        ldy TRIANGLE_COLOR      ; We use y as color
+    .else 
+    
+        ; FIXME: implement this!
+        
     .endif
+
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; FIXME: NOTE that these increments are *HALF* steps!!
+    lda #<(0)             ; X1 increment low (signed)
+    sta $9F29
+    lda #>(0)             ; X1 increment high (signed)
+    and #%01111111           ; increment is only 15-bits long
+    sta $9F2A
+    lda #<(380)              ; X2 increment low (signed)
+    sta $9F2B                
+    lda #>(380)              ; X2 increment high (signed)
+    and #%01111111           ; increment is only 15-bits long
+    sta $9F2C    
+
+; FIXME: hardcoded!
+    lda #70
+    sta NUMBER_OF_ROWS
+    
+    jsr draw_polygon_part_using_polygon_filler_naively
+
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
+    sta VERA_CTRL
+    
+; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
+    
+    ; FIXME: NOTE that these increments are *HALF* steps!!
+    lda #<(0)              ; X1 increment low
+    sta $9F29
+    lda #>(0)              ; X1 increment high
+    and #%01111111            ; increment is only 15-bits long
+    sta $9F2A
+; FIXME: there is no need to set increment Y again!
+    lda #<(-700)             ; X2 increment low
+    sta $9F2B                
+    lda #>(-700)             ; X2 increment high
+    and #%01111111            ; increment is only 15-bits long
+    sta $9F2C
+
+; FIXME: hardcoded!
+    lda #30
+    sta NUMBER_OF_ROWS
+    
+    jsr draw_polygon_part_using_polygon_filler_naively
+    
+    
+;    .if(USE_POLYGON_FILLER)
+;        jsr draw_polygon_part_fast
+;    .else
+;        jsr draw_polygon_part_slow
+;    .endif
     
     rts
     
+    
+; FIXME: put this somewhere else!
+; https://codebase64.org/doku.php?id=base:16bit_multiplication_32-bit_product
+multply_16bits:
+    phx
+    lda    #$00
+    sta    PRODUCT+2    ; clear upper bits of PRODUCT
+    sta    PRODUCT+3
+    ldx    #$10         ; set binary count to 16
+shift_r:
+    lsr    MULTIPLIER+1 ; divide MULTIPLIER by 2
+    ror    MULTIPLIER
+    bcc    rotate_r
+    lda    PRODUCT+2    ; get upper half of PRODUCT and add MULTIPLICAND
+    clc
+    adc    MULTIPLICAND
+    sta    PRODUCT+2
+    lda    PRODUCT+3
+    adc    MULTIPLICAND+1
+rotate_r:
+    ror                 ; rotate partial PRODUCT
+    sta    PRODUCT+3
+    ror    PRODUCT+2
+    ror    PRODUCT+1
+    ror    PRODUCT
+    dex
+    bne    shift_r
+    plx
+
+    rts
     
 draw_triangle_with_double_top_points:
 
@@ -356,20 +531,13 @@ test_simple_polygon_filler:
     ora #%00100000           ; Reset subpixel position
     sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
-
-; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
-; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
-; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
-
-; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
-; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
-; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
-; FIXME: We need to read VERA_ADDR_BANK and FLIP bit 1 of the incrementer (which is bit 5 of VERA_ADDR_BANK)
-; IDEA: maybe use TRB or TSB opcodes here!
+    ; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
+    ; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
+    ; FIXME: We need to read VERA_ADDR_BANK and FLIP bit 1 of the incrementer (which is bit 5 of VERA_ADDR_BANK)
+    ; IDEA: maybe use TRB or TSB opcodes here!
     lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
     ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
-
     
     ldy #TEST_FILL_COLOR     ; We use y as color
 
@@ -377,7 +545,7 @@ test_simple_polygon_filler:
     lda #150
     sta NUMBER_OF_ROWS
     
-    jsr draw_polygon_part_using_polygon_filler
+    jsr draw_polygon_part_using_polygon_filler_naively
     
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
@@ -401,13 +569,13 @@ test_simple_polygon_filler:
     lda #50
     sta NUMBER_OF_ROWS
     
-    jsr draw_polygon_part_using_polygon_filler
+    jsr draw_polygon_part_using_polygon_filler_naively
     
     rts
 
 
 
-draw_polygon_part_using_polygon_filler:
+draw_polygon_part_using_polygon_filler_naively:
 
     lda #%00001011           ; DCSEL=5, ADDRSEL=1
     sta VERA_CTRL
