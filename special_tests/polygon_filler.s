@@ -55,36 +55,58 @@ TIMING_COUNTER            = $14 ; 15
 TIME_ELAPSED_MS           = $16
 TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
 
-; Used only by (slow) 16bit multiplier (multply_16bits)
+; Used only by (slow) 16-bit multiplier (multply_16bits)
 MULTIPLIER                = $18 ; 19
 MULTIPLICAND              = $1A ; 1B
 PRODUCT                   = $1C ; 1D ; 1E ; 1F
 
-; For geneating code
-CODE_ADDRESS              = $20 ; 21
+; Used by the (slow) 24-bit divider (divide_24bits)
+DIVIDEND                  = $20 ; 21 ; 22  ; the thing you want to divide (e.g. 100 /) . This will also the result after the division
+DIVISOR                   = $23 ; 24 ; 25  ; the thing you divide by (e.g. / 10)
+REMAINDER                 = $26 ; 27 ; 28
 
-LOAD_ADDRESS              = $22 ; 23
-STORE_ADDRESS             = $24 ; 25
+; For geneating code
+CODE_ADDRESS              = $30 ; 31
+
+LOAD_ADDRESS              = $32 ; 33
+STORE_ADDRESS             = $34 ; 35
 
 ; Polygon filler
-NUMBER_OF_ROWS             = $30
-FILL_LENGTH_LOW            = $31
-FILL_LENGTH_HIGH           = $32
-X1_THREE_LOWER_BITS        = $33
+NUMBER_OF_ROWS             = $40
+FILL_LENGTH_LOW            = $41
+FILL_LENGTH_HIGH           = $42
+X1_THREE_LOWER_BITS        = $43
 
 ; Note: a triangle either has:
 ;   - a single top-point, which means it also has a bottom-left point and bottom-right point
 ;   - a double top-point (two points are at the same top-y), which means top-left point and top-right point and a single bottom-point
 ;   TODO: we still need to deal with "triangles" that have three points with the same x or the same y coordinate (which is in fact a vertical or horizontal *line*, not a triangle).
-TOP_POINT_X              = $40 ; 41
-TOP_POINT_Y              = $42 ; 43
-LEFT_POINT_X             = $44 ; 45
-LEFT_POINT_Y             = $46 ; 47
-RIGHT_POINT_X            = $48 ; 49
-RIGHT_POINT_Y            = $4A ; 4B
+TOP_POINT_X              = $50 ; 51
+TOP_POINT_Y              = $52 ; 53
+LEFT_POINT_X             = $54 ; 55
+LEFT_POINT_Y             = $56 ; 57
+RIGHT_POINT_X            = $58 ; 59
+RIGHT_POINT_Y            = $5A ; 5B
 BOTTOM_POINT_X           = TOP_POINT_X
 BOTTOM_POINT_Y           = TOP_POINT_Y
-TRIANGLE_COLOR           = $4C
+TRIANGLE_COLOR           = $5C
+
+; Used for calculating the slope between two points
+X_DISTANCE               = $60 ; 61
+X_DISTANCE_IS_NEGATED    = $62
+Y_DISTANCE_LEFT_TOP      = $63 ; 64
+Y_DISTANCE_RIGHT_TOP     = $65 ; 66
+Y_DISTANCE_RIGHT_LEFT    = $67 ; 68
+Y_DISTANCE_LEFT_RIGHT = Y_DISTANCE_RIGHT_LEFT
+Y_DISTANCE_IS_NEGATED    = $69
+SLOPE_TOP_LEFT           = $6A ; 6B ; 6C   ; TODO: do we really need 24 bits here?
+SLOPE_TOP_RIGHT          = $6D ; 6E ; 6F   ; TODO: do we really need 24 bits here?
+SLOPE_LEFT_RIGHT         = $70 ; 71 ; 72   ; TODO: do we really need 24 bits here?
+SLOPE_RIGHT_LEFT = SLOPE_LEFT_RIGHT
+
+
+Y_DISTANCE_FIRST         = $76 ; 77
+Y_DISTANCE_SECOND        = $78 ; 79
 
 ; RAM addresses
 CLEAR_COLUMN_CODE        = $7000
@@ -225,9 +247,9 @@ test_speed_of_filling_triangle:
     
 triangles_points:
     ;        x ,     y
-   .word BX+  0, BY+  0
-   .word BX+100, BY+ 70
-   .word BX+  0, BY+ 50
+   .word BX+ 20, BY+  0   ; TOP POINT
+   .word BX+  0, BY+ 50   ; LEFT POINT
+   .word BX+100, BY+ 70   ; RIGHT POINT
     
 triangles_colors:
     ;     color
@@ -265,6 +287,7 @@ draw_many_triangles_in_a_rectangle:
     
     ; HACK: we are hardcoding the top/bottom points right now!
     
+    ; -- TOP POINT --
     lda triangles_points
     sta TOP_POINT_X
     lda triangles_points+1
@@ -274,6 +297,28 @@ draw_many_triangles_in_a_rectangle:
     sta TOP_POINT_Y
     lda triangles_points+3
     sta TOP_POINT_Y+1
+
+    ; -- LEFT POINT --
+    lda triangles_points+4
+    sta LEFT_POINT_X
+    lda triangles_points+5
+    sta LEFT_POINT_X+1
+    
+    lda triangles_points+6
+    sta LEFT_POINT_Y
+    lda triangles_points+7
+    sta LEFT_POINT_Y+1
+
+    ; -- RIGHT POINT --
+    lda triangles_points+8
+    sta RIGHT_POINT_X
+    lda triangles_points+9
+    sta RIGHT_POINT_X+1
+    
+    lda triangles_points+10
+    sta RIGHT_POINT_Y
+    lda triangles_points+11
+    sta RIGHT_POINT_Y+1
     
     lda triangles_colors
     sta TRIANGLE_COLOR
@@ -297,12 +342,269 @@ draw_many_triangles_in_a_rectangle:
     
 draw_triangle_with_single_top_point:
 
-    ; FIXME: implement this:
-    ; calculate 3 slopes for the 2 triangle parts
-    ; set starting location on screen (ADDR0 = y, x1, x2 = x)
-    ; determine how many rows have to be drawn for both triangle parts
-    ; draw each triangle part
+    ; Note: we can assume here that:
+    ;  - the triangle has a single top point, its coordinate is in: TOP_POINT_X/TOP_POINT_Y
+    ;  - the triangle has a left-bottom point, its coordinate is on: LEFT_POINT_X/LEFT_POINT_Y
+    ;  - the triangle has a right-bottom point, its coordinate is on: RIGHT_POINT_X/RIGHT_POINT_Y
+    ;  - the color of the triangle is in: TRIANGLE_COLOR
+
+    ; We need to calculate 3 slopes for the 2 triangle parts:
+    ;  - the slope between TOP and LEFT
+    ;  - the slope between TOP and RIGHT
+    ;  - the slope between LEFT and RIGHT or RIGHT and LEFT (depending which one is higher in y)
     
+    ; IMPORTANT: be careful with LEFT and RIGHT slope: if they at the same Y you shoud *not* divide/determine the slope, but *stop* instead.
+    
+    ; About slopes:
+    ;  - slopes are up to 15+5=20 bits (signed) numbers: ranging from +-1024 pixels/2 down to +-(1/512th of a pixel)/2
+    ;  - slopes are *half* the actual slope between two point (since they are increment in 2 steps)
+    ;  - slopes are packed into a signed 15 bit + 1 "times 32"-bit 
+
+    
+    ; ============== LEFT POINT vs TOP POINT ============
+    
+    stz X_DISTANCE_IS_NEGATED
+    
+    ; We subtract: X_DISTANCE: LEFT_POINT_X - TOP_POINT_X
+    sec
+    lda LEFT_POINT_X
+    sbc TOP_POINT_X
+    sta X_DISTANCE
+    lda LEFT_POINT_X+1
+    sbc TOP_POINT_X+1
+    sta X_DISTANCE+1
+    bpl x_distance_left_top_is_positive
+    
+    lda #1
+    sta X_DISTANCE_IS_NEGATED
+
+    ; We negate the X_DISTANCE
+    sec
+    lda #0
+    sbc X_DISTANCE
+    sta X_DISTANCE
+    lda #0
+    sbc X_DISTANCE+1
+    sta X_DISTANCE+1
+    
+x_distance_left_top_is_positive:
+
+    ; We subtract: Y_DISTANCE_LEFT_TOP: LEFT_POINT_Y - TOP_POINT_Y
+    lda LEFT_POINT_Y
+    sbc TOP_POINT_Y
+    sta Y_DISTANCE_LEFT_TOP
+    lda LEFT_POINT_Y+1
+    sbc TOP_POINT_Y+1
+    sta Y_DISTANCE_LEFT_TOP+1
+    
+    ; Note: since we know the top point has a lower y than the left point, there is no need to negate it!
+    
+y_distance_left_top_is_positive:
+    
+    
+    ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_LEFT_TOP
+    lda X_DISTANCE+1
+    sta DIVIDEND+2
+    lda X_DISTANCE
+    sta DIVIDEND+1
+    lda #0
+    sta DIVIDEND
+
+    lda #0
+    sta DIVISOR+2
+    lda Y_DISTANCE_LEFT_TOP+1
+    sta DIVISOR+1
+    lda Y_DISTANCE_LEFT_TOP
+    sta DIVISOR
+
+    jsr divide_24bits
+    
+    lda DIVIDEND+2
+    sta SLOPE_TOP_LEFT+2
+    lda DIVIDEND+1
+    sta SLOPE_TOP_LEFT+1
+    lda DIVIDEND
+    sta SLOPE_TOP_LEFT
+    
+    lda X_DISTANCE_IS_NEGATED
+    beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+    
+    sec
+    lda #0
+    sbc SLOPE_TOP_LEFT
+    sta SLOPE_TOP_LEFT
+    lda #0
+    sbc SLOPE_TOP_LEFT+1
+    sta SLOPE_TOP_LEFT+1
+    lda #0
+    sbc SLOPE_TOP_LEFT+2
+    sta SLOPE_TOP_LEFT+2
+    
+slope_top_left_is_correctly_signed:
+
+
+    ; ============== RIGHT POINT vs TOP POINT ============
+
+    stz X_DISTANCE_IS_NEGATED
+    
+    ; We subtract: X_DISTANCE: RIGHT_POINT_X - TOP_POINT_X
+    sec
+    lda RIGHT_POINT_X
+    sbc TOP_POINT_X
+    sta X_DISTANCE
+    lda RIGHT_POINT_X+1
+    sbc TOP_POINT_X+1
+    sta X_DISTANCE+1
+    bpl x_distance_right_top_is_positive
+    
+    lda #1
+    sta X_DISTANCE_IS_NEGATED
+
+    ; We negate the X_DISTANCE
+    sec
+    lda #0
+    sbc X_DISTANCE
+    sta X_DISTANCE
+    lda #0
+    sbc X_DISTANCE+1
+    sta X_DISTANCE+1
+    
+x_distance_right_top_is_positive:
+
+    ; We subtract: Y_DISTANCE_RIGHT_TOP: RIGHT_POINT_Y - TOP_POINT_Y
+    lda RIGHT_POINT_Y
+    sbc TOP_POINT_Y
+    sta Y_DISTANCE_RIGHT_TOP
+    lda RIGHT_POINT_Y+1
+    sbc TOP_POINT_Y+1
+    sta Y_DISTANCE_RIGHT_TOP+1
+    
+    ; Note: since we know the top point has a lower y than the right point, there is no need to negate it!
+    
+y_distance_right_top_is_positive:
+    
+    
+    ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_RIGHT_TOP
+    lda X_DISTANCE+1
+    sta DIVIDEND+2
+    lda X_DISTANCE
+    sta DIVIDEND+1
+    lda #0
+    sta DIVIDEND
+
+    lda #0
+    sta DIVISOR+2
+    lda Y_DISTANCE_RIGHT_TOP+1
+    sta DIVISOR+1
+    lda Y_DISTANCE_RIGHT_TOP
+    sta DIVISOR
+
+    jsr divide_24bits
+    
+    lda DIVIDEND+2
+    sta SLOPE_TOP_RIGHT+2
+    lda DIVIDEND+1
+    sta SLOPE_TOP_RIGHT+1
+    lda DIVIDEND
+    sta SLOPE_TOP_RIGHT
+    
+    lda X_DISTANCE_IS_NEGATED
+    beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+    
+    sec
+    lda #0
+    sbc SLOPE_TOP_RIGHT
+    sta SLOPE_TOP_RIGHT
+    lda #0
+    sbc SLOPE_TOP_RIGHT+1
+    sta SLOPE_TOP_RIGHT+1
+    lda #0
+    sbc SLOPE_TOP_RIGHT+2
+    sta SLOPE_TOP_RIGHT+2
+    
+slope_top_right_is_correctly_signed:
+
+
+    ; ============== RIGHT POINT vs LEFT POINT ============
+
+    stz Y_DISTANCE_IS_NEGATED
+    
+    ; We subtract: X_DISTANCE: RIGHT_POINT_X - LEFT_POINT_X
+    sec
+    lda RIGHT_POINT_X
+    sbc LEFT_POINT_X
+    sta X_DISTANCE
+    lda RIGHT_POINT_X+1
+    sbc LEFT_POINT_X+1
+    sta X_DISTANCE+1
+
+    ; Note: since we know the right point has a higher x than the left point, there is no need to negate it!
+    
+x_distance_right_left_is_positive:
+    
+    ; We subtract: Y_DISTANCE_RIGHT_TOP: RIGHT_POINT_Y - LEFT_POINT_Y
+    lda RIGHT_POINT_Y
+    sbc LEFT_POINT_Y
+    sta Y_DISTANCE_RIGHT_LEFT
+    lda RIGHT_POINT_Y+1
+    sbc LEFT_POINT_Y+1
+    sta Y_DISTANCE_RIGHT_LEFT+1
+    bpl y_distance_right_left_is_positive
+    
+    lda #1
+    sta Y_DISTANCE_IS_NEGATED
+
+    ; We negate the Y_DISTANCE_RIGHT_LEFT
+    sec
+    lda #0
+    sbc Y_DISTANCE_RIGHT_LEFT
+    sta Y_DISTANCE_RIGHT_LEFT
+    lda #0
+    sbc Y_DISTANCE_RIGHT_LEFT+1
+    sta Y_DISTANCE_RIGHT_LEFT+1
+    
+y_distance_right_left_is_positive:
+
+    ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_RIGHT_LEFT
+    lda X_DISTANCE+1
+    sta DIVIDEND+2
+    lda X_DISTANCE
+    sta DIVIDEND+1
+    lda #0
+    sta DIVIDEND
+
+    lda #0
+    sta DIVISOR+2
+    lda Y_DISTANCE_RIGHT_LEFT+1
+    sta DIVISOR+1
+    lda Y_DISTANCE_RIGHT_LEFT
+    sta DIVISOR
+
+    jsr divide_24bits
+    
+    lda DIVIDEND+2
+    sta SLOPE_RIGHT_LEFT+2
+    lda DIVIDEND+1
+    sta SLOPE_RIGHT_LEFT+1
+    lda DIVIDEND
+    sta SLOPE_RIGHT_LEFT
+    
+    lda Y_DISTANCE_IS_NEGATED
+    beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we dont have to negate now, otherwise we do
+    
+    sec
+    lda #0
+    sbc SLOPE_RIGHT_LEFT
+    sta SLOPE_RIGHT_LEFT
+    lda #0
+    sbc SLOPE_RIGHT_LEFT+1
+    sta SLOPE_RIGHT_LEFT+1
+    lda #0
+    sbc SLOPE_RIGHT_LEFT+2
+    sta SLOPE_RIGHT_LEFT+2
+    
+slope_right_left_is_correctly_signed:
+
     
     ; -- We setup the starting x and y and the color --
     .if(USE_POLYGON_FILLER)
@@ -357,12 +659,8 @@ draw_triangle_with_single_top_point:
         ora #%00100000           ; Reset subpixel position
         sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
-; FIXME: cant we make sure the draw_part routines always end up  with the increment being set to 1? Then we dont have to do this here!
+; FIXME: we should do this *much* earlier and not for every triangle!
         lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-        ; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
-        ; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
-        ; FIXME: We need to read VERA_ADDR_BANK and FLIP bit 1 of the incrementer (which is bit 5 of VERA_ADDR_BANK)
-        ; IDEA: maybe use TRB or TSB opcodes here!
         sta VERA_ADDR_BANK
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
     
@@ -375,21 +673,27 @@ draw_triangle_with_single_top_point:
 
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
+
+; FIXME: we should do x32 when the number is too high!!
     
     ; FIXME: NOTE that these increments are *HALF* steps!!
-    lda #<(0)             ; X1 increment low (signed)
+    lda SLOPE_TOP_LEFT       ; X1 increment low (signed)
     sta $9F29
-    lda #>(0)             ; X1 increment high (signed)
+    lda SLOPE_TOP_LEFT+1     ; X1 increment high (signed)
     and #%01111111           ; increment is only 15-bits long
     sta $9F2A
-    lda #<(380)              ; X2 increment low (signed)
+
+    lda SLOPE_TOP_RIGHT      ; X2 increment low (signed)
     sta $9F2B                
-    lda #>(380)              ; X2 increment high (signed)
+    lda SLOPE_TOP_RIGHT+1    ; X2 increment high (signed)
     and #%01111111           ; increment is only 15-bits long
     sta $9F2C    
 
-; FIXME: hardcoded!
-    lda #70
+    ; We determine which of LEFT or RIGHT is lower in y and chose number of rows to that point
+    lda Y_DISTANCE_IS_NEGATED
+    bne first_right_point_is_lower_in_y
+first_left_point_is_lower_in_y:
+    lda Y_DISTANCE_LEFT_TOP
     sta NUMBER_OF_ROWS
     
     jsr draw_polygon_part_using_polygon_filler_naively
@@ -400,23 +704,42 @@ draw_triangle_with_single_top_point:
 ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
     
     ; FIXME: NOTE that these increments are *HALF* steps!!
-    lda #<(0)              ; X1 increment low
+    lda SLOPE_RIGHT_LEFT     ; X1 increment low
     sta $9F29
-    lda #>(0)              ; X1 increment high
-    and #%01111111            ; increment is only 15-bits long
+    lda SLOPE_RIGHT_LEFT+1   ; X1 increment high
+    and #%01111111           ; increment is only 15-bits long
     sta $9F2A
-; FIXME: there is no need to set increment Y again!
-    lda #<(-700)             ; X2 increment low
-    sta $9F2B                
-    lda #>(-700)             ; X2 increment high
-    and #%01111111            ; increment is only 15-bits long
-    sta $9F2C
 
-; FIXME: hardcoded!
-    lda #30
+    lda Y_DISTANCE_RIGHT_LEFT
     sta NUMBER_OF_ROWS
     
     jsr draw_polygon_part_using_polygon_filler_naively
+
+    bra done_drawing_polygon_part
+first_right_point_is_lower_in_y:
+    lda Y_DISTANCE_RIGHT_TOP
+    sta NUMBER_OF_ROWS
+    
+    jsr draw_polygon_part_using_polygon_filler_naively
+
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
+    sta VERA_CTRL
+    
+; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
+    
+    ; FIXME: NOTE that these increments are *HALF* steps!!
+    lda SLOPE_RIGHT_LEFT     ; X2 increment low
+    sta $9F2B                
+    lda SLOPE_RIGHT_LEFT+1   ; X2 increment high
+    and #%01111111           ; increment is only 15-bits long
+    sta $9F2C
+    
+    lda Y_DISTANCE_RIGHT_LEFT
+    sta NUMBER_OF_ROWS
+    
+    jsr draw_polygon_part_using_polygon_filler_naively
+    
+done_drawing_polygon_part:
     
     
 ;    .if(USE_POLYGON_FILLER)
@@ -428,35 +751,7 @@ draw_triangle_with_single_top_point:
     rts
     
     
-; FIXME: put this somewhere else!
-; https://codebase64.org/doku.php?id=base:16bit_multiplication_32-bit_product
-multply_16bits:
-    phx
-    lda    #$00
-    sta    PRODUCT+2    ; clear upper bits of PRODUCT
-    sta    PRODUCT+3
-    ldx    #$10         ; set binary count to 16
-shift_r:
-    lsr    MULTIPLIER+1 ; divide MULTIPLIER by 2
-    ror    MULTIPLIER
-    bcc    rotate_r
-    lda    PRODUCT+2    ; get upper half of PRODUCT and add MULTIPLICAND
-    clc
-    adc    MULTIPLICAND
-    sta    PRODUCT+2
-    lda    PRODUCT+3
-    adc    MULTIPLICAND+1
-rotate_r:
-    ror                 ; rotate partial PRODUCT
-    sta    PRODUCT+3
-    ror    PRODUCT+2
-    ror    PRODUCT+1
-    ror    PRODUCT
-    dex
-    bne    shift_r
-    plx
 
-    rts
     
 draw_triangle_with_double_top_points:
 
@@ -772,6 +1067,85 @@ done_adding_code_byte:
     rts
 
 
+    
+    
+    
+; =========== FIXME: put this somewhere else! ==============
+; https://codebase64.org/doku.php?id=base:16bit_multiplication_32-bit_product
+multply_16bits:
+    phx
+    lda    #$00
+    sta    PRODUCT+2    ; clear upper bits of PRODUCT
+    sta    PRODUCT+3
+    ldx    #$10         ; set binary count to 16
+shift_r:
+    lsr    MULTIPLIER+1 ; divide MULTIPLIER by 2
+    ror    MULTIPLIER
+    bcc    rotate_r
+    lda    PRODUCT+2    ; get upper half of PRODUCT and add MULTIPLICAND
+    clc
+    adc    MULTIPLICAND
+    sta    PRODUCT+2
+    lda    PRODUCT+3
+    adc    MULTIPLICAND+1
+rotate_r:
+    ror                 ; rotate partial PRODUCT
+    sta    PRODUCT+3
+    ror    PRODUCT+2
+    ror    PRODUCT+1
+    ror    PRODUCT
+    dex
+    bne    shift_r
+    plx
+
+    rts
+    
+; FIXME: put this somewhere else!
+; https://codebase64.org/doku.php?id=base:24bit_division_24-bit_result
+divide_24bits:
+    phx
+    phy
+
+    lda #0            ; preset REMAINDER to 0
+    sta REMAINDER
+    sta REMAINDER+1
+    sta REMAINDER+2
+    ldx #24            ; repeat for each bit: ...
+
+div24loop:
+    asl DIVIDEND    ; DIVIDEND lb & hb*2, msb -> Carry
+    rol DIVIDEND+1
+    rol DIVIDEND+2
+    rol REMAINDER    ; REMAINDER lb & hb * 2 + msb from carry
+    rol REMAINDER+1
+    rol REMAINDER+2
+    lda REMAINDER
+    sec
+    sbc DIVISOR        ; substract DIVISOR to see if it fits in
+    tay                ; lb result -> Y, for we may need it later
+    lda REMAINDER+1
+    sbc DIVISOR+1
+    sta TMP1
+    lda REMAINDER+2
+    sbc DIVISOR+2
+    bcc div24skip     ; if carry=0 then DIVISOR didnt fit in yet
+
+    sta REMAINDER+2 ; else save substraction result as new REMAINDER,
+    lda TMP1
+    sta REMAINDER+1
+    sty REMAINDER
+    inc DIVIDEND    ; and INCrement result cause DIVISOR fit in 1 times
+
+div24skip:
+    dex
+    bne div24loop
+
+    ply
+    plx
+    rts
+; =========== / FIXME: put this somewhere else! ==============
+    
+    
     ; === Included files ===
     
     .include utils/x16.s
