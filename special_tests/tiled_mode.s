@@ -1,9 +1,9 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 1
-DO_NO_TILE_LOOKUP = 0
+USE_TABLE_FILES = 0
+DO_NO_TILE_LOOKUP = 1
 DO_CLIP = 0
-DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
+DRAW_TILED_PERSPECTIVE = 0  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 1
 TURN_AROUND = 0
 MOVE_SLOWLY = 0
@@ -384,10 +384,10 @@ tiled_perspective_fast:
     
     ; Setting base addresses and map size
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
-    and #$FE   ; only the 7 highest bits of the address can be set
+    and #$FC   ; only the 6 highest bits of the address can be set
     sta $9F2A
     lda #(MAPDATA_VRAM_ADDRESS >> 9)
-    and #$FE   ; only the 7 highest bits of the address can be set
+    and #$FC   ; only the 6 highest bits of the address can be set
     .if(DO_CLIP)
         ora #%00000001  ; 1 for Clip
     .else
@@ -678,10 +678,10 @@ flat_tiles_fast:
     ; Setting base addresses and map size
     
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
-    and #$FE   ; only the 7 highest bits of the address can be set
+    and #$FC   ; only the 6 highest bits of the address can be set
     sta $9F2A
     lda #(MAPDATA_VRAM_ADDRESS >> 9)
-    and #$FE   ; only the 7 highest bits of the address can be set
+    and #$FC   ; only the 6 highest bits of the address can be set
     .if(DO_CLIP)
         ora #%00000001  ; 1 for Clip
     .else
