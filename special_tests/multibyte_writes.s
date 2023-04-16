@@ -453,6 +453,36 @@ clear_next_column_right_1_byte:
 
 clear_screen_fast_4_bytes:
 
+    ; We first need to fill the 32-bit cache with 4 times our background color
+
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%00000000           ; normal addr1 mode 
+    sta $9F29
+    
+    lda #%00000001           ; ... cache fill enabled = 1
+    sta $9F2C   
+    
+    lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
+    sta VERA_ADDR_BANK
+    stz VERA_ADDR_HIGH
+    stz VERA_ADDR_LOW
+
+    lda #BACKGROUND_COLOR
+    sta VERA_DATA1
+    
+    lda VERA_DATA1    
+    lda VERA_DATA1
+    lda VERA_DATA1
+    lda VERA_DATA1
+     
+    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
+    sta $9F2B     
+
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+
     ; Left part of the screen (256 columns)
 
     
@@ -497,6 +527,9 @@ clear_next_column_right_4_bytes:
     cpx #64
     bne clear_next_column_right_4_bytes
 
+    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
+    sta $9F2B       
+    
     rts
 
 
@@ -515,7 +548,7 @@ generate_clear_column_code:
 next_clear_instruction:
 
     ; -- sta VERA_DATA0 ($9F23)
-    lda #$8D               ; sta ....
+    lda #$9C               ; stz ....
     jsr add_code_byte
 
     lda #$23               ; $23

@@ -1,5 +1,5 @@
 
-DO_ROTATE = 1  ; otherwise SHEAR
+DO_ROTATE = 0  ; otherwise SHEAR
 
 USE_CACHE_FOR_WRITING = 1
 USE_TRANSPARENT_WRITING = 1
@@ -268,13 +268,19 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     ; Setting base address and map size
     
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
-    and #$FE   ; only the 7 highest bits of the address can be set
+    and #$FC   ; only the 6 highest bits of the address can be set
+    .if(USE_TRANSPARENT_WRITING)
+        ora #%00000010  ; transparency enabled = 1
+    .endif
     sta $9F2A
 
     lda #%10000001  ; Map size = 100 (16x16 map), cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
     sta $9F2C
     
     lda #%00000001  ; 1 for Clip
+    .if(USE_CACHE_FOR_WRITING)
+        ora #%00000010  ; blit write enabled = 1
+    .endif
     sta $9F2B
     
     lda #%00000100  ; 100 for no tile lookup
@@ -282,6 +288,12 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     
     jsr rotate_or_shear_bitmap_fast_1_byte_per_copy
 
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000000  ; blit write enabled = 0
+    sta $9F2B
+    
     jsr stop_timer
 
     lda #COLOR_TRANSPARANT
@@ -422,17 +434,8 @@ rotate_copy_next_row_1:
 ;    .endif
 ;    sta $9F2A
     
-    .if (USE_CACHE_FOR_WRITING)
-        .if(USE_TRANSPARENT_WRITING)
-            lda #%00110100           ; Setting auto-increment value to 4 byte increment (=%0011) and wrpattern = 10b (=transparent blit)
-        .else
-            lda #%00110110           ; Setting auto-increment value to 4 byte increment (=%0011) and wrpattern = 11b (=blit)
-        .endif
-        sta VERA_ADDR_BANK
-    .else
-        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-        sta VERA_ADDR_BANK
-    .endif
+    lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011) 
+    sta VERA_ADDR_BANK
     lda VERA_ADDR_ZP_TO+1
     sta VERA_ADDR_HIGH
     lda VERA_ADDR_ZP_TO

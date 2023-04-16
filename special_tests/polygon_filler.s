@@ -128,10 +128,10 @@ reset:
     .if(DO_SPEED_TEST)
        jsr test_speed_of_filling_triangle
     .else
+      lda #$10                 ; 8:1 scale (320 x 240 pixels on screen)
+      sta VERA_DC_HSCALE
+      sta VERA_DC_VSCALE      
     
-;      lda #$10                 ; 8:1 scale (320 x 240 pixels on screen)
-;      sta VERA_DC_HSCALE
-;      sta VERA_DC_VSCALE
       jsr test_simple_polygon_filler
     .endif
     
@@ -611,7 +611,7 @@ polygon_fill_triangle_row_next:
     ; FIXME: should we do this +1 here or inside of VERA? -> note: when x = 255, 256 pixels will be drawn (which is what we want right now)
     inx
     
-    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using wrpatterns), but this is just an example to explain how the feature works
+    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
 polygon_fill_triangle_pixel_next_0:
     sty VERA_DATA1
     dex
@@ -621,7 +621,7 @@ polygon_fill_triangle_pixel_next_0:
     lda FILL_LENGTH_HIGH
     beq polygon_fill_triangle_row_done
 
-    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using wrpatterns), but this is just an example to explain how the feature works
+    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
 polygon_fill_triangle_pixel_next_256:
     ldx #0
 polygon_fill_triangle_pixel_next_256_0:
@@ -644,13 +644,44 @@ polygon_fill_triangle_row_done:
     
 clear_screen_fast_4_bytes:
 
+    ; We first need to fill the 32-bit cache with 4 times our background color
+
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%00000000           ; normal addr1 mode 
+    sta $9F29
+    
+    lda #%00000001           ; ... cache fill enabled = 1
+    sta $9F2C   
+    
+    lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
+    sta VERA_ADDR_BANK
+    stz VERA_ADDR_HIGH
+    stz VERA_ADDR_LOW
+
+    lda #BACKGROUND_COLOR
+    sta VERA_DATA1
+    
+    lda VERA_DATA1    
+    lda VERA_DATA1
+    lda VERA_DATA1
+    lda VERA_DATA1
+     
+    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
+    sta $9F2B     
+
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    
     ; Left part of the screen (256 columns)
 
     
     ldx #0
     
 clear_next_column_left_4_bytes:
-    lda #%11100010           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110) and wrpatter to 01
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
     sta VERA_ADDR_BANK
     lda #$00
     sta VERA_ADDR_HIGH
@@ -671,7 +702,7 @@ clear_next_column_left_4_bytes:
     ldx #0
 
 clear_next_column_right_4_bytes:
-    lda #%11100010           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110) and wrpatter to 01
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
     sta VERA_ADDR_BANK
     lda #$01
     sta VERA_ADDR_HIGH
@@ -687,7 +718,11 @@ clear_next_column_right_4_bytes:
     inx
     cpx #64
     bne clear_next_column_right_4_bytes
-
+     
+    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
+    sta $9F2B       
+    
+    
     rts
 
 
@@ -706,7 +741,7 @@ generate_clear_column_code:
 next_clear_instruction:
 
     ; -- sta VERA_DATA0 ($9F23)
-    lda #$8D               ; sta ....
+    lda #$9C               ; stz ....
     jsr add_code_byte
 
     lda #$23               ; $23

@@ -710,6 +710,11 @@ write_mult_acc_result_into_vram:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
+    
+    ; SLOW: dont do this each time we write the cache to VRAM!
+    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
+    sta $9F2B     
+    
     ; Writing cache to vram 
     
     lda #%00110110           ; Setting bit 16 of vram address to the highest bit in the tilebase (=0), setting auto-increment value to 4, with wrpattern = 11 (blit)
@@ -721,6 +726,10 @@ write_mult_acc_result_into_vram:
     sta VERA_ADDR_LOW
     
     stz VERA_DATA0
+    
+    ; SLOW: dont do this each time we write the cache to VRAM!
+    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
+    sta $9F2B     
     
     rts
     

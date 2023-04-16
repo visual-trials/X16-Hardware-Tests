@@ -121,6 +121,8 @@ reset:
 loop:
   jmp loop
 
+  
+; FIXME: THIS NEEDS TO BE CHANGED! WRPATTERN is replaced by BLITTING from CACHE!
 blit_some_bytes:
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
@@ -331,12 +333,15 @@ test_speed_of_copying_bitmap_4_bytes_per_copy:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00000000           ; reset accumulator = 0, accumulate = 0, add or sub = 0, multiplier enabled = 10, addr1 mode = 000
+    lda #%00000000           ; reset accumulator = 0, accumulate = 0, add or sub = 0, multiplier enabled = 0, addr1 mode = 000
     sta $9F29
     
     lda #%00000001           ; Map size = 000, cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
     sta $9F2C
 
+    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
+    sta $9F2B     
+    
     ; Setup FROM and TO VRAM addresses
     lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_FROM
@@ -374,6 +379,12 @@ test_speed_of_copying_bitmap_4_bytes_per_copy:
     
     jsr copy_bitmap_fast_4_bytes_per_copy
 
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
+    sta $9F2B       
+    
     jsr stop_timer
 
     lda #COLOR_TRANSPARANT
@@ -499,8 +510,7 @@ copy_next_row_4:
     lda #%00000001           ; DCSEL=0, ADDRSEL=1
     sta VERA_CTRL
 
-    lda #%00010110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte
-                             ; We also set the write pattern bytes to 11, indicating we are going to fill the blit-cache with reads from DATA1
+    lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte
     sta VERA_ADDR_BANK
     lda VERA_ADDR_ZP_FROM+1
     sta VERA_ADDR_HIGH
@@ -510,8 +520,7 @@ copy_next_row_4:
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00110110           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 4 bytes
-                             ; We also set the write pattern bytes to 11, indicating we are going to use the blit-cache to write to VRAM (ignoring the byte of data stored into DATA0)
+    lda #%00110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 4 bytes
     ora TMP2                 ; Set bit16
     sta VERA_ADDR_BANK
     lda VERA_ADDR_ZP_TO+1

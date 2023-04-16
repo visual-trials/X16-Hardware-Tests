@@ -1,7 +1,7 @@
 
 USE_CACHE_FOR_WRITING = 1
 USE_TABLE_FILES = 1
-DO_NO_TILE_LOOKUP = 1
+DO_NO_TILE_LOOKUP = 0
 DO_CLIP = 0
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 1
@@ -393,6 +393,9 @@ tiled_perspective_fast:
     .else
         ora #%00000000  ; 0 for Repeat
     .endif
+    .if(USE_CACHE_FOR_WRITING)
+        ora #%00000010  ; blit write enabled = 1
+    .endif
     sta $9F2B
     
     .if(DO_NO_TILE_LOOKUP)
@@ -430,7 +433,7 @@ tiled_perspective_copy_next_row_1:
     sta VERA_CTRL
 
     .if (USE_CACHE_FOR_WRITING)
-        lda #%00110110           ; Setting auto-increment value to 4 byte increment (=%0011) and wrpattern = 11b
+        lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011)
         sta VERA_ADDR_BANK
     .else
         lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
@@ -579,6 +582,12 @@ tiled_perspective_copy_next_row_1:
     jmp tiled_perspective_copy_next_row_1
 done_tiled_perspective_copy:
     
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000000  ; blit write enabled = 0
+    sta $9F2B
+    
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
@@ -678,6 +687,9 @@ flat_tiles_fast:
     .else
         ora #%00000000  ; 0 for Repeat
     .endif
+    .if(USE_CACHE_FOR_WRITING)
+        ora #%00000010  ; blit write enabled = 1
+    .endif
     sta $9F2B
     
     .if(DO_NO_TILE_LOOKUP)
@@ -713,7 +725,7 @@ repetitive_copy_next_row_1:
     sta VERA_CTRL
 
     .if (USE_CACHE_FOR_WRITING)
-        lda #%00110110           ; Setting auto-increment value to 4 byte increment (=%0011) and wrpattern = 11b
+        lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011) 
         sta VERA_ADDR_BANK
     .else
         lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
@@ -761,6 +773,12 @@ repetitive_copy_next_row_1:
     inx
     cpx #TEXTURE_HEIGHT          ; we do 64 rows
     bne repetitive_copy_next_row_1
+    
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000000  ; blit write enabled = 0
+    sta $9F2B
     
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
