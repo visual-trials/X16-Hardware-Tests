@@ -1,6 +1,7 @@
 
 DO_SPEED_TEST = 1
 USE_POLYGON_FILLER = 1
+USE_SLOPE_TABLES = 1
 
     .if (USE_POLYGON_FILLER)
 BACKGROUND_COLOR = 251  ; Nice purple
@@ -42,13 +43,13 @@ BANK_TESTING              = $06
 BAD_VALUE                 = $07
 
 ; Printing
-TEXT_TO_PRINT             = $07 ; 08
-TEXT_COLOR                = $09
-CURSOR_X                  = $0A
-CURSOR_Y                  = $0B
-INDENTATION               = $0C
-BYTE_TO_PRINT             = $0D
-DECIMAL_STRING            = $0E ; 0F ; 10
+TEXT_TO_PRINT             = $08 ; 09
+TEXT_COLOR                = $0A
+CURSOR_X                  = $0B
+CURSOR_Y                  = $0C
+INDENTATION               = $0D
+BYTE_TO_PRINT             = $0E
+DECIMAL_STRING            = $0F ; 10 ; 11
 
 ; Timing
 TIMING_COUNTER            = $14 ; 15
@@ -67,9 +68,10 @@ REMAINDER                 = $26 ; 27 ; 28
 
 ; For geneating code
 CODE_ADDRESS              = $30 ; 31
-
 LOAD_ADDRESS              = $32 ; 33
 STORE_ADDRESS             = $34 ; 35
+
+TABLE_ROM_BANK            = $46
 
 ; Polygon filler
 NUMBER_OF_ROWS             = $40
@@ -132,6 +134,7 @@ Y_TO_ADDRESS_LOW         = $8100
 Y_TO_ADDRESS_HIGH        = $8200
 Y_TO_ADDRESS_BANK        = $8300
 
+COPY_SLOPE_TABLES_TO_BANKED_RAM   = $8400
 
   .org $C000
 
@@ -154,6 +157,11 @@ reset:
     jsr clear_screen_fast_4_bytes
     
     jsr generate_y_to_address_table
+    
+    .if(USE_SLOPE_TABLES)
+        jsr copy_slope_table_copier_to_ram
+        jsr COPY_SLOPE_TABLES_TO_BANKED_RAM
+    .endif
     
     
     .if(DO_SPEED_TEST)
@@ -410,44 +418,112 @@ x_distance_left_top_is_positive:
     
 y_distance_left_top_is_positive:
     
-    
-    ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_LEFT_TOP
-    lda X_DISTANCE+1
-    sta DIVIDEND+2
-    lda X_DISTANCE
-    sta DIVIDEND+1
-    lda #0
-    sta DIVIDEND
+    .if(USE_SLOPE_TABLES)
+        ; We get the SLOPE from the slope table. We need:
+        ;   y = Y_DISTANCE_LEFT_TOP
+        ;   RAM_BANK = X_DISTANCE[5:0]
+        ;   ADDR_HIGH[3:1] = X_DISTANCE[8:6]
+        
+        ldy Y_DISTANCE_LEFT_TOP
+        
+        lda X_DISTANCE
+        and #%00111111
+        sta RAM_BANK
 
-    lda #0
-    sta DIVISOR+2
-    lda Y_DISTANCE_LEFT_TOP+1
-    sta DIVISOR+1
-    lda Y_DISTANCE_LEFT_TOP
-    sta DIVISOR
+        ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8)
+        asl X_DISTANCE
+        rol X_DISTANCE+1
+        asl X_DISTANCE
+        rol X_DISTANCE+1
+        
+        ; We shift bits 8, 7 and 6 into bits 3, 2 and 1
+        asl X_DISTANCE+1
+        
+        ; We combine bits 3:1 with A0
+        lda #>($A000)
+        ora X_DISTANCE+1
+        sta LOAD_ADDRESS+1
+        
+        ; SPEED: we dont need to do this again and again, this stays at zero!
+        lda #<($A000)
+        sta LOAD_ADDRESS
+        
+        ; We load the SLOPE_LOW
+        lda (LOAD_ADDRESS), y
+        sta SLOPE_TOP_LEFT
+        
+        ; We load the SLOPE_HIGH
+        inc LOAD_ADDRESS+1
+        lda (LOAD_ADDRESS), y
+        sta SLOPE_TOP_LEFT+1
+    
+        ldx X_DISTANCE_IS_NEGATED
+        beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+        
+        ; We need to preserve the x32 bit here!
+        and #%10000000
+        sta TMP2
 
-    jsr divide_24bits
+        ; We unset the x32 (in case it was set) because we have to negate the number
+        ; SPEED: can we use a different opcode here to unset the x32 bit?
+        lda SLOPE_TOP_LEFT+1
+        and #%01111111
+        sta SLOPE_TOP_LEFT+1
+        
+        sec
+        lda #0
+        sbc SLOPE_TOP_LEFT
+        sta SLOPE_TOP_LEFT
+        lda #0
+        sbc SLOPE_TOP_LEFT+1
+        and #%01111111         ; Only keep the lower 7 bits
+        ora TMP2               ; We restore the x32 bit
+        sta SLOPE_TOP_LEFT+1
     
-    lda DIVIDEND+2
-    sta SLOPE_TOP_LEFT+2
-    lda DIVIDEND+1
-    sta SLOPE_TOP_LEFT+1
-    lda DIVIDEND
-    sta SLOPE_TOP_LEFT
-    
-    lda X_DISTANCE_IS_NEGATED
-    beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
-    
-    sec
-    lda #0
-    sbc SLOPE_TOP_LEFT
-    sta SLOPE_TOP_LEFT
-    lda #0
-    sbc SLOPE_TOP_LEFT+1
-    sta SLOPE_TOP_LEFT+1
-    lda #0
-    sbc SLOPE_TOP_LEFT+2
-    sta SLOPE_TOP_LEFT+2
+    .else
+        ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_LEFT_TOP
+        lda X_DISTANCE+1
+        sta DIVIDEND+2
+        lda X_DISTANCE
+        sta DIVIDEND+1
+        lda #0
+        sta DIVIDEND
+
+        lda #0
+        sta DIVISOR+2
+        lda Y_DISTANCE_LEFT_TOP+1
+        sta DIVISOR+1
+        lda Y_DISTANCE_LEFT_TOP
+        sta DIVISOR
+
+        jsr divide_24bits
+        
+        lda DIVIDEND+2
+        sta SLOPE_TOP_LEFT+2
+        lda DIVIDEND+1
+        sta SLOPE_TOP_LEFT+1
+        lda DIVIDEND
+        sta SLOPE_TOP_LEFT
+        
+        ldx X_DISTANCE_IS_NEGATED
+        beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+        
+        sec
+        lda #0
+        sbc SLOPE_TOP_LEFT
+        sta SLOPE_TOP_LEFT
+        lda #0
+        sbc SLOPE_TOP_LEFT+1
+        sta SLOPE_TOP_LEFT+1
+        lda #0
+        sbc SLOPE_TOP_LEFT+2
+        sta SLOPE_TOP_LEFT+2
+
+        ; FIXME: since we just negated, we unset bit15, but we should set bit15 properly
+        lda SLOPE_TOP_LEFT+1
+        and #%01111111           ; increment is only 15-bits long
+        sta SLOPE_TOP_LEFT+1
+    .endif
     
 slope_top_left_is_correctly_signed:
 
@@ -493,43 +569,112 @@ x_distance_right_top_is_positive:
 y_distance_right_top_is_positive:
     
     
-    ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_RIGHT_TOP
-    lda X_DISTANCE+1
-    sta DIVIDEND+2
-    lda X_DISTANCE
-    sta DIVIDEND+1
-    lda #0
-    sta DIVIDEND
+    .if(USE_SLOPE_TABLES)
+        ; We get the SLOPE from the slope table. We need:
+        ;   y = Y_DISTANCE_RIGHT_TOP
+        ;   RAM_BANK = X_DISTANCE[5:0]
+        ;   ADDR_HIGH[3:1] = X_DISTANCE[8:6]
+        
+        ldy Y_DISTANCE_RIGHT_TOP
+        
+        lda X_DISTANCE
+        and #%00111111
+        sta RAM_BANK
 
-    lda #0
-    sta DIVISOR+2
-    lda Y_DISTANCE_RIGHT_TOP+1
-    sta DIVISOR+1
-    lda Y_DISTANCE_RIGHT_TOP
-    sta DIVISOR
+        ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8)
+        asl X_DISTANCE
+        rol X_DISTANCE+1
+        asl X_DISTANCE
+        rol X_DISTANCE+1
+        
+        ; We shift bits 8, 7 and 6 into bits 3, 2 and 1
+        asl X_DISTANCE+1
+        
+        ; We combine bits 3:1 with A0
+        lda #>($A000)
+        ora X_DISTANCE+1
+        sta LOAD_ADDRESS+1
+        
+        ; SPEED: we dont need to do this again and again, this stays at zero!
+        lda #<($A000)
+        sta LOAD_ADDRESS
+        
+        ; We load the SLOPE_LOW
+        lda (LOAD_ADDRESS), y
+        sta SLOPE_TOP_RIGHT
+        
+        ; We load the SLOPE_HIGH
+        inc LOAD_ADDRESS+1
+        lda (LOAD_ADDRESS), y
+        sta SLOPE_TOP_RIGHT+1
+    
+        ldx X_DISTANCE_IS_NEGATED
+        beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+        
+        ; We need to preserve the x32 bit here!
+        and #%10000000
+        sta TMP2
 
-    jsr divide_24bits
+        ; We unset the x32 (in case it was set) because we have to negate the number
+        ; SPEED: can we use a different opcode here to unset the x32 bit?
+        lda SLOPE_TOP_RIGHT+1
+        and #%01111111
+        sta SLOPE_TOP_RIGHT+1
+        
+        sec
+        lda #0
+        sbc SLOPE_TOP_RIGHT
+        sta SLOPE_TOP_RIGHT
+        lda #0
+        sbc SLOPE_TOP_RIGHT+1
+        and #%01111111         ; Only keep the lower 7 bits
+        ora TMP2               ; We restore the x32 bit
+        sta SLOPE_TOP_RIGHT+1
     
-    lda DIVIDEND+2
-    sta SLOPE_TOP_RIGHT+2
-    lda DIVIDEND+1
-    sta SLOPE_TOP_RIGHT+1
-    lda DIVIDEND
-    sta SLOPE_TOP_RIGHT
-    
-    lda X_DISTANCE_IS_NEGATED
-    beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
-    
-    sec
-    lda #0
-    sbc SLOPE_TOP_RIGHT
-    sta SLOPE_TOP_RIGHT
-    lda #0
-    sbc SLOPE_TOP_RIGHT+1
-    sta SLOPE_TOP_RIGHT+1
-    lda #0
-    sbc SLOPE_TOP_RIGHT+2
-    sta SLOPE_TOP_RIGHT+2
+    .else
+        ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_RIGHT_TOP
+        lda X_DISTANCE+1
+        sta DIVIDEND+2
+        lda X_DISTANCE
+        sta DIVIDEND+1
+        lda #0
+        sta DIVIDEND
+
+        lda #0
+        sta DIVISOR+2
+        lda Y_DISTANCE_RIGHT_TOP+1
+        sta DIVISOR+1
+        lda Y_DISTANCE_RIGHT_TOP
+        sta DIVISOR
+
+        jsr divide_24bits
+        
+        lda DIVIDEND+2
+        sta SLOPE_TOP_RIGHT+2
+        lda DIVIDEND+1
+        sta SLOPE_TOP_RIGHT+1
+        lda DIVIDEND
+        sta SLOPE_TOP_RIGHT
+        
+        ldx X_DISTANCE_IS_NEGATED
+        beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+        
+        sec
+        lda #0
+        sbc SLOPE_TOP_RIGHT
+        sta SLOPE_TOP_RIGHT
+        lda #0
+        sbc SLOPE_TOP_RIGHT+1
+        sta SLOPE_TOP_RIGHT+1
+        lda #0
+        sbc SLOPE_TOP_RIGHT+2
+        sta SLOPE_TOP_RIGHT+2
+        
+        ; FIXME: since we just negated, we unset bit15, but we should set bit15 properly
+        lda SLOPE_TOP_RIGHT+1
+        and #%01111111           ; increment is only 15-bits long
+        sta SLOPE_TOP_RIGHT+1
+    .endif
     
 slope_top_right_is_correctly_signed:
 
@@ -574,43 +719,112 @@ x_distance_right_left_is_positive:
     
 y_distance_right_left_is_positive:
 
-    ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_RIGHT_LEFT
-    lda X_DISTANCE+1
-    sta DIVIDEND+2
-    lda X_DISTANCE
-    sta DIVIDEND+1
-    lda #0
-    sta DIVIDEND
+    .if(USE_SLOPE_TABLES)
+        ; We get the SLOPE from the slope table. We need:
+        ;   y = Y_DISTANCE_RIGHT_LEFT
+        ;   RAM_BANK = X_DISTANCE[5:0]
+        ;   ADDR_HIGH[3:1] = X_DISTANCE[8:6]
+        
+        ldy Y_DISTANCE_RIGHT_LEFT
+        
+        lda X_DISTANCE
+        and #%00111111
+        sta RAM_BANK
 
-    lda #0
-    sta DIVISOR+2
-    lda Y_DISTANCE_RIGHT_LEFT+1
-    sta DIVISOR+1
-    lda Y_DISTANCE_RIGHT_LEFT
-    sta DIVISOR
+        ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8)
+        asl X_DISTANCE
+        rol X_DISTANCE+1
+        asl X_DISTANCE
+        rol X_DISTANCE+1
+        
+        ; We shift bits 8, 7 and 6 into bits 3, 2 and 1
+        asl X_DISTANCE+1
+        
+        ; We combine bits 3:1 with A0
+        lda #>($A000)
+        ora X_DISTANCE+1
+        sta LOAD_ADDRESS+1
+        
+        ; SPEED: we dont need to do this again and again, this stays at zero!
+        lda #<($A000)
+        sta LOAD_ADDRESS
+        
+        ; We load the SLOPE_LOW
+        lda (LOAD_ADDRESS), y
+        sta SLOPE_RIGHT_LEFT
+        
+        ; We load the SLOPE_HIGH
+        inc LOAD_ADDRESS+1
+        lda (LOAD_ADDRESS), y
+        sta SLOPE_RIGHT_LEFT+1
+    
+        ldx Y_DISTANCE_IS_NEGATED
+        beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we dont have to negate now, otherwise we do
+        
+        ; We need to preserve the x32 bit here!
+        and #%10000000
+        sta TMP2
 
-    jsr divide_24bits
+        ; We unset the x32 (in case it was set) because we have to negate the number
+        ; SPEED: can we use a different opcode here to unset the x32 bit?
+        lda SLOPE_RIGHT_LEFT+1
+        and #%01111111
+        sta SLOPE_RIGHT_LEFT+1
+        
+        sec
+        lda #0
+        sbc SLOPE_RIGHT_LEFT
+        sta SLOPE_RIGHT_LEFT
+        lda #0
+        sbc SLOPE_RIGHT_LEFT+1
+        and #%01111111         ; Only keep the lower 7 bits
+        ora TMP2               ; We restore the x32 bit
+        sta SLOPE_RIGHT_LEFT+1
     
-    lda DIVIDEND+2
-    sta SLOPE_RIGHT_LEFT+2
-    lda DIVIDEND+1
-    sta SLOPE_RIGHT_LEFT+1
-    lda DIVIDEND
-    sta SLOPE_RIGHT_LEFT
-    
-    lda Y_DISTANCE_IS_NEGATED
-    beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we dont have to negate now, otherwise we do
-    
-    sec
-    lda #0
-    sbc SLOPE_RIGHT_LEFT
-    sta SLOPE_RIGHT_LEFT
-    lda #0
-    sbc SLOPE_RIGHT_LEFT+1
-    sta SLOPE_RIGHT_LEFT+1
-    lda #0
-    sbc SLOPE_RIGHT_LEFT+2
-    sta SLOPE_RIGHT_LEFT+2
+    .else
+        ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_RIGHT_LEFT
+        lda X_DISTANCE+1
+        sta DIVIDEND+2
+        lda X_DISTANCE
+        sta DIVIDEND+1
+        lda #0
+        sta DIVIDEND
+
+        lda #0
+        sta DIVISOR+2
+        lda Y_DISTANCE_RIGHT_LEFT+1
+        sta DIVISOR+1
+        lda Y_DISTANCE_RIGHT_LEFT
+        sta DIVISOR
+
+        jsr divide_24bits
+        
+        lda DIVIDEND+2
+        sta SLOPE_RIGHT_LEFT+2
+        lda DIVIDEND+1
+        sta SLOPE_RIGHT_LEFT+1
+        lda DIVIDEND
+        sta SLOPE_RIGHT_LEFT
+        
+        ldx Y_DISTANCE_IS_NEGATED
+        beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we dont have to negate now, otherwise we do
+        
+        sec
+        lda #0
+        sbc SLOPE_RIGHT_LEFT
+        sta SLOPE_RIGHT_LEFT
+        lda #0
+        sbc SLOPE_RIGHT_LEFT+1
+        sta SLOPE_RIGHT_LEFT+1
+        lda #0
+        sbc SLOPE_RIGHT_LEFT+2
+        sta SLOPE_RIGHT_LEFT+2
+        
+        ; FIXME: since we just negated, we unset bit15, but we should set bit15 properly
+        lda SLOPE_RIGHT_LEFT+1
+        and #%01111111           ; increment is only 15-bits long
+        sta SLOPE_RIGHT_LEFT+1
+    .endif
     
 slope_right_left_is_correctly_signed:
 
@@ -706,13 +920,11 @@ slope_right_left_is_correctly_signed:
         lda SLOPE_TOP_LEFT       ; X1 increment low (signed)
         sta $9F29
         lda SLOPE_TOP_LEFT+1     ; X1 increment high (signed)
-        and #%01111111           ; increment is only 15-bits long
         sta $9F2A
 
         lda SLOPE_TOP_RIGHT      ; X2 increment low (signed)
         sta $9F2B                
         lda SLOPE_TOP_RIGHT+1    ; X2 increment high (signed)
-        and #%01111111           ; increment is only 15-bits long
         sta $9F2C    
     
         ; We determine which of LEFT or RIGHT is lower in y and chose number of rows to that point
@@ -734,7 +946,6 @@ first_left_point_is_lower_in_y:
         lda SLOPE_RIGHT_LEFT     ; X1 increment low
         sta $9F29
         lda SLOPE_RIGHT_LEFT+1   ; X1 increment high
-        and #%01111111           ; increment is only 15-bits long
         sta $9F2A
 
         lda Y_DISTANCE_RIGHT_LEFT
@@ -760,7 +971,6 @@ first_right_point_is_lower_in_y:
         lda SLOPE_RIGHT_LEFT     ; X2 increment low
         sta $9F2B                
         lda SLOPE_RIGHT_LEFT+1   ; X2 increment high
-        and #%01111111           ; increment is only 15-bits long
         sta $9F2C
         
         lda Y_DISTANCE_RIGHT_LEFT
@@ -1007,6 +1217,101 @@ generate_next_y_to_address_entry:
     rts
     
     
+load_slopes_into_banked_ram:
+
+
+    rts
+    
+    
+    
+; NOTE: we are now using ROM banks to contain tables. We need to copy those textures to Banked RAM, but have to run that copy-code in Fixed RAM.
+    
+copy_slope_table_copier_to_ram:
+
+    ; Copying copy_slope_tables_to_banked_ram -> COPY_SLOPE_TABLES_TO_BANKED_RAM
+    
+    ldy #0
+copy_tables_to_banked_ram_byte:
+    lda copy_slope_tables_to_banked_ram, y
+    sta COPY_SLOPE_TABLES_TO_BANKED_RAM, y
+    iny 
+    cpy #(end_of_copy_slope_tables_to_banked_ram-copy_slope_tables_to_banked_ram)
+    bne copy_tables_to_banked_ram_byte
+
+    rts
+    
+    
+copy_slope_tables_to_banked_ram:
+
+    ; We copy 10 tables to banked RAM, but we pack them in such a way that they are easily accessible
+
+    lda #1               ; Our first tables starts at ROM Bank 1
+    sta TABLE_ROM_BANK
+    
+next_table_to_copy:    
+    lda #<($C000)        ; Our source table starts at C000
+    sta LOAD_ADDRESS
+    lda #>($C000)
+    sta LOAD_ADDRESS+1
+
+    lda #<($A000)        ; We store at Ax00
+    sta STORE_ADDRESS
+    clc
+    lda #>($A000)
+    adc TABLE_ROM_BANK
+    sec
+    sbc #1               ; since the TABLE_ROM_BANK starts at 1, we substract one from it
+    sta STORE_ADDRESS+1
+
+    ; Switching ROM BANK
+    lda TABLE_ROM_BANK
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+    
+        ldx #0                             ; x = x-coordinate (within a column of 64)
+next_x_to_copy_to_banked_ram:
+        ; Switching to RAM BANK x
+        stx RAM_BANK
+    ; FIXME: remove nop!
+        nop
+        
+        ldy #0                             ; y = y-coordinate (0-239)
+next_byte_to_copy_to_banked_ram:
+        lda (LOAD_ADDRESS), y
+        sta (STORE_ADDRESS), y
+        iny
+        cpy #240
+        bne next_byte_to_copy_to_banked_ram
+        
+        ; We increment LOAD_ADDRESS by 256 bytes to move to the next x  (there is 240 bytes of data + 16 bytes of padding for each x)
+        clc
+        lda LOAD_ADDRESS
+        adc #<256
+        sta LOAD_ADDRESS
+        lda LOAD_ADDRESS+1
+        adc #>256
+        sta LOAD_ADDRESS+1
+        
+        inx
+        cpx #64
+        bne next_x_to_copy_to_banked_ram
+
+    inc TABLE_ROM_BANK
+    lda TABLE_ROM_BANK
+    cmp #11               ; we go from 1-10 so we need to stop at 11
+    bne next_table_to_copy
+
+    ; Switching back to ROM bank 0
+    lda #$00
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+   
+    rts
+end_of_copy_slope_tables_to_banked_ram:
+
+    
     
 clear_screen_fast_4_bytes:
 
@@ -1243,3 +1548,16 @@ irq:
     .word nmi
     .word reset
     .word irq
+
+    .if(USE_SLOPE_TABLES)
+    .binary "special_tests/tables/slopes_column_0_low.bin"
+    .binary "special_tests/tables/slopes_column_0_high.bin"
+    .binary "special_tests/tables/slopes_column_1_low.bin"
+    .binary "special_tests/tables/slopes_column_1_high.bin"
+    .binary "special_tests/tables/slopes_column_2_low.bin"
+    .binary "special_tests/tables/slopes_column_2_high.bin"
+    .binary "special_tests/tables/slopes_column_3_low.bin"
+    .binary "special_tests/tables/slopes_column_3_high.bin"
+    .binary "special_tests/tables/slopes_column_4_low.bin"
+    .binary "special_tests/tables/slopes_column_4_high.bin"
+    .endif
