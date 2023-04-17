@@ -108,6 +108,8 @@ SLOPE_RIGHT_LEFT = SLOPE_LEFT_RIGHT
 Y_DISTANCE_FIRST         = $76 ; 77
 Y_DISTANCE_SECOND        = $78 ; 79
 
+VRAM_ADDRESS             = $80 ; 81 ; 82
+
 ; RAM addresses
 CLEAR_COLUMN_CODE        = $7000
 
@@ -125,6 +127,11 @@ TRIANGLES_POINT3_X_HIGH  = $7D00
 TRIANGLES_POINT3_Y_LOW   = $7E00
 TRIANGLES_POINT3_Y_HIGH  = $7F00
 TRIANGLES_COLOR          = $8000
+
+Y_TO_ADDRESS_LOW         = $8100
+Y_TO_ADDRESS_HIGH        = $8200
+Y_TO_ADDRESS_BANK        = $8300
+
 
   .org $C000
 
@@ -145,6 +152,8 @@ reset:
 
     jsr generate_clear_column_code
     jsr clear_screen_fast_4_bytes
+    
+    jsr generate_y_to_address_table
     
     
     .if(DO_SPEED_TEST)
@@ -613,32 +622,44 @@ slope_right_left_is_correctly_signed:
         lda #%00000100           ; DCSEL=2, ADDRSEL=0
         sta VERA_CTRL
         
-; FIXME: we should do this *much* earlier and not for every triangle!
-        lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
-        sta VERA_ADDR_BANK
-        
-        ; -- THIS IS SLOW! --
-        ; We need to multiply the Y-coordinate with 320
-        lda TOP_POINT_Y
-        sta MULTIPLICAND
-        lda TOP_POINT_Y+1
-        sta MULTIPLICAND+1
-        
-        lda #<320
-        sta MULTIPLIER
-        lda #>320
-        sta MULTIPLIER+1
-        
-        jsr multply_16bits
-        
-        ; HACK: we are assuming our bitmap address starts at 00000 here! AND we assume we never exceed 64kB!! (bit16 is always assumed to be 0)
-        ; Note: we are setting ADDR0 to the left most pixel of a pixel row. This means it will be aligned to 4-bytes (which is needed for the polygon filler to work nicely).
-        lda PRODUCT+1
-        sta VERA_ADDR_HIGH
-        lda PRODUCT
-        sta VERA_ADDR_LOW
+        .if(1)
+            ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
+            ldy TOP_POINT_Y
+            
+            lda Y_TO_ADDRESS_BANK, y     ; This will include the auto-increment of 320 byte
+            sta VERA_ADDR_BANK
+            lda Y_TO_ADDRESS_HIGH, y
+            sta VERA_ADDR_HIGH
+            lda Y_TO_ADDRESS_LOW, y
+            sta VERA_ADDR_LOW
+        .else
+            ; FIXME: we should do this *much* earlier and not for every triangle!
+            lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+            sta VERA_ADDR_BANK
+            
+            ; -- THIS IS SLOW! --
+            ; We need to multiply the Y-coordinate with 320
+            lda TOP_POINT_Y
+            sta MULTIPLICAND
+            lda TOP_POINT_Y+1
+            sta MULTIPLICAND+1
+            
+            lda #<320
+            sta MULTIPLIER
+            lda #>320
+            sta MULTIPLIER+1
+            
+            jsr multply_16bits
+            
+            ; HACK: we are assuming our bitmap address starts at 00000 here! AND we assume we never exceed 64kB!! (bit16 is always assumed to be 0)
+            ; Note: we are setting ADDR0 to the left most pixel of a pixel row. This means it will be aligned to 4-bytes (which is needed for the polygon filler to work nicely).
+            lda PRODUCT+1
+            sta VERA_ADDR_HIGH
+            lda PRODUCT
+            sta VERA_ADDR_LOW
+        .endif
     
-; FIXME: we should do this *much* earlier and not for every triangle!
+        ; FIXME: we should do this *much* earlier and not for every triangle!
         ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
         lda #%00000011
         sta $9F29
@@ -659,7 +680,7 @@ slope_right_left_is_correctly_signed:
         ora #%00100000           ; Reset subpixel position
         sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
-; FIXME: we should do this *much* earlier and not for every triangle!
+        ; FIXME: we should do this *much* earlier and not for every triangle!
         lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
         sta VERA_ADDR_BANK
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
@@ -671,75 +692,90 @@ slope_right_left_is_correctly_signed:
         
     .endif
 
-    lda #%00000110           ; DCSEL=3, ADDRSEL=0
-    sta VERA_CTRL
 
-; FIXME: we should do x32 when the number is too high!!
+    .if(USE_POLYGON_FILLER)
+
+        ; -- We setup the x1 and x2 slopes for the first part of the triangle --
+        
+        lda #%00000110           ; DCSEL=3, ADDRSEL=0
+        sta VERA_CTRL
+
+        ; FIXME: we should do x32 when the number is too high!!
+        
+        ; FIXME: NOTE that these increments are *HALF* steps!!
+        lda SLOPE_TOP_LEFT       ; X1 increment low (signed)
+        sta $9F29
+        lda SLOPE_TOP_LEFT+1     ; X1 increment high (signed)
+        and #%01111111           ; increment is only 15-bits long
+        sta $9F2A
+
+        lda SLOPE_TOP_RIGHT      ; X2 increment low (signed)
+        sta $9F2B                
+        lda SLOPE_TOP_RIGHT+1    ; X2 increment high (signed)
+        and #%01111111           ; increment is only 15-bits long
+        sta $9F2C    
     
-    ; FIXME: NOTE that these increments are *HALF* steps!!
-    lda SLOPE_TOP_LEFT       ; X1 increment low (signed)
-    sta $9F29
-    lda SLOPE_TOP_LEFT+1     ; X1 increment high (signed)
-    and #%01111111           ; increment is only 15-bits long
-    sta $9F2A
-
-    lda SLOPE_TOP_RIGHT      ; X2 increment low (signed)
-    sta $9F2B                
-    lda SLOPE_TOP_RIGHT+1    ; X2 increment high (signed)
-    and #%01111111           ; increment is only 15-bits long
-    sta $9F2C    
-
-    ; We determine which of LEFT or RIGHT is lower in y and chose number of rows to that point
-    lda Y_DISTANCE_IS_NEGATED
-    bne first_right_point_is_lower_in_y
+        ; We determine which of LEFT or RIGHT is lower in y and chose number of rows to that point
+        lda Y_DISTANCE_IS_NEGATED
+        bne first_right_point_is_lower_in_y
 first_left_point_is_lower_in_y:
-    lda Y_DISTANCE_LEFT_TOP
-    sta NUMBER_OF_ROWS
-    
-    jsr draw_polygon_part_using_polygon_filler_naively
+        lda Y_DISTANCE_LEFT_TOP
+        sta NUMBER_OF_ROWS
+        
+        ; -- We draw the first part of the triangle --
+        jsr draw_polygon_part_using_polygon_filler_naively
 
-    lda #%00000110           ; DCSEL=3, ADDRSEL=0
-    sta VERA_CTRL
-    
-; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
-    
-    ; FIXME: NOTE that these increments are *HALF* steps!!
-    lda SLOPE_RIGHT_LEFT     ; X1 increment low
-    sta $9F29
-    lda SLOPE_RIGHT_LEFT+1   ; X1 increment high
-    and #%01111111           ; increment is only 15-bits long
-    sta $9F2A
+        lda #%00000110           ; DCSEL=3, ADDRSEL=0
+        sta VERA_CTRL
+        
+    ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
+        
+        ; FIXME: NOTE that these increments are *HALF* steps!!
+        lda SLOPE_RIGHT_LEFT     ; X1 increment low
+        sta $9F29
+        lda SLOPE_RIGHT_LEFT+1   ; X1 increment high
+        and #%01111111           ; increment is only 15-bits long
+        sta $9F2A
 
-    lda Y_DISTANCE_RIGHT_LEFT
-    sta NUMBER_OF_ROWS
-    
-    jsr draw_polygon_part_using_polygon_filler_naively
+        lda Y_DISTANCE_RIGHT_LEFT
+        sta NUMBER_OF_ROWS
+        
+        ; -- We draw the second part of the triangle --
+        jsr draw_polygon_part_using_polygon_filler_naively
 
-    bra done_drawing_polygon_part
+        bra done_drawing_polygon_part
 first_right_point_is_lower_in_y:
-    lda Y_DISTANCE_RIGHT_TOP
-    sta NUMBER_OF_ROWS
-    
-    jsr draw_polygon_part_using_polygon_filler_naively
+        lda Y_DISTANCE_RIGHT_TOP
+        sta NUMBER_OF_ROWS
+        
+        ; -- We draw the first part of the triangle --
+        jsr draw_polygon_part_using_polygon_filler_naively
 
-    lda #%00000110           ; DCSEL=3, ADDRSEL=0
-    sta VERA_CTRL
-    
-; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
-    
-    ; FIXME: NOTE that these increments are *HALF* steps!!
-    lda SLOPE_RIGHT_LEFT     ; X2 increment low
-    sta $9F2B                
-    lda SLOPE_RIGHT_LEFT+1   ; X2 increment high
-    and #%01111111           ; increment is only 15-bits long
-    sta $9F2C
-    
-    lda Y_DISTANCE_RIGHT_LEFT
-    sta NUMBER_OF_ROWS
-    
-    jsr draw_polygon_part_using_polygon_filler_naively
-    
+        lda #%00000110           ; DCSEL=3, ADDRSEL=0
+        sta VERA_CTRL
+        
+    ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
+        
+        ; FIXME: NOTE that these increments are *HALF* steps!!
+        lda SLOPE_RIGHT_LEFT     ; X2 increment low
+        sta $9F2B                
+        lda SLOPE_RIGHT_LEFT+1   ; X2 increment high
+        and #%01111111           ; increment is only 15-bits long
+        sta $9F2C
+        
+        lda Y_DISTANCE_RIGHT_LEFT
+        sta NUMBER_OF_ROWS
+        
+        ; -- We draw the second part of the triangle --
+        jsr draw_polygon_part_using_polygon_filler_naively
+        
 done_drawing_polygon_part:
+    .else
+    
+        ; FIXME: implement this!
+        
+    .endif
+        
     
     
 ;    .if(USE_POLYGON_FILLER)
@@ -935,6 +971,41 @@ polygon_fill_triangle_row_done:
     bne polygon_fill_triangle_row_next
     
     rts
+    
+    
+generate_y_to_address_table:
+
+    ; TODO: we assume the base address is 0 here!
+    stz VRAM_ADDRESS
+    stz VRAM_ADDRESS+1
+    stz VRAM_ADDRESS+2
+    
+    ldy #0
+generate_next_y_to_address_entry:
+    clc
+    lda VRAM_ADDRESS
+    adc #<320
+    sta VRAM_ADDRESS
+    sta Y_TO_ADDRESS_LOW, y
+    
+    lda VRAM_ADDRESS+1
+    adc #>320
+    sta VRAM_ADDRESS+1
+    sta Y_TO_ADDRESS_HIGH, y
+    
+    lda VRAM_ADDRESS+2
+    adc #0
+    sta VRAM_ADDRESS+2
+    ora #%11100000              ; TODO: auto-increment = 320 (should we put this in a variable?)
+    sta Y_TO_ADDRESS_BANK, y
+    
+    iny
+    
+    cpy #240
+    bne generate_next_y_to_address_entry
+
+    rts
+    
     
     
 clear_screen_fast_4_bytes:
