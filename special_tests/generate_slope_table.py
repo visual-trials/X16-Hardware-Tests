@@ -46,15 +46,19 @@ def run():
             # But because we have to do 2 steps each y-pixel, we effectively have one 1/256th of a pixel precision.
             # So when we calculate our slope, we should do it in 1/256th of pixels (which happens to be 8-bits btw)
             
-            # Note that on the *upper* end we have 15 bits signed so a maximum (positive) value of 63.xxx. But for polygons this is effectively 127.xxx (because we do 2 steps)
-            # So when our slope has to be > 127 we do "times 32". Meaning a maximum value of 127*32 = 4047 is possible.
+            # Note that on the *upper* end we have 15 bits signed so a maximum (positive) value of (1 bit sign, 5 bits value, 9 bits fraction) +31.xxx. But for polygons this is effectively +63.xxx (because we do 2 steps)
+            # So when our slope has to be > 63.xxx we do "times 32". Meaning a maximum value of 63.xxx * 32 = 2047.xxx is possible.
 # FIXME: this sound REALLY BAD and/or WRONG!
+# FIXME: isnt it possible to let the meaning of the incrementer bits be "half" of what they would normally be?
+#   So: 
+#    - ADDR1 = ADDR0 + X1 means that X1 is divided by 2
+#    - FILL_LENGTH = X2 - X1 means that positions are halved as well (the lowest pixel position bit becomes the highest subpixel position bit)
         
             slope = x / y
             
             do_32_times = 0
             # FIXME: what exactly is the criteria for doing "times 32"?
-            if (slope > 127):
+            if (slope >= 64):
                 do_32_times = 1
                 slope = slope / 32
             
