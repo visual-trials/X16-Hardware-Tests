@@ -41,11 +41,20 @@ def run():
     for y in range(3, 4):
         #for x in range(0, 320):
         for x in range(3*50, 3*51):
+            # We currently have a precision of 1/512th of a pixel per step: we have 9-bit fraction precision. A value of 1 means 1/512th of a pixel
+            # But when doing polygons we have to do *two* steps. This is because each step is considered the distance in x when traveling 0.5 pixels in y.
+            # But because we have to do 2 steps each y-pixel, we effectively have one 1/256th of a pixel precision.
+            # So when we calculate our slope, we should do it in 1/256th of pixels (which happens to be 8-bits btw)
+            
+            # Note that on the *upper* end we have 15 bits signed so a maximum (positive) value of 63.xxx. But for polygons this is effectively 127.xxx (because we do 2 steps)
+            # So when our slope has to be > 127 we do "times 32". Meaning a maximum value of 127*32 = 4047 is possible.
+# FIXME: this sound REALLY BAD and/or WRONG!
+        
             slope = x / y
             
             do_32_times = 0
-            # FIXME: what exactly is the criteriafor doing "times 32"?
-            if (slope > 127 or slope < -127):
+            # FIXME: what exactly is the criteria for doing "times 32"?
+            if (slope > 127):
                 do_32_times = 1
                 slope = slope / 32
             
