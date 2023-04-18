@@ -7,7 +7,7 @@ USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = 0
 
 
-    .if (USE_POLYGON_FILLER)
+    .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
 BACKGROUND_COLOR = 251  ; Nice purple
     .else
 BACKGROUND_COLOR = 06  ; Blue 
@@ -434,9 +434,14 @@ test_speed_of_filling_triangle:
     
 triangles_points:
     ;        x ,     y
+;   .word BX+ 00, BY+  0   ; TOP POINT
+;   .word BX+  0, BY+ 50   ; LEFT POINT
+;   .word BX+100, BY+ 70   ; RIGHT POINT
+
+; FIXME: TESTING!   
    .word BX+ 20, BY+  0   ; TOP POINT
    .word BX+  0, BY+ 50   ; LEFT POINT
-   .word BX+100, BY+ 120   ; RIGHT POINT
+   .word BX+100, BY+  1   ; RIGHT POINT
     
 triangles_colors:
     ;     color
@@ -511,6 +516,8 @@ draw_many_triangles_in_a_rectangle:
     sta TRIANGLE_COLOR
     
     jsr draw_triangle_with_single_top_point
+    
+    ; FIXME: jsr draw_triangle_with_double_top_points
     
     
     ; Turning off polygon filler mode
@@ -675,6 +682,8 @@ y_distance_left_top_is_positive:
         lda DIVIDEND
         sta SLOPE_TOP_LEFT
         
+; FIXME: if SLOPE >= 64 we should shift 5 bits to the right AND set bit15 (and preserve it)!
+        
         ldx X_DISTANCE_IS_NEGATED
         beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
         
@@ -826,6 +835,8 @@ y_distance_right_top_is_positive:
         lda DIVIDEND
         sta SLOPE_TOP_RIGHT
         
+; FIXME: if SLOPE >= 64 we should shift 5 bits to the right AND set bit15 (and preserve it)!
+        
         ldx X_DISTANCE_IS_NEGATED
         beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
         
@@ -975,6 +986,8 @@ y_distance_right_left_is_positive:
         sta SLOPE_RIGHT_LEFT+1
         lda DIVIDEND
         sta SLOPE_RIGHT_LEFT
+        
+; FIXME: if SLOPE >= 64 we should shift 5 bits to the right AND set bit15 (and preserve it)!
         
         ldx Y_DISTANCE_IS_NEGATED
         beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we dont have to negate now, otherwise we do
