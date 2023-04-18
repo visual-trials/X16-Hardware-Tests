@@ -17,8 +17,6 @@ BACKGROUND_COLOR = 06  ; Blue
 COLOR_CHECK        = $05 ; Background color = 0, foreground color 5 (green)
 COLOR_CROSS        = $02 ; Background color = 0, foreground color 2 (red)
 
-NR_OF_TRIANGLES_TO_DRAW = 1
-    
 BASE_X = 20
 BASE_Y = 50
 BX = BASE_X
@@ -79,7 +77,9 @@ CODE_ADDRESS              = $30 ; 31
 LOAD_ADDRESS              = $32 ; 33
 STORE_ADDRESS             = $34 ; 35
 
-TABLE_ROM_BANK            = $46
+TABLE_ROM_BANK            = $36
+
+TRIANGLE_INDEX            = $38
 
 ; Polygon filler
 NUMBER_OF_ROWS             = $40
@@ -124,6 +124,7 @@ VRAM_ADDRESS             = $80 ; 81 ; 82
 CLEAR_COLUMN_CODE        = $7000
 
 ; Triangle data is (easely) accessed through an single index (0-255)
+; == IMPORTANT: we assume a *clockwise* ordering of the 3 points of a triangle! ==
 TRIANGLES_POINT1_X_LOW   = $7400
 TRIANGLES_POINT1_X_HIGH  = $7500
 TRIANGLES_POINT1_Y_LOW   = $7600
@@ -433,36 +434,118 @@ test_speed_of_filling_triangle:
 
     
     
-triangles_points:
-    ;        x ,     y
-;   .word BX+ 00, BY+  0   ; TOP POINT
-;   .word BX+  0, BY+ 50   ; LEFT POINT
-;   .word BX+100, BY+ 70   ; RIGHT POINT
+NR_OF_TRIANGLES = 2
 
+triangle_data:
+    ;     x1,  y1,    x2,  y2,    x3,  y3    cl
+   .word   0,   0,   100,  70,    0,  50,    4
+   .word   0,   0,   200,   1,  100,  70,    5
+
+   
+   
+;triangles_points:
 ; FIXME: TESTING!   
-   .word BX+ 270, BY+  0   ; TOP POINT
-   .word BX+  0, BY+  1   ; LEFT POINT
-   .word BX+ 50, BY+  50   ; RIGHT POINT
+;   .word BX+ 270, BY+  0   ; TOP POINT
+;   .word BX+  0, BY+  1   ; LEFT POINT
+;   .word BX+ 50, BY+  50   ; RIGHT POINT
     
-triangles_colors:
-    ;     color
-    .byte 04
+;triangles_colors:
+;    ;     color
+;    .byte 04
     
     
     
 load_triangle_data_into_ram:
 
-    lda #<(triangles_points)
+    lda #<(triangle_data)
     sta LOAD_ADDRESS
-    lda #>(triangles_points)
+    lda #>(triangle_data)
     sta LOAD_ADDRESS+1
     
+    ldx #0
+load_next_triangle:
+    
+    ldy #0
+    
+    ; -- Point 1 --
+    clc
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #<BX
+    sta TRIANGLES_POINT1_X_LOW, x
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #>BX
+    sta TRIANGLES_POINT1_X_HIGH, x
+    
+    clc
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #<BY
+    sta TRIANGLES_POINT1_Y_LOW, x
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #>BY
+    sta TRIANGLES_POINT1_Y_HIGH, x
+    
+    ; -- Point 2 --
+    clc
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #<BX
+    sta TRIANGLES_POINT2_X_LOW, x
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #>BX
+    sta TRIANGLES_POINT2_X_HIGH, x
+    
+    clc
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #<BY
+    sta TRIANGLES_POINT2_Y_LOW, x
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #>BY
+    sta TRIANGLES_POINT2_Y_HIGH, x
 
-    lda #<(triangles_points)
-    sta STORE_ADDRESS
-    lda #>(triangles_points)
-    sta STORE_ADDRESS+1
-
+    ; -- Point 3 --
+    clc
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #<BX
+    sta TRIANGLES_POINT3_X_LOW, x
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #>BX
+    sta TRIANGLES_POINT3_X_HIGH, x
+    
+    clc
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #<BY
+    sta TRIANGLES_POINT3_Y_LOW, x
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #>BY
+    sta TRIANGLES_POINT3_Y_HIGH, x
+    
+    lda (LOAD_ADDRESS), y
+    iny
+    sta TRIANGLES_COLOR, x
+    
+    clc
+    lda LOAD_ADDRESS
+    adc #14             ; 7 words (3 * x and y, color uses only one byte, but takes space of a word)
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    adc #0
+    sta LOAD_ADDRESS+1
+    
+    inx
+    
+    cpx #NR_OF_TRIANGLES
+    bne load_next_triangle
 
     rts
     
@@ -474,51 +557,183 @@ draw_many_triangles_in_a_rectangle:
     ;   check which type of triangle this is (single top-point or double top-point_
     ;   Store in appropiate variables: TOP_POINT_X/Y, LEFT_POINT_X/Y, RIGHT_POINT_X/Y, BOTTOM_POINT_X/Y
     ;   jump to correct draw_triangle-function
+
+    ; We start at triangle 0
+    stz TRIANGLE_INDEX
+draw_next_triangle:
+
+; FIXME!
+; FIXME!
+; FIXME!
+    .if(0)
     
     
-    ; HACK we are directly loading from triangles_points!! We should load it into the RAM TABLES first!
+    ; -- Determining which point is top point --
+
+    lda TRIANGLES_POINT1_Y_HIGH, x
+    cmp TRIANGLES_POINT2_Y_HIGH, x
+    bcc point1_is_lower_in_y_than_point2
+    bne point1_is_higher_in_y_than_point2
+
+    lda TRIANGLES_POINT1_Y_LOW, x
+    cmp TRIANGLES_POINT2_Y_LOW, x
+    bcc point1_is_lower_in_y_than_point2
+    beq point1_is_the_same_in_y_as_point2
+    bne point1_is_higher_in_y_than_point2
     
-    ; HACK: we are hardcoding the top/bottom points right now!
+    
+point1_is_lower_in_y_than_point2:
+    
+    
+    lda TRIANGLES_POINT1_Y_HIGH, x
+    cmp TRIANGLES_POINT3_Y_HIGH, x
+    bcc pt1_lower_pt2_point1_is_lower_in_y_than_point3
+    bne pt1_lower_pt2_point1_is_higher_in_y_than_point3
+
+    lda TRIANGLES_POINT1_Y_LOW, x
+    cmp TRIANGLES_POINT3_Y_LOW, x
+    bcc pt1_lower_pt2_point1_is_lower_in_y_than_point3
+    beq pt1_lower_pt2_point1_is_the_same_in_y_as_point3
+    bne pt1_lower_pt2_point1_is_higher_in_y_than_point3
+    
+    
+pt1_lower_pt2_point1_is_lower_in_y_than_point3:
+
+    ; FIXME: this means point1 is lower than point2 and point3, BUT we DONT know yet if point2 and point3 are the same!
+    
+    bra point1_is_top_point
+
+    
+pt1_lower_pt2_point1_is_higher_in_y_than_point3:
+
+    ; FIXME: this means point1 is lower than point2 but higher than point3, this means point3 is the lowest
+    
+    bra point3_is_top_point
+    
+pt1_lower_pt2_point1_is_the_same_in_y_as_point3:
+
+    ; FIXME: this means point1 is lower than point2 but is equal to point3, this means point1 and point3 are both is the lowest
+    
+    bra point1_and_point3_are_top_points
+    
+    
+    
+point1_is_higher_in_y_than_point2:
+
+    lda TRIANGLES_POINT2_Y_HIGH, x
+    cmp TRIANGLES_POINT3_Y_HIGH, x
+    bcc pt1_higher_pt2_point2_is_lower_in_y_than_point3
+    bne pt1_higher_pt2_point2_is_higher_in_y_than_point3
+
+    lda TRIANGLES_POINT2_Y_LOW, x
+    cmp TRIANGLES_POINT3_Y_LOW, x
+    bcc pt1_higher_pt2_point2_is_lower_in_y_than_point3
+    beq pt1_higher_pt2_point2_is_the_same_in_y_as_point3
+    bne pt1_higher_pt2_point2_is_higher_in_y_than_point3
+
+pt1_higher_pt2_point2_is_lower_in_y_than_point3:
+
+    ; FIXME: point1 is higher than point2 and point2 is lower than point3, this means point2 is lowest -> BUT we dont know if point1 and point2 are the SAME!
+    
+    bra point2_is_top_point
+    
+pt1_higher_pt2_point2_is_higher_in_y_than_point3:
+
+    ; FIXME: point1 is higher than point2 and point2 is higher than point 3, this means point3 is lowest
+
+    bra point3_is_top_point
+
+pt1_higher_pt2_point2_is_the_same_in_y_as_point3:
+
+    ; FIXME: point1 is higher than point2 and point2 is the same as point3, this means point2 and point3 are both is the lowest
+    
+    bra point1_and_point3_are_top_points
+
+    
+point1_is_the_same_in_y_as_point2:
+
+    lda TRIANGLES_POINT1_Y_HIGH, x
+    cmp TRIANGLES_POINT3_Y_HIGH, x
+    bcc pt1_same_pt2_point1_is_lower_in_y_than_point3
+    bne pt1_same_pt2_point1_is_higher_in_y_than_point3
+
+    lda TRIANGLES_POINT1_Y_LOW, x
+    cmp TRIANGLES_POINT3_Y_LOW, x
+    bcc pt1_same_pt2_point1_is_lower_in_y_than_point3
+    beq pt1_same_pt2_point1_is_the_same_in_y_as_point3
+    bne pt1_same_pt2_point1_is_higher_in_y_than_point3
+
+pt1_same_pt2_point1_is_lower_in_y_than_point3:
+
+    ; FIXME: point1 and point2 are the same, thet are both lower than point3, this means point1 and point2 are both is the lowest
+
+    bra point1_and_point2_are_top_points
+
+pt1_same_pt2_point1_is_higher_in_y_than_point3:
+
+    ; FIXME: point1 and point2 are the same, thet are both higher than point3, this means point3 is lowest and we have a FLAT bottom
+    
+    bra point3_is_top_point ; FIXME: FLAT BOTTOM!
+
+pt1_same_pt2_point1_is_the_same_in_y_as_point3:
+
+    ; FIXME: are points have the same y, this means we have a horizontal line
+    
+    ; FIXME: bra ??? -> what to draw here?
+    
+    bra point1_point2_and_point3_are_top_points
+
+    .endif
+    
+    
+point1_is_top_point:
+    ldx TRIANGLE_INDEX
     
     ; -- TOP POINT --
-    lda triangles_points
+    lda TRIANGLES_POINT1_X_LOW, x
     sta TOP_POINT_X
-    lda triangles_points+1
+    lda TRIANGLES_POINT1_X_HIGH, x
     sta TOP_POINT_X+1
     
-    lda triangles_points+2
+    lda TRIANGLES_POINT1_Y_LOW, x
     sta TOP_POINT_Y
-    lda triangles_points+3
+    lda TRIANGLES_POINT1_Y_HIGH, x
     sta TOP_POINT_Y+1
 
     ; -- LEFT POINT --
-    lda triangles_points+4
+    lda TRIANGLES_POINT3_X_LOW, x
     sta LEFT_POINT_X
-    lda triangles_points+5
+    lda TRIANGLES_POINT3_X_HIGH, x
     sta LEFT_POINT_X+1
     
-    lda triangles_points+6
+    lda TRIANGLES_POINT3_Y_LOW, x
     sta LEFT_POINT_Y
-    lda triangles_points+7
+    lda TRIANGLES_POINT3_Y_HIGH, x
     sta LEFT_POINT_Y+1
 
     ; -- RIGHT POINT --
-    lda triangles_points+8
+    lda TRIANGLES_POINT2_X_LOW, x
     sta RIGHT_POINT_X
-    lda triangles_points+9
+    lda TRIANGLES_POINT2_X_HIGH, x
     sta RIGHT_POINT_X+1
     
-    lda triangles_points+10
+    lda TRIANGLES_POINT2_Y_LOW, x
     sta RIGHT_POINT_Y
-    lda triangles_points+11
+    lda TRIANGLES_POINT2_Y_HIGH, x
     sta RIGHT_POINT_Y+1
     
-    lda triangles_colors
+    lda TRIANGLES_COLOR, x
     sta TRIANGLE_COLOR
     
     jsr draw_triangle_with_single_top_point
     
     ; FIXME: jsr draw_triangle_with_double_top_points
+    
+    inc TRIANGLE_INDEX
+    lda TRIANGLE_INDEX
+    cmp #NR_OF_TRIANGLES
+    bne draw_next_triangle
+    
     
     
     ; Turning off polygon filler mode
