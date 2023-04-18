@@ -1357,11 +1357,17 @@ polygon_fill_triangle_pixel_next_256_0:
     
 polygon_fill_triangle_row_done:
     
+    ; We always increment ADDR0
     lda VERA_DATA0   ; this will increment ADDR0 with 320 bytes (= +1 vertically)
-    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_line_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
+    ; We check if we have reached the end, if so, we do *NOT* change ADDR1!
     dec NUMBER_OF_ROWS
-    bne polygon_fill_triangle_row_next
+    beq polygon_fill_triangle_done
+    
+    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_line_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+    bra polygon_fill_triangle_row_next
+    
+polygon_fill_triangle_done:
     
     rts
     
