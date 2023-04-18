@@ -562,6 +562,9 @@ draw_many_triangles_in_a_rectangle:
     stz TRIANGLE_INDEX
 draw_next_triangle:
 
+; FIXME: cant we *CHEAT* and use only 1 byte for Y? (since <240 pixels)
+
+
 ; FIXME!
 ; FIXME!
 ; FIXME!
