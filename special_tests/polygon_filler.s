@@ -2,12 +2,19 @@
 DO_SPEED_TEST = 1
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 1
+USE_UNROLLED_LOOP = 0
+USE_JUMP_TABLE = 0
+USE_WRITE_CACHE = 0
+
 
     .if (USE_POLYGON_FILLER)
 BACKGROUND_COLOR = 251  ; Nice purple
     .else
 BACKGROUND_COLOR = 06  ; Blue 
     .endif
+    
+COLOR_CHECK        = $05 ; Background color = 0, foreground color 5 (green)
+COLOR_CROSS        = $02 ; Background color = 0, foreground color 2 (red)
 
 NR_OF_TRIANGLES_TO_DRAW = 1
     
@@ -178,15 +185,27 @@ reset:
 loop:
   jmp loop
 
+
+check_raw_message: 
+    .byte $FA, 0
+cross_raw_message: 
+    .byte $56, 0
   
 filling_a_rectangle_with_triangles_message: 
     .asciiz "Filling a rectangle with triangles"
-rectangle_280x140_8bpp_message: 
-    .asciiz "Size: 280x140 (8bpp) "
-using_polygon_filler_message: 
-    .asciiz "Method: polygon filler (naively)"
-without_polygon_filler_message: 
-    .asciiz "Method: without polygon filler"
+rectangle_280x120_8bpp_message: 
+    .asciiz "Size: 280x120 (8bpp) "
+    
+polygon_filler_message: 
+    .asciiz " Polygon filler "
+slope_table_message: 
+    .asciiz " Slope table "
+unrolled_message: 
+    .asciiz " Unrolled "
+jump_table_message: 
+    .asciiz " Jump table "
+write_cache_message: 
+    .asciiz " Write cache "
   
   
 test_speed_of_filling_triangle:
@@ -222,31 +241,182 @@ test_speed_of_filling_triangle:
     lda #4
     sta CURSOR_Y
     
-    lda #<rectangle_280x140_8bpp_message
+    lda #<rectangle_280x120_8bpp_message
     sta TEXT_TO_PRINT
-    lda #>rectangle_280x140_8bpp_message
+    lda #>rectangle_280x120_8bpp_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+
+    ; ---------- Used techniques -----------
+    
+    lda #2
+    sta CURSOR_X
+    lda #23
+    sta CURSOR_Y
+
+    ; -- Slope table --
+    
+    .if(USE_SLOPE_TABLES)
+        lda #COLOR_CHECK
+        sta TEXT_COLOR
+    
+        lda #<check_raw_message
+        sta TEXT_TO_PRINT
+        lda #>check_raw_message
+        sta TEXT_TO_PRINT + 1
+    .else
+        lda #COLOR_CROSS
+        sta TEXT_COLOR
+    
+        lda #<cross_raw_message
+        sta TEXT_TO_PRINT
+        lda #>cross_raw_message
+        sta TEXT_TO_PRINT + 1
+    .endif
+    jsr print_raw_text_zero
+    
+    lda #COLOR_TRANSPARANT
+    sta TEXT_COLOR
+        
+    lda #<slope_table_message
+    sta TEXT_TO_PRINT
+    lda #>slope_table_message
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
     
+    ; -- Unrolled loop --
+    
+    .if(USE_UNROLLED_LOOP)
+        lda #COLOR_CHECK
+        sta TEXT_COLOR
+    
+        lda #<check_raw_message
+        sta TEXT_TO_PRINT
+        lda #>check_raw_message
+        sta TEXT_TO_PRINT + 1
+    .else
+        lda #COLOR_CROSS
+        sta TEXT_COLOR
+    
+        lda #<cross_raw_message
+        sta TEXT_TO_PRINT
+        lda #>cross_raw_message
+        sta TEXT_TO_PRINT + 1
+    .endif
+    jsr print_raw_text_zero
+    
+    lda #COLOR_TRANSPARANT
+    sta TEXT_COLOR
+        
+    lda #<unrolled_message
+    sta TEXT_TO_PRINT
+    lda #>unrolled_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+    ; -- Jump table --
+    
+    .if(USE_JUMP_TABLE)
+        lda #COLOR_CHECK
+        sta TEXT_COLOR
+    
+        lda #<check_raw_message
+        sta TEXT_TO_PRINT
+        lda #>check_raw_message
+        sta TEXT_TO_PRINT + 1
+    .else
+        lda #COLOR_CROSS
+        sta TEXT_COLOR
+    
+        lda #<cross_raw_message
+        sta TEXT_TO_PRINT
+        lda #>cross_raw_message
+        sta TEXT_TO_PRINT + 1
+    .endif
+    jsr print_raw_text_zero
+    
+    lda #COLOR_TRANSPARANT
+    sta TEXT_COLOR
+        
+    lda #<jump_table_message
+    sta TEXT_TO_PRINT
+    lda #>jump_table_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
     lda #4
     sta CURSOR_X
     lda #24
     sta CURSOR_Y
-
+    
+    ; -- Polygon filler --
+    
     .if(USE_POLYGON_FILLER)
-        lda #<using_polygon_filler_message
+        lda #COLOR_CHECK
+        sta TEXT_COLOR
+    
+        lda #<check_raw_message
         sta TEXT_TO_PRINT
-        lda #>using_polygon_filler_message
+        lda #>check_raw_message
         sta TEXT_TO_PRINT + 1
     .else
-        lda #<without_polygon_filler_message
+        lda #COLOR_CROSS
+        sta TEXT_COLOR
+    
+        lda #<cross_raw_message
         sta TEXT_TO_PRINT
-        lda #>without_polygon_filler_message
+        lda #>cross_raw_message
         sta TEXT_TO_PRINT + 1
     .endif
+    jsr print_raw_text_zero
+    
+    lda #COLOR_TRANSPARANT
+    sta TEXT_COLOR
+        
+    lda #<polygon_filler_message
+    sta TEXT_TO_PRINT
+    lda #>polygon_filler_message
+    sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
+    
+    ; -- Write cache --
+    
+    .if(USE_WRITE_CACHE)
+        lda #COLOR_CHECK
+        sta TEXT_COLOR
+    
+        lda #<check_raw_message
+        sta TEXT_TO_PRINT
+        lda #>check_raw_message
+        sta TEXT_TO_PRINT + 1
+    .else
+        lda #COLOR_CROSS
+        sta TEXT_COLOR
+    
+        lda #<cross_raw_message
+        sta TEXT_TO_PRINT
+        lda #>cross_raw_message
+        sta TEXT_TO_PRINT + 1
+    .endif
+    jsr print_raw_text_zero
+    
+    lda #COLOR_TRANSPARANT
+    sta TEXT_COLOR
+        
+    lda #<write_cache_message
+    sta TEXT_TO_PRINT
+    lda #>write_cache_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+
     
     lda #COLOR_TRANSPARANT
     sta TEXT_COLOR
@@ -266,7 +436,7 @@ triangles_points:
     ;        x ,     y
    .word BX+ 20, BY+  0   ; TOP POINT
    .word BX+  0, BY+ 50   ; LEFT POINT
-   .word BX+100, BY+ 70   ; RIGHT POINT
+   .word BX+100, BY+ 120   ; RIGHT POINT
     
 triangles_colors:
     ;     color

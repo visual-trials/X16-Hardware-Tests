@@ -107,7 +107,75 @@ done_print_text:
 
     rts
     
+print_raw_text_zero:
+    pha
+    tya
+    pha
 
+    jsr setup_cursor
+
+    ldy #0
+print_next_char_raw:
+    lda (TEXT_TO_PRINT), y
+    beq done_print_text_raw
+    iny
+    sta VERA_DATA0
+    lda TEXT_COLOR                 ; Background color is high nibble, foreground color is low nibble
+    sta VERA_DATA0           
+    jmp print_next_char_raw
+  
+done_print_text_raw:
+
+    clc
+    tya
+    adc CURSOR_X
+    sta CURSOR_X
+
+    pla
+    tay
+    pla
+
+    rts
+    
+    
+print_petscii_table:
+
+    pha
+    tya
+    pha
+
+    lda INDENTATION
+    sta CURSOR_X
+    
+    jsr setup_cursor
+
+    ldy #0
+    ldx #0
+print_next_petscii_char:
+    sty VERA_DATA0
+    lda TEXT_COLOR                 ; Background color is high nibble, foreground color is low nibble
+    sta VERA_DATA0           
+    
+    inx
+    cpx #16
+    bne keep_printing_perscii_chars
+
+    ldx #0
+    jsr move_cursor_to_next_line
+    jsr setup_cursor
+    
+keep_printing_perscii_chars:
+    iny
+    bne print_next_petscii_char
+    
+    pla
+    tay
+    pla
+
+    rts
+  
+
+    
 print_byte_as_decimal:
 
     sta BYTE_TO_PRINT
