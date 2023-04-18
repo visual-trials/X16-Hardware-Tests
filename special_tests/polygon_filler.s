@@ -1,7 +1,8 @@
 
 DO_SPEED_TEST = 1
+
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 1
+USE_SLOPE_TABLES = 0
 USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = 0
@@ -439,9 +440,9 @@ triangles_points:
 ;   .word BX+100, BY+ 70   ; RIGHT POINT
 
 ; FIXME: TESTING!   
-   .word BX+ 20, BY+  0   ; TOP POINT
-   .word BX+  0, BY+ 50   ; LEFT POINT
-   .word BX+100, BY+  1   ; RIGHT POINT
+   .word BX+ 270, BY+  0   ; TOP POINT
+   .word BX+  0, BY+  1   ; LEFT POINT
+   .word BX+ 50, BY+  50   ; RIGHT POINT
     
 triangles_colors:
     ;     color
@@ -584,6 +585,7 @@ draw_triangle_with_single_top_point:
 x_distance_left_top_is_positive:
 
     ; We subtract: Y_DISTANCE_LEFT_TOP: LEFT_POINT_Y - TOP_POINT_Y
+    sec
     lda LEFT_POINT_Y
     sbc TOP_POINT_Y
     sta Y_DISTANCE_LEFT_TOP
@@ -633,31 +635,8 @@ y_distance_left_top_is_positive:
         inc LOAD_ADDRESS+1
         lda (LOAD_ADDRESS), y
         sta SLOPE_TOP_LEFT+1
-    
-        ldx X_DISTANCE_IS_NEGATED
-        beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
-        
-        ; We need to preserve the x32 bit here!
-        and #%10000000
-        sta TMP2
-
-        ; We unset the x32 (in case it was set) because we have to negate the number
-        ; SPEED: can we use a different opcode here to unset the x32 bit?
-        lda SLOPE_TOP_LEFT+1
-        and #%01111111
-        sta SLOPE_TOP_LEFT+1
-        
-        sec
-        lda #0
-        sbc SLOPE_TOP_LEFT
-        sta SLOPE_TOP_LEFT
-        lda #0
-        sbc SLOPE_TOP_LEFT+1
-        and #%01111111         ; Only keep the lower 7 bits
-        ora TMP2               ; We restore the x32 bit
-        sta SLOPE_TOP_LEFT+1
-    
     .else
+    
         ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_LEFT_TOP
         lda X_DISTANCE+1
         sta DIVIDEND+2
@@ -682,28 +661,69 @@ y_distance_left_top_is_positive:
         lda DIVIDEND
         sta SLOPE_TOP_LEFT
         
-; FIXME: if SLOPE >= 64 we should shift 5 bits to the right AND set bit15 (and preserve it)!
+        ; If SLOPE >= 64 we should shift 5 bits to the right AND set bit15
         
-        ldx X_DISTANCE_IS_NEGATED
-        beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
-        
-        sec
-        lda #0
-        sbc SLOPE_TOP_LEFT
-        sta SLOPE_TOP_LEFT
-        lda #0
-        sbc SLOPE_TOP_LEFT+1
-        sta SLOPE_TOP_LEFT+1
-        lda #0
-        sbc SLOPE_TOP_LEFT+2
-        sta SLOPE_TOP_LEFT+2
-
-        ; FIXME: since we just negated, we unset bit15, but we should set bit15 properly
+        lda SLOPE_TOP_LEFT+2
+        bne slope_top_left_is_64_or_higher
         lda SLOPE_TOP_LEFT+1
-        and #%01111111           ; increment is only 15-bits long
+        cmp #64
+        bcs slope_top_left_is_64_or_higher  ; if slope >= 64 then we want to shift 5 positions
+        bra slope_top_left_is_correctly_packed
+slope_top_left_is_64_or_higher:
+
+        ; We divide the slope by 32 (aka shifting 5 bits to the right)
+        lsr SLOPE_TOP_LEFT+2
+        ror SLOPE_TOP_LEFT+1
+        ror SLOPE_TOP_LEFT
+        
+        lsr SLOPE_TOP_LEFT+2
+        ror SLOPE_TOP_LEFT+1
+        ror SLOPE_TOP_LEFT
+
+        lsr SLOPE_TOP_LEFT+2
+        ror SLOPE_TOP_LEFT+1
+        ror SLOPE_TOP_LEFT
+        
+        lsr SLOPE_TOP_LEFT+2
+        ror SLOPE_TOP_LEFT+1
+        ror SLOPE_TOP_LEFT
+        
+        lsr SLOPE_TOP_LEFT+2
+        ror SLOPE_TOP_LEFT+1
+        ror SLOPE_TOP_LEFT
+        
+        lda SLOPE_TOP_LEFT+1
+        ora #%10000000          ; we set bit 15 (here bit 7) to 1, to indicate the value has to be multiplied to x32 (inside of VERA)
         sta SLOPE_TOP_LEFT+1
+        
     .endif
+        
+slope_top_left_is_correctly_packed:        
     
+    ldx X_DISTANCE_IS_NEGATED
+    beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+    
+    ; We need to preserve the x32 bit here!
+    and #%10000000
+    sta TMP2
+
+    ; We unset the x32 (in case it was set) because we have to negate the number
+    ; SPEED: can we use a different opcode here to unset the x32 bit?
+    lda SLOPE_TOP_LEFT+1
+    and #%01111111
+    sta SLOPE_TOP_LEFT+1
+    
+    sec
+    lda #0
+    sbc SLOPE_TOP_LEFT
+    sta SLOPE_TOP_LEFT
+    lda #0
+    sbc SLOPE_TOP_LEFT+1
+    and #%01111111         ; Only keep the lower 7 bits
+    ora TMP2               ; We restore the x32 bit
+    sta SLOPE_TOP_LEFT+1
+    
+
 slope_top_left_is_correctly_signed:
 
 
@@ -736,6 +756,7 @@ slope_top_left_is_correctly_signed:
 x_distance_right_top_is_positive:
 
     ; We subtract: Y_DISTANCE_RIGHT_TOP: RIGHT_POINT_Y - TOP_POINT_Y
+    sec
     lda RIGHT_POINT_Y
     sbc TOP_POINT_Y
     sta Y_DISTANCE_RIGHT_TOP
@@ -786,30 +807,6 @@ y_distance_right_top_is_positive:
         inc LOAD_ADDRESS+1
         lda (LOAD_ADDRESS), y
         sta SLOPE_TOP_RIGHT+1
-    
-        ldx X_DISTANCE_IS_NEGATED
-        beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
-        
-        ; We need to preserve the x32 bit here!
-        and #%10000000
-        sta TMP2
-
-        ; We unset the x32 (in case it was set) because we have to negate the number
-        ; SPEED: can we use a different opcode here to unset the x32 bit?
-        lda SLOPE_TOP_RIGHT+1
-        and #%01111111
-        sta SLOPE_TOP_RIGHT+1
-        
-        sec
-        lda #0
-        sbc SLOPE_TOP_RIGHT
-        sta SLOPE_TOP_RIGHT
-        lda #0
-        sbc SLOPE_TOP_RIGHT+1
-        and #%01111111         ; Only keep the lower 7 bits
-        ora TMP2               ; We restore the x32 bit
-        sta SLOPE_TOP_RIGHT+1
-    
     .else
         ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_RIGHT_TOP
         lda X_DISTANCE+1
@@ -835,27 +832,67 @@ y_distance_right_top_is_positive:
         lda DIVIDEND
         sta SLOPE_TOP_RIGHT
         
-; FIXME: if SLOPE >= 64 we should shift 5 bits to the right AND set bit15 (and preserve it)!
+        ; If SLOPE >= 64 we should shift 5 bits to the right AND set bit15
         
-        ldx X_DISTANCE_IS_NEGATED
-        beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
-        
-        sec
-        lda #0
-        sbc SLOPE_TOP_RIGHT
-        sta SLOPE_TOP_RIGHT
-        lda #0
-        sbc SLOPE_TOP_RIGHT+1
-        sta SLOPE_TOP_RIGHT+1
-        lda #0
-        sbc SLOPE_TOP_RIGHT+2
-        sta SLOPE_TOP_RIGHT+2
-        
-        ; FIXME: since we just negated, we unset bit15, but we should set bit15 properly
+        lda SLOPE_TOP_RIGHT+2
+        bne slope_top_right_is_64_or_higher
         lda SLOPE_TOP_RIGHT+1
-        and #%01111111           ; increment is only 15-bits long
+        cmp #64
+        bcs slope_top_right_is_64_or_higher  ; if slope >= 64 then we want to shift 5 positions
+        bra slope_top_right_is_correctly_packed
+slope_top_right_is_64_or_higher:
+
+        ; We divide the slope by 32 (aka shifting 5 bits to the right)
+        lsr SLOPE_TOP_RIGHT+2
+        ror SLOPE_TOP_RIGHT+1
+        ror SLOPE_TOP_RIGHT
+        
+        lsr SLOPE_TOP_RIGHT+2
+        ror SLOPE_TOP_RIGHT+1
+        ror SLOPE_TOP_RIGHT
+
+        lsr SLOPE_TOP_RIGHT+2
+        ror SLOPE_TOP_RIGHT+1
+        ror SLOPE_TOP_RIGHT
+        
+        lsr SLOPE_TOP_RIGHT+2
+        ror SLOPE_TOP_RIGHT+1
+        ror SLOPE_TOP_RIGHT
+        
+        lsr SLOPE_TOP_RIGHT+2
+        ror SLOPE_TOP_RIGHT+1
+        ror SLOPE_TOP_RIGHT
+        
+        lda SLOPE_TOP_RIGHT+1
+        ora #%10000000          ; we set bit 15 (here bit 7) to 1, to indicate the value has to be multiplied to x32 (inside of VERA)
         sta SLOPE_TOP_RIGHT+1
+        
     .endif
+    
+slope_top_right_is_correctly_packed:
+        
+    ldx X_DISTANCE_IS_NEGATED
+    beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+    
+    ; We need to preserve the x32 bit here!
+    and #%10000000
+    sta TMP2
+
+    ; We unset the x32 (in case it was set) because we have to negate the number
+    ; SPEED: can we use a different opcode here to unset the x32 bit?
+    lda SLOPE_TOP_RIGHT+1
+    and #%01111111
+    sta SLOPE_TOP_RIGHT+1
+    
+    sec
+    lda #0
+    sbc SLOPE_TOP_RIGHT
+    sta SLOPE_TOP_RIGHT
+    lda #0
+    sbc SLOPE_TOP_RIGHT+1
+    and #%01111111         ; Only keep the lower 7 bits
+    ora TMP2               ; We restore the x32 bit
+    sta SLOPE_TOP_RIGHT+1
     
 slope_top_right_is_correctly_signed:
 
@@ -878,6 +915,7 @@ slope_top_right_is_correctly_signed:
 x_distance_right_left_is_positive:
     
     ; We subtract: Y_DISTANCE_RIGHT_TOP: RIGHT_POINT_Y - LEFT_POINT_Y
+    sec
     lda RIGHT_POINT_Y
     sbc LEFT_POINT_Y
     sta Y_DISTANCE_RIGHT_LEFT
@@ -938,30 +976,6 @@ y_distance_right_left_is_positive:
         inc LOAD_ADDRESS+1
         lda (LOAD_ADDRESS), y
         sta SLOPE_RIGHT_LEFT+1
-    
-        ldx Y_DISTANCE_IS_NEGATED
-        beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we dont have to negate now, otherwise we do
-        
-        ; We need to preserve the x32 bit here!
-        and #%10000000
-        sta TMP2
-
-        ; We unset the x32 (in case it was set) because we have to negate the number
-        ; SPEED: can we use a different opcode here to unset the x32 bit?
-        lda SLOPE_RIGHT_LEFT+1
-        and #%01111111
-        sta SLOPE_RIGHT_LEFT+1
-        
-        sec
-        lda #0
-        sbc SLOPE_RIGHT_LEFT
-        sta SLOPE_RIGHT_LEFT
-        lda #0
-        sbc SLOPE_RIGHT_LEFT+1
-        and #%01111111         ; Only keep the lower 7 bits
-        ora TMP2               ; We restore the x32 bit
-        sta SLOPE_RIGHT_LEFT+1
-    
     .else
         ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_RIGHT_LEFT
         lda X_DISTANCE+1
@@ -987,28 +1001,69 @@ y_distance_right_left_is_positive:
         lda DIVIDEND
         sta SLOPE_RIGHT_LEFT
         
-; FIXME: if SLOPE >= 64 we should shift 5 bits to the right AND set bit15 (and preserve it)!
+        ; If SLOPE >= 64 we should shift 5 bits to the right AND set bit15
         
-        ldx Y_DISTANCE_IS_NEGATED
-        beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we dont have to negate now, otherwise we do
-        
-        sec
-        lda #0
-        sbc SLOPE_RIGHT_LEFT
-        sta SLOPE_RIGHT_LEFT
-        lda #0
-        sbc SLOPE_RIGHT_LEFT+1
-        sta SLOPE_RIGHT_LEFT+1
-        lda #0
-        sbc SLOPE_RIGHT_LEFT+2
-        sta SLOPE_RIGHT_LEFT+2
-        
-        ; FIXME: since we just negated, we unset bit15, but we should set bit15 properly
+        lda SLOPE_RIGHT_LEFT+2
+        bne slope_right_left_is_64_or_higher
         lda SLOPE_RIGHT_LEFT+1
-        and #%01111111           ; increment is only 15-bits long
+        cmp #64
+        bcs slope_right_left_is_64_or_higher  ; if slope >= 64 then we want to shift 5 positions
+        bra slope_right_left_is_correctly_packed
+slope_right_left_is_64_or_higher:
+
+        ; We divide the slope by 32 (aka shifting 5 bits to the right)
+        lsr SLOPE_RIGHT_LEFT+2
+        ror SLOPE_RIGHT_LEFT+1
+        ror SLOPE_RIGHT_LEFT
+        
+        lsr SLOPE_RIGHT_LEFT+2
+        ror SLOPE_RIGHT_LEFT+1
+        ror SLOPE_RIGHT_LEFT
+
+        lsr SLOPE_RIGHT_LEFT+2
+        ror SLOPE_RIGHT_LEFT+1
+        ror SLOPE_RIGHT_LEFT
+        
+        lsr SLOPE_RIGHT_LEFT+2
+        ror SLOPE_RIGHT_LEFT+1
+        ror SLOPE_RIGHT_LEFT
+        
+        lsr SLOPE_RIGHT_LEFT+2
+        ror SLOPE_RIGHT_LEFT+1
+        ror SLOPE_RIGHT_LEFT
+        
+        lda SLOPE_RIGHT_LEFT+1
+        ora #%10000000          ; we set bit 15 (here bit 7) to 1, to indicate the value has to be multiplied to x32 (inside of VERA)
         sta SLOPE_RIGHT_LEFT+1
+        
     .endif
     
+slope_right_left_is_correctly_packed:
+
+    ldx Y_DISTANCE_IS_NEGATED
+    beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we dont have to negate now, otherwise we do
+    
+    ; We need to preserve the x32 bit here!
+    and #%10000000
+    sta TMP2
+
+    ; We unset the x32 (in case it was set) because we have to negate the number
+    ; SPEED: can we use a different opcode here to unset the x32 bit?
+    lda SLOPE_RIGHT_LEFT+1
+    and #%01111111
+    sta SLOPE_RIGHT_LEFT+1
+    
+    sec
+    lda #0
+    sbc SLOPE_RIGHT_LEFT
+    sta SLOPE_RIGHT_LEFT
+    lda #0
+    sbc SLOPE_RIGHT_LEFT+1
+    and #%01111111         ; Only keep the lower 7 bits
+    ora TMP2               ; We restore the x32 bit
+    sta SLOPE_RIGHT_LEFT+1
+
+
 slope_right_left_is_correctly_signed:
 
     
@@ -1445,6 +1500,7 @@ next_table_to_copy:
 
     lda #<($A000)        ; We store at Ax00
     sta STORE_ADDRESS
+    
     clc
     lda #>($A000)
     adc TABLE_ROM_BANK
