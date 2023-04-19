@@ -930,6 +930,51 @@ MACRO_negate_slope .macro SLOPE
     
 .endmacro
 
+
+
+MACRO_set_address_using_y2address_table .macro
+    
+    ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
+    ldy TOP_POINT_Y
+    
+    lda Y_TO_ADDRESS_BANK, y     ; This will include the auto-increment of 320 byte
+    sta VERA_ADDR_BANK
+    lda Y_TO_ADDRESS_HIGH, y
+    sta VERA_ADDR_HIGH
+    lda Y_TO_ADDRESS_LOW, y
+    sta VERA_ADDR_LOW
+    
+.endmacro
+
+MACRO_set_address_using_multiplication .macro
+
+    ; FIXME: we should do this *much* earlier and not for every triangle!
+    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    sta VERA_ADDR_BANK
+    
+    ; -- THIS IS SLOW! --
+    ; We need to multiply the Y-coordinate with 320
+    lda TOP_POINT_Y
+    sta MULTIPLICAND
+    lda TOP_POINT_Y+1
+    sta MULTIPLICAND+1
+    
+    lda #<320
+    sta MULTIPLIER
+    lda #>320
+    sta MULTIPLIER+1
+    
+    jsr multply_16bits
+    
+    ; HACK: we are assuming our bitmap address starts at 00000 here! AND we assume we never exceed 64kB!! (bit16 is always assumed to be 0)
+    ; Note: we are setting ADDR0 to the left most pixel of a pixel row. This means it will be aligned to 4-bytes (which is needed for the polygon filler to work nicely).
+    lda PRODUCT+1
+    sta VERA_ADDR_HIGH
+    lda PRODUCT
+    sta VERA_ADDR_LOW
+
+.endmacro
+
     
 draw_triangle_with_single_top_point:
 
@@ -1040,40 +1085,9 @@ slope_right_left_is_correctly_signed:
         sta VERA_CTRL
         
         .if(USE_Y_TO_ADDRESS_TABLE)
-            ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
-            ldy TOP_POINT_Y
-            
-            lda Y_TO_ADDRESS_BANK, y     ; This will include the auto-increment of 320 byte
-            sta VERA_ADDR_BANK
-            lda Y_TO_ADDRESS_HIGH, y
-            sta VERA_ADDR_HIGH
-            lda Y_TO_ADDRESS_LOW, y
-            sta VERA_ADDR_LOW
+            MACRO_set_address_using_y2address_table
         .else
-            ; FIXME: we should do this *much* earlier and not for every triangle!
-            lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
-            sta VERA_ADDR_BANK
-            
-            ; -- THIS IS SLOW! --
-            ; We need to multiply the Y-coordinate with 320
-            lda TOP_POINT_Y
-            sta MULTIPLICAND
-            lda TOP_POINT_Y+1
-            sta MULTIPLICAND+1
-            
-            lda #<320
-            sta MULTIPLIER
-            lda #>320
-            sta MULTIPLIER+1
-            
-            jsr multply_16bits
-            
-            ; HACK: we are assuming our bitmap address starts at 00000 here! AND we assume we never exceed 64kB!! (bit16 is always assumed to be 0)
-            ; Note: we are setting ADDR0 to the left most pixel of a pixel row. This means it will be aligned to 4-bytes (which is needed for the polygon filler to work nicely).
-            lda PRODUCT+1
-            sta VERA_ADDR_HIGH
-            lda PRODUCT
-            sta VERA_ADDR_LOW
+            MACRO_set_address_using_multiplication
         .endif
     
         ; FIXME: we should do this *much* earlier and not for every triangle!
@@ -1117,8 +1131,6 @@ slope_right_left_is_correctly_signed:
         lda #%00000110           ; DCSEL=3, ADDRSEL=0
         sta VERA_CTRL
 
-        ; FIXME: we should do x32 when the number is too high!!
-        
         ; FIXME: NOTE that these increments are *HALF* steps!!
         lda SLOPE_TOP_LEFT       ; X1 increment low (signed)
         sta $9F29
@@ -1184,13 +1196,13 @@ first_right_point_is_lower_in_y:
         ; -- We draw the second part of the triangle --
         jsr draw_polygon_part_using_polygon_filler_naively
         
-done_drawing_polygon_part:
     .else
     
         ; FIXME: implement this!
         
     .endif
         
+done_drawing_polygon_part:
     
     
 ;    .if(USE_POLYGON_FILLER)
