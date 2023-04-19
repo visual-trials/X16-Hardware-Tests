@@ -106,12 +106,16 @@ TRIANGLE_COLOR           = $5C
 X_DISTANCE               = $60 ; 61
 X_DISTANCE_IS_NEGATED    = $62
 Y_DISTANCE_LEFT_TOP      = $63 ; 64
+Y_DISTANCE_BOTTOM_LEFT = Y_DISTANCE_LEFT_TOP
 Y_DISTANCE_RIGHT_TOP     = $65 ; 66
+Y_DISTANCE_BOTTOM_RIGHT = Y_DISTANCE_RIGHT_TOP
 Y_DISTANCE_RIGHT_LEFT    = $67 ; 68
 Y_DISTANCE_LEFT_RIGHT = Y_DISTANCE_RIGHT_LEFT
 Y_DISTANCE_IS_NEGATED    = $69
 SLOPE_TOP_LEFT           = $6A ; 6B ; 6C   ; TODO: do we really need 24 bits here?
+SLOPE_LEFT_BOTTOM = SLOPE_TOP_LEFT
 SLOPE_TOP_RIGHT          = $6D ; 6E ; 6F   ; TODO: do we really need 24 bits here?
+SLOPE_RIGHT_BOTTOM = SLOPE_TOP_RIGHT
 SLOPE_LEFT_RIGHT         = $70 ; 71 ; 72   ; TODO: do we really need 24 bits here?
 SLOPE_RIGHT_LEFT = SLOPE_LEFT_RIGHT
 
@@ -126,18 +130,12 @@ CLEAR_COLUMN_CODE        = $7000
 
 ; Triangle data is (easely) accessed through an single index (0-255)
 ; == IMPORTANT: we assume a *clockwise* ordering of the 3 points of a triangle! ==
-TRIANGLES_POINT1_X_LOW   = $7400
-TRIANGLES_POINT1_X_HIGH  = $7500
-TRIANGLES_POINT1_Y_LOW   = $7600
-TRIANGLES_POINT1_Y_HIGH  = $7700
-TRIANGLES_POINT2_X_LOW   = $7800
-TRIANGLES_POINT2_X_HIGH  = $7900
-TRIANGLES_POINT2_Y_LOW   = $7A00
-TRIANGLES_POINT2_Y_HIGH  = $7B00
-TRIANGLES_POINT3_X_LOW   = $7C00
-TRIANGLES_POINT3_X_HIGH  = $7D00
-TRIANGLES_POINT3_Y_LOW   = $7E00
-TRIANGLES_POINT3_Y_HIGH  = $7F00
+TRIANGLES_POINT1_X       = $7400 ; 7500
+TRIANGLES_POINT1_Y       = $7600 ; 7700
+TRIANGLES_POINT2_X       = $7800 ; 7900
+TRIANGLES_POINT2_Y       = $7A00 ; 7B00
+TRIANGLES_POINT3_X       = $7C00 ; 7D00
+TRIANGLES_POINT3_Y       = $7E00 ; 7F00
 TRIANGLES_COLOR          = $8000
 
 Y_TO_ADDRESS_LOW         = $8100
@@ -441,6 +439,7 @@ triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
    .word   0,   0,   100,  70,    0,  50,    4
    .word   0,   0,   200,   1,  100,  70,    5
+;   .word   0,   0,   200,   0,  100,  70,    5
 
    
    
@@ -473,63 +472,63 @@ load_next_triangle:
     lda (LOAD_ADDRESS), y
     iny
     adc #<BX
-    sta TRIANGLES_POINT1_X_LOW, x
+    sta TRIANGLES_POINT1_X, x
     lda (LOAD_ADDRESS), y
     iny
     adc #>BX
-    sta TRIANGLES_POINT1_X_HIGH, x
+    sta TRIANGLES_POINT1_X+256, x
     
     clc
     lda (LOAD_ADDRESS), y
     iny
     adc #<BY
-    sta TRIANGLES_POINT1_Y_LOW, x
+    sta TRIANGLES_POINT1_Y, x
     lda (LOAD_ADDRESS), y
     iny
     adc #>BY
-    sta TRIANGLES_POINT1_Y_HIGH, x
+    sta TRIANGLES_POINT1_Y+256, x
     
     ; -- Point 2 --
     clc
     lda (LOAD_ADDRESS), y
     iny
     adc #<BX
-    sta TRIANGLES_POINT2_X_LOW, x
+    sta TRIANGLES_POINT2_X, x
     lda (LOAD_ADDRESS), y
     iny
     adc #>BX
-    sta TRIANGLES_POINT2_X_HIGH, x
+    sta TRIANGLES_POINT2_X+256, x
     
     clc
     lda (LOAD_ADDRESS), y
     iny
     adc #<BY
-    sta TRIANGLES_POINT2_Y_LOW, x
+    sta TRIANGLES_POINT2_Y, x
     lda (LOAD_ADDRESS), y
     iny
     adc #>BY
-    sta TRIANGLES_POINT2_Y_HIGH, x
+    sta TRIANGLES_POINT2_Y+256, x
 
     ; -- Point 3 --
     clc
     lda (LOAD_ADDRESS), y
     iny
     adc #<BX
-    sta TRIANGLES_POINT3_X_LOW, x
+    sta TRIANGLES_POINT3_X, x
     lda (LOAD_ADDRESS), y
     iny
     adc #>BX
-    sta TRIANGLES_POINT3_X_HIGH, x
+    sta TRIANGLES_POINT3_X+256, x
     
     clc
     lda (LOAD_ADDRESS), y
     iny
     adc #<BY
-    sta TRIANGLES_POINT3_Y_LOW, x
+    sta TRIANGLES_POINT3_Y, x
     lda (LOAD_ADDRESS), y
     iny
     adc #>BY
-    sta TRIANGLES_POINT3_Y_HIGH, x
+    sta TRIANGLES_POINT3_Y+256, x
     
     lda (LOAD_ADDRESS), y
     iny
@@ -550,6 +549,14 @@ load_next_triangle:
 
     rts
     
+
+MACRO_copy_point .macro TRIANGLES_POINT_X, POINT_X
+    lda \TRIANGLES_POINT_X, x
+    sta \POINT_X
+    lda \TRIANGLES_POINT_X+256, x
+    sta \POINT_X+1
+.endmacro
+
     
 draw_many_triangles_in_a_rectangle:
     
@@ -563,182 +570,225 @@ draw_many_triangles_in_a_rectangle:
     stz TRIANGLE_INDEX
 draw_next_triangle:
 
-; FIXME: cant we *CHEAT* and use only 1 byte for Y? (since <240 pixels)
-
-
-; FIXME!
-; FIXME!
-; FIXME!
-    .if(0)
+    ldx TRIANGLE_INDEX
     
+    lda TRIANGLES_COLOR, x
+    sta TRIANGLE_COLOR
     
-    ; -- Determining which point is top point --
+    ; -- Determining which point is/are top point(s) --
 
-    lda TRIANGLES_POINT1_Y_HIGH, x
-    cmp TRIANGLES_POINT2_Y_HIGH, x
+    lda TRIANGLES_POINT1_Y+256, x
+    cmp TRIANGLES_POINT2_Y+256, x
     bcc point1_is_lower_in_y_than_point2
     bne point1_is_higher_in_y_than_point2
 
-    lda TRIANGLES_POINT1_Y_LOW, x
-    cmp TRIANGLES_POINT2_Y_LOW, x
+    lda TRIANGLES_POINT1_Y, x
+    cmp TRIANGLES_POINT2_Y, x
     bcc point1_is_lower_in_y_than_point2
     beq point1_is_the_same_in_y_as_point2
     bne point1_is_higher_in_y_than_point2
     
-    
 point1_is_lower_in_y_than_point2:
     
-    
-    lda TRIANGLES_POINT1_Y_HIGH, x
-    cmp TRIANGLES_POINT3_Y_HIGH, x
+    lda TRIANGLES_POINT1_Y+256, x
+    cmp TRIANGLES_POINT3_Y+256, x
     bcc pt1_lower_pt2_point1_is_lower_in_y_than_point3
     bne pt1_lower_pt2_point1_is_higher_in_y_than_point3
 
-    lda TRIANGLES_POINT1_Y_LOW, x
-    cmp TRIANGLES_POINT3_Y_LOW, x
+    lda TRIANGLES_POINT1_Y, x
+    cmp TRIANGLES_POINT3_Y, x
     bcc pt1_lower_pt2_point1_is_lower_in_y_than_point3
     beq pt1_lower_pt2_point1_is_the_same_in_y_as_point3
     bne pt1_lower_pt2_point1_is_higher_in_y_than_point3
     
-    
 pt1_lower_pt2_point1_is_lower_in_y_than_point3:
 
-    ; FIXME: this means point1 is lower than point2 and point3
-    
-    bra point1_is_top_point
-
+    ; This means point1 is lower than point2 and point3
+    jmp point1_is_top_point
     
 pt1_lower_pt2_point1_is_higher_in_y_than_point3:
 
-    ; FIXME: this means point1 is lower than point2 but higher than point3, this means point3 is the lowest
-    
-    bra point3_is_top_point
+    ; This means point1 is lower than point2 but higher than point3, this means point3 is the lowest
+    jmp point3_is_top_point
     
 pt1_lower_pt2_point1_is_the_same_in_y_as_point3:
 
-    ; FIXME: this means point1 is lower than point2 but is equal to point3, this means point1 and point3 are both is the lowest
-    
-    bra point1_and_point3_are_top_points
-    
+    ; This means point1 is lower than point2 but is equal to point3, this means point1 and point3 are both the lowest
+    jmp point3_and_point1_are_top_points
     
     
 point1_is_higher_in_y_than_point2:
 
-    lda TRIANGLES_POINT2_Y_HIGH, x
-    cmp TRIANGLES_POINT3_Y_HIGH, x
+    lda TRIANGLES_POINT2_Y+256, x
+    cmp TRIANGLES_POINT3_Y+256, x
     bcc pt1_higher_pt2_point2_is_lower_in_y_than_point3
     bne pt1_higher_pt2_point2_is_higher_in_y_than_point3
 
-    lda TRIANGLES_POINT2_Y_LOW, x
-    cmp TRIANGLES_POINT3_Y_LOW, x
+    lda TRIANGLES_POINT2_Y, x
+    cmp TRIANGLES_POINT3_Y, x
     bcc pt1_higher_pt2_point2_is_lower_in_y_than_point3
     beq pt1_higher_pt2_point2_is_the_same_in_y_as_point3
     bne pt1_higher_pt2_point2_is_higher_in_y_than_point3
 
 pt1_higher_pt2_point2_is_lower_in_y_than_point3:
 
-    ; FIXME: point1 is higher than point2 and point2 is lower than point3, this means point2 is lowest
-    
-    bra point2_is_top_point
+    ; Point1 is higher than point2 and point2 is lower than point3, this means point2 is lowest
+    jmp point2_is_top_point
     
 pt1_higher_pt2_point2_is_higher_in_y_than_point3:
 
-    ; FIXME: point1 is higher than point2 and point2 is higher than point 3, this means point3 is lowest
-
-    bra point3_is_top_point
+    ; Point1 is higher than point2 and point2 is higher than point 3, this means point3 is lowest
+    jmp point3_is_top_point
 
 pt1_higher_pt2_point2_is_the_same_in_y_as_point3:
 
-    ; FIXME: point1 is higher than point2 and point2 is the same as point3, this means point2 and point3 are both is the lowest
-    
-    bra point1_and_point3_are_top_points
+    ; Point1 is higher than point2 and point2 is the same as point3, this means point2 and point3 are both the lowest
+    jmp point2_and_point3_are_top_points
 
     
 point1_is_the_same_in_y_as_point2:
 
-    lda TRIANGLES_POINT1_Y_HIGH, x
-    cmp TRIANGLES_POINT3_Y_HIGH, x
+    lda TRIANGLES_POINT1_Y+256, x
+    cmp TRIANGLES_POINT3_Y+256, x
     bcc pt1_same_pt2_point1_is_lower_in_y_than_point3
     bne pt1_same_pt2_point1_is_higher_in_y_than_point3
 
-    lda TRIANGLES_POINT1_Y_LOW, x
-    cmp TRIANGLES_POINT3_Y_LOW, x
+    lda TRIANGLES_POINT1_Y, x
+    cmp TRIANGLES_POINT3_Y, x
     bcc pt1_same_pt2_point1_is_lower_in_y_than_point3
     beq pt1_same_pt2_point1_is_the_same_in_y_as_point3
     bne pt1_same_pt2_point1_is_higher_in_y_than_point3
 
 pt1_same_pt2_point1_is_lower_in_y_than_point3:
 
-    ; FIXME: point1 and point2 are the same, thet are both lower than point3, this means point1 and point2 are both is the lowest
-
-    bra point1_and_point2_are_top_points
+    ; Point1 and point2 are the same, thet are both lower than point3, this means point1 and point2 are both the lowest
+    jmp point1_and_point2_are_top_points
 
 pt1_same_pt2_point1_is_higher_in_y_than_point3:
 
-    ; FIXME: point1 and point2 are the same, thet are both higher than point3, this means point3 is lowest and we have a FLAT bottom
-    
-    bra point3_is_top_point ; FIXME: FLAT BOTTOM!
+    ; Point1 and point2 are the same, thet are both higher than point3, this means point3 is lowest and we have a FLAT bottom
+    jmp point3_is_top_point ; FIXME: FLAT BOTTOM!
 
 pt1_same_pt2_point1_is_the_same_in_y_as_point3:
 
-    ; FIXME: are points have the same y, this means we have a horizontal line
-    
-    ; FIXME: bra ??? -> what to draw here?
-    
-    bra point1_point2_and_point3_are_top_points
+    ; All points have the same y, this means we have a horizontal line
+    jmp point1_point2_and_point3_are_top_points
 
-    .endif
-    
     
 point1_is_top_point:
-    ldx TRIANGLE_INDEX
-    
-    ; -- TOP POINT --
-    lda TRIANGLES_POINT1_X_LOW, x
-    sta TOP_POINT_X
-    lda TRIANGLES_POINT1_X_HIGH, x
-    sta TOP_POINT_X+1
-    
-    lda TRIANGLES_POINT1_Y_LOW, x
-    sta TOP_POINT_Y
-    lda TRIANGLES_POINT1_Y_HIGH, x
-    sta TOP_POINT_Y+1
 
-    ; -- LEFT POINT --
-    lda TRIANGLES_POINT3_X_LOW, x
-    sta LEFT_POINT_X
-    lda TRIANGLES_POINT3_X_HIGH, x
-    sta LEFT_POINT_X+1
-    
-    lda TRIANGLES_POINT3_Y_LOW, x
-    sta LEFT_POINT_Y
-    lda TRIANGLES_POINT3_Y_HIGH, x
-    sta LEFT_POINT_Y+1
+    ; -- TOP POINT --
+    MACRO_copy_point TRIANGLES_POINT1_X, TOP_POINT_X
+    MACRO_copy_point TRIANGLES_POINT1_Y, TOP_POINT_Y
 
     ; -- RIGHT POINT --
-    lda TRIANGLES_POINT2_X_LOW, x
-    sta RIGHT_POINT_X
-    lda TRIANGLES_POINT2_X_HIGH, x
-    sta RIGHT_POINT_X+1
+    MACRO_copy_point TRIANGLES_POINT2_X, RIGHT_POINT_X
+    MACRO_copy_point TRIANGLES_POINT2_Y, RIGHT_POINT_Y
     
-    lda TRIANGLES_POINT2_Y_LOW, x
-    sta RIGHT_POINT_Y
-    lda TRIANGLES_POINT2_Y_HIGH, x
-    sta RIGHT_POINT_Y+1
+    ; -- LEFT POINT --
+    MACRO_copy_point TRIANGLES_POINT3_X, LEFT_POINT_X
+    MACRO_copy_point TRIANGLES_POINT3_Y, LEFT_POINT_Y
+
+    jmp draw_triangle_with_single_top_point
+
+
+point2_is_top_point:
+
+    ; -- TOP POINT --
+    MACRO_copy_point TRIANGLES_POINT2_X, TOP_POINT_X
+    MACRO_copy_point TRIANGLES_POINT2_Y, TOP_POINT_Y
+
+    ; -- RIGHT POINT --
+    MACRO_copy_point TRIANGLES_POINT3_X, RIGHT_POINT_X
+    MACRO_copy_point TRIANGLES_POINT3_Y, RIGHT_POINT_Y
     
-    lda TRIANGLES_COLOR, x
-    sta TRIANGLE_COLOR
+    ; -- LEFT POINT --
+    MACRO_copy_point TRIANGLES_POINT1_X, LEFT_POINT_X
+    MACRO_copy_point TRIANGLES_POINT1_Y, LEFT_POINT_Y
+
+    jmp draw_triangle_with_single_top_point
+
+point3_is_top_point:
+
+    ; -- TOP POINT --
+    MACRO_copy_point TRIANGLES_POINT3_X, TOP_POINT_X
+    MACRO_copy_point TRIANGLES_POINT3_Y, TOP_POINT_Y
+
+    ; -- RIGHT POINT --
+    MACRO_copy_point TRIANGLES_POINT1_X, RIGHT_POINT_X
+    MACRO_copy_point TRIANGLES_POINT1_Y, RIGHT_POINT_Y
     
-    jsr draw_triangle_with_single_top_point
+    ; -- LEFT POINT --
+    MACRO_copy_point TRIANGLES_POINT2_X, LEFT_POINT_X
+    MACRO_copy_point TRIANGLES_POINT2_Y, LEFT_POINT_Y
+
+    jmp draw_triangle_with_single_top_point
+
+point1_and_point2_are_top_points:
+
+    ; -- LEFT POINT --
+    MACRO_copy_point TRIANGLES_POINT1_X, LEFT_POINT_X
+    MACRO_copy_point TRIANGLES_POINT1_Y, LEFT_POINT_Y
+
+    ; -- RIGHT POINT --
+    MACRO_copy_point TRIANGLES_POINT2_X, RIGHT_POINT_X
+    MACRO_copy_point TRIANGLES_POINT2_Y, RIGHT_POINT_Y
+
+    ; -- BOTTOM POINT --
+    MACRO_copy_point TRIANGLES_POINT3_X, BOTTOM_POINT_X
+    MACRO_copy_point TRIANGLES_POINT3_Y, BOTTOM_POINT_Y
     
-    ; FIXME: jsr draw_triangle_with_double_top_points
+    jmp draw_triangle_with_double_top_points
+
+point2_and_point3_are_top_points:
+
+    ; -- LEFT POINT --
+    MACRO_copy_point TRIANGLES_POINT2_X, LEFT_POINT_X
+    MACRO_copy_point TRIANGLES_POINT2_Y, LEFT_POINT_Y
+
+    ; -- RIGHT POINT --
+    MACRO_copy_point TRIANGLES_POINT3_X, RIGHT_POINT_X
+    MACRO_copy_point TRIANGLES_POINT3_Y, RIGHT_POINT_Y
+
+    ; -- BOTTOM POINT --
+    MACRO_copy_point TRIANGLES_POINT1_X, BOTTOM_POINT_X
+    MACRO_copy_point TRIANGLES_POINT1_Y, BOTTOM_POINT_Y
     
+    jmp draw_triangle_with_double_top_points
+
+point3_and_point1_are_top_points:
+    
+    ; -- LEFT POINT --
+    MACRO_copy_point TRIANGLES_POINT3_X, LEFT_POINT_X
+    MACRO_copy_point TRIANGLES_POINT3_Y, LEFT_POINT_Y
+
+    ; -- RIGHT POINT --
+    MACRO_copy_point TRIANGLES_POINT1_X, RIGHT_POINT_X
+    MACRO_copy_point TRIANGLES_POINT1_Y, RIGHT_POINT_Y
+
+    ; -- BOTTOM POINT --
+    MACRO_copy_point TRIANGLES_POINT2_X, BOTTOM_POINT_X
+    MACRO_copy_point TRIANGLES_POINT2_Y, BOTTOM_POINT_Y
+    
+    jmp draw_triangle_with_double_top_points
+
+point1_point2_and_point3_are_top_points:
+
+    ; FIXME: what should we do in this case? Should we draw a horizonal line? 
+    
+    ; FIXME: right now, we just move on to the next triangle
+    
+    
+done_drawing_polygon_part:
+
     inc TRIANGLE_INDEX
     lda TRIANGLE_INDEX
     cmp #NR_OF_TRIANGLES
-    bne draw_next_triangle
+    beq done_drawing_all_triangles
+    jmp draw_next_triangle
     
     
+done_drawing_all_triangles:
     
     ; Turning off polygon filler mode
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
@@ -752,6 +802,7 @@ point1_is_top_point:
     sta VERA_CTRL
     
     rts
+    
     
     
 MACRO_get_slope_from_slope_table: .macro Y_DISTANCE, SLOPE
@@ -932,10 +983,10 @@ MACRO_negate_slope .macro SLOPE
 
 
 
-MACRO_set_address_using_y2address_table .macro
+MACRO_set_address_using_y2address_table .macro POINT_Y
     
     ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
-    ldy TOP_POINT_Y
+    ldy \POINT_Y
     
     lda Y_TO_ADDRESS_BANK, y     ; This will include the auto-increment of 320 byte
     sta VERA_ADDR_BANK
@@ -946,7 +997,7 @@ MACRO_set_address_using_y2address_table .macro
     
 .endmacro
 
-MACRO_set_address_using_multiplication .macro
+MACRO_set_address_using_multiplication .macro POINT_Y
 
     ; FIXME: we should do this *much* earlier and not for every triangle!
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
@@ -954,9 +1005,9 @@ MACRO_set_address_using_multiplication .macro
     
     ; -- THIS IS SLOW! --
     ; We need to multiply the Y-coordinate with 320
-    lda TOP_POINT_Y
+    lda \POINT_Y
     sta MULTIPLICAND
-    lda TOP_POINT_Y+1
+    lda \POINT_Y+1
     sta MULTIPLICAND+1
     
     lda #<320
@@ -996,6 +1047,7 @@ draw_triangle_with_single_top_point:
     ;  - slopes are *half* the actual slope between two point (since they are increment in 2 steps)
     ;  - slopes are packed into a signed 15 bit + 1 "times 32"-bit 
 
+    ; SPEED: cant we and use only 1 byte for Y? (since Y < 240 pixels)
     
     ; ============== LEFT POINT vs TOP POINT ============
     
@@ -1034,8 +1086,6 @@ slope_top_left_is_correctly_signed:
     MACRO_subtract RIGHT_POINT_Y, TOP_POINT_Y, Y_DISTANCE_RIGHT_TOP
     
     ; Note: since we know the top point has a lower y than the right point, there is no need to negate it!
-    
-y_distance_right_top_is_positive:
     
     .if(USE_SLOPE_TABLES)
         MACRO_get_slope_from_slope_table Y_DISTANCE_RIGHT_TOP, SLOPE_TOP_RIGHT
@@ -1085,9 +1135,9 @@ slope_right_left_is_correctly_signed:
         sta VERA_CTRL
         
         .if(USE_Y_TO_ADDRESS_TABLE)
-            MACRO_set_address_using_y2address_table
+            MACRO_set_address_using_y2address_table TOP_POINT_Y
         .else
-            MACRO_set_address_using_multiplication
+            MACRO_set_address_using_multiplication TOP_POINT_Y
         .endif
     
         ; FIXME: we should do this *much* earlier and not for every triangle!
@@ -1153,7 +1203,7 @@ first_left_point_is_lower_in_y:
         jsr draw_polygon_part_using_polygon_filler_naively
 
         lda Y_DISTANCE_RIGHT_LEFT
-        beq done_drawing_polygon_part   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
+        beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
         sta NUMBER_OF_ROWS
         
         lda #%00000110           ; DCSEL=3, ADDRSEL=0
@@ -1170,7 +1220,7 @@ first_left_point_is_lower_in_y:
         ; -- We draw the second part of the triangle --
         jsr draw_polygon_part_using_polygon_filler_naively
 
-        bra done_drawing_polygon_part
+        bra done_drawing_polygon_part_single_top
 first_right_point_is_lower_in_y:
         lda Y_DISTANCE_RIGHT_TOP
         sta NUMBER_OF_ROWS
@@ -1179,7 +1229,7 @@ first_right_point_is_lower_in_y:
         jsr draw_polygon_part_using_polygon_filler_naively
 
         lda Y_DISTANCE_RIGHT_LEFT
-        beq done_drawing_polygon_part   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
+        beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
         sta NUMBER_OF_ROWS
         
         lda #%00000110           ; DCSEL=3, ADDRSEL=0
@@ -1202,41 +1252,164 @@ first_right_point_is_lower_in_y:
         
     .endif
         
-done_drawing_polygon_part:
+done_drawing_polygon_part_single_top:
     
+    jmp done_drawing_polygon_part
     
-;    .if(USE_POLYGON_FILLER)
-;        jsr draw_polygon_part_fast
-;    .else
-;        jsr draw_polygon_part_slow
-;    .endif
-    
-    rts
-    
-    
-
     
 draw_triangle_with_double_top_points:
 
-    ; FIXME: implement this!
+    ; Note: we can assume here that:
+    ;  - the triangle has a left-top point, its coordinate is on: LEFT_POINT_X/LEFT_POINT_Y
+    ;  - the triangle has a right-top point, its coordinate is on: RIGHT_POINT_X/RIGHT_POINT_Y
+    ;  - the left-top point and right-top point have the same y-coordinate
+    ;  - the triangle has a single bottom point, its coordinate is in: BOTTOM_POINT_X/BOTTOM_POINT_Y
+    ;  - the color of the triangle is in: TRIANGLE_COLOR
 
-    rts
+    ; We need to calculate 2 slopes for the 1 triangle part:
+    ;  - the slope between LEFT and BOTTOM
+    ;  - the slope between RIGHT and BOTTOM
     
+    ; About slopes:
+    ;  - slopes are up to 15+5=20 bits (signed) numbers: ranging from +-1024 pixels/2 down to +-(1/512th of a pixel)/2
+    ;  - slopes are *half* the actual slope between two point (since they are increment in 2 steps)
+    ;  - slopes are packed into a signed 15 bit + 1 "times 32"-bit 
+
+    ; SPEED: cant we and use only 1 byte for Y? (since Y < 240 pixels)
     
-draw_polygon_part_fast:
-
-    ; FIXME: implement this!
-
-    rts
+    ; ============== BOTTOM POINT vs LEFT POINT ============
     
+    ; We subtract: X_DISTANCE:  BOTTOM_POINT_X - LEFT_POINT_X
     
-draw_polygon_part_slow:
-
-    ; FIXME: implement this!
-
-    rts
+    MACRO_subtract_and_make_positive BOTTOM_POINT_X, LEFT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
     
+    ; We subtract: Y_DISTANCE_BOTTOM_LEFT: BOTTOM_POINT_Y - LEFT_POINT_Y
+    
+    MACRO_subtract BOTTOM_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_BOTTOM_LEFT
+    
+    ; Note: since we know the left point has a lower y than the bottom point, there is no need to negate it!
+    
+    .if(USE_SLOPE_TABLES)
+        MACRO_get_slope_from_slope_table Y_DISTANCE_BOTTOM_LEFT, SLOPE_LEFT_BOTTOM
+    .else
+        MACRO_calculate_slope_using_division Y_DISTANCE_BOTTOM_LEFT, SLOPE_LEFT_BOTTOM
+    .endif
+    
+    ldx X_DISTANCE_IS_NEGATED
+    beq slope_left_bottom_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+    
+    MACRO_negate_slope SLOPE_LEFT_BOTTOM
+    
+slope_left_bottom_is_correctly_signed:
 
+
+    ; ============== BOTTOM POINT vs RIGHT POINT ============
+
+    ; We subtract: X_DISTANCE: BOTTOM_POINT_X - RIGHT_POINT_X
+    
+    MACRO_subtract_and_make_positive BOTTOM_POINT_X, RIGHT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED    
+    
+    ; We subtract: Y_DISTANCE_BOTTOM_RIGHT: BOTTOM_POINT_Y - RIGHT_POINT_Y
+    
+    MACRO_subtract BOTTOM_POINT_Y, RIGHT_POINT_Y, Y_DISTANCE_BOTTOM_RIGHT
+    
+    ; Note: since we know the right point has a lower y than the bottom point, there is no need to negate it!
+    
+    .if(USE_SLOPE_TABLES)
+        MACRO_get_slope_from_slope_table Y_DISTANCE_BOTTOM_RIGHT, SLOPE_RIGHT_BOTTOM
+    .else
+        MACRO_calculate_slope_using_division Y_DISTANCE_BOTTOM_RIGHT, SLOPE_RIGHT_BOTTOM
+    .endif
+    
+    ldx X_DISTANCE_IS_NEGATED
+    beq slope_right_bottom_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+    
+    MACRO_negate_slope SLOPE_RIGHT_BOTTOM
+    
+slope_right_bottom_is_correctly_signed:
+
+    
+    ; -- We setup the starting x and y and the color --
+    .if(USE_POLYGON_FILLER)
+        ; Setting up for drawing a polygon, setting both addresses at the same starting point
+
+        lda #%00000100           ; DCSEL=2, ADDRSEL=0
+        sta VERA_CTRL
+        
+        .if(USE_Y_TO_ADDRESS_TABLE)
+            MACRO_set_address_using_y2address_table LEFT_POINT_Y
+        .else
+            MACRO_set_address_using_multiplication LEFT_POINT_Y
+        .endif
+    
+        ; FIXME: we should do this *much* earlier and not for every triangle!
+        ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
+        lda #%00000011
+        sta $9F29
+        
+        ; Setting x1 and x2 pixel position
+        
+        lda #%00001001           ; DCSEL=4, ADDRSEL=1
+        sta VERA_CTRL
+        
+        lda LEFT_POINT_X
+        sta $9F29                ; X (=X1) pixel position low [7:0]
+        lda RIGHT_POINT_X
+        sta $9F2B                ; Y (=X2) pixel position low [7:0]
+        
+        ; NOTE: we are also *setting* the subpixel position (bit0) here! Even though we just resetted it! 
+        ;       but its ok, since its reset to half a pixel (see above), meaning bit0 is 0 anyway
+        lda LEFT_POINT_X+1
+        sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
+        lda RIGHT_POINT_X+1
+        ora #%00100000           ; Reset subpixel position
+        sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
+
+        ; FIXME: we should do this *much* earlier and not for every triangle!
+        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+        ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
+    
+        ldy TRIANGLE_COLOR      ; We use y as color
+    .else 
+    
+        ; FIXME: implement this!
+        
+    .endif
+
+
+    .if(USE_POLYGON_FILLER)
+
+        ; -- We setup the x1 and x2 slopes for the first part of the triangle --
+        
+        lda #%00000110           ; DCSEL=3, ADDRSEL=0
+        sta VERA_CTRL
+
+        ; FIXME: NOTE that these increments are *HALF* steps!!
+        lda SLOPE_LEFT_BOTTOM    ; X1 increment low (signed)
+        sta $9F29
+        lda SLOPE_LEFT_BOTTOM+1  ; X1 increment high (signed)
+        sta $9F2A
+
+        lda SLOPE_RIGHT_BOTTOM   ; X2 increment low (signed)
+        sta $9F2B                
+        lda SLOPE_RIGHT_BOTTOM+1 ; X2 increment high (signed)
+        sta $9F2C    
+    
+        lda Y_DISTANCE_LEFT_TOP
+        sta NUMBER_OF_ROWS
+        
+        ; -- We draw the first (and only) part of the triangle --
+        jsr draw_polygon_part_using_polygon_filler_naively
+        
+    .else
+    
+        ; FIXME: implement this!
+        
+    .endif
+        
+    jmp done_drawing_polygon_part
+    
     
 
 test_simple_polygon_filler:
