@@ -7,6 +7,7 @@ USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = 0
 
+USE_Y_TO_ADDRESS_TABLE = 1
 
     .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
 BACKGROUND_COLOR = 251  ; Nice purple
@@ -602,7 +603,7 @@ point1_is_lower_in_y_than_point2:
     
 pt1_lower_pt2_point1_is_lower_in_y_than_point3:
 
-    ; FIXME: this means point1 is lower than point2 and point3, BUT we DONT know yet if point2 and point3 are the same!
+    ; FIXME: this means point1 is lower than point2 and point3
     
     bra point1_is_top_point
 
@@ -636,7 +637,7 @@ point1_is_higher_in_y_than_point2:
 
 pt1_higher_pt2_point2_is_lower_in_y_than_point3:
 
-    ; FIXME: point1 is higher than point2 and point2 is lower than point3, this means point2 is lowest -> BUT we dont know if point1 and point2 are the SAME!
+    ; FIXME: point1 is higher than point2 and point2 is lower than point3, this means point2 is lowest
     
     bra point2_is_top_point
     
@@ -753,6 +754,183 @@ point1_is_top_point:
     rts
     
     
+MACRO_get_slope_from_slope_table: .macro Y_DISTANCE, SLOPE
+
+    ; We get the SLOPE from the slope table. We need:
+    ;   y = Y_DISTANCE
+    ;   RAM_BANK = X_DISTANCE[5:0]
+    ;   ADDR_HIGH[3:1] = X_DISTANCE[8:6]
+        
+    ldy \Y_DISTANCE
+
+    lda X_DISTANCE
+    and #%00111111
+    sta RAM_BANK
+
+    ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8)
+    asl X_DISTANCE
+    rol X_DISTANCE+1
+    asl X_DISTANCE
+    rol X_DISTANCE+1
+    
+    ; We shift bits 8, 7 and 6 into bits 3, 2 and 1
+    asl X_DISTANCE+1
+    
+    ; We combine bits 3:1 with A0
+    lda #>($A000)
+    ora X_DISTANCE+1
+    sta LOAD_ADDRESS+1
+    
+    ; SPEED: we dont need to do this again and again, this stays at zero!
+    lda #<($A000)
+    sta LOAD_ADDRESS
+    
+    ; We load the SLOPE_LOW
+    lda (LOAD_ADDRESS), y
+    sta \SLOPE
+    
+    ; We load the SLOPE_HIGH
+    inc LOAD_ADDRESS+1
+    lda (LOAD_ADDRESS), y
+    sta \SLOPE+1
+.endmacro
+
+
+MACRO_calculate_slope_using_division: .macro Y_DISTANCE, SLOPE
+
+    ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE
+    lda X_DISTANCE+1
+    sta DIVIDEND+2
+    lda X_DISTANCE
+    sta DIVIDEND+1
+    lda #0
+    sta DIVIDEND
+
+    lda #0
+    sta DIVISOR+2
+    lda \Y_DISTANCE+1
+    sta DIVISOR+1
+    lda \Y_DISTANCE
+    sta DIVISOR
+
+    jsr divide_24bits
+    
+    lda DIVIDEND+2
+    sta \SLOPE+2
+    lda DIVIDEND+1
+    sta \SLOPE+1
+    lda DIVIDEND
+    sta \SLOPE
+    
+    ; If SLOPE >= 64 we should shift 5 bits to the right AND set bit15
+    
+    lda \SLOPE+2
+    bne \@slope_is_64_or_higher
+    lda \SLOPE+1
+    cmp #64
+    bcs \@slope_is_64_or_higher  ; if slope >= 64 then we want to shift 5 positions
+    bra \@slope_is_correctly_packed
+\@slope_is_64_or_higher:
+
+    ; We divide the slope by 32 (aka shifting 5 bits to the right)
+    lsr \SLOPE+2
+    ror \SLOPE+1
+    ror \SLOPE
+    
+    lsr \SLOPE+2
+    ror \SLOPE+1
+    ror \SLOPE
+
+    lsr \SLOPE+2
+    ror \SLOPE+1
+    ror \SLOPE
+    
+    lsr \SLOPE+2
+    ror \SLOPE+1
+    ror \SLOPE
+    
+    lsr \SLOPE+2
+    ror \SLOPE+1
+    ror \SLOPE
+    
+    lda \SLOPE+1
+    ora #%10000000          ; we set bit 15 (here bit 7) to 1, to indicate the value has to be multiplied to x32 (inside of VERA)
+    sta \SLOPE+1
+
+\@slope_is_correctly_packed:
+    
+.endmacro
+
+
+MACRO_subtract_and_make_positive .macro POSITION_A, POSITION_B, DISTANCE, DISTANCE_IS_NEGATED
+    
+    stz \DISTANCE_IS_NEGATED
+    
+    ; We subtract: DISTANCE: POSITION_A - POSITION_B
+    sec
+    lda \POSITION_A
+    sbc \POSITION_B
+    sta \DISTANCE
+    lda \POSITION_A+1
+    sbc \POSITION_B+1
+    sta \DISTANCE+1
+    bpl \@distance_is_positive
+    
+    lda #1
+    sta \DISTANCE_IS_NEGATED
+
+    ; We negate the DISTANCE
+    sec
+    lda #0
+    sbc \DISTANCE
+    sta \DISTANCE
+    lda #0
+    sbc \DISTANCE+1
+    sta \DISTANCE+1
+    
+\@distance_is_positive:
+
+.endmacro
+
+
+MACRO_subtract .macro POSITION_A, POSITION_B, DISTANCE
+
+    ; We subtract: DISTANCE: POSITION_A - POSITION_B
+    sec
+    lda \POSITION_A
+    sbc \POSITION_B
+    sta \DISTANCE
+    lda \POSITION_A+1
+    sbc \POSITION_B+1
+    sta \DISTANCE+1
+
+.endmacro
+
+MACRO_negate_slope .macro SLOPE
+    
+    ; We need to preserve the x32 bit here!
+    and #%10000000
+    sta TMP2
+
+    ; We unset the x32 (in case it was set) because we have to negate the number
+    ; SPEED: can we use a different opcode here to unset the x32 bit?
+    lda \SLOPE+1
+    and #%01111111
+    sta \SLOPE+1
+    
+    sec
+    lda #0
+    sbc \SLOPE
+    sta \SLOPE
+    lda #0
+    sbc \SLOPE+1
+    and #%01111111         ; Only keep the lower 7 bits
+    ora TMP2               ; We restore the x32 bit
+    sta \SLOPE+1
+    
+.endmacro
+
+    
 draw_triangle_with_single_top_point:
 
     ; Note: we can assume here that:
@@ -776,511 +954,80 @@ draw_triangle_with_single_top_point:
     
     ; ============== LEFT POINT vs TOP POINT ============
     
-    stz X_DISTANCE_IS_NEGATED
-    
     ; We subtract: X_DISTANCE: LEFT_POINT_X - TOP_POINT_X
-    sec
-    lda LEFT_POINT_X
-    sbc TOP_POINT_X
-    sta X_DISTANCE
-    lda LEFT_POINT_X+1
-    sbc TOP_POINT_X+1
-    sta X_DISTANCE+1
-    bpl x_distance_left_top_is_positive
     
-    lda #1
-    sta X_DISTANCE_IS_NEGATED
-
-    ; We negate the X_DISTANCE
-    sec
-    lda #0
-    sbc X_DISTANCE
-    sta X_DISTANCE
-    lda #0
-    sbc X_DISTANCE+1
-    sta X_DISTANCE+1
+    MACRO_subtract_and_make_positive LEFT_POINT_X, TOP_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
     
-x_distance_left_top_is_positive:
-
     ; We subtract: Y_DISTANCE_LEFT_TOP: LEFT_POINT_Y - TOP_POINT_Y
-    sec
-    lda LEFT_POINT_Y
-    sbc TOP_POINT_Y
-    sta Y_DISTANCE_LEFT_TOP
-    lda LEFT_POINT_Y+1
-    sbc TOP_POINT_Y+1
-    sta Y_DISTANCE_LEFT_TOP+1
+    
+    MACRO_subtract LEFT_POINT_Y, TOP_POINT_Y, Y_DISTANCE_LEFT_TOP
     
     ; Note: since we know the top point has a lower y than the left point, there is no need to negate it!
     
-y_distance_left_top_is_positive:
-    
     .if(USE_SLOPE_TABLES)
-        ; We get the SLOPE from the slope table. We need:
-        ;   y = Y_DISTANCE_LEFT_TOP
-        ;   RAM_BANK = X_DISTANCE[5:0]
-        ;   ADDR_HIGH[3:1] = X_DISTANCE[8:6]
-        
-        ldy Y_DISTANCE_LEFT_TOP
-        
-        lda X_DISTANCE
-        and #%00111111
-        sta RAM_BANK
-
-        ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8)
-        asl X_DISTANCE
-        rol X_DISTANCE+1
-        asl X_DISTANCE
-        rol X_DISTANCE+1
-        
-        ; We shift bits 8, 7 and 6 into bits 3, 2 and 1
-        asl X_DISTANCE+1
-        
-        ; We combine bits 3:1 with A0
-        lda #>($A000)
-        ora X_DISTANCE+1
-        sta LOAD_ADDRESS+1
-        
-        ; SPEED: we dont need to do this again and again, this stays at zero!
-        lda #<($A000)
-        sta LOAD_ADDRESS
-        
-        ; We load the SLOPE_LOW
-        lda (LOAD_ADDRESS), y
-        sta SLOPE_TOP_LEFT
-        
-        ; We load the SLOPE_HIGH
-        inc LOAD_ADDRESS+1
-        lda (LOAD_ADDRESS), y
-        sta SLOPE_TOP_LEFT+1
+        MACRO_get_slope_from_slope_table Y_DISTANCE_LEFT_TOP, SLOPE_TOP_LEFT
     .else
-    
-        ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_LEFT_TOP
-        lda X_DISTANCE+1
-        sta DIVIDEND+2
-        lda X_DISTANCE
-        sta DIVIDEND+1
-        lda #0
-        sta DIVIDEND
-
-        lda #0
-        sta DIVISOR+2
-        lda Y_DISTANCE_LEFT_TOP+1
-        sta DIVISOR+1
-        lda Y_DISTANCE_LEFT_TOP
-        sta DIVISOR
-
-        jsr divide_24bits
-        
-        lda DIVIDEND+2
-        sta SLOPE_TOP_LEFT+2
-        lda DIVIDEND+1
-        sta SLOPE_TOP_LEFT+1
-        lda DIVIDEND
-        sta SLOPE_TOP_LEFT
-        
-        ; If SLOPE >= 64 we should shift 5 bits to the right AND set bit15
-        
-        lda SLOPE_TOP_LEFT+2
-        bne slope_top_left_is_64_or_higher
-        lda SLOPE_TOP_LEFT+1
-        cmp #64
-        bcs slope_top_left_is_64_or_higher  ; if slope >= 64 then we want to shift 5 positions
-        bra slope_top_left_is_correctly_packed
-slope_top_left_is_64_or_higher:
-
-        ; We divide the slope by 32 (aka shifting 5 bits to the right)
-        lsr SLOPE_TOP_LEFT+2
-        ror SLOPE_TOP_LEFT+1
-        ror SLOPE_TOP_LEFT
-        
-        lsr SLOPE_TOP_LEFT+2
-        ror SLOPE_TOP_LEFT+1
-        ror SLOPE_TOP_LEFT
-
-        lsr SLOPE_TOP_LEFT+2
-        ror SLOPE_TOP_LEFT+1
-        ror SLOPE_TOP_LEFT
-        
-        lsr SLOPE_TOP_LEFT+2
-        ror SLOPE_TOP_LEFT+1
-        ror SLOPE_TOP_LEFT
-        
-        lsr SLOPE_TOP_LEFT+2
-        ror SLOPE_TOP_LEFT+1
-        ror SLOPE_TOP_LEFT
-        
-        lda SLOPE_TOP_LEFT+1
-        ora #%10000000          ; we set bit 15 (here bit 7) to 1, to indicate the value has to be multiplied to x32 (inside of VERA)
-        sta SLOPE_TOP_LEFT+1
-        
+        MACRO_calculate_slope_using_division Y_DISTANCE_LEFT_TOP, SLOPE_TOP_LEFT
     .endif
-        
-slope_top_left_is_correctly_packed:        
     
     ldx X_DISTANCE_IS_NEGATED
     beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
     
-    ; We need to preserve the x32 bit here!
-    and #%10000000
-    sta TMP2
-
-    ; We unset the x32 (in case it was set) because we have to negate the number
-    ; SPEED: can we use a different opcode here to unset the x32 bit?
-    lda SLOPE_TOP_LEFT+1
-    and #%01111111
-    sta SLOPE_TOP_LEFT+1
+    MACRO_negate_slope SLOPE_TOP_LEFT
     
-    sec
-    lda #0
-    sbc SLOPE_TOP_LEFT
-    sta SLOPE_TOP_LEFT
-    lda #0
-    sbc SLOPE_TOP_LEFT+1
-    and #%01111111         ; Only keep the lower 7 bits
-    ora TMP2               ; We restore the x32 bit
-    sta SLOPE_TOP_LEFT+1
-    
-
 slope_top_left_is_correctly_signed:
 
 
     ; ============== RIGHT POINT vs TOP POINT ============
 
-    stz X_DISTANCE_IS_NEGATED
-    
     ; We subtract: X_DISTANCE: RIGHT_POINT_X - TOP_POINT_X
-    sec
-    lda RIGHT_POINT_X
-    sbc TOP_POINT_X
-    sta X_DISTANCE
-    lda RIGHT_POINT_X+1
-    sbc TOP_POINT_X+1
-    sta X_DISTANCE+1
-    bpl x_distance_right_top_is_positive
     
-    lda #1
-    sta X_DISTANCE_IS_NEGATED
-
-    ; We negate the X_DISTANCE
-    sec
-    lda #0
-    sbc X_DISTANCE
-    sta X_DISTANCE
-    lda #0
-    sbc X_DISTANCE+1
-    sta X_DISTANCE+1
+    MACRO_subtract_and_make_positive RIGHT_POINT_X, TOP_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED    
     
-x_distance_right_top_is_positive:
-
     ; We subtract: Y_DISTANCE_RIGHT_TOP: RIGHT_POINT_Y - TOP_POINT_Y
-    sec
-    lda RIGHT_POINT_Y
-    sbc TOP_POINT_Y
-    sta Y_DISTANCE_RIGHT_TOP
-    lda RIGHT_POINT_Y+1
-    sbc TOP_POINT_Y+1
-    sta Y_DISTANCE_RIGHT_TOP+1
+    
+    MACRO_subtract RIGHT_POINT_Y, TOP_POINT_Y, Y_DISTANCE_RIGHT_TOP
     
     ; Note: since we know the top point has a lower y than the right point, there is no need to negate it!
     
 y_distance_right_top_is_positive:
     
-    
     .if(USE_SLOPE_TABLES)
-        ; We get the SLOPE from the slope table. We need:
-        ;   y = Y_DISTANCE_RIGHT_TOP
-        ;   RAM_BANK = X_DISTANCE[5:0]
-        ;   ADDR_HIGH[3:1] = X_DISTANCE[8:6]
-        
-        ldy Y_DISTANCE_RIGHT_TOP
-        
-        lda X_DISTANCE
-        and #%00111111
-        sta RAM_BANK
-
-        ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8)
-        asl X_DISTANCE
-        rol X_DISTANCE+1
-        asl X_DISTANCE
-        rol X_DISTANCE+1
-        
-        ; We shift bits 8, 7 and 6 into bits 3, 2 and 1
-        asl X_DISTANCE+1
-        
-        ; We combine bits 3:1 with A0
-        lda #>($A000)
-        ora X_DISTANCE+1
-        sta LOAD_ADDRESS+1
-        
-        ; SPEED: we dont need to do this again and again, this stays at zero!
-        lda #<($A000)
-        sta LOAD_ADDRESS
-        
-        ; We load the SLOPE_LOW
-        lda (LOAD_ADDRESS), y
-        sta SLOPE_TOP_RIGHT
-        
-        ; We load the SLOPE_HIGH
-        inc LOAD_ADDRESS+1
-        lda (LOAD_ADDRESS), y
-        sta SLOPE_TOP_RIGHT+1
+        MACRO_get_slope_from_slope_table Y_DISTANCE_RIGHT_TOP, SLOPE_TOP_RIGHT
     .else
-        ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_RIGHT_TOP
-        lda X_DISTANCE+1
-        sta DIVIDEND+2
-        lda X_DISTANCE
-        sta DIVIDEND+1
-        lda #0
-        sta DIVIDEND
-
-        lda #0
-        sta DIVISOR+2
-        lda Y_DISTANCE_RIGHT_TOP+1
-        sta DIVISOR+1
-        lda Y_DISTANCE_RIGHT_TOP
-        sta DIVISOR
-
-        jsr divide_24bits
-        
-        lda DIVIDEND+2
-        sta SLOPE_TOP_RIGHT+2
-        lda DIVIDEND+1
-        sta SLOPE_TOP_RIGHT+1
-        lda DIVIDEND
-        sta SLOPE_TOP_RIGHT
-        
-        ; If SLOPE >= 64 we should shift 5 bits to the right AND set bit15
-        
-        lda SLOPE_TOP_RIGHT+2
-        bne slope_top_right_is_64_or_higher
-        lda SLOPE_TOP_RIGHT+1
-        cmp #64
-        bcs slope_top_right_is_64_or_higher  ; if slope >= 64 then we want to shift 5 positions
-        bra slope_top_right_is_correctly_packed
-slope_top_right_is_64_or_higher:
-
-        ; We divide the slope by 32 (aka shifting 5 bits to the right)
-        lsr SLOPE_TOP_RIGHT+2
-        ror SLOPE_TOP_RIGHT+1
-        ror SLOPE_TOP_RIGHT
-        
-        lsr SLOPE_TOP_RIGHT+2
-        ror SLOPE_TOP_RIGHT+1
-        ror SLOPE_TOP_RIGHT
-
-        lsr SLOPE_TOP_RIGHT+2
-        ror SLOPE_TOP_RIGHT+1
-        ror SLOPE_TOP_RIGHT
-        
-        lsr SLOPE_TOP_RIGHT+2
-        ror SLOPE_TOP_RIGHT+1
-        ror SLOPE_TOP_RIGHT
-        
-        lsr SLOPE_TOP_RIGHT+2
-        ror SLOPE_TOP_RIGHT+1
-        ror SLOPE_TOP_RIGHT
-        
-        lda SLOPE_TOP_RIGHT+1
-        ora #%10000000          ; we set bit 15 (here bit 7) to 1, to indicate the value has to be multiplied to x32 (inside of VERA)
-        sta SLOPE_TOP_RIGHT+1
-        
+        MACRO_calculate_slope_using_division Y_DISTANCE_RIGHT_TOP, SLOPE_TOP_RIGHT
     .endif
     
-slope_top_right_is_correctly_packed:
-        
     ldx X_DISTANCE_IS_NEGATED
     beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
     
-    ; We need to preserve the x32 bit here!
-    and #%10000000
-    sta TMP2
-
-    ; We unset the x32 (in case it was set) because we have to negate the number
-    ; SPEED: can we use a different opcode here to unset the x32 bit?
-    lda SLOPE_TOP_RIGHT+1
-    and #%01111111
-    sta SLOPE_TOP_RIGHT+1
-    
-    sec
-    lda #0
-    sbc SLOPE_TOP_RIGHT
-    sta SLOPE_TOP_RIGHT
-    lda #0
-    sbc SLOPE_TOP_RIGHT+1
-    and #%01111111         ; Only keep the lower 7 bits
-    ora TMP2               ; We restore the x32 bit
-    sta SLOPE_TOP_RIGHT+1
+    MACRO_negate_slope SLOPE_TOP_RIGHT
     
 slope_top_right_is_correctly_signed:
 
 
     ; ============== RIGHT POINT vs LEFT POINT ============
 
-    stz Y_DISTANCE_IS_NEGATED
-    
     ; We subtract: X_DISTANCE: RIGHT_POINT_X - LEFT_POINT_X
-    sec
-    lda RIGHT_POINT_X
-    sbc LEFT_POINT_X
-    sta X_DISTANCE
-    lda RIGHT_POINT_X+1
-    sbc LEFT_POINT_X+1
-    sta X_DISTANCE+1
+    
+    MACRO_subtract RIGHT_POINT_X, LEFT_POINT_X, X_DISTANCE
 
     ; Note: since we know the right point has a higher x than the left point, there is no need to negate it!
     
-x_distance_right_left_is_positive:
+    ; We subtract: Y_DISTANCE_RIGHT_LEFTs: RIGHT_POINT_Y - LEFT_POINT_Y
     
-    ; We subtract: Y_DISTANCE_RIGHT_TOP: RIGHT_POINT_Y - LEFT_POINT_Y
-    sec
-    lda RIGHT_POINT_Y
-    sbc LEFT_POINT_Y
-    sta Y_DISTANCE_RIGHT_LEFT
-    lda RIGHT_POINT_Y+1
-    sbc LEFT_POINT_Y+1
-    sta Y_DISTANCE_RIGHT_LEFT+1
-    bpl y_distance_right_left_is_positive
+    MACRO_subtract_and_make_positive RIGHT_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_RIGHT_LEFT, Y_DISTANCE_IS_NEGATED
     
-    lda #1
-    sta Y_DISTANCE_IS_NEGATED
-
-    ; We negate the Y_DISTANCE_RIGHT_LEFT
-    sec
-    lda #0
-    sbc Y_DISTANCE_RIGHT_LEFT
-    sta Y_DISTANCE_RIGHT_LEFT
-    lda #0
-    sbc Y_DISTANCE_RIGHT_LEFT+1
-    sta Y_DISTANCE_RIGHT_LEFT+1
-    
-y_distance_right_left_is_positive:
-
     .if(USE_SLOPE_TABLES)
-        ; We get the SLOPE from the slope table. We need:
-        ;   y = Y_DISTANCE_RIGHT_LEFT
-        ;   RAM_BANK = X_DISTANCE[5:0]
-        ;   ADDR_HIGH[3:1] = X_DISTANCE[8:6]
-        
-        ldy Y_DISTANCE_RIGHT_LEFT
-        
-        lda X_DISTANCE
-        and #%00111111
-        sta RAM_BANK
-
-        ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8)
-        asl X_DISTANCE
-        rol X_DISTANCE+1
-        asl X_DISTANCE
-        rol X_DISTANCE+1
-        
-        ; We shift bits 8, 7 and 6 into bits 3, 2 and 1
-        asl X_DISTANCE+1
-        
-        ; We combine bits 3:1 with A0
-        lda #>($A000)
-        ora X_DISTANCE+1
-        sta LOAD_ADDRESS+1
-        
-        ; SPEED: we dont need to do this again and again, this stays at zero!
-        lda #<($A000)
-        sta LOAD_ADDRESS
-        
-        ; We load the SLOPE_LOW
-        lda (LOAD_ADDRESS), y
-        sta SLOPE_RIGHT_LEFT
-        
-        ; We load the SLOPE_HIGH
-        inc LOAD_ADDRESS+1
-        lda (LOAD_ADDRESS), y
-        sta SLOPE_RIGHT_LEFT+1
+        MACRO_get_slope_from_slope_table Y_DISTANCE_RIGHT_LEFT, SLOPE_RIGHT_LEFT
     .else
-        ; We do the divide: X_DISTANCE * 256 / Y_DISTANCE_RIGHT_LEFT
-        lda X_DISTANCE+1
-        sta DIVIDEND+2
-        lda X_DISTANCE
-        sta DIVIDEND+1
-        lda #0
-        sta DIVIDEND
-
-        lda #0
-        sta DIVISOR+2
-        lda Y_DISTANCE_RIGHT_LEFT+1
-        sta DIVISOR+1
-        lda Y_DISTANCE_RIGHT_LEFT
-        sta DIVISOR
-
-        jsr divide_24bits
-        
-        lda DIVIDEND+2
-        sta SLOPE_RIGHT_LEFT+2
-        lda DIVIDEND+1
-        sta SLOPE_RIGHT_LEFT+1
-        lda DIVIDEND
-        sta SLOPE_RIGHT_LEFT
-        
-        ; If SLOPE >= 64 we should shift 5 bits to the right AND set bit15
-        
-        lda SLOPE_RIGHT_LEFT+2
-        bne slope_right_left_is_64_or_higher
-        lda SLOPE_RIGHT_LEFT+1
-        cmp #64
-        bcs slope_right_left_is_64_or_higher  ; if slope >= 64 then we want to shift 5 positions
-        bra slope_right_left_is_correctly_packed
-slope_right_left_is_64_or_higher:
-
-        ; We divide the slope by 32 (aka shifting 5 bits to the right)
-        lsr SLOPE_RIGHT_LEFT+2
-        ror SLOPE_RIGHT_LEFT+1
-        ror SLOPE_RIGHT_LEFT
-        
-        lsr SLOPE_RIGHT_LEFT+2
-        ror SLOPE_RIGHT_LEFT+1
-        ror SLOPE_RIGHT_LEFT
-
-        lsr SLOPE_RIGHT_LEFT+2
-        ror SLOPE_RIGHT_LEFT+1
-        ror SLOPE_RIGHT_LEFT
-        
-        lsr SLOPE_RIGHT_LEFT+2
-        ror SLOPE_RIGHT_LEFT+1
-        ror SLOPE_RIGHT_LEFT
-        
-        lsr SLOPE_RIGHT_LEFT+2
-        ror SLOPE_RIGHT_LEFT+1
-        ror SLOPE_RIGHT_LEFT
-        
-        lda SLOPE_RIGHT_LEFT+1
-        ora #%10000000          ; we set bit 15 (here bit 7) to 1, to indicate the value has to be multiplied to x32 (inside of VERA)
-        sta SLOPE_RIGHT_LEFT+1
-        
+        MACRO_calculate_slope_using_division Y_DISTANCE_RIGHT_LEFT, SLOPE_RIGHT_LEFT
     .endif
     
-slope_right_left_is_correctly_packed:
-
     ldx Y_DISTANCE_IS_NEGATED
     beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we dont have to negate now, otherwise we do
     
-    ; We need to preserve the x32 bit here!
-    and #%10000000
-    sta TMP2
-
-    ; We unset the x32 (in case it was set) because we have to negate the number
-    ; SPEED: can we use a different opcode here to unset the x32 bit?
-    lda SLOPE_RIGHT_LEFT+1
-    and #%01111111
-    sta SLOPE_RIGHT_LEFT+1
-    
-    sec
-    lda #0
-    sbc SLOPE_RIGHT_LEFT
-    sta SLOPE_RIGHT_LEFT
-    lda #0
-    sbc SLOPE_RIGHT_LEFT+1
-    and #%01111111         ; Only keep the lower 7 bits
-    ora TMP2               ; We restore the x32 bit
-    sta SLOPE_RIGHT_LEFT+1
-
+    MACRO_negate_slope SLOPE_RIGHT_LEFT
 
 slope_right_left_is_correctly_signed:
 
@@ -1292,7 +1039,7 @@ slope_right_left_is_correctly_signed:
         lda #%00000100           ; DCSEL=2, ADDRSEL=0
         sta VERA_CTRL
         
-        .if(1)
+        .if(USE_Y_TO_ADDRESS_TABLE)
             ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
             ldy TOP_POINT_Y
             
@@ -1393,6 +1140,10 @@ first_left_point_is_lower_in_y:
         ; -- We draw the first part of the triangle --
         jsr draw_polygon_part_using_polygon_filler_naively
 
+        lda Y_DISTANCE_RIGHT_LEFT
+        beq done_drawing_polygon_part   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
+        sta NUMBER_OF_ROWS
+        
         lda #%00000110           ; DCSEL=3, ADDRSEL=0
         sta VERA_CTRL
         
@@ -1404,9 +1155,6 @@ first_left_point_is_lower_in_y:
         lda SLOPE_RIGHT_LEFT+1   ; X1 increment high
         sta $9F2A
 
-        lda Y_DISTANCE_RIGHT_LEFT
-        sta NUMBER_OF_ROWS
-        
         ; -- We draw the second part of the triangle --
         jsr draw_polygon_part_using_polygon_filler_naively
 
@@ -1418,6 +1166,10 @@ first_right_point_is_lower_in_y:
         ; -- We draw the first part of the triangle --
         jsr draw_polygon_part_using_polygon_filler_naively
 
+        lda Y_DISTANCE_RIGHT_LEFT
+        beq done_drawing_polygon_part   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
+        sta NUMBER_OF_ROWS
+        
         lda #%00000110           ; DCSEL=3, ADDRSEL=0
         sta VERA_CTRL
         
@@ -1428,9 +1180,6 @@ first_right_point_is_lower_in_y:
         sta $9F2B                
         lda SLOPE_RIGHT_LEFT+1   ; X2 increment high
         sta $9F2C
-        
-        lda Y_DISTANCE_RIGHT_LEFT
-        sta NUMBER_OF_ROWS
         
         ; -- We draw the second part of the triangle --
         jsr draw_polygon_part_using_polygon_filler_naively
