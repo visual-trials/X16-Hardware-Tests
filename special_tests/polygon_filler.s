@@ -433,7 +433,7 @@ test_speed_of_filling_triangle:
 
     
     
-NR_OF_TRIANGLES = 10
+NR_OF_TRIANGLES = 11
 
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
@@ -446,7 +446,7 @@ triangle_data:
    .word 100,  70,   200,   1,  180,    50,  10
    .word   0,  50,    80, 100,    0,   120,  11
    .word   0,  50,   100,  70,   80,   100,  12
-; FIXME!   .word 100,  70,   180,  50,   80,   100,  13   ; FIXME: there is a PROBLEM with this one!
+   .word 100,  70,   180,  50,   80,   100,  13   ; FIXME: there is a PROBLEM with this one!
    .word 180,  50,   280, 120,   80,   100,  14
    
    
