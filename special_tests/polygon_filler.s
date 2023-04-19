@@ -433,14 +433,21 @@ test_speed_of_filling_triangle:
 
     
     
-NR_OF_TRIANGLES = 2
+NR_OF_TRIANGLES = 10
 
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
    .word   0,   0,   100,  70,    0,  50,    4
    .word   0,   0,   200,   1,  100,  70,    5
-;   .word   0,   0,   200,   0,  100,  70,    5
-
+   .word   0,   0,   280,   0,  200,   1,    6
+   .word 200,   1,   280,   0,  280,   120,  7
+   .word 180,  50,   200,   1,  280,   120,  8
+   .word   0, 120,    80, 100,  280,   120,  9
+   .word 100,  70,   200,   1,  180,    50,  10
+   .word   0,  50,    80, 100,    0,   120,  11
+   .word   0,  50,   100,  70,   80,   100,  12
+; FIXME!   .word 100,  70,   180,  50,   80,   100,  13   ; FIXME: there is a PROBLEM with this one!
+   .word 180,  50,   280, 120,   80,   100,  14
    
    
 ;triangles_points:
@@ -461,7 +468,7 @@ load_triangle_data_into_ram:
     sta LOAD_ADDRESS
     lda #>(triangle_data)
     sta LOAD_ADDRESS+1
-    
+
     ldx #0
 load_next_triangle:
     
@@ -666,8 +673,8 @@ pt1_same_pt2_point1_is_lower_in_y_than_point3:
 
 pt1_same_pt2_point1_is_higher_in_y_than_point3:
 
-    ; Point1 and point2 are the same, thet are both higher than point3, this means point3 is lowest and we have a FLAT bottom
-    jmp point3_is_top_point ; FIXME: FLAT BOTTOM!
+    ; Point1 and point2 are the same, thet are both higher than point3, this means point3 is lowest
+    jmp point3_is_top_point
 
 pt1_same_pt2_point1_is_the_same_in_y_as_point3:
 
@@ -693,7 +700,7 @@ point1_is_top_point:
 
 
 point2_is_top_point:
-
+    
     ; -- TOP POINT --
     MACRO_copy_point TRIANGLES_POINT2_X, TOP_POINT_X
     MACRO_copy_point TRIANGLES_POINT2_Y, TOP_POINT_Y
@@ -1109,7 +1116,7 @@ slope_top_right_is_correctly_signed:
 
     ; Note: since we know the right point has a higher x than the left point, there is no need to negate it!
     
-    ; We subtract: Y_DISTANCE_RIGHT_LEFTs: RIGHT_POINT_Y - LEFT_POINT_Y
+    ; We subtract: Y_DISTANCE_RIGHT_LEFT: RIGHT_POINT_Y - LEFT_POINT_Y
     
     MACRO_subtract_and_make_positive RIGHT_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_RIGHT_LEFT, Y_DISTANCE_IS_NEGATED
     
