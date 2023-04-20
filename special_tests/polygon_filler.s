@@ -450,18 +450,6 @@ triangle_data:
    .word 180,  50,   280, 120,   80,   100,  14
    
    
-;triangles_points:
-; FIXME: TESTING!   
-;   .word BX+ 270, BY+  0   ; TOP POINT
-;   .word BX+  0, BY+  1   ; LEFT POINT
-;   .word BX+ 50, BY+  50   ; RIGHT POINT
-    
-;triangles_colors:
-;    ;     color
-;    .byte 04
-    
-    
-    
 load_triangle_data_into_ram:
 
     lda #<(triangle_data)
@@ -568,7 +556,7 @@ MACRO_copy_point .macro TRIANGLES_POINT_X, POINT_X
 draw_many_triangles_in_a_rectangle:
     
     
-    ; FIXME: loop though a series of 3-points
+    ; Loop though a series of 3-points:
     ;   check which type of triangle this is (single top-point or double top-point_
     ;   Store in appropiate variables: TOP_POINT_X/Y, LEFT_POINT_X/Y, RIGHT_POINT_X/Y, BOTTOM_POINT_X/Y
     ;   jump to correct draw_triangle-function
@@ -1006,7 +994,7 @@ MACRO_set_address_using_y2address_table .macro POINT_Y
 
 MACRO_set_address_using_multiplication .macro POINT_Y
 
-    ; FIXME: we should do this *much* earlier and not for every triangle!
+    ; SPEED: we should do this *much* earlier and not for every triangle!
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     sta VERA_ADDR_BANK
     
@@ -1157,7 +1145,7 @@ slope_right_left_is_correctly_signed:
             MACRO_set_address_using_multiplication TOP_POINT_Y
         .endif
     
-        ; FIXME: we should do this *much* earlier and not for every triangle!
+        ; SPEED: we should do this *much* earlier and not for every triangle!
         ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
         lda #%00000011
         sta $9F29
@@ -1178,7 +1166,7 @@ slope_right_left_is_correctly_signed:
         ora #%00100000           ; Reset subpixel position
         sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
-        ; FIXME: we should do this *much* earlier and not for every triangle!
+        ; SPEED: we should do this *much* earlier and not for every triangle!
         lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
         sta VERA_ADDR_BANK
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
@@ -1198,7 +1186,7 @@ slope_right_left_is_correctly_signed:
         lda #%00000110           ; DCSEL=3, ADDRSEL=0
         sta VERA_CTRL
 
-        ; FIXME: NOTE that these increments are *HALF* steps!!
+        ; NOTE that these increments are *HALF* steps!!
         lda SLOPE_TOP_LEFT       ; X1 increment low (signed)
         sta $9F29
         lda SLOPE_TOP_LEFT+1     ; X1 increment high (signed)
@@ -1228,7 +1216,7 @@ first_left_point_is_lower_in_y:
         
     ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
         
-        ; FIXME: NOTE that these increments are *HALF* steps!!
+        ; NOTE that these increments are *HALF* steps!!
         lda SLOPE_RIGHT_LEFT     ; X1 increment low
         sta $9F29
         lda SLOPE_RIGHT_LEFT+1   ; X1 increment high
@@ -1254,7 +1242,7 @@ first_right_point_is_lower_in_y:
         
     ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
         
-        ; FIXME: NOTE that these increments are *HALF* steps!!
+        ; NOTE that these increments are *HALF* steps!!
         lda SLOPE_RIGHT_LEFT     ; X2 increment low
         sta $9F2B                
         lda SLOPE_RIGHT_LEFT+1   ; X2 increment high
@@ -1359,7 +1347,7 @@ slope_right_bottom_is_correctly_signed:
             MACRO_set_address_using_multiplication LEFT_POINT_Y
         .endif
     
-        ; FIXME: we should do this *much* earlier and not for every triangle!
+        ; SPEED: we should do this *much* earlier and not for every triangle!
         ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
         lda #%00000011
         sta $9F29
@@ -1382,7 +1370,7 @@ slope_right_bottom_is_correctly_signed:
         ora #%00100000           ; Reset subpixel position
         sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
-        ; FIXME: we should do this *much* earlier and not for every triangle!
+        ; SPEED: we should do this *much* earlier and not for every triangle!
         lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
         sta VERA_ADDR_BANK
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
@@ -1402,7 +1390,7 @@ slope_right_bottom_is_correctly_signed:
         lda #%00000110           ; DCSEL=3, ADDRSEL=0
         sta VERA_CTRL
 
-        ; FIXME: NOTE that these increments are *HALF* steps!!
+        ; NOTE that these increments are *HALF* steps!!
         lda SLOPE_LEFT_BOTTOM    ; X1 increment low (signed)
         sta $9F29
         lda SLOPE_LEFT_BOTTOM+1  ; X1 increment high (signed)
@@ -1450,7 +1438,7 @@ test_simple_polygon_filler:
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
-    ; FIXME: NOTE that these increments are *HALF* steps!!
+    ; NOTE that these increments are *HALF* steps!!
     lda #<(-110)             ; X1 increment low (signed)
     sta $9F29
     lda #>(-110)             ; X1 increment high (signed)
@@ -1479,10 +1467,6 @@ test_simple_polygon_filler:
     ora #%00100000           ; Reset subpixel position
     sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
-    ; FIXME: this should be switched between 1 and 4 within the draw_polygon_part routine!!
-    ; PROBLEM: its possible that bit16 of ADDR1 is 1, so when settings this *during* a horizontal line draw, you could set bit16 wrongly!
-    ; FIXME: We need to read VERA_ADDR_BANK and FLIP bit 1 of the incrementer (which is bit 5 of VERA_ADDR_BANK)
-    ; IDEA: maybe use TRB or TSB opcodes here!
     lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
     sta VERA_ADDR_BANK
     ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
@@ -1500,7 +1484,7 @@ test_simple_polygon_filler:
     
 ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
     
-    ; FIXME: NOTE that these increments are *HALF* steps!!
+    ; NOTE that these increments are *HALF* steps!!
     lda #<(-110)              ; X1 increment low
     sta $9F29
     lda #>(-110)              ; X1 increment high
@@ -1557,9 +1541,6 @@ polygon_fill_triangle_row_next:
     tax
     
     ; FIXME: should we do this +1 here or inside of VERA? -> note: when x = 255, 256 pixels will be drawn (which is what we want right now)
-; FIXME
-; FIXME
-; FIXME
 ;    inx
     
     ; If x = 0, we dont have to draw any pixels
@@ -1842,7 +1823,6 @@ next_clear_instruction:
     jsr add_code_byte
     
     inx
-; FIXME: this will overflow into KEYBOARD_SCANCODE_BUFFER!!
     cpx #240               ; 240 clear pixels written to VERA
     bne next_clear_instruction
 
