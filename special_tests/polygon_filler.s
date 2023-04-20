@@ -446,7 +446,7 @@ triangle_data:
    .word 100,  70,   200,   1,  180,    50,  10
    .word   0,  50,    80, 100,    0,   120,  11
    .word   0,  50,   100,  70,   80,   100,  12
-   .word 100,  70,   180,  50,   80,   100,  13   ; FIXME: there is a PROBLEM with this one!
+   .word 100,  70,   180,  50,   80,   100,  13
    .word 180,  50,   280, 120,   80,   100,  14
    
    
@@ -1075,7 +1075,7 @@ draw_triangle_with_single_top_point:
     .endif
     
     ldx X_DISTANCE_IS_NEGATED
-    beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+    beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is not negated we dont have to negate now, otherwise we do
     
     MACRO_negate_slope SLOPE_TOP_LEFT
     
@@ -1101,21 +1101,18 @@ slope_top_left_is_correctly_signed:
     .endif
     
     ldx X_DISTANCE_IS_NEGATED
-    beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+    beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is not negated we dont have to negate now, otherwise we do
     
     MACRO_negate_slope SLOPE_TOP_RIGHT
     
 slope_top_right_is_correctly_signed:
 
-
     ; ============== RIGHT POINT vs LEFT POINT ============
 
     ; We subtract: X_DISTANCE: RIGHT_POINT_X - LEFT_POINT_X
     
-    MACRO_subtract RIGHT_POINT_X, LEFT_POINT_X, X_DISTANCE
+    MACRO_subtract_and_make_positive RIGHT_POINT_X, LEFT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
 
-    ; Note: since we know the right point has a higher x than the left point, there is no need to negate it!
-    
     ; We subtract: Y_DISTANCE_RIGHT_LEFT: RIGHT_POINT_Y - LEFT_POINT_Y
     
     MACRO_subtract_and_make_positive RIGHT_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_RIGHT_LEFT, Y_DISTANCE_IS_NEGATED
@@ -1126,8 +1123,21 @@ slope_top_right_is_correctly_signed:
         MACRO_calculate_slope_using_division Y_DISTANCE_RIGHT_LEFT, SLOPE_RIGHT_LEFT
     .endif
     
+    ldx X_DISTANCE_IS_NEGATED
+    bne slope_right_left_is_negated_in_x
+slope_right_left_is_not_negated_in_x:
+    
     ldx Y_DISTANCE_IS_NEGATED
-    beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we dont have to negate now, otherwise we do
+    beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we have to negate now, otherwise we dont
+    
+    MACRO_negate_slope SLOPE_RIGHT_LEFT
+    
+    bra slope_right_left_is_correctly_signed
+    
+slope_right_left_is_negated_in_x:
+    
+    ldx Y_DISTANCE_IS_NEGATED
+    bne slope_right_left_is_correctly_signed   ; if Y_DISTANCE is not negated we have to negate now, otherwise we dont
     
     MACRO_negate_slope SLOPE_RIGHT_LEFT
 
@@ -1547,14 +1557,20 @@ polygon_fill_triangle_row_next:
     tax
     
     ; FIXME: should we do this +1 here or inside of VERA? -> note: when x = 255, 256 pixels will be drawn (which is what we want right now)
-    inx
+; FIXME
+; FIXME
+; FIXME
+;    inx
     
-    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
+    ; If x = 0, we dont have to draw any pixels
+    beq done_fill_triangle_pixel_0
 polygon_fill_triangle_pixel_next_0:
+    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
     sty VERA_DATA1
     dex
     bne polygon_fill_triangle_pixel_next_0
 
+done_fill_triangle_pixel_0:
     ; We draw an additional FILL_LENGTH_HIGH * 256 pixels on this row
     lda FILL_LENGTH_HIGH
     beq polygon_fill_triangle_row_done
