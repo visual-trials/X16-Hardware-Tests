@@ -1,7 +1,7 @@
 
 DO_SPEED_TEST = 1
 
-USE_POLYGON_FILLER = 1
+USE_POLYGON_FILLER = 0
 USE_SLOPE_TABLES = 0
 USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 0
@@ -161,8 +161,12 @@ reset:
     jsr init_cursor
     jsr init_timer
 
-    jsr generate_clear_column_code
-    jsr clear_screen_fast_4_bytes
+    .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+        jsr generate_clear_column_code
+        jsr clear_screen_fast_4_bytes
+    .else
+        jsr clear_screen_slow
+    .endif
     
     jsr generate_y_to_address_table
     
@@ -983,12 +987,30 @@ MACRO_set_address_using_y2address_table .macro POINT_Y
     ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
     ldy \POINT_Y
     
-    lda Y_TO_ADDRESS_BANK, y     ; This will include the auto-increment of 320 byte
-    sta VERA_ADDR_BANK
-    lda Y_TO_ADDRESS_HIGH, y
-    sta VERA_ADDR_HIGH
     lda Y_TO_ADDRESS_LOW, y
     sta VERA_ADDR_LOW
+    lda Y_TO_ADDRESS_HIGH, y
+    sta VERA_ADDR_HIGH
+    lda Y_TO_ADDRESS_BANK, y     ; This will include the auto-increment of 320 byte
+    sta VERA_ADDR_BANK
+    
+.endmacro
+
+MACRO_set_address_using_y2address_table_and_x .macro POINT_Y, POINT_X
+    
+    ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
+    ldy \POINT_Y
+    
+    clc
+    lda Y_TO_ADDRESS_LOW, y
+    adc \POINT_X
+    sta VERA_ADDR_LOW
+    lda Y_TO_ADDRESS_HIGH, y
+    adc \POINT_X+1
+    sta VERA_ADDR_HIGH
+    lda Y_TO_ADDRESS_BANK, y     ; This will include the auto-increment of 1 byte
+    adc #0
+    sta VERA_ADDR_BANK
     
 .endmacro
 
@@ -1064,7 +1086,10 @@ draw_triangle_with_single_top_point:
     
     ldx X_DISTANCE_IS_NEGATED
     beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is not negated we dont have to negate now, otherwise we do
-    
+
+; ----------------------------------------------------------
+; FIXME: DO NOT USE the x32 bit if USE_POLYGON_FILLER is 0!!    
+; ----------------------------------------------------------
     MACRO_negate_slope SLOPE_TOP_LEFT
     
 slope_top_left_is_correctly_signed:
@@ -1091,6 +1116,9 @@ slope_top_left_is_correctly_signed:
     ldx X_DISTANCE_IS_NEGATED
     beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is not negated we dont have to negate now, otherwise we do
     
+; ----------------------------------------------------------
+; FIXME: DO NOT USE the x32 bit if USE_POLYGON_FILLER is 0!!    
+; ----------------------------------------------------------
     MACRO_negate_slope SLOPE_TOP_RIGHT
     
 slope_top_right_is_correctly_signed:
@@ -1118,6 +1146,9 @@ slope_right_left_is_not_negated_in_x:
     ldx Y_DISTANCE_IS_NEGATED
     beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we have to negate now, otherwise we dont
     
+; ----------------------------------------------------------
+; FIXME: DO NOT USE the x32 bit if USE_POLYGON_FILLER is 0!!    
+; ----------------------------------------------------------
     MACRO_negate_slope SLOPE_RIGHT_LEFT
     
     bra slope_right_left_is_correctly_signed
@@ -1127,6 +1158,9 @@ slope_right_left_is_negated_in_x:
     ldx Y_DISTANCE_IS_NEGATED
     bne slope_right_left_is_correctly_signed   ; if Y_DISTANCE is not negated we have to negate now, otherwise we dont
     
+; ----------------------------------------------------------
+; FIXME: DO NOT USE the x32 bit if USE_POLYGON_FILLER is 0!!    
+; ----------------------------------------------------------
     MACRO_negate_slope SLOPE_RIGHT_LEFT
 
 slope_right_left_is_correctly_signed:
@@ -1174,6 +1208,26 @@ slope_right_left_is_correctly_signed:
         ldy TRIANGLE_COLOR      ; We use y as color
     .else 
     
+        ; Setting up for drawing a polygon, setting both addresses at the same starting point
+        
+        ; Note: without the polygon filler helper we *only* use ADDR1, not ADDR0
+
+        lda #%00000001           ; DCSEL=0, ADDRSEL=1
+        sta VERA_CTRL
+        
+        .if(USE_Y_TO_ADDRESS_TABLE)
+            MACRO_set_address_using_y2address_table_and_x TOP_POINT_Y, TOP_POINT_X
+        .else
+            MACRO_set_address_using_multiplication_and_x TOP_POINT_Y, TOP_POINT_X
+        .endif
+        
+; FIXME: testing
+; FIXME: testing
+; FIXME: testing
+        lda #3
+        sta VERA_DATA1
+        
+        
         ; FIXME: implement this!
         
     .endif
@@ -1606,7 +1660,11 @@ generate_next_y_to_address_entry:
     lda VRAM_ADDRESS+2
     adc #0
     sta VRAM_ADDRESS+2
-    ora #%11100000              ; TODO: auto-increment = 320 (should we put this in a variable?)
+    .if(USE_POLYGON_FILLER)
+        ora #%11100000              ; For polygon filler helper: auto-increment = 320
+    .else
+        ora #%00010000              ; Without polygon filler helper: auto-increment = 1
+    .endif
     sta Y_TO_ADDRESS_BANK, y
     
     iny
@@ -1713,6 +1771,59 @@ next_byte_to_copy_to_banked_ram:
 end_of_copy_slope_tables_to_banked_ram:
 
     
+    
+clear_screen_slow:
+  
+vera_wr_start:
+    ldx #0
+vera_wr_fill_bitmap_once:
+
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
+    sta VERA_ADDR_BANK
+    lda #$00
+    sta VERA_ADDR_HIGH
+    stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
+    
+    ; We use A as color
+    lda #BACKGROUND_COLOR
+    
+    ldy #240
+vera_wr_fill_bitmap_col_once:
+; FIXME: now drawing a pattern!
+;    tya
+    sta VERA_DATA0           ; store pixel
+    dey
+    bne vera_wr_fill_bitmap_col_once
+    inx
+    bne vera_wr_fill_bitmap_once
+
+    ; Right part of the screen
+
+    ldx #0
+vera_wr_fill_bitmap_once2:
+
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
+    sta VERA_ADDR_BANK
+    lda #$01                ; The right side part of the screen has a start byte starting at address 256 and up
+    sta VERA_ADDR_HIGH
+    stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
+    
+    ; We use A as color
+    lda #BACKGROUND_COLOR
+    
+    ldy #240
+vera_wr_fill_bitmap_col_once2:
+; FIXME: now drawing a pattern!
+;    tya
+    sta VERA_DATA0           ; store pixel
+    dey
+    bne vera_wr_fill_bitmap_col_once2
+    inx
+    cpx #64                  ; The right part of the screen is 320 - 256 = 64 pixels
+    bne vera_wr_fill_bitmap_once2
+    
+    rts
+
     
 clear_screen_fast_4_bytes:
 
