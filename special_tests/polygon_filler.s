@@ -1,8 +1,8 @@
 
 DO_SPEED_TEST = 1
 
-USE_POLYGON_FILLER = 0
-USE_SLOPE_TABLES = 0
+USE_POLYGON_FILLER = 1
+USE_SLOPE_TABLES = 1    ; FIXME: this doesnt work for non-polygon filler mode right now!
 USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = 0
@@ -208,7 +208,10 @@ cross_raw_message:
     .byte $56, 0
   
 filling_a_rectangle_with_triangles_message: 
-    .asciiz "Filling a rectangle with triangles"
+    .asciiz "Filling rectangle with "
+filling_a_rectangle_with_triangles_message2: 
+    .asciiz " triangles"
+    
 rectangle_280x120_8bpp_message: 
     .asciiz "Size: 280x120 (8bpp) "
     
@@ -240,7 +243,7 @@ test_speed_of_filling_triangle:
     lda #COLOR_TRANSPARANT
     sta TEXT_COLOR
     
-    lda #3
+    lda #2
     sta CURSOR_X
     lda #2
     sta CURSOR_Y
@@ -251,6 +254,18 @@ test_speed_of_filling_triangle:
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
+    
+    lda #NR_OF_TRIANGLES
+    sta BYTE_TO_PRINT
+    jsr print_byte_as_decimal
+
+    lda #<filling_a_rectangle_with_triangles_message2
+    sta TEXT_TO_PRINT
+    lda #>filling_a_rectangle_with_triangles_message2
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
     
     lda #10
     sta CURSOR_X
@@ -447,15 +462,15 @@ test_speed_of_filling_triangle:
     rts
 
     
-    
-NR_OF_TRIANGLES = 11
-
+    .if(0)
+NR_OF_TRIANGLES = 12
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
    .word   0,   0,   100,  70,    0,  50,    4
    .word   0,   0,   200,   1,  100,  70,    5
-   .word   0,   0,   280,   0,  200,   1,    6
-   .word 200,   1,   280,   0,  280,   120,  7
+   .word   0,   0,   280,   0,  200,   1,    3
+   .word 200,   1,   279,   0,  280,   120,  7
+   .word 279,   0,   280,   0,  280,   120,  15
    .word 180,  50,   200,   1,  280,   120,  8
    .word   0, 120,    80, 100,  280,   120,  9
    .word 100,  70,   200,   1,  180,    50,  10
@@ -463,7 +478,65 @@ triangle_data:
    .word   0,  50,   100,  70,   80,   100,  12
    .word 100,  70,   180,  50,   80,   100,  13
    .word 180,  50,   280, 120,   80,   100,  14
+    .endif
    
+   
+NR_OF_TRIANGLES = 52
+triangle_data:
+    ;     x1,  y1,    x2,  y2,    x3,  y3    cl
+    .word 0   ,0   ,100 ,70  ,25  ,34  ,116
+    .word 100 ,70  ,14  ,46  ,25  ,34  ,54
+    .word 14  ,46  ,0   ,0   ,25  ,34  ,69
+    .word 100 ,70  ,0   ,50  ,14  ,46  ,163
+    .word 0   ,50  ,0   ,0   ,14  ,46  ,194
+    .word 0   ,0   ,200 ,1   ,118 ,3   ,90
+    .word 200 ,1   ,100 ,70  ,136 ,31  ,107
+    .word 100 ,70  ,118 ,3   ,136 ,31  ,30
+    .word 118 ,3   ,200 ,1   ,130 ,16  ,80
+    .word 200 ,1   ,136 ,31  ,130 ,16  ,94
+    .word 136 ,31  ,118 ,3   ,130 ,16  ,0
+    .word 100 ,70  ,0   ,0   ,16  ,7   ,185
+    .word 0   ,0   ,118 ,3   ,34  ,3   ,20
+    .word 118 ,3   ,16  ,7   ,34  ,3   ,10
+    .word 16  ,7   ,0   ,0   ,34  ,3   ,191
+    .word 118 ,3   ,100 ,70  ,16  ,7   ,88
+    .word 0   ,0   ,280 ,0   ,200 ,1   ,43
+    .word 200 ,1   ,279 ,0   ,228 ,20  ,204
+    .word 279 ,0   ,260 ,47  ,250 ,35  ,255
+    .word 260 ,47  ,228 ,20  ,250 ,35  ,181
+    .word 228 ,20  ,279 ,0   ,250 ,35  ,232
+    .word 260 ,47  ,200 ,1   ,228 ,20  ,127
+    .word 279 ,0   ,280 ,120 ,260 ,47  ,137
+    .word 280 ,120 ,200 ,1   ,236 ,44  ,233
+    .word 200 ,1   ,260 ,47  ,236 ,44  ,249
+    .word 260 ,47  ,280 ,120 ,250 ,65  ,187
+    .word 280 ,120 ,236 ,44  ,250 ,65  ,38
+    .word 236 ,44  ,260 ,47  ,250 ,65  ,174
+    .word 279 ,0   ,280 ,0   ,280 ,120 ,86
+    .word 180 ,50  ,200 ,1   ,280 ,120 ,157
+    .word 0   ,120 ,80  ,100 ,216 ,114 ,84
+    .word 80  ,100 ,280 ,120 ,216 ,114 ,90
+    .word 280 ,120 ,0   ,120 ,216 ,114 ,120
+    .word 100 ,70  ,200 ,1   ,158 ,38  ,208
+    .word 200 ,1   ,180 ,50  ,158 ,38  ,159
+    .word 180 ,50  ,100 ,70  ,158 ,38  ,106
+    .word 0   ,50  ,80  ,100 ,4   ,116 ,97
+    .word 80  ,100 ,0   ,120 ,4   ,116 ,54
+    .word 0   ,120 ,0   ,50  ,4   ,116 ,30
+    .word 0   ,50  ,100 ,70  ,69  ,65  ,184
+    .word 100 ,70  ,80  ,100 ,69  ,65  ,93
+    .word 80  ,100 ,0   ,50  ,69  ,65  ,228
+    .word 100 ,70  ,180 ,50  ,80  ,100 ,220
+    .word 180 ,50  ,280 ,120 ,212 ,94  ,186
+    .word 280 ,120 ,80  ,100 ,166 ,104 ,85
+    .word 80  ,100 ,212 ,94  ,166 ,104 ,137
+    .word 212 ,94  ,280 ,120 ,166 ,104 ,245
+    .word 80  ,100 ,180 ,50  ,127 ,86  ,12
+    .word 180 ,50  ,212 ,94  ,197 ,75  ,22
+    .word 212 ,94  ,127 ,86  ,197 ,75  ,126
+    .word 127 ,86  ,180 ,50  ,197 ,75  ,77
+    .word 212 ,94  ,80  ,100 ,127 ,86  ,58
+    
    
 load_triangle_data_into_ram:
 
