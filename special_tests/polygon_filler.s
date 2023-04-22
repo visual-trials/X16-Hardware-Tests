@@ -83,10 +83,21 @@ TABLE_ROM_BANK            = $36
 TRIANGLE_INDEX            = $38
 
 ; Polygon filler
-NUMBER_OF_ROWS             = $40
-FILL_LENGTH_LOW            = $41
-FILL_LENGTH_HIGH           = $42
-X1_THREE_LOWER_BITS        = $43
+NUMBER_OF_ROWS             = $39
+FILL_LENGTH_LOW            = $3A
+FILL_LENGTH_HIGH           = $3B
+X1_THREE_LOWER_BITS        = $3C
+
+; "Software" implementation of polygon filler
+SOFT_Y                     = $3E ; 3F
+SOFT_X1_SUB                = $40 ; 41
+SOFT_X1                    = $42 ; 43
+SOFT_X2_SUB                = $44 ; 45
+SOFT_X2                    = $46 ; 47
+SOFT_X1_INCR_SUB           = $48 ; 49
+SOFT_X1_INCR               = $4A ; 4B
+SOFT_X2_INCR_SUB           = $4C ; 4D
+SOFT_X2_INCR               = $4E ; 4F
 
 ; Note: a triangle either has:
 ;   - a single top-point, which means it also has a bottom-left point and bottom-right point
@@ -872,42 +883,46 @@ MACRO_calculate_slope_using_division: .macro Y_DISTANCE, SLOPE
     lda DIVIDEND
     sta \SLOPE
     
-    ; If SLOPE >= 64 we should shift 5 bits to the right AND set bit15
+    .if(USE_POLYGON_FILLER)
     
-    lda \SLOPE+2
-    bne \@slope_is_64_or_higher
-    lda \SLOPE+1
-    cmp #64
-    bcs \@slope_is_64_or_higher  ; if slope >= 64 then we want to shift 5 positions
-    bra \@slope_is_correctly_packed
-\@slope_is_64_or_higher:
+        ; If SLOPE >= 64 we should shift 5 bits to the right AND set bit15
+        
+        lda \SLOPE+2
+        bne \@slope_is_64_or_higher
+        lda \SLOPE+1
+        cmp #64
+        bcs \@slope_is_64_or_higher  ; if slope >= 64 then we want to shift 5 positions
+        bra \@slope_is_correctly_packed
+    \@slope_is_64_or_higher:
 
-    ; We divide the slope by 32 (aka shifting 5 bits to the right)
-    lsr \SLOPE+2
-    ror \SLOPE+1
-    ror \SLOPE
-    
-    lsr \SLOPE+2
-    ror \SLOPE+1
-    ror \SLOPE
+        ; We divide the slope by 32 (aka shifting 5 bits to the right)
+        lsr \SLOPE+2
+        ror \SLOPE+1
+        ror \SLOPE
+        
+        lsr \SLOPE+2
+        ror \SLOPE+1
+        ror \SLOPE
 
-    lsr \SLOPE+2
-    ror \SLOPE+1
-    ror \SLOPE
-    
-    lsr \SLOPE+2
-    ror \SLOPE+1
-    ror \SLOPE
-    
-    lsr \SLOPE+2
-    ror \SLOPE+1
-    ror \SLOPE
-    
-    lda \SLOPE+1
-    ora #%10000000          ; we set bit 15 (here bit 7) to 1, to indicate the value has to be multiplied to x32 (inside of VERA)
-    sta \SLOPE+1
+        lsr \SLOPE+2
+        ror \SLOPE+1
+        ror \SLOPE
+        
+        lsr \SLOPE+2
+        ror \SLOPE+1
+        ror \SLOPE
+        
+        lsr \SLOPE+2
+        ror \SLOPE+1
+        ror \SLOPE
+        
+        lda \SLOPE+1
+        ora #%10000000          ; we set bit 15 (here bit 7) to 1, to indicate the value has to be multiplied to x32 (inside of VERA)
+        sta \SLOPE+1
 
 \@slope_is_correctly_packed:
+
+    .endif
     
 .endmacro
 
@@ -958,15 +973,17 @@ MACRO_subtract .macro POSITION_A, POSITION_B, DISTANCE
 
 MACRO_negate_slope .macro SLOPE
     
-    ; We need to preserve the x32 bit here!
-    and #%10000000
-    sta TMP2
+    .if(USE_POLYGON_FILLER)
+        ; We need to preserve the x32 bit here!
+        and #%10000000
+        sta TMP2
 
-    ; We unset the x32 (in case it was set) because we have to negate the number
-    ; SPEED: can we use a different opcode here to unset the x32 bit?
-    lda \SLOPE+1
-    and #%01111111
-    sta \SLOPE+1
+        ; We unset the x32 (in case it was set) because we have to negate the number
+        ; SPEED: can we use a different opcode here to unset the x32 bit?
+        lda \SLOPE+1
+        and #%01111111
+        sta \SLOPE+1
+    .endif
     
     sec
     lda #0
@@ -974,41 +991,74 @@ MACRO_negate_slope .macro SLOPE
     sta \SLOPE
     lda #0
     sbc \SLOPE+1
-    and #%01111111         ; Only keep the lower 7 bits
-    ora TMP2               ; We restore the x32 bit
+    .if(USE_POLYGON_FILLER)
+        and #%01111111         ; Only keep the lower 7 bits
+        ora TMP2               ; We restore the x32 bit
+    .endif
     sta \SLOPE+1
+    
+    .if(!USE_POLYGON_FILLER)
+        lda #0
+        sbc \SLOPE+2
+        sta \SLOPE+2
+    .endif
     
 .endmacro
 
+
+MACRO_copy_slope_to_soft_incr_and_shift_right .macro SLOPE, SOFT_X_INCR, SOFT_X_INCR_SUB
+
+; SPEED: can we do this faster? Maybe use 3 bytes and use a different slope lookup table?
+; SPEED: the conditional sign extend is also slow!
+    lda \SLOPE+2
+    bpl \@slope_is_positive
+    lsr a
+    ora #%10000000
+    bra \@slope_is_correctly_signed
+\@slope_is_positive:
+    lsr a
+\@slope_is_correctly_signed:
+    sta \SOFT_X_INCR+1       ; X1 or X2 increment high (signed)
+    lda \SLOPE+1
+    ror a
+    sta \SOFT_X_INCR         ; X1 or X2 increment low (signed)
+    lda \SLOPE  
+    ror a
+    sta \SOFT_X_INCR_SUB+1   ; X1 or X2 increment sub high (signed)                
+    lda #0
+    ror a
+    sta \SOFT_X_INCR_SUB     ; X1 or X2 increment sub low (signed)
+
+.endmacro
 
 
 MACRO_set_address_using_y2address_table .macro POINT_Y
     
     ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
-    ldy \POINT_Y
+    ldx \POINT_Y
     
-    lda Y_TO_ADDRESS_LOW, y
+    lda Y_TO_ADDRESS_LOW, x
     sta VERA_ADDR_LOW
-    lda Y_TO_ADDRESS_HIGH, y
+    lda Y_TO_ADDRESS_HIGH, x
     sta VERA_ADDR_HIGH
-    lda Y_TO_ADDRESS_BANK, y     ; This will include the auto-increment of 320 byte
+    lda Y_TO_ADDRESS_BANK, x     ; This will include the auto-increment of 320 byte
     sta VERA_ADDR_BANK
     
 .endmacro
 
-MACRO_set_address_using_y2address_table_and_x .macro POINT_Y, POINT_X
+MACRO_set_address_using_y2address_table_and_point_x .macro POINT_Y, POINT_X
     
     ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
-    ldy \POINT_Y
+    ldx \POINT_Y
     
     clc
-    lda Y_TO_ADDRESS_LOW, y
+    lda Y_TO_ADDRESS_LOW, x
     adc \POINT_X
     sta VERA_ADDR_LOW
-    lda Y_TO_ADDRESS_HIGH, y
+    lda Y_TO_ADDRESS_HIGH, x
     adc \POINT_X+1
     sta VERA_ADDR_HIGH
-    lda Y_TO_ADDRESS_BANK, y     ; This will include the auto-increment of 1 byte
+    lda Y_TO_ADDRESS_BANK, x     ; This will include the auto-increment of 1 byte
     adc #0
     sta VERA_ADDR_BANK
     
@@ -1087,9 +1137,6 @@ draw_triangle_with_single_top_point:
     ldx X_DISTANCE_IS_NEGATED
     beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is not negated we dont have to negate now, otherwise we do
 
-; ----------------------------------------------------------
-; FIXME: DO NOT USE the x32 bit if USE_POLYGON_FILLER is 0!!    
-; ----------------------------------------------------------
     MACRO_negate_slope SLOPE_TOP_LEFT
     
 slope_top_left_is_correctly_signed:
@@ -1116,9 +1163,6 @@ slope_top_left_is_correctly_signed:
     ldx X_DISTANCE_IS_NEGATED
     beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is not negated we dont have to negate now, otherwise we do
     
-; ----------------------------------------------------------
-; FIXME: DO NOT USE the x32 bit if USE_POLYGON_FILLER is 0!!    
-; ----------------------------------------------------------
     MACRO_negate_slope SLOPE_TOP_RIGHT
     
 slope_top_right_is_correctly_signed:
@@ -1146,9 +1190,6 @@ slope_right_left_is_not_negated_in_x:
     ldx Y_DISTANCE_IS_NEGATED
     beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we have to negate now, otherwise we dont
     
-; ----------------------------------------------------------
-; FIXME: DO NOT USE the x32 bit if USE_POLYGON_FILLER is 0!!    
-; ----------------------------------------------------------
     MACRO_negate_slope SLOPE_RIGHT_LEFT
     
     bra slope_right_left_is_correctly_signed
@@ -1158,9 +1199,6 @@ slope_right_left_is_negated_in_x:
     ldx Y_DISTANCE_IS_NEGATED
     bne slope_right_left_is_correctly_signed   ; if Y_DISTANCE is not negated we have to negate now, otherwise we dont
     
-; ----------------------------------------------------------
-; FIXME: DO NOT USE the x32 bit if USE_POLYGON_FILLER is 0!!    
-; ----------------------------------------------------------
     MACRO_negate_slope SLOPE_RIGHT_LEFT
 
 slope_right_left_is_correctly_signed:
@@ -1208,27 +1246,44 @@ slope_right_left_is_correctly_signed:
         ldy TRIANGLE_COLOR      ; We use y as color
     .else 
     
-        ; Setting up for drawing a polygon, setting both addresses at the same starting point
+        ; Setting up for drawing a polygon, setting both X1 and X2 positions at the same starting point
         
         ; Note: without the polygon filler helper we *only* use ADDR1, not ADDR0
 
         lda #%00000001           ; DCSEL=0, ADDRSEL=1
         sta VERA_CTRL
+
+        ; Setting starting (sub)pixel position X1 and X2
+        stz SOFT_X1_SUB          ; Reset subpixel position X1 [0]
+        stz SOFT_X2_SUB          ; Reset subpixel position X2 [0]
+
+        lda #(256>>1)            ; Half a pixel
+        sta SOFT_X1_SUB+1        ; Reset subpixel position X1 [8:1]
+        sta SOFT_X2_SUB+1        ; Reset subpixel position X2 [8:1]
         
-        .if(USE_Y_TO_ADDRESS_TABLE)
-            MACRO_set_address_using_y2address_table_and_x TOP_POINT_Y, TOP_POINT_X
-        .else
-            MACRO_set_address_using_multiplication_and_x TOP_POINT_Y, TOP_POINT_X
-        .endif
+        lda TOP_POINT_X
+        sta SOFT_X1              ; X1 pixel position low [7:0]
+        sta SOFT_X2              ; X2 pixel position low [7:0]
         
-; FIXME: testing
-; FIXME: testing
-; FIXME: testing
-        lda #3
-        sta VERA_DATA1
+        lda TOP_POINT_X+1
+        sta SOFT_X1+1            ; X1 pixel position high [10:8]
+        sta SOFT_X2+1            ; X2 pixel position high [10:8]
         
+        ; Starting Y
+        lda TOP_POINT_Y
+        sta SOFT_Y
+        lda TOP_POINT_Y+1
+        sta SOFT_Y+1
         
-        ; FIXME: implement this!
+        ldy TRIANGLE_COLOR      ; We use y as color
+        
+; FIXME: for now we are resetting these here. Is this correct?
+; FIXME: for now we are resetting these here. Is this correct?
+; FIXME: for now we are resetting these here. Is this correct?
+;        stz SOFT_X1_INCR_SUB
+;        stz SOFT_X1_INCR+1
+;        stz SOFT_X2_INCR_SUB
+;        stz SOFT_X2_INCR+1
         
     .endif
 
@@ -1307,8 +1362,53 @@ first_right_point_is_lower_in_y:
         
     .else
     
-        ; FIXME: implement this!
+        ; -- We setup the x1 and x2 slopes for the first part of the triangle --
         
+        ; NOTE that these increments are *HALF* steps!!
+        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_TOP_LEFT, SOFT_X1_INCR, SOFT_X1_INCR_SUB
+        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_TOP_RIGHT, SOFT_X2_INCR, SOFT_X2_INCR_SUB
+
+        ; We determine which of LEFT or RIGHT is lower in y and chose number of rows to that point
+        lda Y_DISTANCE_IS_NEGATED
+        bne soft_first_right_point_is_lower_in_y
+soft_first_left_point_is_lower_in_y:
+        lda Y_DISTANCE_LEFT_TOP
+        sta NUMBER_OF_ROWS
+        
+        ; -- We draw the first part of the triangle --
+        jsr draw_polygon_part_using_software_polygon_filler_naively
+
+        lda Y_DISTANCE_RIGHT_LEFT
+        beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
+        sta NUMBER_OF_ROWS
+        
+    ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
+        
+        ; NOTE that these increments are *HALF* steps!!
+        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_RIGHT_LEFT, SOFT_X1_INCR, SOFT_X1_INCR_SUB
+
+        ; -- We draw the second part of the triangle --
+        jsr draw_polygon_part_using_software_polygon_filler_naively
+
+        bra done_drawing_polygon_part_single_top
+soft_first_right_point_is_lower_in_y:
+        lda Y_DISTANCE_RIGHT_TOP
+        sta NUMBER_OF_ROWS
+        
+        ; -- We draw the first part of the triangle --
+        jsr draw_polygon_part_using_software_polygon_filler_naively
+
+        lda Y_DISTANCE_RIGHT_LEFT
+        beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
+        sta NUMBER_OF_ROWS
+        
+    ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
+        
+        ; NOTE that these increments are *HALF* steps!!
+        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_RIGHT_LEFT, SOFT_X2_INCR, SOFT_X2_INCR_SUB
+        
+        ; -- We draw the second part of the triangle --
+        jsr draw_polygon_part_using_software_polygon_filler_naively
     .endif
         
 done_drawing_polygon_part_single_top:
@@ -1432,7 +1532,46 @@ slope_right_bottom_is_correctly_signed:
         ldy TRIANGLE_COLOR      ; We use y as color
     .else 
     
-        ; FIXME: implement this!
+        ; Setting up for drawing a polygon, setting both X1 and X2 positions at the same starting point
+        
+        ; Note: without the polygon filler helper we *only* use ADDR1, not ADDR0
+
+        lda #%00000001           ; DCSEL=0, ADDRSEL=1
+        sta VERA_CTRL
+
+        ; Setting starting (sub)pixel position X1 and X2
+        stz SOFT_X1_SUB          ; Reset subpixel position X1 [0]
+        stz SOFT_X2_SUB          ; Reset subpixel position X2 [0]
+
+        lda #(256>>1)            ; Half a pixel
+        sta SOFT_X1_SUB+1        ; Reset subpixel position X1 [8:1]
+        sta SOFT_X2_SUB+1        ; Reset subpixel position X2 [8:1]
+        
+        lda LEFT_POINT_X
+        sta SOFT_X1              ; X1 pixel position low [7:0]
+        lda RIGHT_POINT_X
+        sta SOFT_X2              ; X2 pixel position low [7:0]
+        
+        lda LEFT_POINT_X+1
+        sta SOFT_X1+1            ; X1 pixel position high [10:8]
+        lda RIGHT_POINT_X+1
+        sta SOFT_X2+1            ; X2 pixel position high [10:8]
+        
+        ; Starting Y
+        lda LEFT_POINT_Y
+        sta SOFT_Y
+        lda LEFT_POINT_Y+1
+        sta SOFT_Y+1
+        
+        ldy TRIANGLE_COLOR      ; We use y as color
+        
+; FIXME: for now we are resetting these here. Is this correct?
+; FIXME: for now we are resetting these here. Is this correct?
+; FIXME: for now we are resetting these here. Is this correct?
+;        stz SOFT_X1_INCR_SUB
+;        stz SOFT_X1_INCR+1
+;        stz SOFT_X2_INCR_SUB
+;        stz SOFT_X2_INCR+1
         
     .endif
 
@@ -1462,8 +1601,18 @@ slope_right_bottom_is_correctly_signed:
         jsr draw_polygon_part_using_polygon_filler_naively
         
     .else
+
+        ; -- We setup the x1 and x2 slopes for the first part of the triangle --
+        
+        ; NOTE that these increments are *HALF* steps!!
+        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_LEFT_BOTTOM, SOFT_X1_INCR, SOFT_X1_INCR_SUB
+        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_RIGHT_BOTTOM, SOFT_X2_INCR, SOFT_X2_INCR_SUB
     
-        ; FIXME: implement this!
+        lda Y_DISTANCE_LEFT_TOP
+        sta NUMBER_OF_ROWS
+        
+        ; -- We draw the first (and only) part of the triangle --
+        jsr draw_polygon_part_using_software_polygon_filler_naively
         
     .endif
         
@@ -1471,6 +1620,247 @@ slope_right_bottom_is_correctly_signed:
     
     
 
+    
+draw_polygon_part_using_software_polygon_filler_naively:
+
+    ; First we will increment x1 and x2 with *HALF* the normal increment
+    
+    clc
+    lda SOFT_X1_SUB
+    adc SOFT_X1_INCR_SUB
+    sta SOFT_X1_SUB
+    lda SOFT_X1_SUB+1
+    adc SOFT_X1_INCR_SUB+1
+    sta SOFT_X1_SUB+1
+    lda SOFT_X1
+    adc SOFT_X1_INCR
+    sta SOFT_X1
+    lda SOFT_X1+1
+    adc SOFT_X1_INCR+1
+    sta SOFT_X1+1
+    
+    clc
+    lda SOFT_X2_SUB
+    adc SOFT_X2_INCR_SUB
+    sta SOFT_X2_SUB
+    lda SOFT_X2_SUB+1
+    adc SOFT_X2_INCR_SUB+1
+    sta SOFT_X2_SUB+1
+    lda SOFT_X2
+    adc SOFT_X2_INCR
+    sta SOFT_X2
+    lda SOFT_X2+1
+    adc SOFT_X2_INCR+1
+    sta SOFT_X2+1
+
+    
+soft_polygon_fill_triangle_row_next:
+
+    .if(USE_Y_TO_ADDRESS_TABLE)
+        MACRO_set_address_using_y2address_table_and_point_x SOFT_Y, SOFT_X1
+    .else
+        MACRO_set_address_using_multiplication_and_point_x SOFT_Y, SOFT_X1
+    .endif
+    
+;    sty VERA_DATA1
+;    
+;    .if(USE_Y_TO_ADDRESS_TABLE)
+;        MACRO_set_address_using_y2address_table_and_point_x SOFT_Y, SOFT_X2
+;    .else
+;        MACRO_set_address_using_multiplication_and_point_x SOFT_Y, SOFT_X2
+;    .endif
+;    
+;    sty VERA_DATA1
+    
+    sec
+    lda SOFT_X2
+    sbc SOFT_X1
+    sta FILL_LENGTH_LOW
+    lda SOFT_X2+1
+    sbc SOFT_X1+1
+    sta FILL_LENGTH_HIGH
+    
+    ldx FILL_LENGTH_LOW
+    
+    ; FIXME: should we do this +1 here or inside of VERA? -> note: when x = 255, 256 pixels will be drawn (which is what we want right now)
+;    inx
+
+    ; If x = 0, we dont have to draw any pixels
+    beq soft_done_fill_triangle_pixel_0
+soft_polygon_fill_triangle_pixel_next_0:    
+    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
+    sty VERA_DATA1
+    dex
+    bne soft_polygon_fill_triangle_pixel_next_0
+
+soft_done_fill_triangle_pixel_0:
+    ; We draw an additional FILL_LENGTH_HIGH * 256 pixels on this row
+    lda FILL_LENGTH_HIGH
+    beq soft_polygon_fill_triangle_row_done
+
+    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
+soft_polygon_fill_triangle_pixel_next_256:
+    ldx #0
+soft_polygon_fill_triangle_pixel_next_256_0:
+    sty VERA_DATA1
+    dex
+    bne soft_polygon_fill_triangle_pixel_next_256_0
+    dec FILL_LENGTH_HIGH
+    bne soft_polygon_fill_triangle_pixel_next_256
+    
+soft_polygon_fill_triangle_row_done:
+    
+    ; We always increment SOFT_Y
+    inc SOFT_Y
+    ; FIXME: we are now assuming a max value of 240, so no need for SOFT_Y+1
+
+    clc
+    lda SOFT_X1_SUB
+    adc SOFT_X1_INCR_SUB
+    sta SOFT_X1_SUB
+    lda SOFT_X1_SUB+1
+    adc SOFT_X1_INCR_SUB+1
+    sta SOFT_X1_SUB+1
+    lda SOFT_X1
+    adc SOFT_X1_INCR
+    sta SOFT_X1
+    lda SOFT_X1+1
+    adc SOFT_X1_INCR+1
+    sta SOFT_X1+1
+    
+    clc
+    lda SOFT_X2_SUB
+    adc SOFT_X2_INCR_SUB
+    sta SOFT_X2_SUB
+    lda SOFT_X2_SUB+1
+    adc SOFT_X2_INCR_SUB+1
+    sta SOFT_X2_SUB+1
+    lda SOFT_X2
+    adc SOFT_X2_INCR
+    sta SOFT_X2
+    lda SOFT_X2+1
+    adc SOFT_X2_INCR+1
+    sta SOFT_X2+1
+    
+    ; We check if we have reached the end, if so, we do *NOT* change ADDR1!
+    dec NUMBER_OF_ROWS
+    beq soft_polygon_fill_triangle_done
+    
+; FIXME!   
+;    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_line_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+
+    clc
+    lda SOFT_X1_SUB
+    adc SOFT_X1_INCR_SUB
+    sta SOFT_X1_SUB
+    lda SOFT_X1_SUB+1
+    adc SOFT_X1_INCR_SUB+1
+    sta SOFT_X1_SUB+1
+    lda SOFT_X1
+    adc SOFT_X1_INCR
+    sta SOFT_X1
+    lda SOFT_X1+1
+    adc SOFT_X1_INCR+1
+    sta SOFT_X1+1
+    
+    clc
+    lda SOFT_X2_SUB
+    adc SOFT_X2_INCR_SUB
+    sta SOFT_X2_SUB
+    lda SOFT_X2_SUB+1
+    adc SOFT_X2_INCR_SUB+1
+    sta SOFT_X2_SUB+1
+    lda SOFT_X2
+    adc SOFT_X2_INCR
+    sta SOFT_X2
+    lda SOFT_X2+1
+    adc SOFT_X2_INCR+1
+    sta SOFT_X2+1
+
+    jmp soft_polygon_fill_triangle_row_next
+    
+soft_polygon_fill_triangle_done:
+    
+    
+    rts
+
+
+draw_polygon_part_using_polygon_filler_naively:
+
+    lda #%00001011           ; DCSEL=5, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+    
+polygon_fill_triangle_row_next:
+
+    ; SLOW: we are not using all the information we get and are only reconstructing the 10-bit value. But this should normally *not*
+    ;       be done! The bits are crafted in such a way to be used for a jump table. But for this example we dont use a jump table,
+    ;       since it will be a bit more readably that way.
+    
+    stz FILL_LENGTH_HIGH
+    
+    lda $9F2B               ; This contains: X1[2:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0]
+    and #%00001111          ; we keep the 4 lower bits
+    sta FILL_LENGTH_LOW
+
+    lda $9F2C               ; This contains 00, FILL_LENGTH[9:4]
+    asl
+    asl
+    asl
+    rol FILL_LENGTH_HIGH
+    asl
+    rol FILL_LENGTH_HIGH
+    ora FILL_LENGTH_LOW
+    sta FILL_LENGTH_LOW
+    
+    ; FIXME: what if FILL_LENGTH_LOW/FILL_LENGTH_HIGH are 0 or NEGATIVE? -> OR deal with this on the VERA side?
+    
+    tax
+    
+    ; FIXME: should we do this +1 here or inside of VERA? -> note: when x = 255, 256 pixels will be drawn (which is what we want right now)
+;    inx
+    
+    ; If x = 0, we dont have to draw any pixels
+    beq done_fill_triangle_pixel_0
+polygon_fill_triangle_pixel_next_0:
+    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
+    sty VERA_DATA1
+    dex
+    bne polygon_fill_triangle_pixel_next_0
+
+done_fill_triangle_pixel_0:
+    ; We draw an additional FILL_LENGTH_HIGH * 256 pixels on this row
+    lda FILL_LENGTH_HIGH
+    beq polygon_fill_triangle_row_done
+
+    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
+polygon_fill_triangle_pixel_next_256:
+    ldx #0
+polygon_fill_triangle_pixel_next_256_0:
+    sty VERA_DATA1
+    dex
+    bne polygon_fill_triangle_pixel_next_256_0
+    dec FILL_LENGTH_HIGH
+    bne polygon_fill_triangle_pixel_next_256
+    
+polygon_fill_triangle_row_done:
+    
+    ; We always increment ADDR0
+    lda VERA_DATA0   ; this will increment ADDR0 with 320 bytes (= +1 vertically)
+    
+    ; We check if we have reached the end, if so, we do *NOT* change ADDR1!
+    dec NUMBER_OF_ROWS
+    beq polygon_fill_triangle_done
+    
+    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_line_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+    bra polygon_fill_triangle_row_next
+    
+polygon_fill_triangle_done:
+    
+    rts
+    
+    
 test_simple_polygon_filler:
 
     ; Setting up for drawing a polygon, setting both addresses at the same starting point
@@ -1559,83 +1949,6 @@ test_simple_polygon_filler:
     
     rts
 
-
-
-draw_polygon_part_using_polygon_filler_naively:
-
-    lda #%00001011           ; DCSEL=5, ADDRSEL=1
-    sta VERA_CTRL
-    
-    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
-    
-polygon_fill_triangle_row_next:
-
-    ; SLOW: we are not using all the information we get and are only reconstructing the 10-bit value. But this should normally *not*
-    ;       be done! The bits are crafted in such a way to be used for a jump table. But for this example we dont use a jump table,
-    ;       since it will be a bit more readably that way.
-    
-    stz FILL_LENGTH_HIGH
-    
-    lda $9F2B               ; This contains: X1[2:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0]
-    and #%00001111          ; we keep the 4 lower bits
-    sta FILL_LENGTH_LOW
-
-    lda $9F2C               ; This contains 00, FILL_LENGTH[9:4]
-    asl
-    asl
-    asl
-    rol FILL_LENGTH_HIGH
-    asl
-    rol FILL_LENGTH_HIGH
-    ora FILL_LENGTH_LOW
-    sta FILL_LENGTH_LOW
-    
-    ; FIXME: what if FILL_LENGTH_LOW/FILL_LENGTH_HIGH are 0 or NEGATIVE? -> OR deal with this on the VERA side?
-    
-    tax
-    
-    ; FIXME: should we do this +1 here or inside of VERA? -> note: when x = 255, 256 pixels will be drawn (which is what we want right now)
-;    inx
-    
-    ; If x = 0, we dont have to draw any pixels
-    beq done_fill_triangle_pixel_0
-polygon_fill_triangle_pixel_next_0:
-    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
-    sty VERA_DATA1
-    dex
-    bne polygon_fill_triangle_pixel_next_0
-
-done_fill_triangle_pixel_0:
-    ; We draw an additional FILL_LENGTH_HIGH * 256 pixels on this row
-    lda FILL_LENGTH_HIGH
-    beq polygon_fill_triangle_row_done
-
-    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
-polygon_fill_triangle_pixel_next_256:
-    ldx #0
-polygon_fill_triangle_pixel_next_256_0:
-    sty VERA_DATA1
-    dex
-    bne polygon_fill_triangle_pixel_next_256_0
-    dec FILL_LENGTH_HIGH
-    bne polygon_fill_triangle_pixel_next_256
-    
-polygon_fill_triangle_row_done:
-    
-    ; We always increment ADDR0
-    lda VERA_DATA0   ; this will increment ADDR0 with 320 bytes (= +1 vertically)
-    
-    ; We check if we have reached the end, if so, we do *NOT* change ADDR1!
-    dec NUMBER_OF_ROWS
-    beq polygon_fill_triangle_done
-    
-    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_line_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
-    bra polygon_fill_triangle_row_next
-    
-polygon_fill_triangle_done:
-    
-    rts
-    
     
 generate_y_to_address_table:
 
