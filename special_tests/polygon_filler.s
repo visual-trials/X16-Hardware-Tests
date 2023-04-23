@@ -1,8 +1,8 @@
 
 DO_SPEED_TEST = 1
 
-USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 1    ; FIXME: this doesnt work for non-polygon filler mode right now!
+USE_POLYGON_FILLER = 0
+USE_SLOPE_TABLES = 0    ; FIXME: this doesnt work for non-polygon filler mode right now!
 USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = 0
@@ -94,47 +94,53 @@ SOFT_X1_SUB                = $40 ; 41
 SOFT_X1                    = $42 ; 43
 SOFT_X2_SUB                = $44 ; 45
 SOFT_X2                    = $46 ; 47
-SOFT_X1_INCR_SUB           = $48 ; 49
+SOFT_X1_INCR_SUB           = $48 ; 49  ; TODO: We only use 1 byte here!
 SOFT_X1_INCR               = $4A ; 4B
-SOFT_X2_INCR_SUB           = $4C ; 4D
+SOFT_X2_INCR_SUB           = $4C ; 4D  ; TODO: We only use 1 byte here!
 SOFT_X2_INCR               = $4E ; 4F
+
+SOFT_X1_INCR_HALF_SUB      = $50 ; 51
+SOFT_X1_INCR_HALF          = $52 ; 53
+SOFT_X2_INCR_HALF_SUB      = $54 ; 55
+SOFT_X2_INCR_HALF          = $56 ; 57
+
 
 ; Note: a triangle either has:
 ;   - a single top-point, which means it also has a bottom-left point and bottom-right point
 ;   - a double top-point (two points are at the same top-y), which means top-left point and top-right point and a single bottom-point
 ;   TODO: we still need to deal with "triangles" that have three points with the same x or the same y coordinate (which is in fact a vertical or horizontal *line*, not a triangle).
-TOP_POINT_X              = $50 ; 51
-TOP_POINT_Y              = $52 ; 53
-LEFT_POINT_X             = $54 ; 55
-LEFT_POINT_Y             = $56 ; 57
-RIGHT_POINT_X            = $58 ; 59
-RIGHT_POINT_Y            = $5A ; 5B
+TOP_POINT_X              = $60 ; 61
+TOP_POINT_Y              = $62 ; 63
+LEFT_POINT_X             = $64 ; 65
+LEFT_POINT_Y             = $66 ; 67
+RIGHT_POINT_X            = $68 ; 69
+RIGHT_POINT_Y            = $6A ; 6B
 BOTTOM_POINT_X           = TOP_POINT_X
 BOTTOM_POINT_Y           = TOP_POINT_Y
-TRIANGLE_COLOR           = $5C
+TRIANGLE_COLOR           = $6C
 
 ; Used for calculating the slope between two points
-X_DISTANCE               = $60 ; 61
-X_DISTANCE_IS_NEGATED    = $62
-Y_DISTANCE_LEFT_TOP      = $63 ; 64
+X_DISTANCE               = $70 ; 71
+X_DISTANCE_IS_NEGATED    = $72
+Y_DISTANCE_LEFT_TOP      = $73 ; 74
 Y_DISTANCE_BOTTOM_LEFT = Y_DISTANCE_LEFT_TOP
-Y_DISTANCE_RIGHT_TOP     = $65 ; 66
+Y_DISTANCE_RIGHT_TOP     = $75 ; 76
 Y_DISTANCE_BOTTOM_RIGHT = Y_DISTANCE_RIGHT_TOP
-Y_DISTANCE_RIGHT_LEFT    = $67 ; 68
+Y_DISTANCE_RIGHT_LEFT    = $77 ; 78
 Y_DISTANCE_LEFT_RIGHT = Y_DISTANCE_RIGHT_LEFT
-Y_DISTANCE_IS_NEGATED    = $69
-SLOPE_TOP_LEFT           = $6A ; 6B ; 6C   ; TODO: do we really need 24 bits here?
+Y_DISTANCE_IS_NEGATED    = $79
+SLOPE_TOP_LEFT           = $7A ; 7B ; 7C   ; TODO: do we really need 24 bits here?
 SLOPE_LEFT_BOTTOM = SLOPE_TOP_LEFT
-SLOPE_TOP_RIGHT          = $6D ; 6E ; 6F   ; TODO: do we really need 24 bits here?
+SLOPE_TOP_RIGHT          = $7D ; 7E ; 7F   ; TODO: do we really need 24 bits here?
 SLOPE_RIGHT_BOTTOM = SLOPE_TOP_RIGHT
-SLOPE_LEFT_RIGHT         = $70 ; 71 ; 72   ; TODO: do we really need 24 bits here?
+SLOPE_LEFT_RIGHT         = $80 ; 81 ; 82   ; TODO: do we really need 24 bits here?
 SLOPE_RIGHT_LEFT = SLOPE_LEFT_RIGHT
 
 
-Y_DISTANCE_FIRST         = $76 ; 77
-Y_DISTANCE_SECOND        = $78 ; 79
+Y_DISTANCE_FIRST         = $86 ; 87
+Y_DISTANCE_SECOND        = $88 ; 89
 
-VRAM_ADDRESS             = $80 ; 81 ; 82
+VRAM_ADDRESS             = $90 ; 91 ; 92
 
 ; RAM addresses
 CLEAR_COLUMN_CODE        = $7000
@@ -464,522 +470,6 @@ test_speed_of_filling_triangle:
     rts
 
     
-    .if(0)
-NR_OF_TRIANGLES = 12
-triangle_data:
-    ;     x1,  y1,    x2,  y2,    x3,  y3    cl
-   .word   0,   0,   100,  70,    0,  50,    4
-   .word   0,   0,   200,   1,  100,  70,    5
-   .word   0,   0,   280,   0,  200,   1,    3
-   .word 200,   1,   279,   0,  280,   120,  7
-   .word 279,   0,   280,   0,  280,   120,  15
-   .word 180,  50,   200,   1,  280,   120,  8
-   .word   0, 120,    80, 100,  280,   120,  9
-   .word 100,  70,   200,   1,  180,    50,  10
-   .word   0,  50,    80, 100,    0,   120,  11
-   .word   0,  50,   100,  70,   80,   100,  12
-   .word 100,  70,   180,  50,   80,   100,  13
-   .word 180,  50,   280, 120,   80,   100,  14
-    .endif
-   
-   
-    .if(0)
-palette_data:
-    .byte $c8, $08  ; palette index 16
-    .byte $c7, $09  ; palette index 17
-    .byte $c9, $07  ; palette index 18
-    .byte $a6, $06  ; palette index 19
-    .byte $fd, $0a  ; palette index 20
-    .byte $a6, $07  ; palette index 21
-    .byte $b9, $07  ; palette index 22
-    .byte $fb, $0c  ; palette index 23
-    .byte $74, $03  ; palette index 24
-    .byte $ff, $0f  ; palette index 25
-    .byte $95, $05  ; palette index 26
-    .byte $85, $04  ; palette index 27
-    .byte $b6, $07  ; palette index 28
-    .byte $b8, $07  ; palette index 29
-    .byte $ec, $09  ; palette index 30
-    .byte $db, $08  ; palette index 31
-    .byte $fe, $0b  ; palette index 32
-    .byte $e8, $0c  ; palette index 33
-    .byte $f9, $0d  ; palette index 34
-    .byte $b8, $08  ; palette index 35
-    .byte $b7, $07  ; palette index 36
-    .byte $d8, $0b  ; palette index 37
-    .byte $f9, $0e  ; palette index 38
-    .byte $d9, $09  ; palette index 39
-    .byte $d8, $0a  ; palette index 40
-    .byte $e8, $0b  ; palette index 41
-    .byte $fa, $0f  ; palette index 42
-    .byte $b7, $08  ; palette index 43
-    .byte $ea, $0b  ; palette index 44
-    .byte $fa, $0d  ; palette index 45
-    .byte $e9, $0b  ; palette index 46
-    .byte $a7, $06  ; palette index 47
-    .byte $d9, $0a  ; palette index 48
-    .byte $fa, $0c  ; palette index 49
-    .byte $c7, $0a  ; palette index 50
-    .byte $a7, $05  ; palette index 51
-    .byte $fc, $0f  ; palette index 52
-end_of_palette_data:
-
-NR_OF_TRIANGLES = 72
-triangle_data:
-    ;     x1,  y1,    x2,  y2,    x3,  y3    cl
-    .word 260 ,26  ,267 ,13  ,280 ,20  ,16
-    .word 260 ,26  ,280 ,20  ,280 ,52  ,17
-    .word 262 ,64  ,260 ,26  ,280 ,52  ,18
-    .word 270 ,120 ,244 ,120 ,280 ,103 ,17
-    .word 244 ,120 ,262 ,64  ,280 ,103 ,19
-    .word 280 ,20  ,267 ,13  ,280 ,5   ,20
-    .word 267 ,13  ,264 ,8   ,280 ,5   ,21
-    .word 280 ,103 ,262 ,64  ,280 ,63  ,22
-    .word 270 ,120 ,280 ,103 ,280 ,109 ,23
-    .word 270 ,120 ,270 ,120 ,280 ,109 ,24
-    .word 280 ,119 ,270 ,120 ,280 ,109 ,24
-    .word 270 ,120 ,280 ,119 ,280 ,120 ,25
-    .word 280 ,63  ,262 ,64  ,280 ,60  ,26
-    .word 262 ,64  ,280 ,52  ,280 ,60  ,27
-    .word 280 ,5   ,264 ,8   ,280 ,0   ,21
-    .word 264 ,8   ,254 ,6   ,280 ,0   ,28
-    .word 254 ,6   ,232 ,0   ,280 ,0   ,18
-    .word 244 ,120 ,219 ,76  ,262 ,64  ,29
-    .word 219 ,76  ,227 ,64  ,262 ,64  ,30
-    .word 227 ,64  ,260 ,26  ,262 ,64  ,21
-    .word 260 ,26  ,254 ,6   ,264 ,8   ,31
-    .word 260 ,26  ,264 ,8   ,267 ,13  ,31
-    .word 233 ,120 ,219 ,76  ,244 ,120 ,32
-    .word 223 ,3   ,181 ,0   ,232 ,0   ,33
-    .word 214 ,11  ,228 ,4   ,260 ,26  ,34
-    .word 227 ,64  ,214 ,11  ,260 ,26  ,18
-    .word 228 ,4   ,254 ,6   ,260 ,26  ,22
-    .word 228 ,4   ,232 ,0   ,254 ,6   ,30
-    .word 213 ,117 ,219 ,76  ,233 ,120 ,35
-    .word 177 ,66  ,214 ,11  ,227 ,64  ,36
-    .word 208 ,120 ,213 ,117 ,233 ,120 ,37
-    .word 214 ,11  ,223 ,3   ,228 ,4   ,24
-    .word 228 ,4   ,223 ,3   ,232 ,0   ,38
-    .word 214 ,11  ,181 ,0   ,223 ,3   ,17
-    .word 219 ,76  ,177 ,66  ,227 ,64  ,28
-    .word 213 ,117 ,208 ,120 ,219 ,76  ,31
-    .word 177 ,66  ,181 ,0   ,214 ,11  ,16
-    .word 208 ,120 ,177 ,66  ,219 ,76  ,31
-    .word 177 ,66  ,168 ,0   ,181 ,0   ,17
-    .word 139 ,120 ,177 ,66  ,208 ,120 ,39
-    .word 91  ,65  ,139 ,0   ,177 ,66  ,40
-    .word 139 ,0   ,168 ,0   ,177 ,66  ,39
-    .word 139 ,120 ,91  ,65  ,177 ,66  ,41
-    .word 91  ,65  ,82  ,55  ,107 ,0   ,37
-    .word 115 ,120 ,91  ,65  ,139 ,120 ,34
-    .word 91  ,65  ,107 ,0   ,139 ,0   ,26
-    .word 82  ,55  ,75  ,0   ,107 ,0   ,28
-    .word 74  ,97  ,91  ,65  ,115 ,120 ,42
-    .word 83  ,120 ,74  ,97  ,115 ,120 ,42
-    .word 64  ,49  ,75  ,0   ,82  ,55  ,43
-    .word 64  ,49  ,59  ,0   ,75  ,0   ,44
-    .word 0   ,120 ,10  ,111 ,83  ,120 ,17
-    .word 74  ,97  ,82  ,55  ,91  ,65  ,33
-    .word 36  ,88  ,64  ,49  ,74  ,97  ,45
-    .word 74  ,97  ,64  ,49  ,82  ,55  ,23
-    .word 36  ,88  ,74  ,97  ,83  ,120 ,34
-    .word 10  ,111 ,36  ,88  ,83  ,120 ,37
-    .word 34  ,0   ,59  ,0   ,64  ,49  ,26
-    .word 13  ,75  ,0   ,60  ,64  ,49  ,46
-    .word 0   ,20  ,34  ,0   ,64  ,49  ,47
-    .word 0   ,60  ,0   ,20  ,64  ,49  ,48
-    .word 36  ,88  ,13  ,75  ,64  ,49  ,49
-    .word 0   ,20  ,0   ,0   ,34  ,0   ,26
-    .word 0   ,92  ,13  ,75  ,36  ,88  ,50
-    .word 10  ,111 ,0   ,92  ,36  ,88  ,40
-    .word 0   ,0   ,0   ,0   ,34  ,0   ,51
-    .word 0   ,120 ,0   ,116 ,10  ,111 ,52
-    .word 0   ,70  ,0   ,70  ,13  ,75  ,32
-    .word 0   ,81  ,0   ,70  ,13  ,75  ,24
-    .word 0   ,92  ,0   ,81  ,13  ,75  ,17
-    .word 0   ,70  ,0   ,60  ,13  ,75  ,23
-    .word 0   ,116 ,0   ,92  ,10  ,111 ,46
-    .endif
-   
-   
-palette_data:
-    .byte $31, $09  ; palette index 16
-    .byte $51, $0a  ; palette index 17
-    .byte $72, $0d  ; palette index 18
-    .byte $72, $0e  ; palette index 19
-    .byte $61, $0c  ; palette index 20
-    .byte $41, $09  ; palette index 21
-    .byte $41, $0a  ; palette index 22
-    .byte $51, $0b  ; palette index 23
-    .byte $61, $0b  ; palette index 24
-    .byte $a2, $0f  ; palette index 25
-    .byte $92, $0f  ; palette index 26
-    .byte $62, $0c  ; palette index 27
-    .byte $b2, $0f  ; palette index 28
-    .byte $d2, $0f  ; palette index 29
-    .byte $62, $0b  ; palette index 30
-    .byte $72, $0c  ; palette index 31
-    .byte $82, $0d  ; palette index 32
-    .byte $52, $0b  ; palette index 33
-    .byte $82, $0e  ; palette index 34
-    .byte $92, $0e  ; palette index 35
-    .byte $52, $0a  ; palette index 36
-    .byte $e3, $0f  ; palette index 37
-    .byte $f4, $0f  ; palette index 38
-    .byte $d3, $0f  ; palette index 39
-    .byte $31, $08  ; palette index 40
-end_of_palette_data:
-
-
-NR_OF_TRIANGLES = 246
-triangle_data:
-    ;     x1,  y1,    x2,  y2,    x3,  y3    cl
-    .word 56  ,120 ,86  ,119 ,107 ,120 ,16
-    .word 155 ,119 ,186 ,119 ,194 ,120 ,17
-    .word 139 ,120 ,155 ,119 ,194 ,120 ,17
-    .word 194 ,120 ,235 ,98  ,278 ,120 ,18
-    .word 235 ,98  ,255 ,84  ,278 ,120 ,19
-    .word 278 ,120 ,255 ,84  ,279 ,87  ,20
-    .word 255 ,84  ,273 ,73  ,279 ,87  ,18
-    .word 273 ,73  ,272 ,72  ,280 ,65  ,20
-    .word 272 ,72  ,267 ,59  ,280 ,65  ,20
-    .word 279 ,87  ,273 ,73  ,280 ,65  ,20
-    .word 276 ,26  ,280 ,20  ,280 ,22  ,21
-    .word 276 ,26  ,280 ,22  ,280 ,32  ,22
-    .word 274 ,44  ,276 ,26  ,280 ,32  ,22
-    .word 268 ,47  ,274 ,44  ,280 ,50  ,23
-    .word 267 ,59  ,268 ,47  ,280 ,50  ,23
-    .word 274 ,44  ,280 ,32  ,280 ,50  ,17
-    .word 280 ,20  ,276 ,26  ,280 ,17  ,21
-    .word 276 ,26  ,275 ,7   ,280 ,17  ,21
-    .word 275 ,7   ,280 ,5   ,280 ,17  ,21
-    .word 278 ,120 ,279 ,87  ,280 ,120 ,23
-    .word 279 ,87  ,280 ,65  ,280 ,120 ,23
-    .word 267 ,59  ,280 ,50  ,280 ,60  ,23
-    .word 280 ,65  ,267 ,59  ,280 ,60  ,23
-    .word 280 ,5   ,275 ,7   ,280 ,0   ,21
-    .word 275 ,7   ,260 ,0   ,280 ,0   ,21
-    .word 274 ,44  ,268 ,47  ,276 ,26  ,17
-    .word 260 ,0   ,275 ,7   ,276 ,26  ,21
-    .word 255 ,84  ,272 ,72  ,273 ,73  ,18
-    .word 268 ,47  ,249 ,44  ,276 ,26  ,17
-    .word 237 ,10  ,260 ,0   ,276 ,26  ,22
-    .word 249 ,44  ,237 ,10  ,276 ,26  ,17
-    .word 240 ,41  ,237 ,10  ,249 ,44  ,23
-    .word 255 ,84  ,267 ,59  ,272 ,72  ,18
-    .word 231 ,7   ,215 ,0   ,260 ,0   ,22
-    .word 251 ,46  ,249 ,44  ,268 ,47  ,24
-    .word 267 ,59  ,251 ,46  ,268 ,47  ,24
-    .word 232 ,85  ,251 ,46  ,255 ,84  ,25
-    .word 255 ,84  ,251 ,46  ,267 ,59  ,18
-    .word 232 ,85  ,220 ,75  ,251 ,46  ,26
-    .word 220 ,75  ,219 ,54  ,251 ,46  ,19
-    .word 237 ,10  ,231 ,7   ,260 ,0   ,22
-    .word 219 ,54  ,233 ,43  ,251 ,46  ,27
-    .word 235 ,98  ,234 ,96  ,255 ,84  ,28
-    .word 234 ,96  ,232 ,85  ,255 ,84  ,29
-    .word 217 ,23  ,237 ,10  ,240 ,41  ,23
-    .word 223 ,38  ,217 ,23  ,240 ,41  ,30
-    .word 240 ,41  ,249 ,44  ,251 ,46  ,24
-    .word 233 ,43  ,240 ,41  ,251 ,46  ,27
-    .word 218 ,34  ,217 ,23  ,223 ,38  ,30
-    .word 194 ,120 ,226 ,94  ,235 ,98  ,18
-    .word 217 ,23  ,231 ,7   ,237 ,10  ,17
-    .word 233 ,43  ,223 ,38  ,240 ,41  ,27
-    .word 194 ,120 ,197 ,98  ,226 ,94  ,27
-    .word 226 ,94  ,232 ,85  ,234 ,96  ,28
-    .word 226 ,94  ,234 ,96  ,235 ,98  ,25
-    .word 219 ,54  ,223 ,38  ,233 ,43  ,27
-    .word 226 ,94  ,220 ,75  ,232 ,85  ,28
-    .word 219 ,54  ,217 ,40  ,223 ,38  ,27
-    .word 197 ,98  ,204 ,91  ,226 ,94  ,18
-    .word 217 ,23  ,215 ,0   ,231 ,7   ,17
-    .word 208 ,0   ,215 ,0   ,217 ,23  ,17
-    .word 202 ,56  ,219 ,54  ,220 ,75  ,18
-    .word 204 ,91  ,220 ,75  ,226 ,94  ,26
-    .word 217 ,40  ,218 ,34  ,223 ,38  ,30
-    .word 192 ,18  ,208 ,0   ,217 ,23  ,17
-    .word 202 ,56  ,217 ,40  ,219 ,54  ,31
-    .word 204 ,91  ,186 ,65  ,220 ,75  ,32
-    .word 186 ,65  ,202 ,56  ,220 ,75  ,18
-    .word 207 ,34  ,217 ,23  ,218 ,34  ,30
-    .word 186 ,65  ,190 ,60  ,202 ,56  ,32
-    .word 182 ,79  ,186 ,65  ,204 ,91  ,18
-    .word 197 ,39  ,207 ,34  ,217 ,40  ,27
-    .word 202 ,56  ,197 ,39  ,217 ,40  ,31
-    .word 217 ,40  ,207 ,34  ,218 ,34  ,27
-    .word 207 ,34  ,192 ,18  ,217 ,23  ,30
-    .word 194 ,120 ,185 ,112 ,197 ,98  ,30
-    .word 197 ,39  ,192 ,18  ,207 ,34  ,27
-    .word 192 ,18  ,186 ,0   ,208 ,0   ,17
-    .word 190 ,60  ,197 ,39  ,202 ,56  ,18
-    .word 197 ,98  ,181 ,91  ,204 ,91  ,31
-    .word 181 ,91  ,182 ,79  ,204 ,91  ,31
-    .word 175 ,11  ,186 ,0   ,192 ,18  ,33
-    .word 185 ,112 ,178 ,105 ,197 ,98  ,30
-    .word 190 ,60  ,169 ,59  ,197 ,39  ,34
-    .word 169 ,59  ,162 ,41  ,197 ,39  ,25
-    .word 162 ,41  ,192 ,18  ,197 ,39  ,18
-    .word 186 ,119 ,185 ,112 ,194 ,120 ,23
-    .word 178 ,105 ,181 ,91  ,197 ,98  ,27
-    .word 178 ,105 ,176 ,98  ,181 ,91  ,30
-    .word 162 ,41  ,175 ,11  ,192 ,18  ,31
-    .word 182 ,112 ,178 ,105 ,185 ,112 ,23
-    .word 186 ,65  ,169 ,59  ,190 ,60  ,35
-    .word 182 ,112 ,185 ,112 ,186 ,119 ,23
-    .word 155 ,119 ,182 ,112 ,186 ,119 ,17
-    .word 182 ,79  ,169 ,59  ,186 ,65  ,34
-    .word 175 ,11  ,139 ,0   ,186 ,0   ,36
-    .word 165 ,84  ,164 ,59  ,169 ,59  ,25
-    .word 181 ,91  ,165 ,84  ,182 ,79  ,31
-    .word 165 ,84  ,169 ,59  ,182 ,79  ,32
-    .word 155 ,119 ,178 ,105 ,182 ,112 ,23
-    .word 153 ,68  ,164 ,59  ,165 ,84  ,35
-    .word 176 ,98  ,169 ,95  ,181 ,91  ,27
-    .word 169 ,95  ,165 ,84  ,181 ,91  ,27
-    .word 162 ,41  ,140 ,20  ,175 ,11  ,18
-    .word 169 ,95  ,176 ,98  ,178 ,105 ,30
-    .word 155 ,119 ,169 ,95  ,178 ,105 ,33
-    .word 164 ,59  ,162 ,41  ,169 ,59  ,37
-    .word 140 ,20  ,139 ,0   ,175 ,11  ,30
-    .word 152 ,81  ,153 ,68  ,165 ,84  ,32
-    .word 144 ,94  ,152 ,88  ,169 ,95  ,30
-    .word 155 ,119 ,139 ,103 ,169 ,95  ,33
-    .word 139 ,103 ,144 ,94  ,169 ,95  ,30
-    .word 152 ,88  ,165 ,84  ,169 ,95  ,27
-    .word 131 ,52  ,162 ,41  ,164 ,59  ,38
-    .word 153 ,68  ,131 ,52  ,164 ,59  ,39
-    .word 152 ,88  ,152 ,81  ,165 ,84  ,31
-    .word 131 ,52  ,140 ,20  ,162 ,41  ,25
-    .word 138 ,71  ,131 ,52  ,147 ,71  ,35
-    .word 147 ,71  ,131 ,52  ,153 ,68  ,25
-    .word 152 ,81  ,147 ,71  ,153 ,68  ,34
-    .word 139 ,120 ,139 ,103 ,155 ,119 ,17
-    .word 128 ,65  ,131 ,52  ,138 ,71  ,32
-    .word 138 ,71  ,147 ,71  ,152 ,81  ,32
-    .word 152 ,88  ,144 ,94  ,152 ,81  ,27
-    .word 144 ,94  ,138 ,71  ,152 ,81  ,31
-    .word 132 ,105 ,139 ,103 ,139 ,120 ,17
-    .word 131 ,52  ,111 ,38  ,140 ,20  ,31
-    .word 136 ,120 ,132 ,105 ,139 ,120 ,22
-    .word 139 ,103 ,132 ,105 ,144 ,94  ,36
-    .word 132 ,105 ,112 ,98  ,144 ,94  ,17
-    .word 111 ,77  ,138 ,71  ,144 ,94  ,30
-    .word 112 ,98  ,111 ,77  ,144 ,94  ,36
-    .word 103 ,20  ,97  ,0   ,139 ,0   ,22
-    .word 111 ,38  ,106 ,34  ,140 ,20  ,30
-    .word 106 ,34  ,103 ,20  ,140 ,20  ,36
-    .word 103 ,20  ,139 ,0   ,140 ,20  ,36
-    .word 125 ,107 ,132 ,105 ,136 ,120 ,17
-    .word 111 ,77  ,128 ,65  ,138 ,71  ,27
-    .word 125 ,107 ,112 ,98  ,132 ,105 ,17
-    .word 123 ,120 ,125 ,107 ,136 ,120 ,22
-    .word 128 ,65  ,111 ,38  ,131 ,52  ,31
-    .word 111 ,77  ,89  ,56  ,128 ,65  ,33
-    .word 89  ,56  ,111 ,38  ,128 ,65  ,30
-    .word 123 ,120 ,107 ,120 ,125 ,107 ,21
-    .word 107 ,120 ,112 ,98  ,125 ,107 ,21
-    .word 89  ,56  ,100 ,34  ,111 ,38  ,17
-    .word 89  ,106 ,76  ,71  ,111 ,77  ,21
-    .word 76  ,71  ,89  ,56  ,111 ,77  ,22
-    .word 89  ,106 ,111 ,77  ,112 ,98  ,22
-    .word 98  ,107 ,89  ,106 ,112 ,98  ,21
-    .word 107 ,120 ,98  ,107 ,112 ,98  ,21
-    .word 67  ,83  ,76  ,71  ,89  ,106 ,21
-    .word 100 ,34  ,103 ,20  ,106 ,34  ,17
-    .word 100 ,34  ,106 ,34  ,111 ,38  ,36
-    .word 89  ,56  ,87  ,55  ,100 ,34  ,17
-    .word 86  ,119 ,98  ,107 ,107 ,120 ,21
-    .word 89  ,0   ,97  ,0   ,103 ,20  ,21
-    .word 71  ,31  ,77  ,8   ,78  ,36  ,21
-    .word 87  ,55  ,78  ,36  ,100 ,34  ,21
-    .word 77  ,8   ,89  ,0   ,103 ,20  ,21
-    .word 100 ,34  ,78  ,36  ,103 ,20  ,22
-    .word 78  ,36  ,77  ,8   ,103 ,20  ,21
-    .word 86  ,119 ,89  ,106 ,98  ,107 ,21
-    .word 68  ,9   ,35  ,0   ,89  ,0   ,40
-    .word 66  ,50  ,78  ,36  ,87  ,55  ,21
-    .word 76  ,71  ,87  ,55  ,89  ,56  ,21
-    .word 77  ,8   ,68  ,9   ,89  ,0   ,21
-    .word 86  ,119 ,59  ,109 ,89  ,106 ,16
-    .word 59  ,109 ,67  ,83  ,89  ,106 ,21
-    .word 71  ,31  ,68  ,9   ,77  ,8   ,21
-    .word 76  ,71  ,66  ,50  ,87  ,55  ,21
-    .word 56  ,120 ,59  ,109 ,86  ,119 ,40
-    .word 60  ,11  ,35  ,0   ,68  ,9   ,40
-    .word 60  ,11  ,68  ,9   ,71  ,31  ,21
-    .word 55  ,18  ,60  ,11  ,71  ,31  ,16
-    .word 64  ,39  ,71  ,31  ,78  ,36  ,21
-    .word 66  ,50  ,64  ,39  ,78  ,36  ,21
-    .word 64  ,39  ,64  ,36  ,71  ,31  ,21
-    .word 44  ,65  ,66  ,50  ,76  ,71  ,21
-    .word 59  ,109 ,53  ,83  ,67  ,83  ,16
-    .word 48  ,76  ,44  ,65  ,76  ,71  ,16
-    .word 67  ,83  ,48  ,76  ,76  ,71  ,21
-    .word 53  ,83  ,48  ,76  ,67  ,83  ,16
-    .word 64  ,36  ,55  ,18  ,71  ,31  ,21
-    .word 44  ,65  ,40  ,60  ,45  ,47  ,40
-    .word 45  ,47  ,64  ,39  ,66  ,50  ,21
-    .word 44  ,65  ,45  ,47  ,66  ,50  ,16
-    .word 32  ,90  ,53  ,83  ,53  ,111 ,40
-    .word 56  ,120 ,53  ,111 ,59  ,109 ,40
-    .word 53  ,111 ,53  ,83  ,59  ,109 ,40
-    .word 55  ,18  ,55  ,16  ,60  ,11  ,40
-    .word 45  ,47  ,55  ,18  ,64  ,36  ,16
-    .word 45  ,47  ,64  ,36  ,64  ,39  ,16
-    .word 45  ,47  ,24  ,25  ,55  ,18  ,40
-    .word 55  ,16  ,35  ,0   ,60  ,11  ,40
-    .word 33  ,9   ,35  ,0   ,55  ,16  ,40
-    .word 37  ,120 ,53  ,111 ,56  ,120 ,40
-    .word 23  ,110 ,32  ,90  ,53  ,111 ,40
-    .word 33  ,9   ,55  ,16  ,55  ,18  ,40
-    .word 24  ,25  ,33  ,9   ,55  ,18  ,40
-    .word 32  ,90  ,32  ,85  ,53  ,83  ,40
-    .word 37  ,120 ,23  ,110 ,53  ,111 ,40
-    .word 42  ,72  ,44  ,65  ,48  ,76  ,40
-    .word 32  ,85  ,48  ,76  ,53  ,83  ,40
-    .word 24  ,25  ,29  ,10  ,33  ,9   ,40
-    .word 24  ,52  ,24  ,25  ,45  ,47  ,40
-    .word 40  ,60  ,37  ,55  ,45  ,47  ,40
-    .word 32  ,85  ,42  ,72  ,48  ,76  ,40
-    .word 37  ,55  ,24  ,52  ,45  ,47  ,40
-    .word 42  ,72  ,40  ,60  ,44  ,65  ,40
-    .word 27  ,68  ,40  ,60  ,42  ,72  ,40
-    .word 32  ,85  ,27  ,68  ,42  ,72  ,40
-    .word 11  ,6   ,0   ,0   ,35  ,0   ,40
-    .word 27  ,68  ,37  ,55  ,40  ,60  ,40
-    .word 24  ,52  ,12  ,30  ,24  ,25  ,40
-    .word 27  ,86  ,27  ,68  ,32  ,85  ,40
-    .word 27  ,68  ,24  ,52  ,37  ,55  ,40
-    .word 0   ,120 ,23  ,110 ,37  ,120 ,40
-    .word 33  ,9   ,29  ,10  ,35  ,0   ,40
-    .word 29  ,10  ,11  ,6   ,35  ,0   ,40
-    .word 23  ,110 ,3   ,101 ,27  ,86  ,40
-    .word 23  ,110 ,27  ,86  ,32  ,90  ,40
-    .word 32  ,90  ,27  ,86  ,32  ,85  ,40
-    .word 8   ,109 ,3   ,101 ,23  ,110 ,40
-    .word 7   ,62  ,24  ,52  ,27  ,68  ,40
-    .word 0   ,69  ,27  ,68  ,27  ,86  ,40
-    .word 24  ,25  ,11  ,6   ,29  ,10  ,40
-    .word 0   ,120 ,8   ,109 ,23  ,110 ,40
-    .word 12  ,30  ,11  ,6   ,24  ,25  ,40
-    .word 0   ,69  ,7   ,62  ,27  ,68  ,40
-    .word 3   ,101 ,0   ,69  ,27  ,86  ,40
-    .word 0   ,12  ,11  ,6   ,12  ,30  ,40
-    .word 0   ,60  ,12  ,30  ,24  ,52  ,40
-    .word 7   ,62  ,0   ,60  ,24  ,52  ,40
-    .word 0   ,102 ,0   ,69  ,3   ,101 ,40
-    .word 0   ,114 ,3   ,109 ,8   ,109 ,40
-    .word 0   ,120 ,0   ,114 ,8   ,109 ,40
-    .word 0   ,12  ,0   ,11  ,11  ,6   ,40
-    .word 0   ,60  ,0   ,12  ,12  ,30  ,40
-    .word 0   ,11  ,0   ,0   ,11  ,6   ,40
-    .word 3   ,109 ,0   ,108 ,3   ,101 ,40
-    .word 3   ,109 ,3   ,101 ,8   ,109 ,40
-    .word 0   ,108 ,0   ,103 ,3   ,101 ,40
-    .word 0   ,69  ,0   ,60  ,7   ,62  ,40
-    .word 0   ,114 ,0   ,108 ,3   ,109 ,40
-    .word 0   ,103 ,0   ,102 ,3   ,101 ,40
-    
-   
-   
-   
-   
-load_triangle_data_into_ram:
-
-    lda #<(triangle_data)
-    sta LOAD_ADDRESS
-    lda #>(triangle_data)
-    sta LOAD_ADDRESS+1
-
-    ldx #0
-load_next_triangle:
-    
-    ldy #0
-    
-    ; -- Point 1 --
-    clc
-    lda (LOAD_ADDRESS), y
-    iny
-    adc #<BX
-    sta TRIANGLES_POINT1_X, x
-    lda (LOAD_ADDRESS), y
-    iny
-    adc #>BX
-    sta TRIANGLES_POINT1_X+256, x
-    
-    clc
-    lda (LOAD_ADDRESS), y
-    iny
-    adc #<BY
-    sta TRIANGLES_POINT1_Y, x
-    lda (LOAD_ADDRESS), y
-    iny
-    adc #>BY
-    sta TRIANGLES_POINT1_Y+256, x
-    
-    ; -- Point 2 --
-    clc
-    lda (LOAD_ADDRESS), y
-    iny
-    adc #<BX
-    sta TRIANGLES_POINT2_X, x
-    lda (LOAD_ADDRESS), y
-    iny
-    adc #>BX
-    sta TRIANGLES_POINT2_X+256, x
-    
-    clc
-    lda (LOAD_ADDRESS), y
-    iny
-    adc #<BY
-    sta TRIANGLES_POINT2_Y, x
-    lda (LOAD_ADDRESS), y
-    iny
-    adc #>BY
-    sta TRIANGLES_POINT2_Y+256, x
-
-    ; -- Point 3 --
-    clc
-    lda (LOAD_ADDRESS), y
-    iny
-    adc #<BX
-    sta TRIANGLES_POINT3_X, x
-    lda (LOAD_ADDRESS), y
-    iny
-    adc #>BX
-    sta TRIANGLES_POINT3_X+256, x
-    
-    clc
-    lda (LOAD_ADDRESS), y
-    iny
-    adc #<BY
-    sta TRIANGLES_POINT3_Y, x
-    lda (LOAD_ADDRESS), y
-    iny
-    adc #>BY
-    sta TRIANGLES_POINT3_Y+256, x
-    
-    lda (LOAD_ADDRESS), y
-    iny
-    sta TRIANGLES_COLOR, x
-    
-    clc
-    lda LOAD_ADDRESS
-    adc #14             ; 7 words (3 * x and y, color uses only one byte, but takes space of a word)
-    sta LOAD_ADDRESS
-    lda LOAD_ADDRESS+1
-    adc #0
-    sta LOAD_ADDRESS+1
-    
-    inx
-    
-    cpx #NR_OF_TRIANGLES
-    bne load_next_triangle
-
-    rts
-    
-
 MACRO_copy_point .macro TRIANGLES_POINT_X, POINT_X
     lda \TRIANGLES_POINT_X, x
     sta \POINT_X
@@ -1426,7 +916,7 @@ MACRO_negate_slope .macro SLOPE
 .endmacro
 
 
-MACRO_copy_slope_to_soft_incr_and_shift_right .macro SLOPE, SOFT_X_INCR, SOFT_X_INCR_SUB
+MACRO_copy_slope_to_soft_incr_and_shift_right .macro SLOPE, SOFT_X_INCR_HALF, SOFT_X_INCR_HALF_SUB
 
 ; SPEED: can we do this faster? Maybe use 3 bytes and use a different slope lookup table?
 ; SPEED: the conditional sign extend is also slow!
@@ -1438,16 +928,28 @@ MACRO_copy_slope_to_soft_incr_and_shift_right .macro SLOPE, SOFT_X_INCR, SOFT_X_
 \@slope_is_positive:
     lsr a
 \@slope_is_correctly_signed:
-    sta \SOFT_X_INCR+1       ; X1 or X2 increment high (signed)
+    sta \SOFT_X_INCR_HALF+1     ; X1 or X2 increment high (signed)
     lda \SLOPE+1
     ror a
-    sta \SOFT_X_INCR         ; X1 or X2 increment low (signed)
+    sta \SOFT_X_INCR_HALF       ; X1 or X2 increment low (signed)
     lda \SLOPE  
     ror a
-    sta \SOFT_X_INCR_SUB+1   ; X1 or X2 increment sub high (signed)                
+    sta \SOFT_X_INCR_HALF_SUB+1 ; X1 or X2 increment sub high (signed)                
     lda #0
     ror a
-    sta \SOFT_X_INCR_SUB     ; X1 or X2 increment sub low (signed)
+    sta \SOFT_X_INCR_HALF_SUB   ; X1 or X2 increment sub low (signed)
+
+.endmacro
+
+
+MACRO_copy_slope_to_soft_incr .macro SLOPE, SOFT_X_INCR, SOFT_X_INCR_SUB
+
+    lda \SLOPE+2
+    sta \SOFT_X_INCR+1       ; X1 or X2 increment high (signed)
+    lda \SLOPE+1
+    sta \SOFT_X_INCR         ; X1 or X2 increment low (signed)
+    lda \SLOPE  
+    sta \SOFT_X_INCR_SUB+1   ; X1 or X2 increment sub high (signed)                
 
 .endmacro
 
@@ -1776,9 +1278,13 @@ first_right_point_is_lower_in_y:
     
         ; -- We setup the x1 and x2 slopes for the first part of the triangle --
         
+        ; NOTE that these increments are *WHOLE* steps!!
+        MACRO_copy_slope_to_soft_incr SLOPE_TOP_LEFT, SOFT_X1_INCR, SOFT_X1_INCR_SUB
+        MACRO_copy_slope_to_soft_incr SLOPE_TOP_RIGHT, SOFT_X2_INCR, SOFT_X2_INCR_SUB
+        
         ; NOTE that these increments are *HALF* steps!!
-        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_TOP_LEFT, SOFT_X1_INCR, SOFT_X1_INCR_SUB
-        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_TOP_RIGHT, SOFT_X2_INCR, SOFT_X2_INCR_SUB
+        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_TOP_LEFT, SOFT_X1_INCR_HALF, SOFT_X1_INCR_HALF_SUB
+        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_TOP_RIGHT, SOFT_X2_INCR_HALF, SOFT_X2_INCR_HALF_SUB
 
         ; We determine which of LEFT or RIGHT is lower in y and chose number of rows to that point
         lda Y_DISTANCE_IS_NEGATED
@@ -1799,8 +1305,11 @@ soft_first_left_point_is_lower_in_y:
         lda #(256>>1)            ; Half a pixel
         sta SOFT_X1_SUB+1        ; Reset subpixel position X1 [8:1]
         
+        ; NOTE that these increments are *WHOLE* steps!!
+        MACRO_copy_slope_to_soft_incr SLOPE_RIGHT_LEFT, SOFT_X1_INCR, SOFT_X1_INCR_SUB
+        
         ; NOTE that these increments are *HALF* steps!!
-        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_RIGHT_LEFT, SOFT_X1_INCR, SOFT_X1_INCR_SUB
+        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_RIGHT_LEFT, SOFT_X1_INCR_HALF, SOFT_X1_INCR_HALF_SUB
 
         ; -- We draw the second part of the triangle --
         jsr draw_polygon_part_using_software_polygon_filler_naively
@@ -1822,8 +1331,11 @@ soft_first_right_point_is_lower_in_y:
         lda #(256>>1)            ; Half a pixel
         sta SOFT_X2_SUB+1        ; Reset subpixel position X2 [8:1]
         
+        ; NOTE that these increments are *WHOLE* steps!!
+        MACRO_copy_slope_to_soft_incr SLOPE_RIGHT_LEFT, SOFT_X2_INCR, SOFT_X2_INCR_SUB
+        
         ; NOTE that these increments are *HALF* steps!!
-        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_RIGHT_LEFT, SOFT_X2_INCR, SOFT_X2_INCR_SUB
+        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_RIGHT_LEFT, SOFT_X2_INCR_HALF, SOFT_X2_INCR_HALF_SUB
         
         ; -- We draw the second part of the triangle --
         jsr draw_polygon_part_using_software_polygon_filler_naively
@@ -2014,9 +1526,13 @@ slope_right_bottom_is_correctly_signed:
 
         ; -- We setup the x1 and x2 slopes for the first part of the triangle --
         
+        ; NOTE that these increments are *WHOLE* steps!!
+        MACRO_copy_slope_to_soft_incr SLOPE_LEFT_BOTTOM, SOFT_X1_INCR, SOFT_X1_INCR_SUB
+        MACRO_copy_slope_to_soft_incr SLOPE_RIGHT_BOTTOM, SOFT_X2_INCR, SOFT_X2_INCR_SUB
+        
         ; NOTE that these increments are *HALF* steps!!
-        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_LEFT_BOTTOM, SOFT_X1_INCR, SOFT_X1_INCR_SUB
-        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_RIGHT_BOTTOM, SOFT_X2_INCR, SOFT_X2_INCR_SUB
+        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_LEFT_BOTTOM, SOFT_X1_INCR_HALF, SOFT_X1_INCR_HALF_SUB
+        MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_RIGHT_BOTTOM, SOFT_X2_INCR_HALF, SOFT_X2_INCR_HALF_SUB
     
         lda Y_DISTANCE_LEFT_TOP
         sta NUMBER_OF_ROWS
@@ -2033,34 +1549,34 @@ slope_right_bottom_is_correctly_signed:
     
 draw_polygon_part_using_software_polygon_filler_naively:
 
-    ; First we will increment x1 and x2 with *HALF* the normal increment
+    ; First we will increment x1 and x2 with *HALF* the normal increment (32-bit add)
     
     clc
     lda SOFT_X1_SUB
-    adc SOFT_X1_INCR_SUB
+    adc SOFT_X1_INCR_HALF_SUB
     sta SOFT_X1_SUB
     lda SOFT_X1_SUB+1
-    adc SOFT_X1_INCR_SUB+1
+    adc SOFT_X1_INCR_HALF_SUB+1
     sta SOFT_X1_SUB+1
     lda SOFT_X1
-    adc SOFT_X1_INCR
+    adc SOFT_X1_INCR_HALF
     sta SOFT_X1
     lda SOFT_X1+1
-    adc SOFT_X1_INCR+1
+    adc SOFT_X1_INCR_HALF+1
     sta SOFT_X1+1
     
     clc
     lda SOFT_X2_SUB
-    adc SOFT_X2_INCR_SUB
+    adc SOFT_X2_INCR_HALF_SUB
     sta SOFT_X2_SUB
     lda SOFT_X2_SUB+1
-    adc SOFT_X2_INCR_SUB+1
+    adc SOFT_X2_INCR_HALF_SUB+1
     sta SOFT_X2_SUB+1
     lda SOFT_X2
-    adc SOFT_X2_INCR
+    adc SOFT_X2_INCR_HALF
     sta SOFT_X2
     lda SOFT_X2+1
-    adc SOFT_X2_INCR+1
+    adc SOFT_X2_INCR_HALF+1
     sta SOFT_X2+1
 
     
@@ -2124,45 +1640,13 @@ soft_polygon_fill_triangle_row_done:
     inc SOFT_Y
     ; FIXME: we are now assuming a max value of 240, so no need for SOFT_Y+1
 
-    clc
-    lda SOFT_X1_SUB
-    adc SOFT_X1_INCR_SUB
-    sta SOFT_X1_SUB
-    lda SOFT_X1_SUB+1
-    adc SOFT_X1_INCR_SUB+1
-    sta SOFT_X1_SUB+1
-    lda SOFT_X1
-    adc SOFT_X1_INCR
-    sta SOFT_X1
-    lda SOFT_X1+1
-    adc SOFT_X1_INCR+1
-    sta SOFT_X1+1
     
-    clc
-    lda SOFT_X2_SUB
-    adc SOFT_X2_INCR_SUB
-    sta SOFT_X2_SUB
-    lda SOFT_X2_SUB+1
-    adc SOFT_X2_INCR_SUB+1
-    sta SOFT_X2_SUB+1
-    lda SOFT_X2
-    adc SOFT_X2_INCR
-    sta SOFT_X2
-    lda SOFT_X2+1
-    adc SOFT_X2_INCR+1
-    sta SOFT_X2+1
-    
-    ; We check if we have reached the end, if so, we do *NOT* change ADDR1!
+    ; We check if we have reached the end, if so, we do *NOT* do a WHOLE increment!
     dec NUMBER_OF_ROWS
     beq soft_polygon_fill_triangle_done
-    
-; FIXME!   
-;    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_line_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
 
+    ; Do a *WHOLE* increment (24-bit add)
     clc
-    lda SOFT_X1_SUB
-    adc SOFT_X1_INCR_SUB
-    sta SOFT_X1_SUB
     lda SOFT_X1_SUB+1
     adc SOFT_X1_INCR_SUB+1
     sta SOFT_X1_SUB+1
@@ -2174,9 +1658,6 @@ soft_polygon_fill_triangle_row_done:
     sta SOFT_X1+1
     
     clc
-    lda SOFT_X2_SUB
-    adc SOFT_X2_INCR_SUB
-    sta SOFT_X2_SUB
     lda SOFT_X2_SUB+1
     adc SOFT_X2_INCR_SUB+1
     sta SOFT_X2_SUB+1
@@ -2190,7 +1671,35 @@ soft_polygon_fill_triangle_row_done:
     jmp soft_polygon_fill_triangle_row_next
     
 soft_polygon_fill_triangle_done:
+
+    ; When we are done we increment the other *HALF* (32-bit add)
+    clc
+    lda SOFT_X1_SUB
+    adc SOFT_X1_INCR_HALF_SUB
+    sta SOFT_X1_SUB
+    lda SOFT_X1_SUB+1
+    adc SOFT_X1_INCR_HALF_SUB+1
+    sta SOFT_X1_SUB+1
+    lda SOFT_X1
+    adc SOFT_X1_INCR_HALF
+    sta SOFT_X1
+    lda SOFT_X1+1
+    adc SOFT_X1_INCR_HALF+1
+    sta SOFT_X1+1
     
+    clc
+    lda SOFT_X2_SUB
+    adc SOFT_X2_INCR_HALF_SUB
+    sta SOFT_X2_SUB
+    lda SOFT_X2_SUB+1
+    adc SOFT_X2_INCR_HALF_SUB+1
+    sta SOFT_X2_SUB+1
+    lda SOFT_X2
+    adc SOFT_X2_INCR_HALF
+    sta SOFT_X2
+    lda SOFT_X2+1
+    adc SOFT_X2_INCR_HALF+1
+    sta SOFT_X2+1
     
     rts
 
@@ -2701,6 +2210,527 @@ next_packed_color:
 
     rts
 
+   
+load_triangle_data_into_ram:
+
+    lda #<(triangle_data)
+    sta LOAD_ADDRESS
+    lda #>(triangle_data)
+    sta LOAD_ADDRESS+1
+
+    ldx #0
+load_next_triangle:
+    
+    ldy #0
+    
+    ; -- Point 1 --
+    clc
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #<BX
+    sta TRIANGLES_POINT1_X, x
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #>BX
+    sta TRIANGLES_POINT1_X+256, x
+    
+    clc
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #<BY
+    sta TRIANGLES_POINT1_Y, x
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #>BY
+    sta TRIANGLES_POINT1_Y+256, x
+    
+    ; -- Point 2 --
+    clc
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #<BX
+    sta TRIANGLES_POINT2_X, x
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #>BX
+    sta TRIANGLES_POINT2_X+256, x
+    
+    clc
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #<BY
+    sta TRIANGLES_POINT2_Y, x
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #>BY
+    sta TRIANGLES_POINT2_Y+256, x
+
+    ; -- Point 3 --
+    clc
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #<BX
+    sta TRIANGLES_POINT3_X, x
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #>BX
+    sta TRIANGLES_POINT3_X+256, x
+    
+    clc
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #<BY
+    sta TRIANGLES_POINT3_Y, x
+    lda (LOAD_ADDRESS), y
+    iny
+    adc #>BY
+    sta TRIANGLES_POINT3_Y+256, x
+    
+    lda (LOAD_ADDRESS), y
+    iny
+    sta TRIANGLES_COLOR, x
+    
+    clc
+    lda LOAD_ADDRESS
+    adc #14             ; 7 words (3 * x and y, color uses only one byte, but takes space of a word)
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    adc #0
+    sta LOAD_ADDRESS+1
+    
+    inx
+    
+    cpx #NR_OF_TRIANGLES
+    bne load_next_triangle
+
+    rts
+    
+    
+    .if(0)
+NR_OF_TRIANGLES = 12
+triangle_data:
+    ;     x1,  y1,    x2,  y2,    x3,  y3    cl
+   .word   0,   0,   100,  70,    0,  50,    4
+   .word   0,   0,   200,   1,  100,  70,    5
+   .word   0,   0,   280,   0,  200,   1,    3
+   .word 200,   1,   279,   0,  280,   120,  7
+   .word 279,   0,   280,   0,  280,   120,  15
+   .word 180,  50,   200,   1,  280,   120,  8
+   .word   0, 120,    80, 100,  280,   120,  9
+   .word 100,  70,   200,   1,  180,    50,  10
+   .word   0,  50,    80, 100,    0,   120,  11
+   .word   0,  50,   100,  70,   80,   100,  12
+   .word 100,  70,   180,  50,   80,   100,  13
+   .word 180,  50,   280, 120,   80,   100,  14
+palette_data:   
+    ; dummy
+end_of_palette_data:
+    .endif
+   
+   
+    .if(1)
+palette_data:
+    .byte $c8, $08  ; palette index 16
+    .byte $c9, $07  ; palette index 17
+    .byte $c7, $09  ; palette index 18
+    .byte $a6, $06  ; palette index 19
+    .byte $fa, $0d  ; palette index 20
+    .byte $a7, $06  ; palette index 21
+    .byte $b7, $09  ; palette index 22
+    .byte $fc, $0b  ; palette index 23
+    .byte $73, $04  ; palette index 24
+    .byte $ff, $0f  ; palette index 25
+    .byte $95, $05  ; palette index 26
+    .byte $84, $05  ; palette index 27
+    .byte $b7, $06  ; palette index 28
+    .byte $b7, $08  ; palette index 29
+    .byte $e9, $0c  ; palette index 30
+    .byte $d8, $0b  ; palette index 31
+    .byte $fb, $0e  ; palette index 32
+    .byte $ec, $08  ; palette index 33
+    .byte $fd, $09  ; palette index 34
+    .byte $b8, $08  ; palette index 35
+    .byte $b7, $07  ; palette index 36
+    .byte $db, $08  ; palette index 37
+    .byte $fe, $09  ; palette index 38
+    .byte $d9, $09  ; palette index 39
+    .byte $da, $08  ; palette index 40
+    .byte $eb, $08  ; palette index 41
+    .byte $ff, $0a  ; palette index 42
+    .byte $b8, $07  ; palette index 43
+    .byte $eb, $0a  ; palette index 44
+    .byte $fd, $0a  ; palette index 45
+    .byte $eb, $09  ; palette index 46
+    .byte $a6, $07  ; palette index 47
+    .byte $da, $09  ; palette index 48
+    .byte $fc, $0a  ; palette index 49
+    .byte $ca, $07  ; palette index 50
+    .byte $a5, $07  ; palette index 51
+    .byte $ff, $0c  ; palette index 52
+end_of_palette_data:
+
+
+NR_OF_TRIANGLES = 72
+triangle_data:
+    ;     x1,  y1,    x2,  y2,    x3,  y3    cl
+    .word 260 ,26  ,267 ,13  ,280 ,20  ,16
+    .word 260 ,26  ,280 ,20  ,280 ,52  ,17
+    .word 262 ,64  ,260 ,26  ,280 ,52  ,18
+    .word 270 ,120 ,244 ,120 ,280 ,103 ,17
+    .word 244 ,120 ,262 ,64  ,280 ,103 ,19
+    .word 280 ,20  ,267 ,13  ,280 ,5   ,20
+    .word 267 ,13  ,264 ,8   ,280 ,5   ,21
+    .word 280 ,103 ,262 ,64  ,280 ,63  ,22
+    .word 270 ,120 ,280 ,103 ,280 ,109 ,23
+    .word 270 ,120 ,270 ,120 ,280 ,109 ,24
+    .word 280 ,119 ,270 ,120 ,280 ,109 ,24
+    .word 270 ,120 ,280 ,119 ,280 ,120 ,25
+    .word 280 ,63  ,262 ,64  ,280 ,60  ,26
+    .word 262 ,64  ,280 ,52  ,280 ,60  ,27
+    .word 280 ,5   ,264 ,8   ,280 ,0   ,21
+    .word 264 ,8   ,254 ,6   ,280 ,0   ,28
+    .word 254 ,6   ,232 ,0   ,280 ,0   ,18
+    .word 244 ,120 ,219 ,76  ,262 ,64  ,29
+    .word 219 ,76  ,227 ,64  ,262 ,64  ,30
+    .word 227 ,64  ,260 ,26  ,262 ,64  ,21
+    .word 260 ,26  ,254 ,6   ,264 ,8   ,31
+    .word 260 ,26  ,264 ,8   ,267 ,13  ,31
+    .word 233 ,120 ,219 ,76  ,244 ,120 ,32
+    .word 223 ,3   ,181 ,0   ,232 ,0   ,33
+    .word 214 ,11  ,228 ,4   ,260 ,26  ,34
+    .word 227 ,64  ,214 ,11  ,260 ,26  ,18
+    .word 228 ,4   ,254 ,6   ,260 ,26  ,22
+    .word 228 ,4   ,232 ,0   ,254 ,6   ,30
+    .word 213 ,117 ,219 ,76  ,233 ,120 ,35
+    .word 177 ,66  ,214 ,11  ,227 ,64  ,36
+    .word 208 ,120 ,213 ,117 ,233 ,120 ,37
+    .word 214 ,11  ,223 ,3   ,228 ,4   ,24
+    .word 228 ,4   ,223 ,3   ,232 ,0   ,38
+    .word 214 ,11  ,181 ,0   ,223 ,3   ,17
+    .word 219 ,76  ,177 ,66  ,227 ,64  ,28
+    .word 213 ,117 ,208 ,120 ,219 ,76  ,31
+    .word 177 ,66  ,181 ,0   ,214 ,11  ,16
+    .word 208 ,120 ,177 ,66  ,219 ,76  ,31
+    .word 177 ,66  ,168 ,0   ,181 ,0   ,17
+    .word 139 ,120 ,177 ,66  ,208 ,120 ,39
+    .word 91  ,65  ,139 ,0   ,177 ,66  ,40
+    .word 139 ,0   ,168 ,0   ,177 ,66  ,39
+    .word 139 ,120 ,91  ,65  ,177 ,66  ,41
+    .word 91  ,65  ,82  ,55  ,107 ,0   ,37
+    .word 115 ,120 ,91  ,65  ,139 ,120 ,34
+    .word 91  ,65  ,107 ,0   ,139 ,0   ,26
+    .word 82  ,55  ,75  ,0   ,107 ,0   ,28
+    .word 74  ,97  ,91  ,65  ,115 ,120 ,42
+    .word 83  ,120 ,74  ,97  ,115 ,120 ,42
+    .word 64  ,49  ,75  ,0   ,82  ,55  ,43
+    .word 64  ,49  ,59  ,0   ,75  ,0   ,44
+    .word 0   ,120 ,10  ,111 ,83  ,120 ,17
+    .word 74  ,97  ,82  ,55  ,91  ,65  ,33
+    .word 36  ,88  ,64  ,49  ,74  ,97  ,45
+    .word 74  ,97  ,64  ,49  ,82  ,55  ,23
+    .word 36  ,88  ,74  ,97  ,83  ,120 ,34
+    .word 10  ,111 ,36  ,88  ,83  ,120 ,37
+    .word 34  ,0   ,59  ,0   ,64  ,49  ,26
+    .word 13  ,75  ,0   ,60  ,64  ,49  ,46
+    .word 0   ,20  ,34  ,0   ,64  ,49  ,47
+    .word 0   ,60  ,0   ,20  ,64  ,49  ,48
+    .word 36  ,88  ,13  ,75  ,64  ,49  ,49
+    .word 0   ,20  ,0   ,0   ,34  ,0   ,26
+    .word 0   ,92  ,13  ,75  ,36  ,88  ,50
+    .word 10  ,111 ,0   ,92  ,36  ,88  ,40
+    .word 0   ,0   ,0   ,0   ,34  ,0   ,51
+    .word 0   ,120 ,0   ,116 ,10  ,111 ,52
+    .word 0   ,70  ,0   ,70  ,13  ,75  ,32
+    .word 0   ,81  ,0   ,70  ,13  ,75  ,24
+    .word 0   ,92  ,0   ,81  ,13  ,75  ,17
+    .word 0   ,70  ,0   ,60  ,13  ,75  ,23
+    .word 0   ,116 ,0   ,92  ,10  ,111 ,46
+    .endif
+   
+   
+    .if(0)
+palette_data:
+    .byte $31, $09  ; palette index 16
+    .byte $51, $0a  ; palette index 17
+    .byte $72, $0d  ; palette index 18
+    .byte $72, $0e  ; palette index 19
+    .byte $61, $0c  ; palette index 20
+    .byte $41, $09  ; palette index 21
+    .byte $41, $0a  ; palette index 22
+    .byte $51, $0b  ; palette index 23
+    .byte $61, $0b  ; palette index 24
+    .byte $a2, $0f  ; palette index 25
+    .byte $92, $0f  ; palette index 26
+    .byte $62, $0c  ; palette index 27
+    .byte $b2, $0f  ; palette index 28
+    .byte $d2, $0f  ; palette index 29
+    .byte $62, $0b  ; palette index 30
+    .byte $72, $0c  ; palette index 31
+    .byte $82, $0d  ; palette index 32
+    .byte $52, $0b  ; palette index 33
+    .byte $82, $0e  ; palette index 34
+    .byte $92, $0e  ; palette index 35
+    .byte $52, $0a  ; palette index 36
+    .byte $e3, $0f  ; palette index 37
+    .byte $f4, $0f  ; palette index 38
+    .byte $d3, $0f  ; palette index 39
+    .byte $31, $08  ; palette index 40
+end_of_palette_data:
+
+
+NR_OF_TRIANGLES = 246
+triangle_data:
+    ;     x1,  y1,    x2,  y2,    x3,  y3    cl
+    .word 56  ,120 ,86  ,119 ,107 ,120 ,16
+    .word 155 ,119 ,186 ,119 ,194 ,120 ,17
+    .word 139 ,120 ,155 ,119 ,194 ,120 ,17
+    .word 194 ,120 ,235 ,98  ,278 ,120 ,18
+    .word 235 ,98  ,255 ,84  ,278 ,120 ,19
+    .word 278 ,120 ,255 ,84  ,279 ,87  ,20
+    .word 255 ,84  ,273 ,73  ,279 ,87  ,18
+    .word 273 ,73  ,272 ,72  ,280 ,65  ,20
+    .word 272 ,72  ,267 ,59  ,280 ,65  ,20
+    .word 279 ,87  ,273 ,73  ,280 ,65  ,20
+    .word 276 ,26  ,280 ,20  ,280 ,22  ,21
+    .word 276 ,26  ,280 ,22  ,280 ,32  ,22
+    .word 274 ,44  ,276 ,26  ,280 ,32  ,22
+    .word 268 ,47  ,274 ,44  ,280 ,50  ,23
+    .word 267 ,59  ,268 ,47  ,280 ,50  ,23
+    .word 274 ,44  ,280 ,32  ,280 ,50  ,17
+    .word 280 ,20  ,276 ,26  ,280 ,17  ,21
+    .word 276 ,26  ,275 ,7   ,280 ,17  ,21
+    .word 275 ,7   ,280 ,5   ,280 ,17  ,21
+    .word 278 ,120 ,279 ,87  ,280 ,120 ,23
+    .word 279 ,87  ,280 ,65  ,280 ,120 ,23
+    .word 267 ,59  ,280 ,50  ,280 ,60  ,23
+    .word 280 ,65  ,267 ,59  ,280 ,60  ,23
+    .word 280 ,5   ,275 ,7   ,280 ,0   ,21
+    .word 275 ,7   ,260 ,0   ,280 ,0   ,21
+    .word 274 ,44  ,268 ,47  ,276 ,26  ,17
+    .word 260 ,0   ,275 ,7   ,276 ,26  ,21
+    .word 255 ,84  ,272 ,72  ,273 ,73  ,18
+    .word 268 ,47  ,249 ,44  ,276 ,26  ,17
+    .word 237 ,10  ,260 ,0   ,276 ,26  ,22
+    .word 249 ,44  ,237 ,10  ,276 ,26  ,17
+    .word 240 ,41  ,237 ,10  ,249 ,44  ,23
+    .word 255 ,84  ,267 ,59  ,272 ,72  ,18
+    .word 231 ,7   ,215 ,0   ,260 ,0   ,22
+    .word 251 ,46  ,249 ,44  ,268 ,47  ,24
+    .word 267 ,59  ,251 ,46  ,268 ,47  ,24
+    .word 232 ,85  ,251 ,46  ,255 ,84  ,25
+    .word 255 ,84  ,251 ,46  ,267 ,59  ,18
+    .word 232 ,85  ,220 ,75  ,251 ,46  ,26
+    .word 220 ,75  ,219 ,54  ,251 ,46  ,19
+    .word 237 ,10  ,231 ,7   ,260 ,0   ,22
+    .word 219 ,54  ,233 ,43  ,251 ,46  ,27
+    .word 235 ,98  ,234 ,96  ,255 ,84  ,28
+    .word 234 ,96  ,232 ,85  ,255 ,84  ,29
+    .word 217 ,23  ,237 ,10  ,240 ,41  ,23
+    .word 223 ,38  ,217 ,23  ,240 ,41  ,30
+    .word 240 ,41  ,249 ,44  ,251 ,46  ,24
+    .word 233 ,43  ,240 ,41  ,251 ,46  ,27
+    .word 218 ,34  ,217 ,23  ,223 ,38  ,30
+    .word 194 ,120 ,226 ,94  ,235 ,98  ,18
+    .word 217 ,23  ,231 ,7   ,237 ,10  ,17
+    .word 233 ,43  ,223 ,38  ,240 ,41  ,27
+    .word 194 ,120 ,197 ,98  ,226 ,94  ,27
+    .word 226 ,94  ,232 ,85  ,234 ,96  ,28
+    .word 226 ,94  ,234 ,96  ,235 ,98  ,25
+    .word 219 ,54  ,223 ,38  ,233 ,43  ,27
+    .word 226 ,94  ,220 ,75  ,232 ,85  ,28
+    .word 219 ,54  ,217 ,40  ,223 ,38  ,27
+    .word 197 ,98  ,204 ,91  ,226 ,94  ,18
+    .word 217 ,23  ,215 ,0   ,231 ,7   ,17
+    .word 208 ,0   ,215 ,0   ,217 ,23  ,17
+    .word 202 ,56  ,219 ,54  ,220 ,75  ,18
+    .word 204 ,91  ,220 ,75  ,226 ,94  ,26
+    .word 217 ,40  ,218 ,34  ,223 ,38  ,30
+    .word 192 ,18  ,208 ,0   ,217 ,23  ,17
+    .word 202 ,56  ,217 ,40  ,219 ,54  ,31
+    .word 204 ,91  ,186 ,65  ,220 ,75  ,32
+    .word 186 ,65  ,202 ,56  ,220 ,75  ,18
+    .word 207 ,34  ,217 ,23  ,218 ,34  ,30
+    .word 186 ,65  ,190 ,60  ,202 ,56  ,32
+    .word 182 ,79  ,186 ,65  ,204 ,91  ,18
+    .word 197 ,39  ,207 ,34  ,217 ,40  ,27
+    .word 202 ,56  ,197 ,39  ,217 ,40  ,31
+    .word 217 ,40  ,207 ,34  ,218 ,34  ,27
+    .word 207 ,34  ,192 ,18  ,217 ,23  ,30
+    .word 194 ,120 ,185 ,112 ,197 ,98  ,30
+    .word 197 ,39  ,192 ,18  ,207 ,34  ,27
+    .word 192 ,18  ,186 ,0   ,208 ,0   ,17
+    .word 190 ,60  ,197 ,39  ,202 ,56  ,18
+    .word 197 ,98  ,181 ,91  ,204 ,91  ,31
+    .word 181 ,91  ,182 ,79  ,204 ,91  ,31
+    .word 175 ,11  ,186 ,0   ,192 ,18  ,33
+    .word 185 ,112 ,178 ,105 ,197 ,98  ,30
+    .word 190 ,60  ,169 ,59  ,197 ,39  ,34
+    .word 169 ,59  ,162 ,41  ,197 ,39  ,25
+    .word 162 ,41  ,192 ,18  ,197 ,39  ,18
+    .word 186 ,119 ,185 ,112 ,194 ,120 ,23
+    .word 178 ,105 ,181 ,91  ,197 ,98  ,27
+    .word 178 ,105 ,176 ,98  ,181 ,91  ,30
+    .word 162 ,41  ,175 ,11  ,192 ,18  ,31
+    .word 182 ,112 ,178 ,105 ,185 ,112 ,23
+    .word 186 ,65  ,169 ,59  ,190 ,60  ,35
+    .word 182 ,112 ,185 ,112 ,186 ,119 ,23
+    .word 155 ,119 ,182 ,112 ,186 ,119 ,17
+    .word 182 ,79  ,169 ,59  ,186 ,65  ,34
+    .word 175 ,11  ,139 ,0   ,186 ,0   ,36
+    .word 165 ,84  ,164 ,59  ,169 ,59  ,25
+    .word 181 ,91  ,165 ,84  ,182 ,79  ,31
+    .word 165 ,84  ,169 ,59  ,182 ,79  ,32
+    .word 155 ,119 ,178 ,105 ,182 ,112 ,23
+    .word 153 ,68  ,164 ,59  ,165 ,84  ,35
+    .word 176 ,98  ,169 ,95  ,181 ,91  ,27
+    .word 169 ,95  ,165 ,84  ,181 ,91  ,27
+    .word 162 ,41  ,140 ,20  ,175 ,11  ,18
+    .word 169 ,95  ,176 ,98  ,178 ,105 ,30
+    .word 155 ,119 ,169 ,95  ,178 ,105 ,33
+    .word 164 ,59  ,162 ,41  ,169 ,59  ,37
+    .word 140 ,20  ,139 ,0   ,175 ,11  ,30
+    .word 152 ,81  ,153 ,68  ,165 ,84  ,32
+    .word 144 ,94  ,152 ,88  ,169 ,95  ,30
+    .word 155 ,119 ,139 ,103 ,169 ,95  ,33
+    .word 139 ,103 ,144 ,94  ,169 ,95  ,30
+    .word 152 ,88  ,165 ,84  ,169 ,95  ,27
+    .word 131 ,52  ,162 ,41  ,164 ,59  ,38
+    .word 153 ,68  ,131 ,52  ,164 ,59  ,39
+    .word 152 ,88  ,152 ,81  ,165 ,84  ,31
+    .word 131 ,52  ,140 ,20  ,162 ,41  ,25
+    .word 138 ,71  ,131 ,52  ,147 ,71  ,35
+    .word 147 ,71  ,131 ,52  ,153 ,68  ,25
+    .word 152 ,81  ,147 ,71  ,153 ,68  ,34
+    .word 139 ,120 ,139 ,103 ,155 ,119 ,17
+    .word 128 ,65  ,131 ,52  ,138 ,71  ,32
+    .word 138 ,71  ,147 ,71  ,152 ,81  ,32
+    .word 152 ,88  ,144 ,94  ,152 ,81  ,27
+    .word 144 ,94  ,138 ,71  ,152 ,81  ,31
+    .word 132 ,105 ,139 ,103 ,139 ,120 ,17
+    .word 131 ,52  ,111 ,38  ,140 ,20  ,31
+    .word 136 ,120 ,132 ,105 ,139 ,120 ,22
+    .word 139 ,103 ,132 ,105 ,144 ,94  ,36
+    .word 132 ,105 ,112 ,98  ,144 ,94  ,17
+    .word 111 ,77  ,138 ,71  ,144 ,94  ,30
+    .word 112 ,98  ,111 ,77  ,144 ,94  ,36
+    .word 103 ,20  ,97  ,0   ,139 ,0   ,22
+    .word 111 ,38  ,106 ,34  ,140 ,20  ,30
+    .word 106 ,34  ,103 ,20  ,140 ,20  ,36
+    .word 103 ,20  ,139 ,0   ,140 ,20  ,36
+    .word 125 ,107 ,132 ,105 ,136 ,120 ,17
+    .word 111 ,77  ,128 ,65  ,138 ,71  ,27
+    .word 125 ,107 ,112 ,98  ,132 ,105 ,17
+    .word 123 ,120 ,125 ,107 ,136 ,120 ,22
+    .word 128 ,65  ,111 ,38  ,131 ,52  ,31
+    .word 111 ,77  ,89  ,56  ,128 ,65  ,33
+    .word 89  ,56  ,111 ,38  ,128 ,65  ,30
+    .word 123 ,120 ,107 ,120 ,125 ,107 ,21
+    .word 107 ,120 ,112 ,98  ,125 ,107 ,21
+    .word 89  ,56  ,100 ,34  ,111 ,38  ,17
+    .word 89  ,106 ,76  ,71  ,111 ,77  ,21
+    .word 76  ,71  ,89  ,56  ,111 ,77  ,22
+    .word 89  ,106 ,111 ,77  ,112 ,98  ,22
+    .word 98  ,107 ,89  ,106 ,112 ,98  ,21
+    .word 107 ,120 ,98  ,107 ,112 ,98  ,21
+    .word 67  ,83  ,76  ,71  ,89  ,106 ,21
+    .word 100 ,34  ,103 ,20  ,106 ,34  ,17
+    .word 100 ,34  ,106 ,34  ,111 ,38  ,36
+    .word 89  ,56  ,87  ,55  ,100 ,34  ,17
+    .word 86  ,119 ,98  ,107 ,107 ,120 ,21
+    .word 89  ,0   ,97  ,0   ,103 ,20  ,21
+    .word 71  ,31  ,77  ,8   ,78  ,36  ,21
+    .word 87  ,55  ,78  ,36  ,100 ,34  ,21
+    .word 77  ,8   ,89  ,0   ,103 ,20  ,21
+    .word 100 ,34  ,78  ,36  ,103 ,20  ,22
+    .word 78  ,36  ,77  ,8   ,103 ,20  ,21
+    .word 86  ,119 ,89  ,106 ,98  ,107 ,21
+    .word 68  ,9   ,35  ,0   ,89  ,0   ,40
+    .word 66  ,50  ,78  ,36  ,87  ,55  ,21
+    .word 76  ,71  ,87  ,55  ,89  ,56  ,21
+    .word 77  ,8   ,68  ,9   ,89  ,0   ,21
+    .word 86  ,119 ,59  ,109 ,89  ,106 ,16
+    .word 59  ,109 ,67  ,83  ,89  ,106 ,21
+    .word 71  ,31  ,68  ,9   ,77  ,8   ,21
+    .word 76  ,71  ,66  ,50  ,87  ,55  ,21
+    .word 56  ,120 ,59  ,109 ,86  ,119 ,40
+    .word 60  ,11  ,35  ,0   ,68  ,9   ,40
+    .word 60  ,11  ,68  ,9   ,71  ,31  ,21
+    .word 55  ,18  ,60  ,11  ,71  ,31  ,16
+    .word 64  ,39  ,71  ,31  ,78  ,36  ,21
+    .word 66  ,50  ,64  ,39  ,78  ,36  ,21
+    .word 64  ,39  ,64  ,36  ,71  ,31  ,21
+    .word 44  ,65  ,66  ,50  ,76  ,71  ,21
+    .word 59  ,109 ,53  ,83  ,67  ,83  ,16
+    .word 48  ,76  ,44  ,65  ,76  ,71  ,16
+    .word 67  ,83  ,48  ,76  ,76  ,71  ,21
+    .word 53  ,83  ,48  ,76  ,67  ,83  ,16
+    .word 64  ,36  ,55  ,18  ,71  ,31  ,21
+    .word 44  ,65  ,40  ,60  ,45  ,47  ,40
+    .word 45  ,47  ,64  ,39  ,66  ,50  ,21
+    .word 44  ,65  ,45  ,47  ,66  ,50  ,16
+    .word 32  ,90  ,53  ,83  ,53  ,111 ,40
+    .word 56  ,120 ,53  ,111 ,59  ,109 ,40
+    .word 53  ,111 ,53  ,83  ,59  ,109 ,40
+    .word 55  ,18  ,55  ,16  ,60  ,11  ,40
+    .word 45  ,47  ,55  ,18  ,64  ,36  ,16
+    .word 45  ,47  ,64  ,36  ,64  ,39  ,16
+    .word 45  ,47  ,24  ,25  ,55  ,18  ,40
+    .word 55  ,16  ,35  ,0   ,60  ,11  ,40
+    .word 33  ,9   ,35  ,0   ,55  ,16  ,40
+    .word 37  ,120 ,53  ,111 ,56  ,120 ,40
+    .word 23  ,110 ,32  ,90  ,53  ,111 ,40
+    .word 33  ,9   ,55  ,16  ,55  ,18  ,40
+    .word 24  ,25  ,33  ,9   ,55  ,18  ,40
+    .word 32  ,90  ,32  ,85  ,53  ,83  ,40
+    .word 37  ,120 ,23  ,110 ,53  ,111 ,40
+    .word 42  ,72  ,44  ,65  ,48  ,76  ,40
+    .word 32  ,85  ,48  ,76  ,53  ,83  ,40
+    .word 24  ,25  ,29  ,10  ,33  ,9   ,40
+    .word 24  ,52  ,24  ,25  ,45  ,47  ,40
+    .word 40  ,60  ,37  ,55  ,45  ,47  ,40
+    .word 32  ,85  ,42  ,72  ,48  ,76  ,40
+    .word 37  ,55  ,24  ,52  ,45  ,47  ,40
+    .word 42  ,72  ,40  ,60  ,44  ,65  ,40
+    .word 27  ,68  ,40  ,60  ,42  ,72  ,40
+    .word 32  ,85  ,27  ,68  ,42  ,72  ,40
+    .word 11  ,6   ,0   ,0   ,35  ,0   ,40
+    .word 27  ,68  ,37  ,55  ,40  ,60  ,40
+    .word 24  ,52  ,12  ,30  ,24  ,25  ,40
+    .word 27  ,86  ,27  ,68  ,32  ,85  ,40
+    .word 27  ,68  ,24  ,52  ,37  ,55  ,40
+    .word 0   ,120 ,23  ,110 ,37  ,120 ,40
+    .word 33  ,9   ,29  ,10  ,35  ,0   ,40
+    .word 29  ,10  ,11  ,6   ,35  ,0   ,40
+    .word 23  ,110 ,3   ,101 ,27  ,86  ,40
+    .word 23  ,110 ,27  ,86  ,32  ,90  ,40
+    .word 32  ,90  ,27  ,86  ,32  ,85  ,40
+    .word 8   ,109 ,3   ,101 ,23  ,110 ,40
+    .word 7   ,62  ,24  ,52  ,27  ,68  ,40
+    .word 0   ,69  ,27  ,68  ,27  ,86  ,40
+    .word 24  ,25  ,11  ,6   ,29  ,10  ,40
+    .word 0   ,120 ,8   ,109 ,23  ,110 ,40
+    .word 12  ,30  ,11  ,6   ,24  ,25  ,40
+    .word 0   ,69  ,7   ,62  ,27  ,68  ,40
+    .word 3   ,101 ,0   ,69  ,27  ,86  ,40
+    .word 0   ,12  ,11  ,6   ,12  ,30  ,40
+    .word 0   ,60  ,12  ,30  ,24  ,52  ,40
+    .word 7   ,62  ,0   ,60  ,24  ,52  ,40
+    .word 0   ,102 ,0   ,69  ,3   ,101 ,40
+    .word 0   ,114 ,3   ,109 ,8   ,109 ,40
+    .word 0   ,120 ,0   ,114 ,8   ,109 ,40
+    .word 0   ,12  ,0   ,11  ,11  ,6   ,40
+    .word 0   ,60  ,0   ,12  ,12  ,30  ,40
+    .word 0   ,11  ,0   ,0   ,11  ,6   ,40
+    .word 3   ,109 ,0   ,108 ,3   ,101 ,40
+    .word 3   ,109 ,3   ,101 ,8   ,109 ,40
+    .word 0   ,108 ,0   ,103 ,3   ,101 ,40
+    .word 0   ,69  ,0   ,60  ,7   ,62  ,40
+    .word 0   ,114 ,0   ,108 ,3   ,109 ,40
+    .word 0   ,103 ,0   ,102 ,3   ,101 ,40
+    .endif 
+   
+    
+    
     
     
 ; =========== FIXME: put this somewhere else! ==============

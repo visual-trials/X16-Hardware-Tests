@@ -53,8 +53,8 @@ def run():
     # replace '><' with '>\n<' and save as .svg
 
     # Using readlines()
-    # file1 = open('special_tests/textures/triangles_1.svg', 'r')
-    file1 = open('special_tests/textures/triangles_2.svg', 'r')
+    file1 = open('special_tests/textures/triangles_1.svg', 'r')
+    # file1 = open('special_tests/textures/triangles_2.svg', 'r')
     lines = file1.readlines()
     
     width = None
