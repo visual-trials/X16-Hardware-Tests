@@ -3,7 +3,7 @@ DO_SPEED_TEST = 1
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 0
+USE_UNROLLED_LOOP = 1
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = 0
 
@@ -79,8 +79,10 @@ LOAD_ADDRESS              = $32 ; 33
 STORE_ADDRESS             = $34 ; 35
 
 TABLE_ROM_BANK            = $36
+DRAW_LENGTH               = $37  ; for generating draw code
 
 TRIANGLE_INDEX            = $38
+
 
 ; Polygon filler
 NUMBER_OF_ROWS             = $39
@@ -144,6 +146,7 @@ VRAM_ADDRESS             = $90 ; 91 ; 92
 
 ; RAM addresses
 CLEAR_COLUMN_CODE        = $7000
+DRAW_ROW_64_CODE         = $B800
 
 ; Triangle data is (easely) accessed through an single index (0-255)
 ; == IMPORTANT: we assume a *clockwise* ordering of the 3 points of a triangle! ==
@@ -186,6 +189,11 @@ reset:
     .else
         jsr clear_screen_slow
     .endif
+    
+    .if(USE_UNROLLED_LOOP)
+        jsr generate_draw_row_64_code
+    .endif
+
     
     jsr generate_y_to_address_table
     
@@ -1648,34 +1656,73 @@ soft_polygon_fill_triangle_row_next:
     lda SOFT_X2+1
     sbc SOFT_X1+1
     sta FILL_LENGTH_HIGH
-    
-    ldx FILL_LENGTH_LOW
-    
-    ; FIXME: should we do this +1 here or inside of VERA? -> note: when x = 255, 256 pixels will be drawn (which is what we want right now)
-;    inx
 
-    ; If x = 0, we dont have to draw any pixels
-    beq soft_done_fill_triangle_pixel_0
+
+    .if(USE_UNROLLED_LOOP)
+        lda FILL_LENGTH_LOW
+        beq soft_done_fill_triangle_pixel_0  ; If FILL_LENGTH_LOW = 0, we dont have to draw any pixels
+        and #%00111111
+        beq soft_done_fill_triangle_pixel_0_still_64  ; If FILL_LENGTH_LOW[5:0] = 0, we dont have to draw any pixels
+        sta RAM_BANK
+        jsr DRAW_ROW_64_CODE
+        
+soft_done_fill_triangle_pixel_0_still_64:
+        lda FILL_LENGTH_LOW
+        and #%11000000
+        beq soft_done_fill_triangle_pixel_0  ; If FILL_LENGTH_LOW[7:6] = 0, we dont have to draw any pixels
+        
+        ; We need the two highest bits of FILL_LENGTH_LOW as the two lowest bits
+        stz TMP2
+        asl FILL_LENGTH_LOW
+        rol TMP2
+        asl FILL_LENGTH_LOW
+        rol TMP2
+        
+        ; We draw 64 pixels each time here
+        stz RAM_BANK
+        ldx TMP2
+soft_polygon_fill_triangle_pixel_next_64:
+        jsr DRAW_ROW_64_CODE
+        dex
+        bne soft_polygon_fill_triangle_pixel_next_64
+    .else
+        ldx FILL_LENGTH_LOW
+        
+        ; If FILL_LENGTH_LOW = 0, we dont have to draw any pixels
+        beq soft_done_fill_triangle_pixel_0
 soft_polygon_fill_triangle_pixel_next_0:    
-    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
-    sty VERA_DATA1
-    dex
-    bne soft_polygon_fill_triangle_pixel_next_0
+        ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
+        sty VERA_DATA1
+        dex
+        bne soft_polygon_fill_triangle_pixel_next_0
 
+    .endif
 soft_done_fill_triangle_pixel_0:
+    
     ; We draw an additional FILL_LENGTH_HIGH * 256 pixels on this row
     lda FILL_LENGTH_HIGH
     beq soft_polygon_fill_triangle_row_done
 
-    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
+    .if(USE_UNROLLED_LOOP)
 soft_polygon_fill_triangle_pixel_next_256:
-    ldx #0
+        stz RAM_BANK
+        jsr DRAW_ROW_64_CODE
+        jsr DRAW_ROW_64_CODE
+        jsr DRAW_ROW_64_CODE
+        jsr DRAW_ROW_64_CODE
+        dec FILL_LENGTH_HIGH
+        bne soft_polygon_fill_triangle_pixel_next_256
+    .else
+        ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
+soft_polygon_fill_triangle_pixel_next_256:
+        ldx #0
 soft_polygon_fill_triangle_pixel_next_256_0:
-    sty VERA_DATA1
-    dex
-    bne soft_polygon_fill_triangle_pixel_next_256_0
-    dec FILL_LENGTH_HIGH
-    bne soft_polygon_fill_triangle_pixel_next_256
+        sty VERA_DATA1
+        dex
+        bne soft_polygon_fill_triangle_pixel_next_256_0
+        dec FILL_LENGTH_HIGH
+        bne soft_polygon_fill_triangle_pixel_next_256
+    .endif
     
 soft_polygon_fill_triangle_row_done:
     
@@ -1775,36 +1822,78 @@ polygon_fill_triangle_row_next:
     rol FILL_LENGTH_HIGH
     ora FILL_LENGTH_LOW
     sta FILL_LENGTH_LOW
-    
-    ; FIXME: what if FILL_LENGTH_LOW/FILL_LENGTH_HIGH are 0 or NEGATIVE? -> OR deal with this on the VERA side?
-    
-    tax
-    
-    ; FIXME: should we do this +1 here or inside of VERA? -> note: when x = 255, 256 pixels will be drawn (which is what we want right now)
-;    inx
-    
-    ; If x = 0, we dont have to draw any pixels
-    beq done_fill_triangle_pixel_0
-polygon_fill_triangle_pixel_next_0:
-    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
-    sty VERA_DATA1
-    dex
-    bne polygon_fill_triangle_pixel_next_0
 
+    .if(USE_UNROLLED_LOOP)
+        lda FILL_LENGTH_LOW
+        beq done_fill_triangle_pixel_0  ; If FILL_LENGTH_LOW = 0, we dont have to draw any pixels
+        and #%00111111
+        beq done_fill_triangle_pixel_0_still_64  ; If FILL_LENGTH_LOW[5:0] = 0, we dont have to draw any pixels
+        sta RAM_BANK
+        jsr DRAW_ROW_64_CODE
+        
+done_fill_triangle_pixel_0_still_64:
+        lda FILL_LENGTH_LOW
+        and #%11000000
+        beq done_fill_triangle_pixel_0  ; If FILL_LENGTH_LOW[7:6] = 0, we dont have to draw any pixels
+        
+        ; We need the two highest bits of FILL_LENGTH_LOW as the two lowest bits
+        stz TMP2
+        asl FILL_LENGTH_LOW
+        rol TMP2
+        asl FILL_LENGTH_LOW
+        rol TMP2
+        
+        ; We draw 64 pixels each time here
+        stz RAM_BANK
+        ldx TMP2
+polygon_fill_triangle_pixel_next_64:
+        jsr DRAW_ROW_64_CODE
+        dex
+        bne polygon_fill_triangle_pixel_next_64
+    .else
+        
+        ; FIXME: what if FILL_LENGTH_LOW/FILL_LENGTH_HIGH are 0 or NEGATIVE? -> OR deal with this on the VERA side?
+        
+        tax
+        
+        ; FIXME: should we do this +1 here or inside of VERA? -> note: when x = 255, 256 pixels will be drawn (which is what we want right now)
+    ;    inx
+        
+        ; If x = 0, we dont have to draw any pixels
+        beq done_fill_triangle_pixel_0
+polygon_fill_triangle_pixel_next_0:
+        ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
+        sty VERA_DATA1
+        dex
+        bne polygon_fill_triangle_pixel_next_0
+
+    .endif
 done_fill_triangle_pixel_0:
+
     ; We draw an additional FILL_LENGTH_HIGH * 256 pixels on this row
     lda FILL_LENGTH_HIGH
     beq polygon_fill_triangle_row_done
 
-    ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
+    .if(USE_UNROLLED_LOOP)
 polygon_fill_triangle_pixel_next_256:
-    ldx #0
+        stz RAM_BANK
+        jsr DRAW_ROW_64_CODE
+        jsr DRAW_ROW_64_CODE
+        jsr DRAW_ROW_64_CODE
+        jsr DRAW_ROW_64_CODE
+        dec FILL_LENGTH_HIGH
+        bne polygon_fill_triangle_pixel_next_256
+    .else
+        ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
+polygon_fill_triangle_pixel_next_256:
+        ldx #0
 polygon_fill_triangle_pixel_next_256_0:
-    sty VERA_DATA1
-    dex
-    bne polygon_fill_triangle_pixel_next_256_0
-    dec FILL_LENGTH_HIGH
-    bne polygon_fill_triangle_pixel_next_256
+        sty VERA_DATA1
+        dex
+        bne polygon_fill_triangle_pixel_next_256_0
+        dec FILL_LENGTH_HIGH
+        bne polygon_fill_triangle_pixel_next_256
+    .endif
     
 polygon_fill_triangle_row_done:
     
@@ -1946,12 +2035,6 @@ generate_next_y_to_address_entry:
     
     cpy #240
     bne generate_next_y_to_address_entry
-
-    rts
-    
-    
-load_slopes_into_banked_ram:
-
 
     rts
     
@@ -2261,6 +2344,52 @@ clear_next_column_right_4_bytes:
     rts
 
 
+    
+generate_draw_row_64_code:
+
+    lda #64                 ; We start at draw length of 64 (we do this *instead* of draw length 0)
+    sta DRAW_LENGTH
+next_draw_64_length:
+    lda #<DRAW_ROW_64_CODE
+    sta CODE_ADDRESS
+    lda #>DRAW_ROW_64_CODE
+    sta CODE_ADDRESS+1
+    
+    ldy #0                 ; generated code byte counter
+    
+    lda DRAW_LENGTH
+    and #%00111111         ; if DRAW_LENGTH == 64, this will set RAM_BANK to 0
+    sta RAM_BANK
+    
+    ldx #0                 ; counts nr of draw instructions
+
+next_draw_64_instruction:
+
+    ; -- sty VERA_DATA1 ($9F24)
+    lda #$8C               ; sty ....
+    jsr add_code_byte
+
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    inx
+    cpx DRAW_LENGTH        ; draw pixels written to VERA
+    bne next_draw_64_instruction
+
+    ; -- rts --
+    lda #$60
+    jsr add_code_byte
+
+    dec DRAW_LENGTH
+    bne next_draw_64_length
+    
+    
+    rts
+
+    
     
 generate_clear_column_code:
 
