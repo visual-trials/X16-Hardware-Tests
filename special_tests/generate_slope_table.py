@@ -23,14 +23,30 @@ def run():
     
     slopes_column_0_low = []
     slopes_column_0_high = []
+    slopes_column_0_vhigh = []
     slopes_column_1_low = []
     slopes_column_1_high = []
+    slopes_column_1_vhigh = []
     slopes_column_2_low = []
     slopes_column_2_high = []
+    slopes_column_2_vhigh = []
     slopes_column_3_low = []
     slopes_column_3_high = []
+    slopes_column_3_vhigh = []
     slopes_column_4_low = []
     slopes_column_4_high = []
+    slopes_column_4_vhigh = []
+    
+    slopes_packed_column_0_low = []
+    slopes_packed_column_0_high = []
+    slopes_packed_column_1_low = []
+    slopes_packed_column_1_high = []
+    slopes_packed_column_2_low = []
+    slopes_packed_column_2_high = []
+    slopes_packed_column_3_low = []
+    slopes_packed_column_3_high = []
+    slopes_packed_column_4_low = []
+    slopes_packed_column_4_high = []
     
     for x in range(0, 320):
     # for x in range(0, 3):
@@ -57,28 +73,50 @@ def run():
             # FIXME: what exactly is the criteria for doing "times 32"?
             if (slope >= 64):
                 do_32_times = 1
-                slope = slope / 32
+                slope_packed = slope / 32
+            else:
+                slope_packed = slope
             
             slope_low = int((slope % 1) * 256)
             slope_high = int(slope % 256)
+            slope_vhigh = int((slope / 256) % 256)
+            
+            slope_packed_low = int((slope_packed % 1) * 256)
+            slope_packed_high = int(slope_packed % 256)
+            
             if (do_32_times):
-                slope_high += 128
+                slope_packed_high += 128   # setting bit7
             
             if (x < 1*64):
                 slopes_column_0_low.append(slope_low)
                 slopes_column_0_high.append(slope_high)
+                slopes_column_0_vhigh.append(slope_vhigh)
+                slopes_packed_column_0_low.append(slope_packed_low)
+                slopes_packed_column_0_high.append(slope_packed_high)
             elif (x < 2*64):
                 slopes_column_1_low.append(slope_low)
                 slopes_column_1_high.append(slope_high)
+                slopes_column_1_vhigh.append(slope_vhigh)
+                slopes_packed_column_1_low.append(slope_packed_low)
+                slopes_packed_column_1_high.append(slope_packed_high)
             elif (x < 3*64):
                 slopes_column_2_low.append(slope_low)
                 slopes_column_2_high.append(slope_high)
+                slopes_column_2_vhigh.append(slope_vhigh)
+                slopes_packed_column_2_low.append(slope_packed_low)
+                slopes_packed_column_2_high.append(slope_packed_high)
             elif (x < 4*64):
                 slopes_column_3_low.append(slope_low)
                 slopes_column_3_high.append(slope_high)
+                slopes_column_3_vhigh.append(slope_vhigh)
+                slopes_packed_column_3_low.append(slope_packed_low)
+                slopes_packed_column_3_high.append(slope_packed_high)
             else:
                 slopes_column_4_low.append(slope_low)
                 slopes_column_4_high.append(slope_high)
+                slopes_column_4_vhigh.append(slope_vhigh)
+                slopes_packed_column_4_low.append(slope_packed_low)
+                slopes_packed_column_4_high.append(slope_packed_high)
             
             
             # print('slope:' + str(x) + ":"+ str(y) + " -> " +str(slope_high) + "." + str(slope_low))
@@ -91,13 +129,18 @@ def run():
             
     #print(slopes_column_0_low)
     #print(slopes_column_0_high)
+    #print(slopes_column_0_vhigh)
         
     if(True):
+    
         tableFile = open("special_tests/tables/slopes_column_0_low.bin", "wb")
         tableFile.write(bytearray(slopes_column_0_low))
         tableFile.close()
         tableFile = open("special_tests/tables/slopes_column_0_high.bin", "wb")
         tableFile.write(bytearray(slopes_column_0_high))
+        tableFile.close()
+        tableFile = open("special_tests/tables/slopes_column_0_vhigh.bin", "wb")
+        tableFile.write(bytearray(slopes_column_0_vhigh))
         tableFile.close()
         
         tableFile = open("special_tests/tables/slopes_column_1_low.bin", "wb")
@@ -106,12 +149,18 @@ def run():
         tableFile = open("special_tests/tables/slopes_column_1_high.bin", "wb")
         tableFile.write(bytearray(slopes_column_1_high))
         tableFile.close()
+        tableFile = open("special_tests/tables/slopes_column_1_vhigh.bin", "wb")
+        tableFile.write(bytearray(slopes_column_1_vhigh))
+        tableFile.close()
         
         tableFile = open("special_tests/tables/slopes_column_2_low.bin", "wb")
         tableFile.write(bytearray(slopes_column_2_low))
         tableFile.close()
         tableFile = open("special_tests/tables/slopes_column_2_high.bin", "wb")
         tableFile.write(bytearray(slopes_column_2_high))
+        tableFile.close()
+        tableFile = open("special_tests/tables/slopes_column_2_vhigh.bin", "wb")
+        tableFile.write(bytearray(slopes_column_2_vhigh))
         tableFile.close()
         
         tableFile = open("special_tests/tables/slopes_column_3_low.bin", "wb")
@@ -120,12 +169,55 @@ def run():
         tableFile = open("special_tests/tables/slopes_column_3_high.bin", "wb")
         tableFile.write(bytearray(slopes_column_3_high))
         tableFile.close()
+        tableFile = open("special_tests/tables/slopes_column_3_vhigh.bin", "wb")
+        tableFile.write(bytearray(slopes_column_3_vhigh))
+        tableFile.close()
         
         tableFile = open("special_tests/tables/slopes_column_4_low.bin", "wb")
         tableFile.write(bytearray(slopes_column_4_low))
         tableFile.close()
         tableFile = open("special_tests/tables/slopes_column_4_high.bin", "wb")
         tableFile.write(bytearray(slopes_column_4_high))
+        tableFile.close()
+        tableFile = open("special_tests/tables/slopes_column_4_vhigh.bin", "wb")
+        tableFile.write(bytearray(slopes_column_4_vhigh))
+        tableFile.close()
+    
+    
+    
+        tableFile = open("special_tests/tables/slopes_packed_column_0_low.bin", "wb")
+        tableFile.write(bytearray(slopes_packed_column_0_low))
+        tableFile.close()
+        tableFile = open("special_tests/tables/slopes_packed_column_0_high.bin", "wb")
+        tableFile.write(bytearray(slopes_packed_column_0_high))
+        tableFile.close()
+        
+        tableFile = open("special_tests/tables/slopes_packed_column_1_low.bin", "wb")
+        tableFile.write(bytearray(slopes_packed_column_1_low))
+        tableFile.close()
+        tableFile = open("special_tests/tables/slopes_packed_column_1_high.bin", "wb")
+        tableFile.write(bytearray(slopes_packed_column_1_high))
+        tableFile.close()
+        
+        tableFile = open("special_tests/tables/slopes_packed_column_2_low.bin", "wb")
+        tableFile.write(bytearray(slopes_packed_column_2_low))
+        tableFile.close()
+        tableFile = open("special_tests/tables/slopes_packed_column_2_high.bin", "wb")
+        tableFile.write(bytearray(slopes_packed_column_2_high))
+        tableFile.close()
+        
+        tableFile = open("special_tests/tables/slopes_packed_column_3_low.bin", "wb")
+        tableFile.write(bytearray(slopes_packed_column_3_low))
+        tableFile.close()
+        tableFile = open("special_tests/tables/slopes_packed_column_3_high.bin", "wb")
+        tableFile.write(bytearray(slopes_packed_column_3_high))
+        tableFile.close()
+        
+        tableFile = open("special_tests/tables/slopes_packed_column_4_low.bin", "wb")
+        tableFile.write(bytearray(slopes_packed_column_4_low))
+        tableFile.close()
+        tableFile = open("special_tests/tables/slopes_packed_column_4_high.bin", "wb")
+        tableFile.write(bytearray(slopes_packed_column_4_high))
         tableFile.close()
     
         

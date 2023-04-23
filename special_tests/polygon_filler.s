@@ -1,8 +1,8 @@
 
 DO_SPEED_TEST = 1
 
-USE_POLYGON_FILLER = 0
-USE_SLOPE_TABLES = 0    ; FIXME: this doesnt work for non-polygon filler mode right now!
+USE_POLYGON_FILLER = 1
+USE_SLOPE_TABLES = 1
 USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = 0
@@ -189,11 +189,8 @@ reset:
     
     jsr generate_y_to_address_table
     
-    .if(USE_SLOPE_TABLES)
-        jsr copy_slope_table_copier_to_ram
-        jsr COPY_SLOPE_TABLES_TO_BANKED_RAM
-    .endif
-    
+    jsr copy_slope_table_copier_to_ram
+    jsr COPY_SLOPE_TABLES_TO_BANKED_RAM
     
     .if(DO_SPEED_TEST)
        jsr test_speed_of_filling_triangle
@@ -727,43 +724,89 @@ done_drawing_all_triangles:
     
 MACRO_get_slope_from_slope_table: .macro Y_DISTANCE, SLOPE
 
-    ; We get the SLOPE from the slope table. We need:
-    ;   y = Y_DISTANCE
-    ;   RAM_BANK = X_DISTANCE[5:0]
-    ;   ADDR_HIGH[3:1] = X_DISTANCE[8:6]
+    .if(USE_POLYGON_FILLER)
+        ; We get the SLOPE from the slope table. We need:
+        ;   y = Y_DISTANCE
+        ;   RAM_BANK = X_DISTANCE[5:0]
+        ;   LOAD_ADDR_HIGH[3:1] = X_DISTANCE[8:6]
+            
+        ldy \Y_DISTANCE
+
+        lda X_DISTANCE
+        and #%00111111
+        sta RAM_BANK
+
+        ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8)
+        asl X_DISTANCE
+        rol X_DISTANCE+1
+        asl X_DISTANCE
+        rol X_DISTANCE+1
         
-    ldy \Y_DISTANCE
+        ; We shift bits 8, 7 and 6 into bits 3, 2 and 1
+        asl X_DISTANCE+1
+        
+        ; We combine bits 3:1 with A0
+        lda #>($A000)
+        ora X_DISTANCE+1
+        sta LOAD_ADDRESS+1
+        
+        ; SPEED: we dont need to do this again and again, this stays at zero!
+        lda #<($A000)
+        sta LOAD_ADDRESS
+        
+        ; We load the SLOPE_LOW
+        lda (LOAD_ADDRESS), y
+        sta \SLOPE
+        
+        ; We load the SLOPE_HIGH
+        inc LOAD_ADDRESS+1
+        lda (LOAD_ADDRESS), y
+        sta \SLOPE+1
+    .else
+        ; We get the SLOPE from the slope table. We need:
+        ;   y = Y_DISTANCE
+        ;   RAM_BANK = X_DISTANCE[5:0]
+        ;   LOAD_ADDR_HIGH[4:2] = X_DISTANCE[8:6]
+            
+        ldy \Y_DISTANCE
 
-    lda X_DISTANCE
-    and #%00111111
-    sta RAM_BANK
+        lda X_DISTANCE
+        and #%00111111
+        sta RAM_BANK
 
-    ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8)
-    asl X_DISTANCE
-    rol X_DISTANCE+1
-    asl X_DISTANCE
-    rol X_DISTANCE+1
-    
-    ; We shift bits 8, 7 and 6 into bits 3, 2 and 1
-    asl X_DISTANCE+1
-    
-    ; We combine bits 3:1 with A0
-    lda #>($A000)
-    ora X_DISTANCE+1
-    sta LOAD_ADDRESS+1
-    
-    ; SPEED: we dont need to do this again and again, this stays at zero!
-    lda #<($A000)
-    sta LOAD_ADDRESS
-    
-    ; We load the SLOPE_LOW
-    lda (LOAD_ADDRESS), y
-    sta \SLOPE
-    
-    ; We load the SLOPE_HIGH
-    inc LOAD_ADDRESS+1
-    lda (LOAD_ADDRESS), y
-    sta \SLOPE+1
+        ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8)
+        asl X_DISTANCE
+        rol X_DISTANCE+1
+        asl X_DISTANCE
+        rol X_DISTANCE+1
+        
+        ; We shift bits 8, 7 and 6 into bits 4, 3 and 2
+        asl X_DISTANCE+1
+        asl X_DISTANCE+1
+        
+        ; We combine bits 4:2 with A0
+        lda #>($A000)
+        ora X_DISTANCE+1
+        sta LOAD_ADDRESS+1
+        
+        ; SPEED: we dont need to do this again and again, this stays at zero!
+        lda #<($A000)
+        sta LOAD_ADDRESS
+        
+        ; We load the SLOPE_LOW
+        lda (LOAD_ADDRESS), y
+        sta \SLOPE
+        
+        ; We load the SLOPE_HIGH
+        inc LOAD_ADDRESS+1
+        lda (LOAD_ADDRESS), y
+        sta \SLOPE+1
+        
+        ; We load the SLOPE_VHIGH
+        inc LOAD_ADDRESS+1
+        lda (LOAD_ADDRESS), y
+        sta \SLOPE+2
+    .endif
 .endmacro
 
 
@@ -1930,6 +1973,8 @@ copy_tables_to_banked_ram_byte:
 
     rts
     
+
+    .if(USE_POLYGON_FILLER)
     
 copy_slope_tables_to_banked_ram:
 
@@ -2001,6 +2046,81 @@ next_byte_to_copy_to_banked_ram:
    
     rts
 end_of_copy_slope_tables_to_banked_ram:
+
+    .else
+    
+copy_slope_tables_to_banked_ram:
+
+    ; We copy 15+5 tables (15 real, 5 dummy) to banked RAM, but we pack them in such a way that they are easily accessible
+
+    lda #1               ; Our first tables starts at ROM Bank 1
+    sta TABLE_ROM_BANK
+    
+next_table_to_copy:    
+    lda #<($C000)        ; Our source table starts at C000
+    sta LOAD_ADDRESS
+    lda #>($C000)
+    sta LOAD_ADDRESS+1
+
+    lda #<($A000)        ; We store at Ax00
+    sta STORE_ADDRESS
+    
+    clc
+    lda #>($A000)
+    adc TABLE_ROM_BANK
+    sec
+    sbc #1               ; since the TABLE_ROM_BANK starts at 1, we substract one from it
+    sta STORE_ADDRESS+1
+
+    ; Switching ROM BANK
+    lda TABLE_ROM_BANK
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+    
+        ldx #0                             ; x = x-coordinate (within a column of 64)
+next_x_to_copy_to_banked_ram:
+        ; Switching to RAM BANK x
+        stx RAM_BANK
+    ; FIXME: remove nop!
+        nop
+        
+        ldy #0                             ; y = y-coordinate (0-239)
+next_byte_to_copy_to_banked_ram:
+        lda (LOAD_ADDRESS), y
+        sta (STORE_ADDRESS), y
+        iny
+        cpy #240
+        bne next_byte_to_copy_to_banked_ram
+        
+        ; We increment LOAD_ADDRESS by 256 bytes to move to the next x  (there is 240 bytes of data + 16 bytes of padding for each x)
+        clc
+        lda LOAD_ADDRESS
+        adc #<256
+        sta LOAD_ADDRESS
+        lda LOAD_ADDRESS+1
+        adc #>256
+        sta LOAD_ADDRESS+1
+        
+        inx
+        cpx #64
+        bne next_x_to_copy_to_banked_ram
+
+    inc TABLE_ROM_BANK
+    lda TABLE_ROM_BANK
+    cmp #21               ; we go from 1-20 so we need to stop at 21
+    bne next_table_to_copy
+
+    ; Switching back to ROM bank 0
+    lda #$00
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+   
+    rts
+end_of_copy_slope_tables_to_banked_ram:
+    
+    .endif
 
     
     
@@ -2837,14 +2957,39 @@ irq:
     .word irq
 
     .if(USE_SLOPE_TABLES)
-    .binary "special_tests/tables/slopes_column_0_low.bin"
-    .binary "special_tests/tables/slopes_column_0_high.bin"
-    .binary "special_tests/tables/slopes_column_1_low.bin"
-    .binary "special_tests/tables/slopes_column_1_high.bin"
-    .binary "special_tests/tables/slopes_column_2_low.bin"
-    .binary "special_tests/tables/slopes_column_2_high.bin"
-    .binary "special_tests/tables/slopes_column_3_low.bin"
-    .binary "special_tests/tables/slopes_column_3_high.bin"
-    .binary "special_tests/tables/slopes_column_4_low.bin"
-    .binary "special_tests/tables/slopes_column_4_high.bin"
+        .if(USE_POLYGON_FILLER)
+            .binary "special_tests/tables/slopes_packed_column_0_low.bin"
+            .binary "special_tests/tables/slopes_packed_column_0_high.bin"
+            .binary "special_tests/tables/slopes_packed_column_1_low.bin"
+            .binary "special_tests/tables/slopes_packed_column_1_high.bin"
+            .binary "special_tests/tables/slopes_packed_column_2_low.bin"
+            .binary "special_tests/tables/slopes_packed_column_2_high.bin"
+            .binary "special_tests/tables/slopes_packed_column_3_low.bin"
+            .binary "special_tests/tables/slopes_packed_column_3_high.bin"
+            .binary "special_tests/tables/slopes_packed_column_4_low.bin"
+            .binary "special_tests/tables/slopes_packed_column_4_high.bin"
+        .else
+            ; FIXME: right now we include vhigh tables *TWICE*! The second time is a dummy include! (since we want all _low tables to be aligned with ROM_BANK % 4 == 1)
+            .binary "special_tests/tables/slopes_column_0_low.bin"
+            .binary "special_tests/tables/slopes_column_0_high.bin"
+            .binary "special_tests/tables/slopes_column_0_vhigh.bin"
+            .binary "special_tests/tables/slopes_column_0_vhigh.bin"
+            .binary "special_tests/tables/slopes_column_1_low.bin"
+            .binary "special_tests/tables/slopes_column_1_high.bin"
+            .binary "special_tests/tables/slopes_column_1_vhigh.bin"
+            .binary "special_tests/tables/slopes_column_1_vhigh.bin"
+            .binary "special_tests/tables/slopes_column_2_low.bin"
+            .binary "special_tests/tables/slopes_column_2_high.bin"
+            .binary "special_tests/tables/slopes_column_2_vhigh.bin"
+            .binary "special_tests/tables/slopes_column_2_vhigh.bin"
+            .binary "special_tests/tables/slopes_column_3_low.bin"
+            .binary "special_tests/tables/slopes_column_3_high.bin"
+            .binary "special_tests/tables/slopes_column_3_vhigh.bin"
+            .binary "special_tests/tables/slopes_column_3_vhigh.bin"
+            .binary "special_tests/tables/slopes_column_4_low.bin"
+            .binary "special_tests/tables/slopes_column_4_high.bin"
+            .binary "special_tests/tables/slopes_column_4_vhigh.bin"
+            .binary "special_tests/tables/slopes_column_4_vhigh.bin"
+        .endif
+        
     .endif
