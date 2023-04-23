@@ -128,22 +128,12 @@ def run():
         triangle = { "pt1": points[2], "pt2": points[1], "pt3": points[0], "clr_str": color_string, "clr" : clr_index }
         
         triangles.append(triangle)
-        print(triangle)
-    print(all_colors)
-    print(len(triangles))
-    print(width)
-    print(height)
-    
+        
     offset_x = - min_x
     scale_x = 280 / (max_x - min_x)
     offset_y = - min_y
     scale_y = 120 / (max_y - min_y)
     
-    print(min_x)
-    print(max_x)
-    print(min_y)
-    print(max_y)
-
     for triangle_index in range(0, len(triangles)):
         tri = triangles[triangle_index]
 
@@ -178,6 +168,36 @@ def run():
         pygame.display.update()
             
     # print(triangles)
+    
+    
+    paletteString = ""
+    
+    print('pallette_data:')
+    for color in all_colors:
+        if (color is None):
+            continue
+        blue = color["color"][0]
+        blue = blue & 0xF0
+        blue = blue >> 4
+        # print(hex(blue))
+        
+        green = color["color"][1]
+        green = green & 0xF0
+        # print(hex(green))
+        # print(format(blue | green,"02x"))
+        
+        red = color["color"][2]
+        red = red & 0xF0
+        red = red >> 4
+        # print(format(red,"02x"))
+        paletteString += "    .byte "
+        paletteString += "$" + format(green | blue,"02x") + ", "
+        paletteString += "$" + format(red,"02x")
+        paletteString += "  ; palette index " + str(color["index"])
+        paletteString += "\n"
+    paletteString += "end_of_palette_data:\n"
+    print(paletteString)
+    print('')
     
     print('NR_OF_TRIANGLES = ' + str(len(triangles)))
     print('triangle_data:')

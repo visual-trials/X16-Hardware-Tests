@@ -171,6 +171,8 @@ reset:
     jsr clear_tilemap_screen
     jsr init_cursor
     jsr init_timer
+    
+    jsr copy_palette_from_index_16
 
     .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
         jsr generate_clear_column_code
@@ -557,7 +559,46 @@ triangle_data:
     .word 0   ,70  ,0   ,60  ,13  ,75  ,23
     .word 0   ,116 ,0   ,92  ,10  ,111 ,46
 
-    
+palette_data:
+    .byte $c8, $08  ; palette index 16
+    .byte $c7, $09  ; palette index 17
+    .byte $c9, $07  ; palette index 18
+    .byte $a6, $06  ; palette index 19
+    .byte $fd, $0a  ; palette index 20
+    .byte $a6, $07  ; palette index 21
+    .byte $b9, $07  ; palette index 22
+    .byte $fb, $0c  ; palette index 23
+    .byte $74, $03  ; palette index 24
+    .byte $ff, $0f  ; palette index 25
+    .byte $95, $05  ; palette index 26
+    .byte $85, $04  ; palette index 27
+    .byte $b6, $07  ; palette index 28
+    .byte $b8, $07  ; palette index 29
+    .byte $ec, $09  ; palette index 30
+    .byte $db, $08  ; palette index 31
+    .byte $fe, $0b  ; palette index 32
+    .byte $e8, $0c  ; palette index 33
+    .byte $f9, $0d  ; palette index 34
+    .byte $b8, $08  ; palette index 35
+    .byte $b7, $07  ; palette index 36
+    .byte $d8, $0b  ; palette index 37
+    .byte $f9, $0e  ; palette index 38
+    .byte $d9, $09  ; palette index 39
+    .byte $d8, $0a  ; palette index 40
+    .byte $e8, $0b  ; palette index 41
+    .byte $fa, $0f  ; palette index 42
+    .byte $b7, $08  ; palette index 43
+    .byte $ea, $0b  ; palette index 44
+    .byte $fa, $0d  ; palette index 45
+    .byte $e9, $0b  ; palette index 46
+    .byte $a7, $06  ; palette index 47
+    .byte $d9, $0a  ; palette index 48
+    .byte $fa, $0c  ; palette index 49
+    .byte $c7, $0a  ; palette index 50
+    .byte $a7, $05  ; palette index 51
+    .byte $fc, $0f  ; palette index 52
+end_of_palette_data:
+
    
 load_triangle_data_into_ram:
 
@@ -2362,6 +2403,29 @@ done_adding_code_byte:
 
 
     
+    
+copy_palette_from_index_16:
+
+    ; Starting at palette VRAM address
+
+    lda #%00010001      ; setting bit 16 of vram address to 1, setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+
+    lda #<(VERA_PALETTE+2*16)
+    sta VERA_ADDR_LOW
+    lda #>(VERA_PALETTE+2*16)
+    sta VERA_ADDR_HIGH
+
+    ldy #0
+next_packed_color:
+    lda palette_data, y
+    sta VERA_DATA0
+    iny
+    cpy #(end_of_palette_data-palette_data)
+    bne next_packed_color
+
+    rts
+
     
     
 ; =========== FIXME: put this somewhere else! ==============
