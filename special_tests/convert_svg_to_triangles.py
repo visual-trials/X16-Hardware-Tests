@@ -53,7 +53,8 @@ def run():
     # replace '><' with '>\n<' and save as .svg
 
     # Using readlines()
-    file1 = open('special_tests/textures/triangles_1.svg', 'r')
+    # file1 = open('special_tests/textures/triangles_1.svg', 'r')
+    file1 = open('special_tests/textures/triangles_2.svg', 'r')
     lines = file1.readlines()
     
     width = None
@@ -172,11 +173,11 @@ def run():
     
     paletteString = ""
     
-    print('pallette_data:')
+    print('palette_data:')
     for color in all_colors:
         if (color is None):
             continue
-        blue = color["color"][0]
+        blue = color["color"][2]
         blue = blue & 0xF0
         blue = blue >> 4
         # print(hex(blue))
@@ -186,7 +187,7 @@ def run():
         # print(hex(green))
         # print(format(blue | green,"02x"))
         
-        red = color["color"][2]
+        red = color["color"][0]
         red = red & 0xF0
         red = red >> 4
         # print(format(red,"02x"))
