@@ -1,8 +1,8 @@
 
 DO_SPEED_TEST = 1
 
-USE_POLYGON_FILLER = 0
-USE_SLOPE_TABLES = 0    ; FIXME: this doesnt work for non-polygon filler mode right now!
+USE_POLYGON_FILLER = 1
+USE_SLOPE_TABLES = 1    ; FIXME: this doesnt work for non-polygon filler mode right now!
 USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = 0
@@ -1412,14 +1412,6 @@ slope_right_left_is_correctly_signed:
         
         ldy TRIANGLE_COLOR      ; We use y as color
         
-; FIXME: for now we are resetting these here. Is this correct?
-; FIXME: for now we are resetting these here. Is this correct?
-; FIXME: for now we are resetting these here. Is this correct?
-;        stz SOFT_X1_INCR_SUB
-;        stz SOFT_X1_INCR+1
-;        stz SOFT_X2_INCR_SUB
-;        stz SOFT_X2_INCR+1
-        
     .endif
 
 
@@ -1458,8 +1450,8 @@ first_left_point_is_lower_in_y:
         lda #%00000110           ; DCSEL=3, ADDRSEL=0
         sta VERA_CTRL
         
-    ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
-        
+        ; Note: this *implicitly* resets the X1 subpixel position, which is what we want, since we start a new line/side of the triangle
+    
         ; NOTE that these increments are *HALF* steps!!
         lda SLOPE_RIGHT_LEFT     ; X1 increment low
         sta $9F29
@@ -1484,8 +1476,8 @@ first_right_point_is_lower_in_y:
         lda #%00000110           ; DCSEL=3, ADDRSEL=0
         sta VERA_CTRL
         
-    ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
-        
+        ; Note: this *implicitly* resets the X2 subpixel position, which is what we want, since we start a new line/side of the triangle
+    
         ; NOTE that these increments are *HALF* steps!!
         lda SLOPE_RIGHT_LEFT     ; X2 increment low
         sta $9F2B                
@@ -1517,7 +1509,10 @@ soft_first_left_point_is_lower_in_y:
         beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
         sta NUMBER_OF_ROWS
         
-    ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
+        ; We reset the X1 subpixel position here too, since we start a new line/side of the triangle
+        stz SOFT_X1_SUB          ; Reset subpixel position X1 [0]
+        lda #(256>>1)            ; Half a pixel
+        sta SOFT_X1_SUB+1        ; Reset subpixel position X1 [8:1]
         
         ; NOTE that these increments are *HALF* steps!!
         MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_RIGHT_LEFT, SOFT_X1_INCR, SOFT_X1_INCR_SUB
@@ -1537,7 +1532,10 @@ soft_first_right_point_is_lower_in_y:
         beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
         sta NUMBER_OF_ROWS
         
-    ; FIXME: dont you want to be able to reset the subpixel position here too? Or is that not really what you want here? Do you do that *only* when you set the pixel position?
+        ; We reset the X2 subpixel position here too, since we start a new line/side of the triangle
+        stz SOFT_X2_SUB          ; Reset subpixel position X2 [0]
+        lda #(256>>1)            ; Half a pixel
+        sta SOFT_X2_SUB+1        ; Reset subpixel position X2 [8:1]
         
         ; NOTE that these increments are *HALF* steps!!
         MACRO_copy_slope_to_soft_incr_and_shift_right SLOPE_RIGHT_LEFT, SOFT_X2_INCR, SOFT_X2_INCR_SUB
@@ -1699,14 +1697,6 @@ slope_right_bottom_is_correctly_signed:
         sta SOFT_Y+1
         
         ldy TRIANGLE_COLOR      ; We use y as color
-        
-; FIXME: for now we are resetting these here. Is this correct?
-; FIXME: for now we are resetting these here. Is this correct?
-; FIXME: for now we are resetting these here. Is this correct?
-;        stz SOFT_X1_INCR_SUB
-;        stz SOFT_X1_INCR+1
-;        stz SOFT_X2_INCR_SUB
-;        stz SOFT_X2_INCR+1
         
     .endif
 
