@@ -475,16 +475,35 @@ test_speed_of_filling_triangle:
     rts
 
     
-MACRO_copy_point .macro TRIANGLES_POINT_X, POINT_X
+MACRO_copy_point_x .macro TRIANGLES_POINT_X, POINT_X
     lda \TRIANGLES_POINT_X, x
     sta \POINT_X
     lda \TRIANGLES_POINT_X+256, x
     sta \POINT_X+1
 .endmacro
 
+MACRO_copy_point_y .macro TRIANGLES_POINT_Y, POINT_Y
+    lda \TRIANGLES_POINT_Y, x
+    sta \POINT_Y
+;    lda \TRIANGLES_POINT_Y+256, x
+;    sta \POINT_Y+1
+.endmacro
+
     
 draw_many_triangles_in_a_rectangle:
+
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    sta VERA_CTRL
+
+    ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
+    lda #%00000011
+    sta $9F29
     
+    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+    sta VERA_ADDR_BANK
+    
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
     
     ; Loop though a series of 3-points:
     ;   check which type of triangle this is (single top-point or double top-point_
@@ -502,10 +521,10 @@ draw_next_triangle:
     
     ; -- Determining which point is/are top point(s) --
 
-    lda TRIANGLES_POINT1_Y+256, x
-    cmp TRIANGLES_POINT2_Y+256, x
-    bcc point1_is_lower_in_y_than_point2
-    bne point1_is_higher_in_y_than_point2
+;    lda TRIANGLES_POINT1_Y+256, x
+;    cmp TRIANGLES_POINT2_Y+256, x
+;    bcc point1_is_lower_in_y_than_point2
+;    bne point1_is_higher_in_y_than_point2
 
     lda TRIANGLES_POINT1_Y, x
     cmp TRIANGLES_POINT2_Y, x
@@ -515,10 +534,10 @@ draw_next_triangle:
     
 point1_is_lower_in_y_than_point2:
     
-    lda TRIANGLES_POINT1_Y+256, x
-    cmp TRIANGLES_POINT3_Y+256, x
-    bcc pt1_lower_pt2_point1_is_lower_in_y_than_point3
-    bne pt1_lower_pt2_point1_is_higher_in_y_than_point3
+;    lda TRIANGLES_POINT1_Y+256, x
+;    cmp TRIANGLES_POINT3_Y+256, x
+;    bcc pt1_lower_pt2_point1_is_lower_in_y_than_point3
+;    bne pt1_lower_pt2_point1_is_higher_in_y_than_point3
 
     lda TRIANGLES_POINT1_Y, x
     cmp TRIANGLES_POINT3_Y, x
@@ -544,10 +563,10 @@ pt1_lower_pt2_point1_is_the_same_in_y_as_point3:
     
 point1_is_higher_in_y_than_point2:
 
-    lda TRIANGLES_POINT2_Y+256, x
-    cmp TRIANGLES_POINT3_Y+256, x
-    bcc pt1_higher_pt2_point2_is_lower_in_y_than_point3
-    bne pt1_higher_pt2_point2_is_higher_in_y_than_point3
+;    lda TRIANGLES_POINT2_Y+256, x
+;    cmp TRIANGLES_POINT3_Y+256, x
+;    bcc pt1_higher_pt2_point2_is_lower_in_y_than_point3
+;    bne pt1_higher_pt2_point2_is_higher_in_y_than_point3
 
     lda TRIANGLES_POINT2_Y, x
     cmp TRIANGLES_POINT3_Y, x
@@ -573,10 +592,10 @@ pt1_higher_pt2_point2_is_the_same_in_y_as_point3:
     
 point1_is_the_same_in_y_as_point2:
 
-    lda TRIANGLES_POINT1_Y+256, x
-    cmp TRIANGLES_POINT3_Y+256, x
-    bcc pt1_same_pt2_point1_is_lower_in_y_than_point3
-    bne pt1_same_pt2_point1_is_higher_in_y_than_point3
+;    lda TRIANGLES_POINT1_Y+256, x
+;    cmp TRIANGLES_POINT3_Y+256, x
+;    bcc pt1_same_pt2_point1_is_lower_in_y_than_point3
+;    bne pt1_same_pt2_point1_is_higher_in_y_than_point3
 
     lda TRIANGLES_POINT1_Y, x
     cmp TRIANGLES_POINT3_Y, x
@@ -603,16 +622,16 @@ pt1_same_pt2_point1_is_the_same_in_y_as_point3:
 point1_is_top_point:
 
     ; -- TOP POINT --
-    MACRO_copy_point TRIANGLES_POINT1_X, TOP_POINT_X
-    MACRO_copy_point TRIANGLES_POINT1_Y, TOP_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT1_X, TOP_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT1_Y, TOP_POINT_Y
 
     ; -- RIGHT POINT --
-    MACRO_copy_point TRIANGLES_POINT2_X, RIGHT_POINT_X
-    MACRO_copy_point TRIANGLES_POINT2_Y, RIGHT_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT2_X, RIGHT_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT2_Y, RIGHT_POINT_Y
     
     ; -- LEFT POINT --
-    MACRO_copy_point TRIANGLES_POINT3_X, LEFT_POINT_X
-    MACRO_copy_point TRIANGLES_POINT3_Y, LEFT_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT3_X, LEFT_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT3_Y, LEFT_POINT_Y
 
     jmp draw_triangle_with_single_top_point
 
@@ -620,80 +639,80 @@ point1_is_top_point:
 point2_is_top_point:
     
     ; -- TOP POINT --
-    MACRO_copy_point TRIANGLES_POINT2_X, TOP_POINT_X
-    MACRO_copy_point TRIANGLES_POINT2_Y, TOP_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT2_X, TOP_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT2_Y, TOP_POINT_Y
 
     ; -- RIGHT POINT --
-    MACRO_copy_point TRIANGLES_POINT3_X, RIGHT_POINT_X
-    MACRO_copy_point TRIANGLES_POINT3_Y, RIGHT_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT3_X, RIGHT_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT3_Y, RIGHT_POINT_Y
     
     ; -- LEFT POINT --
-    MACRO_copy_point TRIANGLES_POINT1_X, LEFT_POINT_X
-    MACRO_copy_point TRIANGLES_POINT1_Y, LEFT_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT1_X, LEFT_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT1_Y, LEFT_POINT_Y
 
     jmp draw_triangle_with_single_top_point
 
 point3_is_top_point:
 
     ; -- TOP POINT --
-    MACRO_copy_point TRIANGLES_POINT3_X, TOP_POINT_X
-    MACRO_copy_point TRIANGLES_POINT3_Y, TOP_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT3_X, TOP_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT3_Y, TOP_POINT_Y
 
     ; -- RIGHT POINT --
-    MACRO_copy_point TRIANGLES_POINT1_X, RIGHT_POINT_X
-    MACRO_copy_point TRIANGLES_POINT1_Y, RIGHT_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT1_X, RIGHT_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT1_Y, RIGHT_POINT_Y
     
     ; -- LEFT POINT --
-    MACRO_copy_point TRIANGLES_POINT2_X, LEFT_POINT_X
-    MACRO_copy_point TRIANGLES_POINT2_Y, LEFT_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT2_X, LEFT_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT2_Y, LEFT_POINT_Y
 
     jmp draw_triangle_with_single_top_point
 
 point1_and_point2_are_top_points:
 
     ; -- LEFT POINT --
-    MACRO_copy_point TRIANGLES_POINT1_X, LEFT_POINT_X
-    MACRO_copy_point TRIANGLES_POINT1_Y, LEFT_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT1_X, LEFT_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT1_Y, LEFT_POINT_Y
 
     ; -- RIGHT POINT --
-    MACRO_copy_point TRIANGLES_POINT2_X, RIGHT_POINT_X
-    MACRO_copy_point TRIANGLES_POINT2_Y, RIGHT_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT2_X, RIGHT_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT2_Y, RIGHT_POINT_Y
 
     ; -- BOTTOM POINT --
-    MACRO_copy_point TRIANGLES_POINT3_X, BOTTOM_POINT_X
-    MACRO_copy_point TRIANGLES_POINT3_Y, BOTTOM_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT3_X, BOTTOM_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT3_Y, BOTTOM_POINT_Y
     
     jmp draw_triangle_with_double_top_points
 
 point2_and_point3_are_top_points:
 
     ; -- LEFT POINT --
-    MACRO_copy_point TRIANGLES_POINT2_X, LEFT_POINT_X
-    MACRO_copy_point TRIANGLES_POINT2_Y, LEFT_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT2_X, LEFT_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT2_Y, LEFT_POINT_Y
 
     ; -- RIGHT POINT --
-    MACRO_copy_point TRIANGLES_POINT3_X, RIGHT_POINT_X
-    MACRO_copy_point TRIANGLES_POINT3_Y, RIGHT_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT3_X, RIGHT_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT3_Y, RIGHT_POINT_Y
 
     ; -- BOTTOM POINT --
-    MACRO_copy_point TRIANGLES_POINT1_X, BOTTOM_POINT_X
-    MACRO_copy_point TRIANGLES_POINT1_Y, BOTTOM_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT1_X, BOTTOM_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT1_Y, BOTTOM_POINT_Y
     
     jmp draw_triangle_with_double_top_points
 
 point3_and_point1_are_top_points:
     
     ; -- LEFT POINT --
-    MACRO_copy_point TRIANGLES_POINT3_X, LEFT_POINT_X
-    MACRO_copy_point TRIANGLES_POINT3_Y, LEFT_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT3_X, LEFT_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT3_Y, LEFT_POINT_Y
 
     ; -- RIGHT POINT --
-    MACRO_copy_point TRIANGLES_POINT1_X, RIGHT_POINT_X
-    MACRO_copy_point TRIANGLES_POINT1_Y, RIGHT_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT1_X, RIGHT_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT1_Y, RIGHT_POINT_Y
 
     ; -- BOTTOM POINT --
-    MACRO_copy_point TRIANGLES_POINT2_X, BOTTOM_POINT_X
-    MACRO_copy_point TRIANGLES_POINT2_Y, BOTTOM_POINT_Y
+    MACRO_copy_point_x TRIANGLES_POINT2_X, BOTTOM_POINT_X
+    MACRO_copy_point_y TRIANGLES_POINT2_Y, BOTTOM_POINT_Y
     
     jmp draw_triangle_with_double_top_points
 
@@ -830,7 +849,8 @@ MACRO_calculate_slope_using_division: .macro Y_DISTANCE, SLOPE
 
     lda #0
     sta DIVISOR+2
-    lda \Y_DISTANCE+1
+    lda #0
+;    lda \Y_DISTANCE+1
     sta DIVISOR+1
     lda \Y_DISTANCE
     sta DIVISOR
@@ -888,7 +908,7 @@ MACRO_calculate_slope_using_division: .macro Y_DISTANCE, SLOPE
 .endmacro
 
 
-MACRO_subtract_and_make_positive .macro POSITION_A, POSITION_B, DISTANCE, DISTANCE_IS_NEGATED
+MACRO_subtract_and_make_positive_x .macro POSITION_A, POSITION_B, DISTANCE, DISTANCE_IS_NEGATED
     
     stz \DISTANCE_IS_NEGATED
     
@@ -919,7 +939,32 @@ MACRO_subtract_and_make_positive .macro POSITION_A, POSITION_B, DISTANCE, DISTAN
 .endmacro
 
 
-MACRO_subtract .macro POSITION_A, POSITION_B, DISTANCE
+MACRO_subtract_and_make_positive_y .macro POSITION_A, POSITION_B, DISTANCE, DISTANCE_IS_NEGATED
+    
+    stz \DISTANCE_IS_NEGATED
+    
+    ; We subtract: DISTANCE: POSITION_A - POSITION_B
+    sec
+    lda \POSITION_A
+    sbc \POSITION_B
+    sta \DISTANCE
+    bpl \@distance_is_positive
+    
+    lda #1
+    sta \DISTANCE_IS_NEGATED
+
+    ; We negate the DISTANCE
+    sec
+    lda #0
+    sbc \DISTANCE
+    sta \DISTANCE
+    
+\@distance_is_positive:
+
+.endmacro
+
+
+MACRO_subtract_x .macro POSITION_A, POSITION_B, DISTANCE
 
     ; We subtract: DISTANCE: POSITION_A - POSITION_B
     sec
@@ -931,6 +976,20 @@ MACRO_subtract .macro POSITION_A, POSITION_B, DISTANCE
     sta \DISTANCE+1
 
 .endmacro
+
+MACRO_subtract_y .macro POSITION_A, POSITION_B, DISTANCE
+
+    ; We subtract: DISTANCE: POSITION_A - POSITION_B
+    sec
+    lda \POSITION_A
+    sbc \POSITION_B
+    sta \DISTANCE
+;    lda \POSITION_A+1
+;    sbc \POSITION_B+1
+;    sta \DISTANCE+1
+
+.endmacro
+
 
 MACRO_negate_slope .macro SLOPE
     
@@ -1093,11 +1152,11 @@ draw_triangle_with_single_top_point:
     
     ; We subtract: X_DISTANCE: LEFT_POINT_X - TOP_POINT_X
     
-    MACRO_subtract_and_make_positive LEFT_POINT_X, TOP_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
+    MACRO_subtract_and_make_positive_x LEFT_POINT_X, TOP_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
     
     ; We subtract: Y_DISTANCE_LEFT_TOP: LEFT_POINT_Y - TOP_POINT_Y
     
-    MACRO_subtract LEFT_POINT_Y, TOP_POINT_Y, Y_DISTANCE_LEFT_TOP
+    MACRO_subtract_y LEFT_POINT_Y, TOP_POINT_Y, Y_DISTANCE_LEFT_TOP
     
     ; Note: since we know the top point has a lower y than the left point, there is no need to negate it!
     
@@ -1119,11 +1178,11 @@ slope_top_left_is_correctly_signed:
 
     ; We subtract: X_DISTANCE: RIGHT_POINT_X - TOP_POINT_X
     
-    MACRO_subtract_and_make_positive RIGHT_POINT_X, TOP_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED    
+    MACRO_subtract_and_make_positive_x RIGHT_POINT_X, TOP_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED    
     
     ; We subtract: Y_DISTANCE_RIGHT_TOP: RIGHT_POINT_Y - TOP_POINT_Y
     
-    MACRO_subtract RIGHT_POINT_Y, TOP_POINT_Y, Y_DISTANCE_RIGHT_TOP
+    MACRO_subtract_y RIGHT_POINT_Y, TOP_POINT_Y, Y_DISTANCE_RIGHT_TOP
     
     ; Note: since we know the top point has a lower y than the right point, there is no need to negate it!
     
@@ -1144,11 +1203,11 @@ slope_top_right_is_correctly_signed:
 
     ; We subtract: X_DISTANCE: RIGHT_POINT_X - LEFT_POINT_X
     
-    MACRO_subtract_and_make_positive RIGHT_POINT_X, LEFT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
+    MACRO_subtract_and_make_positive_x RIGHT_POINT_X, LEFT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
 
     ; We subtract: Y_DISTANCE_RIGHT_LEFT: RIGHT_POINT_Y - LEFT_POINT_Y
     
-    MACRO_subtract_and_make_positive RIGHT_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_RIGHT_LEFT, Y_DISTANCE_IS_NEGATED
+    MACRO_subtract_and_make_positive_y RIGHT_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_RIGHT_LEFT, Y_DISTANCE_IS_NEGATED
     
     .if(USE_SLOPE_TABLES)
         MACRO_get_slope_from_slope_table Y_DISTANCE_RIGHT_LEFT, SLOPE_RIGHT_LEFT
@@ -1181,23 +1240,15 @@ slope_right_left_is_correctly_signed:
     .if(USE_POLYGON_FILLER)
         ; Setting up for drawing a polygon, setting both addresses at the same starting point
 
-        lda #%00000100           ; DCSEL=2, ADDRSEL=0
-        sta VERA_CTRL
-        
         .if(USE_Y_TO_ADDRESS_TABLE)
             MACRO_set_address_using_y2address_table TOP_POINT_Y
         .else
             MACRO_set_address_using_multiplication TOP_POINT_Y
         .endif
     
-        ; SPEED: we should do this *much* earlier and not for every triangle!
-        ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
-        lda #%00000011
-        sta $9F29
-        
         ; Setting x1 and x2 pixel position
         
-        lda #%00001001           ; DCSEL=4, ADDRSEL=1
+        lda #%00001000           ; DCSEL=4, ADDRSEL=0
         sta VERA_CTRL
         
         lda TOP_POINT_X
@@ -1211,9 +1262,6 @@ slope_right_left_is_correctly_signed:
         ora #%00100000           ; Reset subpixel position
         sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
-        ; SPEED: we should do this *much* earlier and not for every triangle!
-        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-        sta VERA_ADDR_BANK
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
     
         ldy TRIANGLE_COLOR      ; We use y as color
@@ -1223,7 +1271,7 @@ slope_right_left_is_correctly_signed:
         
         ; Note: without the polygon filler helper we *only* use ADDR1, not ADDR0
 
-        lda #%00000001           ; DCSEL=0, ADDRSEL=1
+        lda #%00000000           ; DCSEL=0, ADDRSEL=0
         sta VERA_CTRL
 
         ; Setting starting (sub)pixel position X1 and X2
@@ -1421,11 +1469,11 @@ draw_triangle_with_double_top_points:
     
     ; We subtract: X_DISTANCE:  BOTTOM_POINT_X - LEFT_POINT_X
     
-    MACRO_subtract_and_make_positive BOTTOM_POINT_X, LEFT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
+    MACRO_subtract_and_make_positive_x BOTTOM_POINT_X, LEFT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
     
     ; We subtract: Y_DISTANCE_BOTTOM_LEFT: BOTTOM_POINT_Y - LEFT_POINT_Y
     
-    MACRO_subtract BOTTOM_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_BOTTOM_LEFT
+    MACRO_subtract_y BOTTOM_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_BOTTOM_LEFT
     
     ; Note: since we know the left point has a lower y than the bottom point, there is no need to negate it!
     
@@ -1447,11 +1495,11 @@ slope_left_bottom_is_correctly_signed:
 
     ; We subtract: X_DISTANCE: BOTTOM_POINT_X - RIGHT_POINT_X
     
-    MACRO_subtract_and_make_positive BOTTOM_POINT_X, RIGHT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED    
+    MACRO_subtract_and_make_positive_x BOTTOM_POINT_X, RIGHT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED    
     
     ; We subtract: Y_DISTANCE_BOTTOM_RIGHT: BOTTOM_POINT_Y - RIGHT_POINT_Y
     
-    MACRO_subtract BOTTOM_POINT_Y, RIGHT_POINT_Y, Y_DISTANCE_BOTTOM_RIGHT
+    MACRO_subtract_y BOTTOM_POINT_Y, RIGHT_POINT_Y, Y_DISTANCE_BOTTOM_RIGHT
     
     ; Note: since we know the right point has a lower y than the bottom point, there is no need to negate it!
     
@@ -1473,23 +1521,15 @@ slope_right_bottom_is_correctly_signed:
     .if(USE_POLYGON_FILLER)
         ; Setting up for drawing a polygon, setting both addresses at the same starting point
 
-        lda #%00000100           ; DCSEL=2, ADDRSEL=0
-        sta VERA_CTRL
-        
         .if(USE_Y_TO_ADDRESS_TABLE)
             MACRO_set_address_using_y2address_table LEFT_POINT_Y
         .else
             MACRO_set_address_using_multiplication LEFT_POINT_Y
         .endif
     
-        ; SPEED: we should do this *much* earlier and not for every triangle!
-        ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
-        lda #%00000011
-        sta $9F29
-        
         ; Setting x1 and x2 pixel position
         
-        lda #%00001001           ; DCSEL=4, ADDRSEL=1
+        lda #%00001000           ; DCSEL=4, ADDRSEL=0
         sta VERA_CTRL
         
         lda LEFT_POINT_X
@@ -1505,9 +1545,6 @@ slope_right_bottom_is_correctly_signed:
         ora #%00100000           ; Reset subpixel position
         sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
-        ; SPEED: we should do this *much* earlier and not for every triangle!
-        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-        sta VERA_ADDR_BANK
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
     
         ldy TRIANGLE_COLOR      ; We use y as color
@@ -1517,7 +1554,7 @@ slope_right_bottom_is_correctly_signed:
         
         ; Note: without the polygon filler helper we *only* use ADDR1, not ADDR0
 
-        lda #%00000001           ; DCSEL=0, ADDRSEL=1
+        lda #%00000000           ; DCSEL=0, ADDRSEL=0
         sta VERA_CTRL
 
         ; Setting starting (sub)pixel position X1 and X2
@@ -1639,7 +1676,7 @@ soft_polygon_fill_triangle_row_next:
         MACRO_set_address_using_multiplication_and_point_x SOFT_Y, SOFT_X1
     .endif
     
-;    sty VERA_DATA1
+;    sty VERA_DATA0
 ;    
 ;    .if(USE_Y_TO_ADDRESS_TABLE)
 ;        MACRO_set_address_using_y2address_table_and_point_x SOFT_Y, SOFT_X2
@@ -1647,7 +1684,7 @@ soft_polygon_fill_triangle_row_next:
 ;        MACRO_set_address_using_multiplication_and_point_x SOFT_Y, SOFT_X2
 ;    .endif
 ;    
-;    sty VERA_DATA1
+;    sty VERA_DATA0
     
     sec
     lda SOFT_X2
@@ -1692,7 +1729,7 @@ soft_polygon_fill_triangle_pixel_next_64:
         beq soft_done_fill_triangle_pixel_0
 soft_polygon_fill_triangle_pixel_next_0:    
         ; SLOW: we can speed this up *massively*, by unrolling this loop (and using blits), but this is just an example to explain how the feature works
-        sty VERA_DATA1
+        sty VERA_DATA0
         dex
         bne soft_polygon_fill_triangle_pixel_next_0
 
@@ -1717,7 +1754,7 @@ soft_polygon_fill_triangle_pixel_next_256:
 soft_polygon_fill_triangle_pixel_next_256:
         ldx #0
 soft_polygon_fill_triangle_pixel_next_256_0:
-        sty VERA_DATA1
+        sty VERA_DATA0
         dex
         bne soft_polygon_fill_triangle_pixel_next_256_0
         dec FILL_LENGTH_HIGH
@@ -1796,12 +1833,19 @@ soft_polygon_fill_triangle_done:
 
 draw_polygon_part_using_polygon_filler_naively:
 
-    lda #%00001011           ; DCSEL=5, ADDRSEL=1
+    lda #%00001010           ; DCSEL=5, ADDRSEL=0
     sta VERA_CTRL
     
     lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
 polygon_fill_triangle_row_next:
+
+; FIXME!
+; FIXME!
+; FIXME!
+;    stz VERA_DATA1
+;    jmp polygon_fill_triangle_row_done
+
 
     ; SLOW: we are not using all the information we get and are only reconstructing the 10-bit value. But this should normally *not*
     ;       be done! The bits are crafted in such a way to be used for a jump table. But for this example we dont use a jump table,
@@ -2365,12 +2409,17 @@ next_draw_64_length:
 
 next_draw_64_instruction:
 
-    ; -- sty VERA_DATA1 ($9F24)
+    ; -- sty VERA_DATA0/1 ($9F23/4)
     lda #$8C               ; sty ....
     jsr add_code_byte
-
-    lda #$24               ; $24
-    jsr add_code_byte
+    
+    .if(USE_POLYGON_FILLER)
+        lda #$24               ; $24
+        jsr add_code_byte
+    .else 
+        lda #$23               ; $23
+        jsr add_code_byte
+    .endif
     
     lda #$9F               ; $9F
     jsr add_code_byte
@@ -2577,7 +2626,7 @@ end_of_palette_data:
     .endif
    
    
-    .if(1)
+    .if(0)
 palette_data:
     .byte $c8, $08  ; palette index 16
     .byte $c9, $07  ; palette index 17
@@ -2697,7 +2746,7 @@ triangle_data:
     .endif
    
    
-    .if(0)
+    .if(1)
 palette_data:
     .byte $31, $09  ; palette index 16
     .byte $51, $0a  ; palette index 17
