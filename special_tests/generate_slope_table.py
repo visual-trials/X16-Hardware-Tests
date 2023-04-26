@@ -48,11 +48,22 @@ def run():
     slopes_packed_column_4_low = []
     slopes_packed_column_4_high = []
     
+    slopes_negative_packed_column_0_low = []
+    slopes_negative_packed_column_0_high = []
+    slopes_negative_packed_column_1_low = []
+    slopes_negative_packed_column_1_high = []
+    slopes_negative_packed_column_2_low = []
+    slopes_negative_packed_column_2_high = []
+    slopes_negative_packed_column_3_low = []
+    slopes_negative_packed_column_3_high = []
+    slopes_negative_packed_column_4_low = []
+    slopes_negative_packed_column_4_high = []
+    
     for x in range(0, 320):
     # for x in range(0, 3):
         
         for y in range(0, 256):  # We do y >= 240 to make sure the files are exactly 16kB (filler)
-        # for y in range(0, 256):
+        # for y in range(0, 3):
         
             # We currently have a precision of 1/512th of a pixel per step: we have 9-bit fraction precision. A value of 1 means 1/512th of a pixel
             # But when doing polygons we have to do *two* steps. This is because each step is considered the distance in x when traveling 0.5 pixels in y.
@@ -64,62 +75,107 @@ def run():
             
             if (y == 0):
                 slope = 0       # We dont want to divide by 0
+                neg_slope = 0
             elif (y >= 240):
                 slope = 0       # We fill the 240-255 slopes with 0 (so the resulting files are exactly 16kB)
+                neg_slope = 0
             else:
                 slope = x / y
+                neg_slope = (-320+x) / y
+                
+            slope_int = int(slope * 256)
+            neg_slope_int = int(neg_slope * 256)
+            
+            # print("neg_slope: " + str(neg_slope))
+            # print("neg_slope_int: " + str(neg_slope_int))
                 
             do_32_times = 0
             # FIXME: what exactly is the criteria for doing "times 32"?
-            if (slope >= 64):
+            if (slope_int >= 64*256):
                 do_32_times = 1
-                slope_packed = slope / 32
+                slope_packed = slope_int // 32
             else:
-                slope_packed = slope
+                slope_packed = slope_int
             
-            slope_low = int((slope % 1) * 256)
-            slope_high = int(slope % 256)
-            slope_vhigh = int((slope / 256) % 256)
+            neg_do_32_times = 0
+            # FIXME: what exactly is the criteria for doing "times 32"?
+            if (neg_slope_int <= -64*256):
+                neg_do_32_times = 1
+                slope_negative_packed = 32768 + (neg_slope_int // 32)   # We convert to a two complement 15-bit number 
+            else:
+                slope_negative_packed = 32768 + neg_slope_int           # We convert to a two complement 15-bit number 
+                
+            # print("slope_negative_packed: " + str(slope_negative_packed))
             
-            slope_packed_low = int((slope_packed % 1) * 256)
-            slope_packed_high = int(slope_packed % 256)
+            slope_low = int(slope_int % 256)
+            slope_high = int((slope_int // 256) % 256)
+            slope_vhigh = int((slope_int // (256*256)) % 256)
+            
+            slope_packed_low = int(slope_packed % 256)
+            slope_packed_high = int((slope_packed // 256) % 256)
+            
+            slope_negative_packed_low = int(slope_negative_packed % 256)
+            slope_negative_packed_high = int((slope_negative_packed // 256) % 256)
             
             if (do_32_times):
                 slope_packed_high += 128   # setting bit7
+            if (neg_do_32_times):
+                slope_negative_packed_high += 128   # setting bit7
             
             if (x < 1*64):
                 slopes_column_0_low.append(slope_low)
                 slopes_column_0_high.append(slope_high)
                 slopes_column_0_vhigh.append(slope_vhigh)
+                
                 slopes_packed_column_0_low.append(slope_packed_low)
                 slopes_packed_column_0_high.append(slope_packed_high)
+                
+                slopes_negative_packed_column_0_low.append(slope_negative_packed_low)
+                slopes_negative_packed_column_0_high.append(slope_negative_packed_high)
             elif (x < 2*64):
                 slopes_column_1_low.append(slope_low)
                 slopes_column_1_high.append(slope_high)
                 slopes_column_1_vhigh.append(slope_vhigh)
+                
                 slopes_packed_column_1_low.append(slope_packed_low)
                 slopes_packed_column_1_high.append(slope_packed_high)
+                
+                slopes_negative_packed_column_1_low.append(slope_negative_packed_low)
+                slopes_negative_packed_column_1_high.append(slope_negative_packed_high)
             elif (x < 3*64):
                 slopes_column_2_low.append(slope_low)
                 slopes_column_2_high.append(slope_high)
                 slopes_column_2_vhigh.append(slope_vhigh)
+                
                 slopes_packed_column_2_low.append(slope_packed_low)
                 slopes_packed_column_2_high.append(slope_packed_high)
+                
+                slopes_negative_packed_column_2_low.append(slope_negative_packed_low)
+                slopes_negative_packed_column_2_high.append(slope_negative_packed_high)
             elif (x < 4*64):
                 slopes_column_3_low.append(slope_low)
                 slopes_column_3_high.append(slope_high)
                 slopes_column_3_vhigh.append(slope_vhigh)
+                
                 slopes_packed_column_3_low.append(slope_packed_low)
                 slopes_packed_column_3_high.append(slope_packed_high)
+                
+                slopes_negative_packed_column_3_low.append(slope_negative_packed_low)
+                slopes_negative_packed_column_3_high.append(slope_negative_packed_high)
             else:
                 slopes_column_4_low.append(slope_low)
                 slopes_column_4_high.append(slope_high)
                 slopes_column_4_vhigh.append(slope_vhigh)
+                
                 slopes_packed_column_4_low.append(slope_packed_low)
                 slopes_packed_column_4_high.append(slope_packed_high)
+                
+                slopes_negative_packed_column_4_low.append(slope_negative_packed_low)
+                slopes_negative_packed_column_4_high.append(slope_negative_packed_high)
             
             
-            # print('slope:' + str(x) + ":"+ str(y) + " -> " +str(slope_high) + "." + str(slope_low))
+            # print('packed slope:' + str(x) + ":"+ str(y) + " -> $" + format(slope_packed_high,"02X") + ".$" + format(slope_packed_low,"02X"))
+            # print('negative packed slope:' + str(-320+x) + ":"+ str(y) + " -> $" + format(slope_negative_packed_high,"02X") + ".$" + format(slope_negative_packed_low,"02X"))
                 
             pygame.draw.rect(screen, pixel_color, pygame.Rect(x*2, y*2, 2, 2))  # , width=border_width
             #pygame.display.update()
@@ -219,7 +275,43 @@ def run():
         tableFile = open("special_tests/tables/slopes_packed_column_4_high.bin", "wb")
         tableFile.write(bytearray(slopes_packed_column_4_high))
         tableFile.close()
+        
+        
     
+        tableFile = open("special_tests/tables/slopes_negative_packed_column_0_low.bin", "wb")
+        tableFile.write(bytearray(slopes_negative_packed_column_0_low))
+        tableFile.close()
+        tableFile = open("special_tests/tables/slopes_negative_packed_column_0_high.bin", "wb")
+        tableFile.write(bytearray(slopes_negative_packed_column_0_high))
+        tableFile.close()
+        
+        tableFile = open("special_tests/tables/slopes_negative_packed_column_1_low.bin", "wb")
+        tableFile.write(bytearray(slopes_negative_packed_column_1_low))
+        tableFile.close()
+        tableFile = open("special_tests/tables/slopes_negative_packed_column_1_high.bin", "wb")
+        tableFile.write(bytearray(slopes_negative_packed_column_1_high))
+        tableFile.close()
+        
+        tableFile = open("special_tests/tables/slopes_negative_packed_column_2_low.bin", "wb")
+        tableFile.write(bytearray(slopes_negative_packed_column_2_low))
+        tableFile.close()
+        tableFile = open("special_tests/tables/slopes_negative_packed_column_2_high.bin", "wb")
+        tableFile.write(bytearray(slopes_negative_packed_column_2_high))
+        tableFile.close()
+        
+        tableFile = open("special_tests/tables/slopes_negative_packed_column_3_low.bin", "wb")
+        tableFile.write(bytearray(slopes_negative_packed_column_3_low))
+        tableFile.close()
+        tableFile = open("special_tests/tables/slopes_negative_packed_column_3_high.bin", "wb")
+        tableFile.write(bytearray(slopes_negative_packed_column_3_high))
+        tableFile.close()
+        
+        tableFile = open("special_tests/tables/slopes_negative_packed_column_4_low.bin", "wb")
+        tableFile.write(bytearray(slopes_negative_packed_column_4_low))
+        tableFile.close()
+        tableFile = open("special_tests/tables/slopes_negative_packed_column_4_high.bin", "wb")
+        tableFile.write(bytearray(slopes_negative_packed_column_4_high))
+        tableFile.close()
         
     running = True
     while running:

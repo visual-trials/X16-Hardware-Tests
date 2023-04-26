@@ -7,6 +7,8 @@ USE_UNROLLED_LOOP = 1
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = 0
 
+USE_180_DEGREES_SLOPE_TABLE = 1  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
+
 USE_Y_TO_ADDRESS_TABLE = 1
 
     .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
@@ -146,7 +148,7 @@ VRAM_ADDRESS             = $90 ; 91 ; 92
 
 ; RAM addresses
 CLEAR_COLUMN_CODE        = $7000
-DRAW_ROW_64_CODE         = $B800
+DRAW_ROW_64_CODE         = $AA00   ; A0-A9 and B6-BF are accucpied by the slope tables!
 
 ; Triangle data is (easely) accessed through an single index (0-255)
 ; == IMPORTANT: we assume a *clockwise* ordering of the 3 points of a triangle! ==
@@ -747,7 +749,48 @@ done_drawing_all_triangles:
     
     rts
     
+MACRO_get_slope_from_180_degrees_slope_table: .macro Y_DISTANCE, SLOPE
+
+    ; We get the SLOPE from the slope 180 degrees table. We need:
+    ;   y = Y_DISTANCE
+    ;   RAM_BANK = X_DISTANCE[5:0]
+    ;   LOAD_ADDR_HIGH[4:1] = X_DISTANCE[9:6]  ; Note: X_DISTANCE is considered to be a *signed* number here, where bit9 is used to determine its sign
+        
+    ldy \Y_DISTANCE
+
+    lda X_DISTANCE
+    and #%00111111
+    sta RAM_BANK
+
+    ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8 and 9)
+    asl X_DISTANCE
+    rol X_DISTANCE+1
+    asl X_DISTANCE
+    rol X_DISTANCE+1
     
+    ; We shift bits 9, 8, 7 and 6 into bits 4, 3, 2 and 1
+    asl X_DISTANCE+1
+    
+    lda X_DISTANCE+1
+    and #%00011111         ; we use bit9 of X_DISTANCE (here bit4) to switch between Ax and Bx. The upper bits we discard, since we dont want an address too high when the X_DISTANCE is negative
+    ora #>($A000)          ; We combine bits 4:1 with A0
+    sta LOAD_ADDRESS+1
+    
+    ; SPEED: we dont need to do this again and again, this stays at zero!
+    lda #<($A000)
+    sta LOAD_ADDRESS
+    
+    ; We load the SLOPE_LOW
+    lda (LOAD_ADDRESS), y
+    sta \SLOPE
+    
+    ; We load the SLOPE_HIGH
+    inc LOAD_ADDRESS+1
+    lda (LOAD_ADDRESS), y
+    sta \SLOPE+1
+
+.endmacro
+
     
 MACRO_get_slope_from_slope_table: .macro Y_DISTANCE, SLOPE
 
@@ -1150,90 +1193,153 @@ draw_triangle_with_single_top_point:
     
     ; ============== LEFT POINT vs TOP POINT ============
     
-    ; We subtract: X_DISTANCE: LEFT_POINT_X - TOP_POINT_X
+    .if(USE_POLYGON_FILLER && USE_SLOPE_TABLES && USE_180_DEGREES_SLOPE_TABLE)
     
-    MACRO_subtract_and_make_positive_x LEFT_POINT_X, TOP_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
-    
-    ; We subtract: Y_DISTANCE_LEFT_TOP: LEFT_POINT_Y - TOP_POINT_Y
-    
-    MACRO_subtract_y LEFT_POINT_Y, TOP_POINT_Y, Y_DISTANCE_LEFT_TOP
-    
-    ; Note: since we know the top point has a lower y than the left point, there is no need to negate it!
-    
-    .if(USE_SLOPE_TABLES)
-        MACRO_get_slope_from_slope_table Y_DISTANCE_LEFT_TOP, SLOPE_TOP_LEFT
+        ; We subtract: X_DISTANCE: LEFT_POINT_X - TOP_POINT_X
+        
+        MACRO_subtract_x LEFT_POINT_X, TOP_POINT_X, X_DISTANCE
+        
+        ; We subtract: Y_DISTANCE_LEFT_TOP: LEFT_POINT_Y - TOP_POINT_Y
+        
+        MACRO_subtract_y LEFT_POINT_Y, TOP_POINT_Y, Y_DISTANCE_LEFT_TOP
+        
+        ; Note: since we know the top point has a lower y than the left point, there is no need to negate it!
+        
+        MACRO_get_slope_from_180_degrees_slope_table Y_DISTANCE_LEFT_TOP, SLOPE_TOP_LEFT
+        
     .else
-        MACRO_calculate_slope_using_division Y_DISTANCE_LEFT_TOP, SLOPE_TOP_LEFT
-    .endif
-    
-    ldx X_DISTANCE_IS_NEGATED
-    beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is not negated we dont have to negate now, otherwise we do
+        ; We subtract: X_DISTANCE: LEFT_POINT_X - TOP_POINT_X
+        
+        MACRO_subtract_and_make_positive_x LEFT_POINT_X, TOP_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
+        
+        ; We subtract: Y_DISTANCE_LEFT_TOP: LEFT_POINT_Y - TOP_POINT_Y
+        
+        MACRO_subtract_y LEFT_POINT_Y, TOP_POINT_Y, Y_DISTANCE_LEFT_TOP
+        
+        ; Note: since we know the top point has a lower y than the left point, there is no need to negate it!
+        
+        .if(USE_SLOPE_TABLES)
+            MACRO_get_slope_from_slope_table Y_DISTANCE_LEFT_TOP, SLOPE_TOP_LEFT
+        .else
+            MACRO_calculate_slope_using_division Y_DISTANCE_LEFT_TOP, SLOPE_TOP_LEFT
+        .endif
+        
+        ldx X_DISTANCE_IS_NEGATED
+        beq slope_top_left_is_correctly_signed   ; if X_DISTANCE is not negated we dont have to negate now, otherwise we do
 
-    MACRO_negate_slope SLOPE_TOP_LEFT
-    
+        MACRO_negate_slope SLOPE_TOP_LEFT
+        
 slope_top_left_is_correctly_signed:
+    .endif
 
 
     ; ============== RIGHT POINT vs TOP POINT ============
 
-    ; We subtract: X_DISTANCE: RIGHT_POINT_X - TOP_POINT_X
+    .if(USE_POLYGON_FILLER && USE_SLOPE_TABLES && USE_180_DEGREES_SLOPE_TABLE)
     
-    MACRO_subtract_and_make_positive_x RIGHT_POINT_X, TOP_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED    
-    
-    ; We subtract: Y_DISTANCE_RIGHT_TOP: RIGHT_POINT_Y - TOP_POINT_Y
-    
-    MACRO_subtract_y RIGHT_POINT_Y, TOP_POINT_Y, Y_DISTANCE_RIGHT_TOP
-    
-    ; Note: since we know the top point has a lower y than the right point, there is no need to negate it!
-    
-    .if(USE_SLOPE_TABLES)
-        MACRO_get_slope_from_slope_table Y_DISTANCE_RIGHT_TOP, SLOPE_TOP_RIGHT
+        ; We subtract: X_DISTANCE: RIGHT_POINT_X - TOP_POINT_X
+        
+        MACRO_subtract_x RIGHT_POINT_X, TOP_POINT_X, X_DISTANCE
+        
+        ; We subtract: Y_DISTANCE_RIGHT_TOP: RIGHT_POINT_Y - TOP_POINT_Y
+        
+        MACRO_subtract_y RIGHT_POINT_Y, TOP_POINT_Y, Y_DISTANCE_RIGHT_TOP
+        
+        ; Note: since we know the top point has a lower y than the right point, there is no need to negate it!
+        
+        MACRO_get_slope_from_180_degrees_slope_table Y_DISTANCE_RIGHT_TOP, SLOPE_TOP_RIGHT
+        
     .else
-        MACRO_calculate_slope_using_division Y_DISTANCE_RIGHT_TOP, SLOPE_TOP_RIGHT
-    .endif
-    
-    ldx X_DISTANCE_IS_NEGATED
-    beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is not negated we dont have to negate now, otherwise we do
-    
-    MACRO_negate_slope SLOPE_TOP_RIGHT
-    
+        ; We subtract: X_DISTANCE: RIGHT_POINT_X - TOP_POINT_X
+        
+        MACRO_subtract_and_make_positive_x RIGHT_POINT_X, TOP_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED    
+        
+        ; We subtract: Y_DISTANCE_RIGHT_TOP: RIGHT_POINT_Y - TOP_POINT_Y
+        
+        MACRO_subtract_y RIGHT_POINT_Y, TOP_POINT_Y, Y_DISTANCE_RIGHT_TOP
+        
+        ; Note: since we know the top point has a lower y than the right point, there is no need to negate it!
+        
+        .if(USE_SLOPE_TABLES)
+            MACRO_get_slope_from_slope_table Y_DISTANCE_RIGHT_TOP, SLOPE_TOP_RIGHT
+        .else
+            MACRO_calculate_slope_using_division Y_DISTANCE_RIGHT_TOP, SLOPE_TOP_RIGHT
+        .endif
+        
+        ldx X_DISTANCE_IS_NEGATED
+        beq slope_top_right_is_correctly_signed   ; if X_DISTANCE is not negated we dont have to negate now, otherwise we do
+        
+        MACRO_negate_slope SLOPE_TOP_RIGHT
+        
 slope_top_right_is_correctly_signed:
+    .endif
 
     ; ============== RIGHT POINT vs LEFT POINT ============
 
-    ; We subtract: X_DISTANCE: RIGHT_POINT_X - LEFT_POINT_X
+    .if(USE_POLYGON_FILLER && USE_SLOPE_TABLES && USE_180_DEGREES_SLOPE_TABLE)
     
-    MACRO_subtract_and_make_positive_x RIGHT_POINT_X, LEFT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
+        ; We subtract: Y_DISTANCE_RIGHT_LEFT: RIGHT_POINT_Y - LEFT_POINT_Y
+        
+        MACRO_subtract_and_make_positive_y RIGHT_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_RIGHT_LEFT, Y_DISTANCE_IS_NEGATED
+        
+        ldx Y_DISTANCE_IS_NEGATED
+        bne left_point_is_higher_in_y
+        
+right_point_is_higher_in_y:
 
-    ; We subtract: Y_DISTANCE_RIGHT_LEFT: RIGHT_POINT_Y - LEFT_POINT_Y
-    
-    MACRO_subtract_and_make_positive_y RIGHT_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_RIGHT_LEFT, Y_DISTANCE_IS_NEGATED
-    
-    .if(USE_SLOPE_TABLES)
-        MACRO_get_slope_from_slope_table Y_DISTANCE_RIGHT_LEFT, SLOPE_RIGHT_LEFT
+        ; We subtract: X_DISTANCE: RIGHT_POINT_X - LEFT_POINT_X
+        
+        MACRO_subtract_x RIGHT_POINT_X, LEFT_POINT_X, X_DISTANCE
+
+        MACRO_get_slope_from_180_degrees_slope_table Y_DISTANCE_RIGHT_LEFT, SLOPE_RIGHT_LEFT
+        
+        bra slope_right_left_is_correctly_signed
+        
+left_point_is_higher_in_y:
+        
+        ; We subtract: X_DISTANCE: LEFT_POINT_X - RIGHT_POINT_X
+        
+        MACRO_subtract_x LEFT_POINT_X, RIGHT_POINT_X, X_DISTANCE
+
+        MACRO_get_slope_from_180_degrees_slope_table Y_DISTANCE_RIGHT_LEFT, SLOPE_RIGHT_LEFT
+        
+slope_right_left_is_correctly_signed:
+
     .else
-        MACRO_calculate_slope_using_division Y_DISTANCE_RIGHT_LEFT, SLOPE_RIGHT_LEFT
-    .endif
-    
-    ldx X_DISTANCE_IS_NEGATED
-    bne slope_right_left_is_negated_in_x
+        ; We subtract: X_DISTANCE: RIGHT_POINT_X - LEFT_POINT_X
+        
+        MACRO_subtract_and_make_positive_x RIGHT_POINT_X, LEFT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
+
+        ; We subtract: Y_DISTANCE_RIGHT_LEFT: RIGHT_POINT_Y - LEFT_POINT_Y
+        
+        MACRO_subtract_and_make_positive_y RIGHT_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_RIGHT_LEFT, Y_DISTANCE_IS_NEGATED
+        
+        .if(USE_SLOPE_TABLES)
+            MACRO_get_slope_from_slope_table Y_DISTANCE_RIGHT_LEFT, SLOPE_RIGHT_LEFT
+        .else
+            MACRO_calculate_slope_using_division Y_DISTANCE_RIGHT_LEFT, SLOPE_RIGHT_LEFT
+        .endif
+        
+        ldx X_DISTANCE_IS_NEGATED
+        bne slope_right_left_is_negated_in_x
 slope_right_left_is_not_negated_in_x:
-    
-    ldx Y_DISTANCE_IS_NEGATED
-    beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we have to negate now, otherwise we dont
-    
-    MACRO_negate_slope SLOPE_RIGHT_LEFT
-    
-    bra slope_right_left_is_correctly_signed
-    
+        
+        ldx Y_DISTANCE_IS_NEGATED
+        beq slope_right_left_is_correctly_signed   ; if Y_DISTANCE is negated we have to negate now, otherwise we dont
+        
+        MACRO_negate_slope SLOPE_RIGHT_LEFT
+        
+        bra slope_right_left_is_correctly_signed
+        
 slope_right_left_is_negated_in_x:
     
-    ldx Y_DISTANCE_IS_NEGATED
-    bne slope_right_left_is_correctly_signed   ; if Y_DISTANCE is not negated we have to negate now, otherwise we dont
-    
-    MACRO_negate_slope SLOPE_RIGHT_LEFT
+        ldx Y_DISTANCE_IS_NEGATED
+        bne slope_right_left_is_correctly_signed   ; if Y_DISTANCE is not negated we have to negate now, otherwise we dont
+        
+        MACRO_negate_slope SLOPE_RIGHT_LEFT
 
 slope_right_left_is_correctly_signed:
+    .endif
 
     
     ; -- We setup the starting x and y and the color --
@@ -1467,56 +1573,91 @@ draw_triangle_with_double_top_points:
     
     ; ============== BOTTOM POINT vs LEFT POINT ============
     
-    ; We subtract: X_DISTANCE:  BOTTOM_POINT_X - LEFT_POINT_X
-    
-    MACRO_subtract_and_make_positive_x BOTTOM_POINT_X, LEFT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
-    
-    ; We subtract: Y_DISTANCE_BOTTOM_LEFT: BOTTOM_POINT_Y - LEFT_POINT_Y
-    
-    MACRO_subtract_y BOTTOM_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_BOTTOM_LEFT
-    
-    ; Note: since we know the left point has a lower y than the bottom point, there is no need to negate it!
-    
-    .if(USE_SLOPE_TABLES)
-        MACRO_get_slope_from_slope_table Y_DISTANCE_BOTTOM_LEFT, SLOPE_LEFT_BOTTOM
+    .if(USE_POLYGON_FILLER && USE_SLOPE_TABLES && USE_180_DEGREES_SLOPE_TABLE)
+
+        ; We subtract: X_DISTANCE:  BOTTOM_POINT_X - LEFT_POINT_X
+        
+        MACRO_subtract_x BOTTOM_POINT_X, LEFT_POINT_X, X_DISTANCE
+        
+        ; We subtract: Y_DISTANCE_BOTTOM_LEFT: BOTTOM_POINT_Y - LEFT_POINT_Y
+        
+        MACRO_subtract_y BOTTOM_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_BOTTOM_LEFT
+        
+        ; Note: since we know the left point has a lower y than the bottom point, there is no need to negate it!
+        
+        MACRO_get_slope_from_180_degrees_slope_table Y_DISTANCE_BOTTOM_LEFT, SLOPE_LEFT_BOTTOM
+        
     .else
-        MACRO_calculate_slope_using_division Y_DISTANCE_BOTTOM_LEFT, SLOPE_LEFT_BOTTOM
-    .endif
-    
-    ldx X_DISTANCE_IS_NEGATED
-    beq slope_left_bottom_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
-    
-    MACRO_negate_slope SLOPE_LEFT_BOTTOM
-    
+        
+        ; We subtract: X_DISTANCE:  BOTTOM_POINT_X - LEFT_POINT_X
+        
+        MACRO_subtract_and_make_positive_x BOTTOM_POINT_X, LEFT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED
+        
+        ; We subtract: Y_DISTANCE_BOTTOM_LEFT: BOTTOM_POINT_Y - LEFT_POINT_Y
+        
+        MACRO_subtract_y BOTTOM_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_BOTTOM_LEFT
+        
+        ; Note: since we know the left point has a lower y than the bottom point, there is no need to negate it!
+        
+        .if(USE_SLOPE_TABLES)
+            MACRO_get_slope_from_slope_table Y_DISTANCE_BOTTOM_LEFT, SLOPE_LEFT_BOTTOM
+        .else
+            MACRO_calculate_slope_using_division Y_DISTANCE_BOTTOM_LEFT, SLOPE_LEFT_BOTTOM
+        .endif
+        
+        ldx X_DISTANCE_IS_NEGATED
+        beq slope_left_bottom_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+        
+        MACRO_negate_slope SLOPE_LEFT_BOTTOM
+        
 slope_left_bottom_is_correctly_signed:
 
+    .endif
+        
 
     ; ============== BOTTOM POINT vs RIGHT POINT ============
 
-    ; We subtract: X_DISTANCE: BOTTOM_POINT_X - RIGHT_POINT_X
-    
-    MACRO_subtract_and_make_positive_x BOTTOM_POINT_X, RIGHT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED    
-    
-    ; We subtract: Y_DISTANCE_BOTTOM_RIGHT: BOTTOM_POINT_Y - RIGHT_POINT_Y
-    
-    MACRO_subtract_y BOTTOM_POINT_Y, RIGHT_POINT_Y, Y_DISTANCE_BOTTOM_RIGHT
-    
-    ; Note: since we know the right point has a lower y than the bottom point, there is no need to negate it!
-    
-    .if(USE_SLOPE_TABLES)
-        MACRO_get_slope_from_slope_table Y_DISTANCE_BOTTOM_RIGHT, SLOPE_RIGHT_BOTTOM
+    .if(USE_POLYGON_FILLER && USE_SLOPE_TABLES && USE_180_DEGREES_SLOPE_TABLE)
+        
+        ; We subtract: X_DISTANCE: BOTTOM_POINT_X - RIGHT_POINT_X
+        
+        MACRO_subtract_x BOTTOM_POINT_X, RIGHT_POINT_X, X_DISTANCE
+        
+        ; We subtract: Y_DISTANCE_BOTTOM_RIGHT: BOTTOM_POINT_Y - RIGHT_POINT_Y
+        
+        MACRO_subtract_y BOTTOM_POINT_Y, RIGHT_POINT_Y, Y_DISTANCE_BOTTOM_RIGHT
+        
+        ; Note: since we know the right point has a lower y than the bottom point, there is no need to negate it!
+        
+        MACRO_get_slope_from_180_degrees_slope_table Y_DISTANCE_BOTTOM_RIGHT, SLOPE_RIGHT_BOTTOM
+        
     .else
-        MACRO_calculate_slope_using_division Y_DISTANCE_BOTTOM_RIGHT, SLOPE_RIGHT_BOTTOM
-    .endif
-    
-    ldx X_DISTANCE_IS_NEGATED
-    beq slope_right_bottom_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
-    
-    MACRO_negate_slope SLOPE_RIGHT_BOTTOM
-    
+        
+        ; We subtract: X_DISTANCE: BOTTOM_POINT_X - RIGHT_POINT_X
+        
+        MACRO_subtract_and_make_positive_x BOTTOM_POINT_X, RIGHT_POINT_X, X_DISTANCE, X_DISTANCE_IS_NEGATED    
+        
+        ; We subtract: Y_DISTANCE_BOTTOM_RIGHT: BOTTOM_POINT_Y - RIGHT_POINT_Y
+        
+        MACRO_subtract_y BOTTOM_POINT_Y, RIGHT_POINT_Y, Y_DISTANCE_BOTTOM_RIGHT
+        
+        ; Note: since we know the right point has a lower y than the bottom point, there is no need to negate it!
+        
+        .if(USE_SLOPE_TABLES)
+            MACRO_get_slope_from_slope_table Y_DISTANCE_BOTTOM_RIGHT, SLOPE_RIGHT_BOTTOM
+        .else
+            MACRO_calculate_slope_using_division Y_DISTANCE_BOTTOM_RIGHT, SLOPE_RIGHT_BOTTOM
+        .endif
+        
+        ldx X_DISTANCE_IS_NEGATED
+        beq slope_right_bottom_is_correctly_signed   ; if X_DISTANCE is negated we dont have to negate now, otherwise we do
+        
+        MACRO_negate_slope SLOPE_RIGHT_BOTTOM
+        
 slope_right_bottom_is_correctly_signed:
 
-    
+    .endif
+
     ; -- We setup the starting x and y and the color --
     .if(USE_POLYGON_FILLER)
         ; Setting up for drawing a polygon, setting both addresses at the same starting point
@@ -1833,6 +1974,9 @@ soft_polygon_fill_triangle_done:
 
 draw_polygon_part_using_polygon_filler_naively:
 
+; FIXME
+;    rts
+
     lda #%00001010           ; DCSEL=5, ADDRSEL=0
     sta VERA_CTRL
     
@@ -2120,7 +2264,7 @@ next_table_to_copy:
     sta STORE_ADDRESS
     
     clc
-    lda #>($A000)
+    lda #>($A000)        ; We put the 5 columns of tables (LOW/HIGH): A0/A1, A2/A3, A4/A5, A6/A7, A8/A9
     adc TABLE_ROM_BANK
     sec
     sbc #1               ; since the TABLE_ROM_BANK starts at 1, we substract one from it
@@ -2165,6 +2309,72 @@ next_byte_to_copy_to_banked_ram:
     cmp #11               ; we go from 1-10 so we need to stop at 11
     bne next_table_to_copy
 
+    
+    .if(USE_180_DEGREES_SLOPE_TABLE)
+        
+        ; We copy ANOTHER 10 tables (but for NEGATIVE slopes) to banked RAM, but we pack them in such a way that they are easily accessible
+
+        lda #11               ; Our first tables starts at ROM Bank 11
+        sta TABLE_ROM_BANK
+    
+next_table_to_copy_neg:
+        lda #<($C000)        ; Our source table starts at C000
+        sta LOAD_ADDRESS
+        lda #>($C000)
+        sta LOAD_ADDRESS+1
+
+        lda #<($B600)        ; We store at Bx00
+        sta STORE_ADDRESS
+        
+        clc
+        lda #>($B600)        ; We put the 5 columns of tables (LOW/HIGH): B6/B7, B8/B9, BA/BB, BC/BD, BE/BF
+        adc TABLE_ROM_BANK
+        sec
+        sbc #11              ; since the TABLE_ROM_BANK starts at 11, we substract one from it
+        sta STORE_ADDRESS+1
+
+        ; Switching ROM BANK
+        lda TABLE_ROM_BANK
+        sta ROM_BANK
+    ; FIXME: remove nop!
+        nop
+        
+            ldx #0                             ; x = x-coordinate (within a column of 64)
+next_x_to_copy_to_banked_ram_neg:
+            ; Switching to RAM BANK x
+            stx RAM_BANK
+        ; FIXME: remove nop!
+            nop
+            
+            ldy #0                             ; y = y-coordinate (0-239)
+next_byte_to_copy_to_banked_ram_neg:
+            lda (LOAD_ADDRESS), y
+            sta (STORE_ADDRESS), y
+            iny
+            cpy #240
+            bne next_byte_to_copy_to_banked_ram_neg
+            
+            ; We increment LOAD_ADDRESS by 256 bytes to move to the next x  (there is 240 bytes of data + 16 bytes of padding for each x)
+            clc
+            lda LOAD_ADDRESS
+            adc #<256
+            sta LOAD_ADDRESS
+            lda LOAD_ADDRESS+1
+            adc #>256
+            sta LOAD_ADDRESS+1
+            
+            inx
+            cpx #64
+            bne next_x_to_copy_to_banked_ram_neg
+
+        inc TABLE_ROM_BANK
+        lda TABLE_ROM_BANK
+        cmp #21               ; we go from 11-20 so we need to stop at 21
+        bne next_table_to_copy_neg
+    
+    .endif
+    
+    
     ; Switching back to ROM bank 0
     lda #$00
     sta ROM_BANK
@@ -2608,12 +2818,12 @@ load_next_triangle:
 NR_OF_TRIANGLES = 12
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
-   .word   0,   0,   100,  70,    0,  50,    4
+   .word   0,   0,   100,  70,    0,  50,    4       ; all positive slopes
    .word   0,   0,   200,   1,  100,  70,    5
    .word   0,   0,   280,   0,  200,   1,    3
    .word 200,   1,   279,   0,  280,   120,  7
    .word 279,   0,   280,   0,  280,   120,  15
-   .word 180,  50,   200,   1,  280,   120,  8
+   .word 180,  50,   200,   1,  280,   120,  8       ; negative + positive slope at the top, positive+positive slope at the bottom
    .word   0, 120,    80, 100,  280,   120,  9
    .word 100,  70,   200,   1,  180,    50,  10
    .word   0,  50,    80, 100,    0,   120,  11
@@ -3146,6 +3356,18 @@ irq:
             .binary "special_tests/tables/slopes_packed_column_3_high.bin"
             .binary "special_tests/tables/slopes_packed_column_4_low.bin"
             .binary "special_tests/tables/slopes_packed_column_4_high.bin"
+            .if(USE_180_DEGREES_SLOPE_TABLE)
+                .binary "special_tests/tables/slopes_negative_packed_column_0_low.bin"
+                .binary "special_tests/tables/slopes_negative_packed_column_0_high.bin"
+                .binary "special_tests/tables/slopes_negative_packed_column_1_low.bin"
+                .binary "special_tests/tables/slopes_negative_packed_column_1_high.bin"
+                .binary "special_tests/tables/slopes_negative_packed_column_2_low.bin"
+                .binary "special_tests/tables/slopes_negative_packed_column_2_high.bin"
+                .binary "special_tests/tables/slopes_negative_packed_column_3_low.bin"
+                .binary "special_tests/tables/slopes_negative_packed_column_3_high.bin"
+                .binary "special_tests/tables/slopes_negative_packed_column_4_low.bin"
+                .binary "special_tests/tables/slopes_negative_packed_column_4_high.bin"
+            .endif
         .else
             ; FIXME: right now we include vhigh tables *TWICE*! The second time is a dummy include! (since we want all _low tables to be aligned with ROM_BANK % 4 == 1)
             .binary "special_tests/tables/slopes_column_0_low.bin"
