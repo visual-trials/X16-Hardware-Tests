@@ -1,13 +1,13 @@
 
-DO_SPEED_TEST = 1
+DO_SPEED_TEST = 0
 
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 1
+USE_SLOPE_TABLES = 0
+USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = 0
 
-USE_180_DEGREES_SLOPE_TABLE = 1  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
+USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 
 USE_Y_TO_ADDRESS_TABLE = 1
 
@@ -146,8 +146,18 @@ Y_DISTANCE_SECOND        = $88 ; 89
 
 VRAM_ADDRESS             = $90 ; 91 ; 92
 
+
+NIBBLE_PATTERN           = $98
+NR_OF_4_PIXELS           = $99
+NR_OF_STARTING_PIXELS    = $9A
+NR_OF_ENDING_PIXELS      = $9B
+
+
+
+
 ; RAM addresses
-CLEAR_COLUMN_CODE        = $7000
+CLEAR_COLUMN_CODE        = $7000   ; up to 72D0
+TEST_FILL_LINE_CODE      = $7300
 DRAW_ROW_64_CODE         = $AA00   ; A0-A9 and B6-BF are accucpied by the slope tables!
 
 ; Triangle data is (easely) accessed through an single index (0-255)
@@ -199,17 +209,23 @@ reset:
     
     jsr generate_y_to_address_table
     
-    jsr copy_slope_table_copier_to_ram
-    jsr COPY_SLOPE_TABLES_TO_BANKED_RAM
+    .if(USE_SLOPE_TABLES)
+        jsr copy_slope_table_copier_to_ram
+        jsr COPY_SLOPE_TABLES_TO_BANKED_RAM
+    .endif
     
     .if(DO_SPEED_TEST)
        jsr test_speed_of_filling_triangle
     .else
+      lda #%00000000           ; DCSEL=0, ADDRSEL=0
+      sta VERA_CTRL
+        
       lda #$10                 ; 8:1 scale (320 x 240 pixels on screen)
       sta VERA_DC_HSCALE
       sta VERA_DC_VSCALE      
     
-      jsr test_simple_polygon_filler
+      ; jsr test_simple_polygon_filler
+      jsr test_fill_length_jump_table
     .endif
     
   
@@ -240,6 +256,252 @@ jump_table_message:
     .asciiz " Jump table "
 write_cache_message: 
     .asciiz " Write cache "
+  
+  
+  
+  
+  
+test_fill_length_jump_table:
+
+
+; FIXME: we should create a routine/macro for this!
+    ; We first need to fill the 32-bit cache with 4 times our color
+
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%00000000           ; normal addr1 mode 
+    sta $9F29
+    
+    lda #%00000001           ; ... cache fill enabled = 1
+    sta $9F2C   
+    
+    
+; FIXME: we should use a different VRAM address for this cache filling!!
+    lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
+    sta VERA_ADDR_BANK
+    stz VERA_ADDR_HIGH
+    stz VERA_ADDR_LOW
+
+    lda #TEST_FILL_COLOR
+    sta VERA_DATA1
+    
+    lda VERA_DATA1    
+    lda VERA_DATA1
+    lda VERA_DATA1
+    lda VERA_DATA1
+     
+    lda #%00000000           ; ... cache fill enabled = 0
+    sta $9F2C   
+    
+    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
+    sta $9F2B     
+
+    
+    ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
+;    lda #%00000011
+;    sta $9F29
+    
+
+    lda #8
+    sta LEFT_POINT_Y
+    
+    lda #<(12)
+    sta LEFT_POINT_X
+    lda #>(12)
+    sta LEFT_POINT_X+1
+    
+    jsr TEST_set_address_using_y2address_table_and_point_x
+
+    lda #<TEST_FILL_LINE_CODE
+    sta CODE_ADDRESS
+    lda #>TEST_FILL_LINE_CODE
+    sta CODE_ADDRESS+1
+    
+    ldy #0                 ; generated code byte counter
+    
+; TODO    jsr generate_fill_line_code
+    
+    
+    ; FIXME: jsr TEST_jump_to_fill_line_code
+
+    ; stz VERA_DATA1
+
+    lda #1
+    sta NR_OF_STARTING_PIXELS
+    jsr generate_draw_starting_pixels_code
+
+    lda #4
+    sta NR_OF_4_PIXELS
+    jsr generate_draw_4_pixels_code
+    
+    lda #2
+    sta NR_OF_ENDING_PIXELS
+    jsr generate_draw_ending_pixels_code
+    
+    jsr generate_rts_code
+    
+    
+    jsr TEST_FILL_LINE_CODE
+    
+;    jsr generate_draw_starting_and_ending_pixels_code
+
+    
+    
+
+    rts
+
+TEST_set_address_using_y2address_table_and_point_x:
+    
+    ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
+    ldx LEFT_POINT_Y
+    
+    clc
+    lda Y_TO_ADDRESS_LOW, x
+    adc LEFT_POINT_X
+    sta VERA_ADDR_LOW
+    lda Y_TO_ADDRESS_HIGH, x
+    adc LEFT_POINT_X+1
+    sta VERA_ADDR_HIGH
+    lda Y_TO_ADDRESS_BANK, x     ; This will include some kind of auto-increment value
+    adc #0
+; FIXME: ULGY way of forcing the auto-increment to be what we want
+    and #%00001111
+    ora #%00110000   ; Forcing auto-increment of 4
+    sta VERA_ADDR_BANK
+    
+    rts
+
+    
+nr_of_starting_pixels_to_nibble_pattern:
+    .byte %11111111     ; 0 pixels
+    .byte %00111111     ; 1 pixel
+    .byte %00001111     ; 2 pixels
+    .byte %00000011     ; 3 pixels
+    
+nr_of_ending_pixels_to_nibble_pattern:
+    .byte %11111111     ; 0 pixels
+    .byte %11111100     ; 1 pixel
+    .byte %11110000     ; 2 pixels
+    .byte %11000000     ; 3 pixels
+
+generate_draw_4_pixels_code:
+
+    ldx #0                 ; counts nr of draw 4 pixels instructions
+
+next_draw_4_pixels_instruction:
+
+    ; -- stz VERA_DATA1 ($9F24)
+    lda #$9C               ; stz ....
+    jsr add_code_byte
+    
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    inx
+    cpx NR_OF_4_PIXELS
+    bne next_draw_4_pixels_instruction
+
+    rts
+
+generate_draw_starting_and_ending_pixels_code:
+
+    ldx NR_OF_STARTING_PIXELS
+    lda nr_of_starting_pixels_to_nibble_pattern, x
+    sta TMP2
+
+    ldx NR_OF_ENDING_PIXELS
+    lda nr_of_ending_pixels_to_nibble_pattern, x
+    ora TMP2
+    sta NIBBLE_PATTERN
+    
+    ; -- lda #{NIBBLE_PATTERN}
+    lda #$A9               ; lda #....
+    jsr add_code_byte
+
+    lda NIBBLE_PATTERN      ; NIBBLE_PATTERN
+    jsr add_code_byte
+    
+    ; -- sta VERA_DATA1 ($9F24)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    rts
+
+    
+generate_draw_starting_pixels_code:
+
+    ldx NR_OF_STARTING_PIXELS
+    lda nr_of_starting_pixels_to_nibble_pattern, x
+    sta NIBBLE_PATTERN
+    
+    ; -- lda #{NIBBLE_PATTERN}
+    lda #$A9               ; lda #....
+    jsr add_code_byte
+
+    lda NIBBLE_PATTERN      ; NIBBLE_PATTERN
+    jsr add_code_byte
+    
+    ; -- sta VERA_DATA1 ($9F24)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    rts
+
+
+generate_draw_ending_pixels_code:
+
+    ldx NR_OF_ENDING_PIXELS
+    lda nr_of_ending_pixels_to_nibble_pattern, x
+    sta NIBBLE_PATTERN
+    
+    ; -- lda #{NIBBLE_PATTERN}
+    lda #$A9               ; lda #....
+    jsr add_code_byte
+
+    lda NIBBLE_PATTERN      ; NIBBLE_PATTERN
+    jsr add_code_byte
+    
+    ; -- sta VERA_DATA1 ($9F24)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    rts
+
+    
+generate_rts_code:
+
+    ; -- rts --
+    lda #$60
+    jsr add_code_byte
+    
+    rts
+  
+  
+  
+  
+  
   
   
 test_speed_of_filling_triangle:
