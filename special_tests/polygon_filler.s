@@ -1997,13 +1997,14 @@ polygon_fill_triangle_row_next:
     
     stz FILL_LENGTH_HIGH
     
-    lda $9F2B               ; This contains: X1[2:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0]
-    and #%00001111          ; we keep the 4 lower bits
+; FIXME: OLD    lda $9F2B               ; This contains: X1[2:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0]
+    lda $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+    lsr
+    and #%00000111          ; we keep the 3 lower bits (bit 4 is ALSO in the HIGH byte, so we discard it here)
     sta FILL_LENGTH_LOW
 
-    lda $9F2C               ; This contains 00, FILL_LENGTH[9:4]
-    asl
-    asl
+; FIMXE: OLD    lda $9F2C               ; This contains 00, FILL_LENGTH[9:4]
+    lda $9F2C               ; This contains FILL_LENGTH[9:3], 0
     asl
     rol FILL_LENGTH_HIGH
     asl
@@ -2836,7 +2837,7 @@ end_of_palette_data:
     .endif
    
    
-    .if(0)
+    .if(1)
 palette_data:
     .byte $c8, $08  ; palette index 16
     .byte $c9, $07  ; palette index 17
@@ -2956,7 +2957,7 @@ triangle_data:
     .endif
    
    
-    .if(1)
+    .if(0)
 palette_data:
     .byte $31, $09  ; palette index 16
     .byte $51, $0a  ; palette index 17
