@@ -311,7 +311,7 @@ test_fill_length_jump_table:
     lda #8
     sta LEFT_POINT_Y
     
-    lda #9
+    lda #6
     sta LEFT_POINT_X
     lda #0
     sta LEFT_POINT_X+1
@@ -319,7 +319,7 @@ test_fill_length_jump_table:
     lda #4
     sta TMP1
 TEST_pattern_column_next:
-    lda #16
+    lda #15*2
     sta TMP3
 TEST_pattern_next:
     jsr TEST_set_address_using_y2address_table_and_point_x
@@ -364,7 +364,7 @@ TEST_pattern_next:
     
     clc
     lda LEFT_POINT_X
-    adc #13
+    adc #17
     sta LEFT_POINT_X
     lda LEFT_POINT_X+1
     lda #0
@@ -390,6 +390,8 @@ generate_single_fill_line_code:
     ;   GEN_FILL_LENGTH_HIGH[9:4]
     ;
     
+    ; stp
+    
     lda FILL_LENGTH_LOW
     lsr
     lsr
@@ -405,7 +407,8 @@ generate_single_fill_line_code:
     sta GEN_FILL_LENGTH_LOW
     
     lda FILL_LENGTH_LOW
-    and #%00010000
+    and #%00100000
+    lsr
     lsr
     lsr
     lsr
@@ -457,20 +460,7 @@ gen_less_than_16_pixels:
     ; if NR_OF_STARTING_PIXELS == 4 (meaning GEN_START_X == 0) we add 4 to the total left-over pixel count and NOT generate starting pixels!
     lda NR_OF_STARTING_PIXELS
     cmp #4
-    bne gen_generate_starting_pixels
-    
-    ; We have to add 4 to the total of pixels to be drawn
-    clc
-    lda LEFT_OVER_PIXELS
-    adc #4
-    sta LEFT_OVER_PIXELS
-    lda LEFT_OVER_PIXELS+1
-    adc #0
-    sta LEFT_OVER_PIXELS+1
-    
-    ; Since GEN_START_X == 0, we dont have to generate any starting pixels so we skip that
-    
-    bra gen_generate_middle_pixels
+    beq gen_generate_middle_pixels
     
 gen_generate_starting_pixels:
     
@@ -484,7 +474,6 @@ gen_generate_starting_pixels:
     sta LEFT_OVER_PIXELS+1
     
     jsr generate_draw_starting_pixels_code
-    
     
 gen_generate_middle_pixels:
 
