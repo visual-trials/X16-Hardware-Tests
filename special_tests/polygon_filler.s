@@ -342,8 +342,8 @@ TEST_pattern_next:
     asl
     sta TMP4
     
-    lda #%00000000
-    ora TMP3    ; FILL_LEN[3:0]
+    lda TMP3    ; FILL_LEN[3:0]
+    and #%00011110
     ora TMP4    ; X1[0:1]
     sta FILL_LENGTH_LOW
     stz FILL_LENGTH_HIGH
@@ -422,6 +422,7 @@ generate_single_fill_line_code:
 
     ; ================================  
 
+    
     ; -- NR_OF_STARTING_PIXELS = 4 - GEN_START_X --
     sec
     lda #4
@@ -445,6 +446,10 @@ generate_single_fill_line_code:
     bne gen_more_or_equal_to_16_pixels
     
 gen_less_than_16_pixels:
+
+    ; If we have less than 16 pixels AND fill length low == 0, we have nothing to do, so we go to the end
+    lda GEN_FILL_LENGTH_LOW
+    beq gen_ending_pixels_are_generated
 
     ; ===== We need to check if the starting and ending pixels are in the same 4-pixel colum ====
     ; check if GEN_START_X + GEN_FILL_LENGTH_LOW >= 4
