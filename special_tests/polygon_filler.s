@@ -90,7 +90,7 @@ TRIANGLE_INDEX            = $38
 NUMBER_OF_ROWS             = $39
 FILL_LENGTH_LOW            = $3A
 FILL_LENGTH_HIGH           = $3B
-X1_THREE_LOWER_BITS        = $3C
+; X1_THREE_LOWER_BITS        = $3C
 
 ; "Software" implementation of polygon filler
 SOFT_Y                     = $3E ; 3F
@@ -146,12 +146,17 @@ Y_DISTANCE_SECOND        = $88 ; 89
 
 VRAM_ADDRESS             = $90 ; 91 ; 92
 
-
+LEFT_OVER_PIXELS         = $96 ; 97
 NIBBLE_PATTERN           = $98
 NR_OF_4_PIXELS           = $99
 NR_OF_STARTING_PIXELS    = $9A
 NR_OF_ENDING_PIXELS      = $9B
 
+
+GEN_START_X              = $9C
+GEN_FILL_LENGTH_LOW      = $9D
+GEN_FILL_LENGTH_IS_16_OR_MORE = $9E
+GEN_FILL_LENGTH_HIGH     = $9F
 
 
 
@@ -306,13 +311,19 @@ test_fill_length_jump_table:
     lda #8
     sta LEFT_POINT_Y
     
-    lda #<(12)
+    lda #9
     sta LEFT_POINT_X
-    lda #>(12)
+    lda #0
     sta LEFT_POINT_X+1
-    
-    jsr TEST_set_address_using_y2address_table_and_point_x
 
+    lda #4
+    sta TMP1
+TEST_pattern_column_next:
+    lda #16
+    sta TMP3
+TEST_pattern_next:
+    jsr TEST_set_address_using_y2address_table_and_point_x
+    
     lda #<TEST_FILL_LINE_CODE
     sta CODE_ADDRESS
     lda #>TEST_FILL_LINE_CODE
@@ -320,36 +331,244 @@ test_fill_length_jump_table:
     
     ldy #0                 ; generated code byte counter
     
-; TODO    jsr generate_fill_line_code
+    ; stp
     
+    lda LEFT_POINT_X
+    asl
+    asl
+    asl
+    asl
+    asl
+    asl
+    sta TMP4
     
-    ; FIXME: jsr TEST_jump_to_fill_line_code
-
-    ; stz VERA_DATA1
-
-    lda #1
-    sta NR_OF_STARTING_PIXELS
-    jsr generate_draw_starting_pixels_code
-
-    lda #4
-    sta NR_OF_4_PIXELS
-    jsr generate_draw_4_pixels_code
+    lda #%00000000
+    ora TMP3    ; FILL_LEN[3:0]
+    ora TMP4    ; X1[0:1]
+    sta FILL_LENGTH_LOW
+    stz FILL_LENGTH_HIGH
     
-    lda #2
-    sta NR_OF_ENDING_PIXELS
-    jsr generate_draw_ending_pixels_code
-    
-    jsr generate_rts_code
-    
+    jsr generate_single_fill_line_code
     
     jsr TEST_FILL_LINE_CODE
-    
-;    jsr generate_draw_starting_and_ending_pixels_code
 
+    inc LEFT_POINT_Y
+    inc LEFT_POINT_Y
+
+    dec TMP3
+    dec TMP3
+    bne TEST_pattern_next
+
+    lda #8
+    sta LEFT_POINT_Y
     
+    clc
+    lda LEFT_POINT_X
+    adc #13
+    sta LEFT_POINT_X
+    lda LEFT_POINT_X+1
+    lda #0
+    sta LEFT_POINT_X+1
+    
+    dec TMP1
+    bne TEST_pattern_column_next
     
 
     rts
+    
+; This routines expects:
+;    FILL_LENGTH_LOW    : X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+;    FILL_LENGTH_HIGH   : FILL_LENGTH[9:3], 0
+
+generate_single_fill_line_code:
+
+    ; == We first extract this info ==
+    ;
+    ;   GEN_START_X[1:0]
+    ;   GEN_FILL_LENGTH_LOW = [3:0]
+    ;   GEN_FILL_LENGTH_IS_16_OR_MORE
+    ;   GEN_FILL_LENGTH_HIGH[9:4]
+    ;
+    
+    lda FILL_LENGTH_LOW
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    sta GEN_START_X
+    
+    lda FILL_LENGTH_LOW
+    lsr
+    and #%00001111
+    sta GEN_FILL_LENGTH_LOW
+    
+    lda FILL_LENGTH_LOW
+    and #%00010000
+    lsr
+    lsr
+    lsr
+    lsr
+    sta GEN_FILL_LENGTH_IS_16_OR_MORE
+    
+    lda FILL_LENGTH_HIGH
+    lsr
+    lsr
+    sta GEN_FILL_LENGTH_HIGH
+
+    ; ================================  
+
+    ; -- NR_OF_STARTING_PIXELS = 4 - GEN_START_X --
+    sec
+    lda #4
+    sbc GEN_START_X
+    sta NR_OF_STARTING_PIXELS
+
+    ; -- NR_OF_ENDING_PIXELS = (GEN_START_X + GEN_FILL_LENGTH_LOW) % 4 --
+    clc
+    lda GEN_START_X
+    adc GEN_FILL_LENGTH_LOW
+    and #%00000011
+    sta NR_OF_ENDING_PIXELS               ; the lower 2 bits contain the nr of ending pixels
+    
+    ; -- we start with LEFT_OVER_PIXELS = GEN_FILL_LENGTH_LOW --
+    stz LEFT_OVER_PIXELS+1
+    lda GEN_FILL_LENGTH_LOW
+    sta LEFT_OVER_PIXELS
+    
+    ; -- check if more than or equal to 16 extra pixels have to be drawn
+    lda GEN_FILL_LENGTH_IS_16_OR_MORE
+    bne gen_more_or_equal_to_16_pixels
+    
+gen_less_than_16_pixels:
+
+    ; ===== We need to check if the starting and ending pixels are in the same 4-pixel colum ====
+    ; check if GEN_START_X + GEN_FILL_LENGTH_LOW >= 4
+    clc
+    lda GEN_START_X
+    adc GEN_FILL_LENGTH_LOW
+    cmp #4
+    bcc gen_start_and_end_in_same_column  ; we end in the same 4-pixel column as where we start
+    beq gen_start_and_end_in_same_column
+    
+    ; ============= generate starting pixels code (>=16 pixels) ===============
+
+    ; if NR_OF_STARTING_PIXELS == 4 (meaning GEN_START_X == 0) we add 4 to the total left-over pixel count and NOT generate starting pixels!
+    lda NR_OF_STARTING_PIXELS
+    cmp #4
+    bne gen_generate_starting_pixels
+    
+    ; We have to add 4 to the total of pixels to be drawn
+    clc
+    lda LEFT_OVER_PIXELS
+    adc #4
+    sta LEFT_OVER_PIXELS
+    lda LEFT_OVER_PIXELS+1
+    adc #0
+    sta LEFT_OVER_PIXELS+1
+    
+    ; Since GEN_START_X == 0, we dont have to generate any starting pixels so we skip that
+    
+    bra gen_generate_middle_pixels
+    
+gen_generate_starting_pixels:
+    
+    ; -- we subtract the starting pixels from LEFT_OVER_PIXELS --
+    sec
+    lda LEFT_OVER_PIXELS
+    sbc NR_OF_STARTING_PIXELS
+    sta LEFT_OVER_PIXELS
+    lda LEFT_OVER_PIXELS+1
+    sbc #0
+    sta LEFT_OVER_PIXELS+1
+    
+    jsr generate_draw_starting_pixels_code
+    
+    
+gen_generate_middle_pixels:
+
+    ; We divide LEFT_OVER_PIXELS by 4 by shifting it 2 bit positions to the right
+    lsr LEFT_OVER_PIXELS+1
+    ror LEFT_OVER_PIXELS
+    lsr LEFT_OVER_PIXELS+1
+    ror LEFT_OVER_PIXELS
+    
+    lda LEFT_OVER_PIXELS            ; Note: the result should always fit into one byte
+    sta NR_OF_4_PIXELS
+    beq middle_pixels_generated     ; We should not draw any middle pixels
+    jsr generate_draw_4_pixels_code
+middle_pixels_generated:
+    
+    
+gen_generate_ending_pixels:
+    lda NR_OF_ENDING_PIXELS
+    beq gen_ending_pixels_are_generated    ; If there should be no ending pixels generated, we skip generating them
+
+    jsr generate_draw_ending_pixels_code
+    
+gen_ending_pixels_are_generated:
+    jsr generate_rts_code
+    
+    rts
+    
+
+    
+gen_start_and_end_in_same_column:
+
+    jsr generate_draw_starting_and_ending_pixels_code
+
+    jsr generate_rts_code
+    
+    rts
+
+    
+gen_more_or_equal_to_16_pixels:
+
+    ; -- We add 16 pixels from the total amount of pixels left over (we remember we 'loaned' these 16 pixels though in GEN_FILL_LENGTH_IS_16_OR_MORE) --
+;    clc
+;    lda LEFT_OVER_PIXELS
+;    adc #16
+;    sta LEFT_OVER_PIXELS
+;    lda LEFT_OVER_PIXELS+1
+;    adc #0
+;    sta LEFT_OVER_PIXELS+1
+   
+    ; ============= generate starting pixels code (>=16 pixels) ===============
+
+    ; if NR_OF_STARTING_PIXELS == 4 (meaning GEN_START_X == 0) we add 4 to the total left-over pixel count and NOT generate starting pixels!
+    lda NR_OF_STARTING_PIXELS
+    cmp #4
+    bne gen_generate_starting_pixels
+    
+    ; We have to add 4 to the total of pixels to be drawn
+    clc
+    lda LEFT_OVER_PIXELS
+    adc #4
+    sta LEFT_OVER_PIXELS
+    lda LEFT_OVER_PIXELS+1
+    adc #0
+    sta LEFT_OVER_PIXELS+1
+    
+    ; Since GEN_START_X == 0, we dont have to generate any starting pixels so we skip that
+
+gen_generate_jump_to_second_table:
+
+; FIXME: we need to load the HIGH byte if GEN_FILL_LENGTH_IS_16_OR_MORE == 1!!
+
+; Take into account: NR_OF_ENDING_PIXELS and LEFT_OVER_PIXELS!! -> determines *base address* of second jump table!!
+
+; jsr ...
+
+    rts
+    
+; FIXME: generate *FOUR* SECOND JUMP TABLE CODE!
+; FIXME: generate *FOUR* SECOND JUMP TABLE CODE!
+; FIXME: generate *FOUR* SECOND JUMP TABLE CODE!
+; FIXME: generate *FOUR* SECOND JUMP TABLE CODE!
+    
+    
+    
 
 TEST_set_address_using_y2address_table_and_point_x:
     
@@ -374,13 +593,13 @@ TEST_set_address_using_y2address_table_and_point_x:
 
     
 nr_of_starting_pixels_to_nibble_pattern:
-    .byte %11111111     ; 0 pixels
+    .byte %00000000     ; 4 pixels         ; only used in combination with ending pixels
     .byte %00111111     ; 1 pixel
     .byte %00001111     ; 2 pixels
     .byte %00000011     ; 3 pixels
     
 nr_of_ending_pixels_to_nibble_pattern:
-    .byte %11111111     ; 0 pixels
+    .byte %00000000     ; 4 pixels         ; only used in combination with starting pixels
     .byte %11111100     ; 1 pixel
     .byte %11110000     ; 2 pixels
     .byte %11000000     ; 3 pixels
@@ -2259,13 +2478,11 @@ polygon_fill_triangle_row_next:
     
     stz FILL_LENGTH_HIGH
     
-; FIXME: OLD    lda $9F2B               ; This contains: X1[2:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0]
     lda $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
     lsr
     and #%00000111          ; we keep the 3 lower bits (bit 4 is ALSO in the HIGH byte, so we discard it here)
     sta FILL_LENGTH_LOW
 
-; FIMXE: OLD    lda $9F2C               ; This contains 00, FILL_LENGTH[9:4]
     lda $9F2C               ; This contains FILL_LENGTH[9:3], 0
     asl
     rol FILL_LENGTH_HIGH
