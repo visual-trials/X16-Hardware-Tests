@@ -163,12 +163,14 @@ GEN_FILL_LENGTH_LOW      = $9D
 GEN_FILL_LENGTH_IS_16_OR_MORE = $9E
 GEN_FILL_LENGTH_HIGH     = $9F
 GEN_LOANED_16_PIXELS     = $A0
+GEN_FILL_LINE_CODE_INDEX = $A1
 
 
 
 FILL_LENGTH_HIGH_SOFT    = $2800
 
 ; RAM addresses
+FILL_LINE_JUMP_TABLE     = $2F00
 FILL_LINE_BELOW_16_CODE  = $3000   ; 128 different (below 16 pixel) fill line code patterns
 
 
@@ -238,6 +240,7 @@ reset:
     .if(USE_JUMP_TABLE)
         jsr generate_four_times_fill_line_code
         jsr generate_four_times_jump_table_16
+        jsr generate_fill_line_codes_and_table
     .endif
     
     jsr generate_y_to_address_table
@@ -419,9 +422,48 @@ fill_len_not_higher_than_or_equal_to_16:
 
     rts
     
+    
+generate_fill_line_codes_and_table:
+
+    lda #<FILL_LINE_BELOW_16_CODE
+    sta CODE_ADDRESS
+    lda #>FILL_LINE_BELOW_16_CODE
+    sta CODE_ADDRESS+1
+    
+    ldy #0                 ; generated code byte counter
+    
+    stz GEN_FILL_LINE_CODE_INDEX
+gen_next_fill_line_code:
+    ; We remember where this partical code starts (where we have to jump to from the jump table)
+    clc
+    tya
+    adc CODE_ADDRESS           ; TODO: CODE_ADDRESS will always stay 0, so this doesnt do anything really
+    sta JUMP_ADDRESS       
+    lda CODE_ADDRESS+1
+    sta JUMP_ADDRESS+1
+
+    lda GEN_FILL_LINE_CODE_INDEX
+    sta FILL_LENGTH_LOW
+    jsr generate_single_fill_line_code
+    
+    ; Storing jump address in jump table
+    ldx GEN_FILL_LINE_CODE_INDEX
+    lda JUMP_ADDRESS
+    sta FILL_LINE_JUMP_TABLE, x
+    inx
+    lda JUMP_ADDRESS+1
+    sta FILL_LINE_JUMP_TABLE, x
+    
+    inc GEN_FILL_LINE_CODE_INDEX
+    inc GEN_FILL_LINE_CODE_INDEX
+    bne gen_next_fill_line_code
+
+    rts
+
+    
 ; This routines expects:
 ;    FILL_LENGTH_LOW    : X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
-;    FILL_LENGTH_HIGH   : FILL_LENGTH[9:3], 0
+;    FILL_LENGTH_HIGH   : FILL_LENGTH[9:3], 0  --> ONLY NEEDED FOR TESTING!!
 
 generate_single_fill_line_code:
 
