@@ -1,11 +1,15 @@
 
+; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
+
 DO_SPEED_TEST = 0
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 0
 USE_UNROLLED_LOOP = 0
-USE_JUMP_TABLE = 0
-USE_WRITE_CACHE = 0
+USE_JUMP_TABLE = 1
+USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
+
+TEST_JUMP_TABLE = 1 ; This turns off the iteration in-between the jump-table calls
 
 USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 
@@ -78,6 +82,7 @@ REMAINDER                 = $26 ; 27 ; 28
 ; For geneating code
 CODE_ADDRESS              = $30 ; 31
 LOAD_ADDRESS              = $32 ; 33
+JUMP_ADDRESS = LOAD_ADDRESS
 STORE_ADDRESS             = $34 ; 35
 
 TABLE_ROM_BANK            = $36
@@ -157,10 +162,29 @@ GEN_START_X              = $9C
 GEN_FILL_LENGTH_LOW      = $9D
 GEN_FILL_LENGTH_IS_16_OR_MORE = $9E
 GEN_FILL_LENGTH_HIGH     = $9F
+GEN_LOANED_16_PIXELS     = $A0
 
 
+
+FILL_LENGTH_HIGH_SOFT    = $2800
 
 ; RAM addresses
+FILL_LINE_BELOW_16_CODE  = $3000   ; 128 different (below 16 pixel) fill line code patterns
+
+
+; FIXME: can we put these jump tables closer to each other? Do they need to be aligned to 256 bytes? (they are 80 bytes each)
+; FIXME: IMPORTANT: we set the two lower bits of this address in the code, using JUMP_TABLE_16_0 as base. So the distance between the 4 tables should stay $100! AND the two lower bits should stay 00b!
+JUMP_TABLE_16_0          = $6400   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_0)
+JUMP_TABLE_16_1          = $6500   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_1)
+JUMP_TABLE_16_2          = $6600   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_2)
+JUMP_TABLE_16_3          = $6700   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_3)
+
+; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes?
+FILL_LINE_CODE_0         = $6800   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_CODE_1         = $6A00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_CODE_2         = $6C00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_CODE_3         = $6E00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+
 CLEAR_COLUMN_CODE        = $7000   ; up to 72D0
 TEST_FILL_LINE_CODE      = $7300
 DRAW_ROW_64_CODE         = $AA00   ; A0-A9 and B6-BF are accucpied by the slope tables!
@@ -210,7 +234,11 @@ reset:
     .if(USE_UNROLLED_LOOP)
         jsr generate_draw_row_64_code
     .endif
-
+    
+    .if(USE_JUMP_TABLE)
+        jsr generate_four_times_fill_line_code
+        jsr generate_four_times_jump_table_16
+    .endif
     
     jsr generate_y_to_address_table
     
@@ -225,7 +253,7 @@ reset:
       lda #%00000000           ; DCSEL=0, ADDRSEL=0
       sta VERA_CTRL
         
-      lda #$10                 ; 8:1 scale (320 x 240 pixels on screen)
+      lda #$20                 ; 4:1 scale
       sta VERA_DC_HSCALE
       sta VERA_DC_VSCALE      
     
@@ -267,7 +295,6 @@ write_cache_message:
   
   
 test_fill_length_jump_table:
-
 
 ; FIXME: we should create a routine/macro for this!
     ; We first need to fill the 32-bit cache with 4 times our color
@@ -317,9 +344,9 @@ test_fill_length_jump_table:
     sta LEFT_POINT_X+1
 
     lda #4
-    sta TMP1
+    sta TMP1               ; X START[1:0]
 TEST_pattern_column_next:
-    lda #15*2
+    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
     sta TMP3
 TEST_pattern_next:
     jsr TEST_set_address_using_y2address_table_and_point_x
@@ -342,20 +369,36 @@ TEST_pattern_next:
     asl
     sta TMP4
     
-    lda TMP3    ; FILL_LEN[3:0]
-    and #%00011110
+    lda TMP3             ; FILL_LEN[9:0]
+    asl
+    and #%00011110       ; FILL_LEN[3:0], 0
     ora TMP4    ; X1[0:1]
     sta FILL_LENGTH_LOW
-    stz FILL_LENGTH_HIGH
+    
+    lda TMP3             ; FILL_LEN[9:0]
+    lsr
+    lsr
+    lsr                  ; FILL_LEN[9:3]
+    asl                  ; FILL_LEN[9:3], 0
+    sta FILL_LENGTH_HIGH
+    
+    and #%11111100        ; We check if FILL_LENGTH[9:4] is 0
+    beq fill_len_not_higher_than_or_equal_to_16
+    
+    lda FILL_LENGTH_LOW
+    ora #%00100000
+    sta FILL_LENGTH_LOW
+fill_len_not_higher_than_or_equal_to_16:
     
     jsr generate_single_fill_line_code
+    
+    ; stp
     
     jsr TEST_FILL_LINE_CODE
 
     inc LEFT_POINT_Y
     inc LEFT_POINT_Y
 
-    dec TMP3
     dec TMP3
     bne TEST_pattern_next
 
@@ -364,7 +407,7 @@ TEST_pattern_next:
     
     clc
     lda LEFT_POINT_X
-    adc #17
+    adc #33
     sta LEFT_POINT_X
     lda LEFT_POINT_X+1
     lda #0
@@ -416,10 +459,15 @@ generate_single_fill_line_code:
     sta GEN_FILL_LENGTH_IS_16_OR_MORE
     
     lda FILL_LENGTH_HIGH
+    .if(TEST_JUMP_TABLE)
+        sta FILL_LENGTH_HIGH_SOFT
+    .endif
     lsr
     lsr
     sta GEN_FILL_LENGTH_HIGH
 
+    stz GEN_LOANED_16_PIXELS
+    
     ; ================================  
 
     
@@ -502,68 +550,389 @@ gen_generate_ending_pixels:
     jsr generate_draw_ending_pixels_code
     
 gen_ending_pixels_are_generated:
-    jsr generate_rts_code
+    .if(TEST_JUMP_TABLE)
+        jsr generate_rts_code
+    .else
+        jsr generate_fill_line_iterate_code
+    .endif
     
     rts
-    
 
     
 gen_start_and_end_in_same_column:
 
     jsr generate_draw_starting_and_ending_pixels_code
 
-    jsr generate_rts_code
+    .if(TEST_JUMP_TABLE)
+        jsr generate_rts_code
+    .else
+        jsr generate_fill_line_iterate_code
+    .endif
     
     rts
 
     
 gen_more_or_equal_to_16_pixels:
 
-    ; -- We add 16 pixels from the total amount of pixels left over (we remember we 'loaned' these 16 pixels though in GEN_FILL_LENGTH_IS_16_OR_MORE) --
-;    clc
-;    lda LEFT_OVER_PIXELS
-;    adc #16
-;    sta LEFT_OVER_PIXELS
-;    lda LEFT_OVER_PIXELS+1
-;    adc #0
-;    sta LEFT_OVER_PIXELS+1
-   
     ; ============= generate starting pixels code (>=16 pixels) ===============
 
     ; if NR_OF_STARTING_PIXELS == 4 (meaning GEN_START_X == 0) we add 4 to the total left-over pixel count and NOT generate starting pixels!
     lda NR_OF_STARTING_PIXELS
     cmp #4
-    bne gen_generate_starting_pixels
+    beq gen_generate_middle_pixels_16
     
-    ; We have to add 4 to the total of pixels to be drawn
+gen_generate_starting_pixels_16:
+
+    ; -- we subtract the starting pixels from LEFT_OVER_PIXELS --
+    sec
+    lda LEFT_OVER_PIXELS
+    sbc NR_OF_STARTING_PIXELS
+    sta LEFT_OVER_PIXELS
+    lda LEFT_OVER_PIXELS+1
+    sbc #0
+    sta LEFT_OVER_PIXELS+1
+    
+    ; if NR_OF_STARTING_PIXELS > LEFT_OVER_PIXELS (which is possible since LEFT_OVER_PIXELS == GEN_FILL_LENGTH_LOW and >16 fill length)
+    ; we should *LOAN* 16 pixels. So we add 16 pixels here, and subtract it by jumping 4*stz later in the code fill code.
+    
     clc
     lda LEFT_OVER_PIXELS
-    adc #4
+    adc #16
     sta LEFT_OVER_PIXELS
     lda LEFT_OVER_PIXELS+1
     adc #0
     sta LEFT_OVER_PIXELS+1
     
-    ; Since GEN_START_X == 0, we dont have to generate any starting pixels so we skip that
+    lda #1
+    sta GEN_LOANED_16_PIXELS
 
+    jsr generate_draw_starting_pixels_code
+
+gen_generate_middle_pixels_16:
+
+    ; We divide LEFT_OVER_PIXELS by 4 by shifting it 2 bit positions to the right
+    lsr LEFT_OVER_PIXELS+1
+    ror LEFT_OVER_PIXELS
+    lsr LEFT_OVER_PIXELS+1
+    ror LEFT_OVER_PIXELS
+    
+    lda LEFT_OVER_PIXELS               ; Note: the result should always fit into one byte
+    sta NR_OF_4_PIXELS
+    beq middle_pixels_generated_16     ; We should not draw any middle pixels
+    jsr generate_draw_4_pixels_code
+middle_pixels_generated_16:
+    
 gen_generate_jump_to_second_table:
 
-; FIXME: we need to load the HIGH byte if GEN_FILL_LENGTH_IS_16_OR_MORE == 1!!
+    ;   Note: the table is reversed: since the higher y-number will the less pixels. (so the *beginning* of the table will point to the *end* of the code), when no stz-calls are made)
 
-; Take into account: NR_OF_ENDING_PIXELS and LEFT_OVER_PIXELS!! -> determines *base address* of second jump table!!
+    lda #<JUMP_TABLE_16_0
+    sta JUMP_ADDRESS
+    lda #>JUMP_TABLE_16_0
+    ora NR_OF_ENDING_PIXELS     ; We set the two lower bits of the HIGH byte of the JUMP TABLE address to indicate which jump table we want to jump to
+    sta JUMP_ADDRESS+1
 
-; jsr ...
+    lda GEN_LOANED_16_PIXELS
+    beq jump_address_is_valid
+    
+    ; if GEN_LOANED_16_PIXELS == 1 we should jump as-if 16 pixels less have to be drawn -> so we subtract 4 bytes (2 jump addresses)
+    
+    sec
+    lda JUMP_ADDRESS
+    sbc #4
+    sta JUMP_ADDRESS
+    lda JUMP_ADDRESS+1
+    sbc #0
+    sta JUMP_ADDRESS+1
+    
+; FIXME: CHECK: if exactly 16-pixels have to be drawn due to the HIGH fill length, we should not draw any pixels!
+    
+jump_address_is_valid:
+    
+    ; -- ldx $9F2C (= FILL_LENGTH_HIGH from VERA)
+    lda #$AE               ; ldx ....
+    jsr add_code_byte
+
+    .if(TEST_JUMP_TABLE)
+        lda #<FILL_LENGTH_HIGH_SOFT
+        jsr add_code_byte
+        
+        lda #>FILL_LENGTH_HIGH_SOFT
+        jsr add_code_byte
+    .else
+        lda #$2C               ; $2C
+        jsr add_code_byte
+        
+        lda #$9F               ; $9F
+        jsr add_code_byte
+    .endif
+
+    ; -- jmp ($....,x)
+    lda #$7C               ; jmp (....,x)
+    jsr add_code_byte
+
+    lda JUMP_ADDRESS        ; low byte of jump base address
+    jsr add_code_byte
+    
+    lda JUMP_ADDRESS+1      ; high byte of jump base address
+    jsr add_code_byte
+    
+    rts
+    
+    
+generate_fill_line_iterate_code:
+
+; FIXME: implement this!
+
+
 
     rts
     
-; FIXME: generate *FOUR* SECOND JUMP TABLE CODE!
-; FIXME: generate *FOUR* SECOND JUMP TABLE CODE!
-; FIXME: generate *FOUR* SECOND JUMP TABLE CODE!
-; FIXME: generate *FOUR* SECOND JUMP TABLE CODE!
     
     
-    
+generate_four_times_fill_line_code:
 
+    ; -------------- FILL_LINE_CODE_0 ---------------
+    
+    lda #<FILL_LINE_CODE_0
+    sta CODE_ADDRESS
+    lda #>FILL_LINE_CODE_0
+    sta CODE_ADDRESS+1
+    
+    jsr generate_80_fill_line_codes
+    
+    ; Note: for FILL_LINE_CODE_0 there is no additional (sub 4) pixel draw
+    
+    .if(TEST_JUMP_TABLE)
+        jsr generate_rts_code
+    .else
+        jsr generate_fill_line_iterate_code
+    .endif
+
+    ; -------------- FILL_LINE_CODE_1 ---------------
+
+    lda #<FILL_LINE_CODE_1
+    sta CODE_ADDRESS
+    lda #>FILL_LINE_CODE_1
+    sta CODE_ADDRESS+1
+    
+    jsr generate_80_fill_line_codes
+    
+    ; -- lda #{NIBBLE_PATTERN}
+    lda #$A9               ; lda #....
+    jsr add_code_byte
+
+    lda #%11111100         ; NIBBLE_PATTERN = 1 pixel at the end
+    jsr add_code_byte
+    
+    ; -- sta VERA_DATA1 ($9F24)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    .if(TEST_JUMP_TABLE)
+        jsr generate_rts_code
+    .else
+        jsr generate_fill_line_iterate_code
+    .endif
+    
+    ; -------------- FILL_LINE_CODE_2 ---------------
+
+    lda #<FILL_LINE_CODE_2
+    sta CODE_ADDRESS
+    lda #>FILL_LINE_CODE_2
+    sta CODE_ADDRESS+1
+    
+    jsr generate_80_fill_line_codes
+    
+    ; -- lda #{NIBBLE_PATTERN}
+    lda #$A9               ; lda #....
+    jsr add_code_byte
+
+    lda #%11110000         ; NIBBLE_PATTERN = 2 pixels at the end
+    jsr add_code_byte
+    
+    ; -- sta VERA_DATA1 ($9F24)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    .if(TEST_JUMP_TABLE)
+        jsr generate_rts_code
+    .else
+        jsr generate_fill_line_iterate_code
+    .endif
+    
+    ; -------------- FILL_LINE_CODE_3 ---------------
+
+    lda #<FILL_LINE_CODE_3
+    sta CODE_ADDRESS
+    lda #>FILL_LINE_CODE_3
+    sta CODE_ADDRESS+1
+    
+    jsr generate_80_fill_line_codes
+    
+    ; -- lda #{NIBBLE_PATTERN}
+    lda #$A9               ; lda #....
+    jsr add_code_byte
+
+    lda #%11000000         ; NIBBLE_PATTERN = 3 pixels at the end
+    jsr add_code_byte
+    
+    ; -- sta VERA_DATA1 ($9F24)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    .if(TEST_JUMP_TABLE)
+        jsr generate_rts_code
+    .else
+        jsr generate_fill_line_iterate_code
+    .endif
+
+    rts
+
+    
+generate_four_times_jump_table_16:
+
+    lda #<JUMP_TABLE_16_0
+    sta STORE_ADDRESS
+    lda #>JUMP_TABLE_16_0
+    sta STORE_ADDRESS+1
+    
+    ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
+    lda #<(FILL_LINE_CODE_0+80*3)
+    sta LOAD_ADDRESS
+    lda #>(FILL_LINE_CODE_0+80*3)
+    sta LOAD_ADDRESS+1
+    
+    jsr generate_jump_table_16
+
+    
+    lda #<JUMP_TABLE_16_1
+    sta STORE_ADDRESS
+    lda #>JUMP_TABLE_16_1
+    sta STORE_ADDRESS+1
+    
+    ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
+    lda #<(FILL_LINE_CODE_1+80*3)
+    sta LOAD_ADDRESS
+    lda #>(FILL_LINE_CODE_1+80*3)
+    sta LOAD_ADDRESS+1
+    
+    jsr generate_jump_table_16
+    
+    
+    lda #<JUMP_TABLE_16_2
+    sta STORE_ADDRESS
+    lda #>JUMP_TABLE_16_2
+    sta STORE_ADDRESS+1
+    
+    ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
+    lda #<(FILL_LINE_CODE_2+80*3)
+    sta LOAD_ADDRESS
+    lda #>(FILL_LINE_CODE_2+80*3)
+    sta LOAD_ADDRESS+1
+    
+    jsr generate_jump_table_16
+    
+    
+    lda #<JUMP_TABLE_16_3
+    sta STORE_ADDRESS
+    lda #>JUMP_TABLE_16_3
+    sta STORE_ADDRESS+1
+    
+    ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
+    lda #<(FILL_LINE_CODE_3+80*3)
+    sta LOAD_ADDRESS
+    lda #>(FILL_LINE_CODE_3+80*3)
+    sta LOAD_ADDRESS+1
+    
+    jsr generate_jump_table_16
+    
+    
+    rts
+
+    
+generate_jump_table_16:
+    ldy #0
+generate_next_jump_table_16_entry:
+
+; FIXME: CHECK: which addresses should be the same: 0 and 1, or 1 and 2?
+; FIXME: CHECK: which addresses should be the same: 0 and 1, or 1 and 2?
+; FIXME: CHECK: which addresses should be the same: 0 and 1, or 1 and 2?
+; FIXME: CHECK: which addresses should be the same: 0 and 1, or 1 and 2?
+
+    lda LOAD_ADDRESS
+    sta (STORE_ADDRESS), y
+    iny
+    lda LOAD_ADDRESS+1
+    sta (STORE_ADDRESS), y
+    iny
+
+    ; We do *two* addresses since the 9F2C (FILL_LENGTH_HIGH) value also contains bit 3, but we essentially *ignore* it. Therefore creating the same entry *twice*.
+    lda LOAD_ADDRESS
+    sta (STORE_ADDRESS), y
+    iny
+    lda LOAD_ADDRESS+1
+    sta (STORE_ADDRESS), y
+    iny
+    
+    sec
+    lda LOAD_ADDRESS
+    sbc #4*3               ; we need to skip 16 pixels, so three times a stz, this is 4 * 3 bytes of code
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    sbc #0
+    sta LOAD_ADDRESS+1
+    
+    cpy #80+4                ; We need 20 entries of 16 pixels (=320 pixels) *plus* an entry for 0 pixels. Each entry is 4 bytes (two addresses_, so we stop at 4*21=84 bytes.
+    bne generate_next_jump_table_16_entry
+    
+    rts
+
+
+    
+    
+generate_80_fill_line_codes:
+    ldy #0                 ; generated code byte counter
+    
+    ldx #0                 ; counts nr of fill instructions
+next_fill_instruction:
+
+    ; -- stz VERA_DATA1 ($9F24)
+    lda #$9C               ; stz ....
+    jsr add_code_byte
+
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    inx
+    cpx #80
+    bne next_fill_instruction  ; 80 times a "fill 4-pixels" written to VERA
+    
+    rts
+
+
+    
 TEST_set_address_using_y2address_table_and_point_x:
     
     ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
@@ -3137,7 +3506,7 @@ generate_clear_column_code:
 
 next_clear_instruction:
 
-    ; -- sta VERA_DATA0 ($9F23)
+    ; -- stz VERA_DATA0 ($9F23)
     lda #$9C               ; stz ....
     jsr add_code_byte
 
