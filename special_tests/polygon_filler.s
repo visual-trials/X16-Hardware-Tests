@@ -10,6 +10,7 @@ USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
 TEST_JUMP_TABLE = 1 ; This turns off the iteration in-between the jump-table calls
+USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
 USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 
@@ -80,9 +81,10 @@ DIVISOR                   = $23 ; 24 ; 25  ; the thing you divide by (e.g. / 10)
 REMAINDER                 = $26 ; 27 ; 28
 
 ; For geneating code
+JUMP16_ADDRESS            = $2C ; 2D
+JUMP_ADDRESS              = $2E ; 2F
 CODE_ADDRESS              = $30 ; 31
 LOAD_ADDRESS              = $32 ; 33
-JUMP_ADDRESS = LOAD_ADDRESS
 STORE_ADDRESS             = $34 ; 35
 
 TABLE_ROM_BANK            = $36
@@ -161,13 +163,12 @@ NR_OF_ENDING_PIXELS      = $9B
 GEN_START_X              = $9C
 GEN_FILL_LENGTH_LOW      = $9D
 GEN_FILL_LENGTH_IS_16_OR_MORE = $9E
-GEN_FILL_LENGTH_HIGH     = $9F
-GEN_LOANED_16_PIXELS     = $A0
-GEN_FILL_LINE_CODE_INDEX = $A1
+GEN_LOANED_16_PIXELS     = $9F
+GEN_FILL_LINE_CODE_INDEX = $A0
 
 
-
-FILL_LENGTH_HIGH_SOFT    = $2800
+FILL_LENGTH_LOW_SOFT     = $2800
+FILL_LENGTH_HIGH_SOFT    = $2801
 
 ; RAM addresses
 FILL_LINE_JUMP_TABLE     = $2F00
@@ -256,12 +257,12 @@ reset:
       lda #%00000000           ; DCSEL=0, ADDRSEL=0
       sta VERA_CTRL
         
-      lda #$20                 ; 4:1 scale
-      sta VERA_DC_HSCALE
-      sta VERA_DC_VSCALE      
+;      lda #$20                 ; 4:1 scale
+;      sta VERA_DC_HSCALE
+;      sta VERA_DC_VSCALE      
     
-      ; jsr test_simple_polygon_filler
-      jsr test_fill_length_jump_table
+      jsr test_simple_polygon_filler
+      ; jsr test_fill_length_jump_table
     .endif
     
   
@@ -296,10 +297,9 @@ write_cache_message:
   
   
   
-  
-test_fill_length_jump_table:
+set_cache32_with_color_slow:
 
-; FIXME: we should create a routine/macro for this!
+; FIXME: we should create a (fast) macro for this!
     ; We first need to fill the 32-bit cache with 4 times our color
 
     lda #%00000101           ; DCSEL=2, ADDRSEL=1
@@ -332,12 +332,13 @@ test_fill_length_jump_table:
     lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
     sta $9F2B     
 
-    
-    ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
-;    lda #%00000011
-;    sta $9F29
-    
+    rts
+  
+  
+test_fill_length_jump_table:
 
+    jsr set_cache32_with_color_slow
+    
     lda #8
     sta LEFT_POINT_Y
     
@@ -384,6 +385,9 @@ TEST_pattern_next:
     lsr                  ; FILL_LEN[9:3]
     asl                  ; FILL_LEN[9:3], 0
     sta FILL_LENGTH_HIGH
+    .if(USE_SOFT_FILL_LEN)
+        sta FILL_LENGTH_HIGH_SOFT
+    .endif
     
     and #%11111100        ; We check if FILL_LENGTH[9:4] is 0
     beq fill_len_not_higher_than_or_equal_to_16
@@ -392,12 +396,22 @@ TEST_pattern_next:
     ora #%00100000
     sta FILL_LENGTH_LOW
 fill_len_not_higher_than_or_equal_to_16:
+    .if(USE_SOFT_FILL_LEN)
+        lda FILL_LENGTH_LOW
+        sta FILL_LENGTH_LOW_SOFT
+    .endif
     
-    jsr generate_single_fill_line_code
-    
-    ; stp
-    
-    jsr TEST_FILL_LINE_CODE
+    .if(0)
+        jsr generate_single_fill_line_code
+        ; stp
+        jsr TEST_FILL_LINE_CODE
+    .else
+        ldx FILL_LENGTH_LOW_SOFT
+        
+        ;stp 
+        
+        jsr do_the_jump_to_the_table
+    .endif
 
     inc LEFT_POINT_Y
     inc LEFT_POINT_Y
@@ -463,7 +477,6 @@ gen_next_fill_line_code:
     
 ; This routines expects:
 ;    FILL_LENGTH_LOW    : X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
-;    FILL_LENGTH_HIGH   : FILL_LENGTH[9:3], 0  --> ONLY NEEDED FOR TESTING!!
 
 generate_single_fill_line_code:
 
@@ -472,7 +485,6 @@ generate_single_fill_line_code:
     ;   GEN_START_X[1:0]
     ;   GEN_FILL_LENGTH_LOW = [3:0]
     ;   GEN_FILL_LENGTH_IS_16_OR_MORE
-    ;   GEN_FILL_LENGTH_HIGH[9:4]
     ;
     
     ; stp
@@ -500,14 +512,6 @@ generate_single_fill_line_code:
     lsr
     sta GEN_FILL_LENGTH_IS_16_OR_MORE
     
-    lda FILL_LENGTH_HIGH
-    .if(TEST_JUMP_TABLE)
-        sta FILL_LENGTH_HIGH_SOFT
-    .endif
-    lsr
-    lsr
-    sta GEN_FILL_LENGTH_HIGH
-
     stz GEN_LOANED_16_PIXELS
     
     ; ================================  
@@ -669,10 +673,10 @@ gen_generate_jump_to_second_table:
     ;   Note: the table is reversed: since the higher y-number will the less pixels. (so the *beginning* of the table will point to the *end* of the code), when no stz-calls are made)
 
     lda #<JUMP_TABLE_16_0
-    sta JUMP_ADDRESS
+    sta JUMP16_ADDRESS
     lda #>JUMP_TABLE_16_0
     ora NR_OF_ENDING_PIXELS     ; We set the two lower bits of the HIGH byte of the JUMP TABLE address to indicate which jump table we want to jump to
-    sta JUMP_ADDRESS+1
+    sta JUMP16_ADDRESS+1
 
     lda GEN_LOANED_16_PIXELS
     beq jump_address_is_valid
@@ -680,12 +684,12 @@ gen_generate_jump_to_second_table:
     ; if GEN_LOANED_16_PIXELS == 1 we should jump as-if 16 pixels less have to be drawn -> so we subtract 4 bytes (2 jump addresses)
     
     sec
-    lda JUMP_ADDRESS
+    lda JUMP16_ADDRESS
     sbc #4
-    sta JUMP_ADDRESS
-    lda JUMP_ADDRESS+1
+    sta JUMP16_ADDRESS
+    lda JUMP16_ADDRESS+1
     sbc #0
-    sta JUMP_ADDRESS+1
+    sta JUMP16_ADDRESS+1
     
 ; FIXME: CHECK: if exactly 16-pixels have to be drawn due to the HIGH fill length, we should not draw any pixels!
     
@@ -695,7 +699,7 @@ jump_address_is_valid:
     lda #$AE               ; ldx ....
     jsr add_code_byte
 
-    .if(TEST_JUMP_TABLE)
+    .if(USE_SOFT_FILL_LEN)
         lda #<FILL_LENGTH_HIGH_SOFT
         jsr add_code_byte
         
@@ -713,10 +717,10 @@ jump_address_is_valid:
     lda #$7C               ; jmp (....,x)
     jsr add_code_byte
 
-    lda JUMP_ADDRESS        ; low byte of jump base address
+    lda JUMP16_ADDRESS        ; low byte of jump base address
     jsr add_code_byte
     
-    lda JUMP_ADDRESS+1      ; high byte of jump base address
+    lda JUMP16_ADDRESS+1      ; high byte of jump base address
     jsr add_code_byte
     
     rts
@@ -2856,7 +2860,11 @@ soft_polygon_fill_triangle_done:
     sta SOFT_X2+1
     
     rts
-
+    
+    
+; FIXME: UGLY and SLOW! -> this ensures this works with TEST_JUMP_TABLE! (which contains an rts)
+do_the_jump_to_the_table:
+    jmp (FILL_LINE_JUMP_TABLE,x)
 
 draw_polygon_part_using_polygon_filler_naively:
 
@@ -2865,11 +2873,33 @@ draw_polygon_part_using_polygon_filler_naively:
 
     lda #%00001010           ; DCSEL=5, ADDRSEL=0
     sta VERA_CTRL
-    
+
     lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
 polygon_fill_triangle_row_next:
 
+    .if(USE_JUMP_TABLE)
+        ldx $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+        
+        jsr do_the_jump_to_the_table
+    
+        ; We always increment ADDR0
+        lda VERA_DATA0   ; this will increment ADDR0 with 320 bytes (= +1 vertically)
+        
+        ; We check if we have reached the end, if so, we do *NOT* change ADDR1!
+        dec NUMBER_OF_ROWS
+        beq polygon_fill_triangle_done_table
+        
+        lda VERA_DATA1   ; this will increment x1 and x2 and the fill_line_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+        bra polygon_fill_triangle_row_next
+    
+polygon_fill_triangle_done_table:
+    
+; FIXME: this is a bit of an UGLY HACK! We should create a macro that does the polygon filling using the jump tables
+        rts
+    .endif
+
+    
 ; FIXME!
 ; FIXME!
 ; FIXME!
@@ -2987,6 +3017,13 @@ polygon_fill_triangle_done:
     
 test_simple_polygon_filler:
 
+    .if(USE_JUMP_TABLE)
+        ; NOTE: this will reset/screw up your ADDR1 settings!
+        jsr set_cache32_with_color_slow
+    .else
+        ldy #TEST_FILL_COLOR     ; We use y as color
+    .endif
+
     ; Setting up for drawing a polygon, setting both addresses at the same starting point
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
@@ -3035,15 +3072,23 @@ test_simple_polygon_filler:
     ora #%00100000           ; Reset subpixel position
     sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
-    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-    sta VERA_ADDR_BANK
-    ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
-    
-    ldy #TEST_FILL_COLOR     ; We use y as color
+
+    .if(USE_JUMP_TABLE)
+        ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
+        lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011)
+        sta VERA_ADDR_BANK
+    .else
+        ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
+        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+    .endif
 
 ; FIXME: hardcoded!
     lda #150
     sta NUMBER_OF_ROWS
+    
+    ; stp
+    
     
     jsr draw_polygon_part_using_polygon_filler_naively
     
