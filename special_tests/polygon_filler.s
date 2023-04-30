@@ -1,11 +1,11 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 0
+DO_SPEED_TEST = 1
 
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 0
-USE_UNROLLED_LOOP = 0
+USE_SLOPE_TABLES = 1
+USE_UNROLLED_LOOP = 1
 USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
@@ -167,6 +167,10 @@ GEN_LOANED_16_PIXELS     = $9F
 GEN_FILL_LINE_CODE_INDEX = $A0
 
 
+DEBUG_VALUE              = $C7
+
+
+
 FILL_LENGTH_LOW_SOFT     = $2800
 FILL_LENGTH_HIGH_SOFT    = $2801
 
@@ -261,8 +265,22 @@ reset:
 ;      sta VERA_DC_HSCALE
 ;      sta VERA_DC_VSCALE      
     
-      jsr test_simple_polygon_filler
-      ; jsr test_fill_length_jump_table
+      jsr start_timer
+
+      ; jsr test_simple_polygon_filler
+      jsr test_fill_length_jump_table
+      
+      jsr stop_timer
+      
+      lda #COLOR_TRANSPARANT
+      sta TEXT_COLOR
+        
+      lda #8
+      sta CURSOR_X
+      lda #27
+      sta CURSOR_Y
+        
+      jsr print_time_elapsed
     .endif
     
   
@@ -310,7 +328,6 @@ set_cache32_with_color_slow:
     
     lda #%00000001           ; ... cache fill enabled = 1
     sta $9F2C   
-    
     
 ; FIXME: we should use a different VRAM address for this cache filling!!
     lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
@@ -1363,6 +1380,10 @@ test_speed_of_filling_triangle:
     sta CURSOR_Y
     
     jsr print_time_elapsed
+    
+;    lda DEBUG_VALUE
+;    sta BYTE_TO_PRINT
+;    jsr print_byte_as_hex
 
     rts
 
@@ -1391,8 +1412,13 @@ draw_many_triangles_in_a_rectangle:
     lda #%00000011
     sta $9F29
     
-    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-    sta VERA_ADDR_BANK
+    .if(USE_JUMP_TABLE)
+        lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011)
+        sta VERA_ADDR_BANK
+    .else
+        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+        sta VERA_ADDR_BANK
+    .endif
     
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
@@ -1410,6 +1436,58 @@ draw_next_triangle:
     
     lda TRIANGLES_COLOR, x
     sta TRIANGLE_COLOR
+    
+    .if(USE_JUMP_TABLE)
+; FIXME: we should create a (fast) macro for this!
+        ; We first need to fill the 32-bit cache with 4 times our color
+; FIXME: cant we assume we are still in this mode?
+        lda #%00000101           ; DCSEL=2, ADDRSEL=1
+        sta VERA_CTRL
+        
+        lda #%00000000           ; normal addr1 mode 
+        sta $9F29
+        
+        lda #%00000001           ; ... cache fill enabled = 1
+        sta $9F2C   
+        
+; FIXME: why would we need to do this?
+        lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
+        sta $9F2B  
+        
+; FIXME: we should use a different VRAM address for this cache filling!!
+        lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
+        sta VERA_ADDR_BANK
+        stz VERA_ADDR_HIGH
+        stz VERA_ADDR_LOW
+
+        lda TRIANGLE_COLOR
+        sta VERA_DATA1
+        
+        lda VERA_DATA1    
+        lda VERA_DATA1
+        lda VERA_DATA1
+        lda VERA_DATA1
+         
+        lda #%00000000           ; ... cache fill enabled = 0
+        sta $9F2C   
+
+; FIXME: This is SLOW!
+        lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011)
+        sta VERA_ADDR_BANK
+        
+        lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
+        sta $9F2B  
+
+        ; FIXME: this is SLOW
+        lda #%00000100           ; DCSEL=2, ADDRSEL=0
+        sta VERA_CTRL
+        
+        ; Re-entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
+        lda #%00000011
+        sta $9F29
+        
+    .endif
+    
     
     ; -- Determining which point is/are top point(s) --
 
@@ -1629,6 +1707,11 @@ done_drawing_all_triangles:
     ; Turning off polygon filler mode
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
+    
+    .if(USE_JUMP_TABLE)
+        lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
+        sta $9F2B     
+    .endif
     
     ; Normal addr1 mode
     lda #%00000000
@@ -3115,6 +3198,21 @@ test_simple_polygon_filler:
     sta NUMBER_OF_ROWS
     
     jsr draw_polygon_part_using_polygon_filler_naively
+
+
+    ; Turning off polygon filler mode
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    sta VERA_CTRL
+    
+    ; Normal addr1 mode
+    lda #%00000000
+    sta $9F29
+    
+    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
+    sta $9F2B     
+    
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
     
     rts
 
