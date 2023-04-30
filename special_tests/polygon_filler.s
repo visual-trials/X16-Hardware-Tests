@@ -9,7 +9,7 @@ USE_UNROLLED_LOOP = 1
 USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
-TEST_JUMP_TABLE = 1 ; This turns off the iteration in-between the jump-table calls
+TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
 USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
 USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
@@ -745,9 +745,61 @@ jump_address_is_valid:
     
 generate_fill_line_iterate_code:
 
-; FIXME: implement this!
+    ; -- lda VERA_DATA0 ($9F23)
+    lda #$AD               ; lda ....
+    jsr add_code_byte
 
+    lda #$23               ; $23
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+        
+    ; -- dey
+    lda #$88               ; dey
+    jsr add_code_byte
+        
+    ; -- beq fill_done
+    lda #$F0               ; beq ...
+    jsr add_code_byte
+        
+    ; IMPORTANT: if you change any of the below code byte make sure you change this number accordingly!
+    lda #$09               ; ... fill_done -> branches to the rts opcode below!
+    jsr add_code_byte
+        
+    ; -- lda VERA_DATA1 ($9F24)
+    lda #$AD               ; lda ....
+    jsr add_code_byte
 
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+        
+    ; -- ldx $9F2B (FILL_LENGTH_LOW)
+    lda #$AE               ; ldx ....
+    jsr add_code_byte
+
+    lda #$2B               ; $2B
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+        
+    ; -- jmp (FILL_LINE_JUMP_TABLE,x)
+    lda #$7C               ; jmp (....,x)
+    jsr add_code_byte
+
+    lda #<FILL_LINE_JUMP_TABLE  ; low byte of jump table
+    jsr add_code_byte
+    
+    lda #>FILL_LINE_JUMP_TABLE  ; high byte of jump table
+    jsr add_code_byte
+    
+    ; -- rts
+    lda #$60               ; rts
+    jsr add_code_byte
 
     rts
     
@@ -2342,7 +2394,7 @@ slope_right_left_is_correctly_signed:
         sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
-    
+; FIXME: dont do this when using JUMP tables!
         ldy TRIANGLE_COLOR      ; We use y as color
     .else 
     
@@ -2402,15 +2454,35 @@ slope_right_left_is_correctly_signed:
         lda Y_DISTANCE_IS_NEGATED
         bne first_right_point_is_lower_in_y
 first_left_point_is_lower_in_y:
-        lda Y_DISTANCE_LEFT_TOP
-        sta NUMBER_OF_ROWS
         
-        ; -- We draw the first part of the triangle --
-        jsr draw_polygon_part_using_polygon_filler_naively
+        .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
+            ldy Y_DISTANCE_LEFT_TOP
+            
+            lda #%00001010           ; DCSEL=5, ADDRSEL=0
+            sta VERA_CTRL
 
-        lda Y_DISTANCE_RIGHT_LEFT
-        beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
-        sta NUMBER_OF_ROWS
+            lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+    
+            ldx $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+            
+            jsr do_the_jump_to_the_table
+        .else
+            lda Y_DISTANCE_LEFT_TOP
+            sta NUMBER_OF_ROWS
+            
+            ; -- We draw the first part of the triangle --
+            jsr draw_polygon_part_using_polygon_filler_naively
+        .endif
+            
+
+        .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
+            ldy Y_DISTANCE_RIGHT_LEFT
+            beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
+        .else
+            lda Y_DISTANCE_RIGHT_LEFT
+            beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
+            sta NUMBER_OF_ROWS
+        .endif
         
         lda #%00000110           ; DCSEL=3, ADDRSEL=0
         sta VERA_CTRL
@@ -2423,20 +2495,49 @@ first_left_point_is_lower_in_y:
         lda SLOPE_RIGHT_LEFT+1   ; X1 increment high
         sta $9F2A
 
-        ; -- We draw the second part of the triangle --
-        jsr draw_polygon_part_using_polygon_filler_naively
+        .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
+            lda #%00001010           ; DCSEL=5, ADDRSEL=0
+            sta VERA_CTRL
+
+            lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+    
+            ldx $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+            
+            jsr do_the_jump_to_the_table
+        .else
+            ; -- We draw the second part of the triangle --
+            jsr draw_polygon_part_using_polygon_filler_naively
+        .endif
 
         bra done_drawing_polygon_part_single_top
 first_right_point_is_lower_in_y:
-        lda Y_DISTANCE_RIGHT_TOP
-        sta NUMBER_OF_ROWS
-        
-        ; -- We draw the first part of the triangle --
-        jsr draw_polygon_part_using_polygon_filler_naively
+        .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
+            ldy Y_DISTANCE_RIGHT_TOP
+            
+            lda #%00001010           ; DCSEL=5, ADDRSEL=0
+            sta VERA_CTRL
 
-        lda Y_DISTANCE_RIGHT_LEFT
-        beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
-        sta NUMBER_OF_ROWS
+            lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+    
+            ldx $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+            
+            jsr do_the_jump_to_the_table
+        .else
+            lda Y_DISTANCE_RIGHT_TOP
+            sta NUMBER_OF_ROWS
+            
+            ; -- We draw the first part of the triangle --
+            jsr draw_polygon_part_using_polygon_filler_naively
+        .endif
+
+        .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
+            ldy Y_DISTANCE_RIGHT_LEFT
+            beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
+        .else
+            lda Y_DISTANCE_RIGHT_LEFT
+            beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
+            sta NUMBER_OF_ROWS
+        .endif
         
         lda #%00000110           ; DCSEL=3, ADDRSEL=0
         sta VERA_CTRL
@@ -2449,8 +2550,19 @@ first_right_point_is_lower_in_y:
         lda SLOPE_RIGHT_LEFT+1   ; X2 increment high
         sta $9F2C
         
-        ; -- We draw the second part of the triangle --
-        jsr draw_polygon_part_using_polygon_filler_naively
+        .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
+            lda #%00001010           ; DCSEL=5, ADDRSEL=0
+            sta VERA_CTRL
+
+            lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+    
+            ldx $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+            
+            jsr do_the_jump_to_the_table
+        .else
+            ; -- We draw the second part of the triangle --
+            jsr draw_polygon_part_using_polygon_filler_naively
+        .endif
         
     .else
     
@@ -2718,11 +2830,24 @@ slope_right_bottom_is_correctly_signed:
         lda SLOPE_RIGHT_BOTTOM+1 ; X2 increment high (signed)
         sta $9F2C    
     
-        lda Y_DISTANCE_LEFT_TOP
-        sta NUMBER_OF_ROWS
-        
-        ; -- We draw the first (and only) part of the triangle --
-        jsr draw_polygon_part_using_polygon_filler_naively
+        .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
+            ldy Y_DISTANCE_LEFT_TOP
+            
+            lda #%00001010           ; DCSEL=5, ADDRSEL=0
+            sta VERA_CTRL
+
+            lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+    
+            ldx $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+            
+            jsr do_the_jump_to_the_table
+        .else
+            lda Y_DISTANCE_LEFT_TOP
+            sta NUMBER_OF_ROWS
+            
+            ; -- We draw the first (and only) part of the triangle --
+            jsr draw_polygon_part_using_polygon_filler_naively
+        .endif
         
     .else
 
@@ -3864,7 +3989,7 @@ end_of_palette_data:
     .endif
    
    
-    .if(1)
+    .if(0)
 palette_data:
     .byte $c8, $08  ; palette index 16
     .byte $c9, $07  ; palette index 17
@@ -3984,7 +4109,7 @@ triangle_data:
     .endif
    
    
-    .if(0)
+    .if(1)
 palette_data:
     .byte $31, $09  ; palette index 16
     .byte $51, $0a  ; palette index 17
