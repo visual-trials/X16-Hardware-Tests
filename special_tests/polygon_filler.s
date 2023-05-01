@@ -3989,7 +3989,7 @@ end_of_palette_data:
     .endif
    
    
-    .if(0)
+    .if(1)
 palette_data:
     .byte $c8, $08  ; palette index 16
     .byte $c9, $07  ; palette index 17
@@ -4109,7 +4109,7 @@ triangle_data:
     .endif
    
    
-    .if(1)
+    .if(0)
 palette_data:
     .byte $31, $09  ; palette index 16
     .byte $51, $0a  ; palette index 17
