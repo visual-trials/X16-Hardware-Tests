@@ -74,6 +74,10 @@ def run():
 def draw_world(triangles, angle_z, angle_x):
     triangles_scaled = do_the_3d_transformations(triangles, angle_z, angle_x)
     
+    # FIXME: UGLY HACK! We need to sort properly!
+    if (triangles_scaled[0]["avg_z"] < triangles_scaled[1]["avg_z"]):
+        triangles_scaled.reverse()
+    
     for triangle_scaled in triangles_scaled:
         tri = triangle_scaled
         triangle_color = all_colors[tri["clr"]]
@@ -155,8 +159,9 @@ def do_the_3d_transformations(triangles, angle_z, angle_x):
         tri["pt2"]["z"] += offset_z
         tri["pt3"]["z"] += offset_z
         
-        triangles_translated.append(tri)
+        tri["avg_z"] = (tri["pt1"]["z"] + tri["pt2"]["z"] + tri["pt3"]["z"]) / 3
         
+        triangles_translated.append(tri)
         
     triangles_projected = []
     for triangle_translated in triangles_translated:
