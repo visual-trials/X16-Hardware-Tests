@@ -46,6 +46,7 @@ def run():
     
     angle_z = 0.0
     angle_x = 0.0
+    # angle_x = math.pi
     
         
     running = True
@@ -99,8 +100,8 @@ def do_the_3d_transformations(triangles, angle_z, angle_x):
     offset_y = 0
     offset_z = 3
     
-    scale_x = 100
-    scale_y = 100
+    scale_x = 128
+    scale_y = 128
     
     triangles_rotated_z = []
     for tri in triangles:
