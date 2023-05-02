@@ -1,9 +1,9 @@
 
 DO_SPEED_TEST = 1
 
-USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 1
+USE_POLYGON_FILLER = 0
+USE_SLOPE_TABLES = 0
+USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 0      ; FIXME: THIS ONE IS BROKEN ATM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
@@ -586,12 +586,18 @@ MACRO_scale_and_position_on_screen_x .macro TRIANGLES_3D_POINT_X, TRIANGLES_POIN
     ; First we multiply by 128 (by dividing by 2)
     ror TMP_POINT_X+1
     ror TMP_POINT_X
+
 ; FIXME: REMOVE THIS!!
 ; FIXME: REMOVE THIS!!
 ; FIXME: REMOVE THIS!!
 ; FIXME: REMOVE THIS!!
-;    lsr TMP_POINT_X+1  ; NOT SIGN EXTENDED!
-;    ror TMP_POINT_X
+    clc
+    lda TMP_POINT_X+1
+    bpl \@point_x_is_sign_extended2
+    sec
+\@point_x_is_sign_extended2:
+    ror TMP_POINT_X+1
+    ror TMP_POINT_X
     
     ; We then add half of the screen width
     clc
@@ -620,12 +626,18 @@ MACRO_scale_and_position_on_screen_y .macro TRIANGLES_3D_POINT_Y, TRIANGLES_POIN
     ; First we multiply by 128 (by dividing by 2)
     lsr TMP_POINT_Y+1
     ror TMP_POINT_Y
+    
 ; FIXME: REMOVE THIS!!
 ; FIXME: REMOVE THIS!!
 ; FIXME: REMOVE THIS!!
 ; FIXME: REMOVE THIS!!
-;    lsr TMP_POINT_Y+1  ; NOT SIGN EXTENDED!
-;    ror TMP_POINT_Y
+    clc
+    lda TMP_POINT_Y+1
+    bpl \@point_x_is_sign_extended2
+    sec
+\@point_x_is_sign_extended2:
+    ror TMP_POINT_Y+1
+    ror TMP_POINT_Y
     
     ; We then add half of the screen width
     clc
@@ -667,6 +679,11 @@ MACRO_rotate_in_z_calc_x .macro TRIANGLES_3D_POINT_X, TRIANGLES_3D_POINT_Y, TRIA
 
     jsr multply_16bits_signed
     
+    ; FIXME: We multiply the result by 2
+    asl PRODUCT+1
+    rol PRODUCT+2
+    rol PRODUCT+3
+    
     lda PRODUCT+2
     sta TMP_POINT_X
     lda PRODUCT+3
@@ -692,6 +709,11 @@ MACRO_rotate_in_z_calc_x .macro TRIANGLES_3D_POINT_X, TRIANGLES_3D_POINT_Y, TRIA
     sta MULTIPLICAND+1
 
     jsr multply_16bits_signed
+    
+    ; FIXME: We multiply the result by 2
+    asl PRODUCT+1
+    rol PRODUCT+2
+    rol PRODUCT+3
     
     sec
     lda TMP_POINT_X
@@ -731,6 +753,11 @@ MACRO_rotate_in_z_calc_y .macro TRIANGLES_3D_POINT_X, TRIANGLES_3D_POINT_Y, TRIA
 
     jsr multply_16bits_signed
     
+    ; FIXME: We multiply the result by 2
+    asl PRODUCT+1
+    rol PRODUCT+2
+    rol PRODUCT+3
+    
     lda PRODUCT+2
     sta TMP_POINT_Y
     lda PRODUCT+3
@@ -756,6 +783,11 @@ MACRO_rotate_in_z_calc_y .macro TRIANGLES_3D_POINT_X, TRIANGLES_3D_POINT_Y, TRIA
     sta MULTIPLICAND+1
 
     jsr multply_16bits_signed
+    
+    ; FIXME: We multiply the result by 2
+    asl PRODUCT+1
+    rol PRODUCT+2
+    rol PRODUCT+3
     
     clc
     lda TMP_POINT_Y
