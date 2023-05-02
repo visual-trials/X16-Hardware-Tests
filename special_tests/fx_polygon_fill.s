@@ -3016,6 +3016,72 @@ done_adding_code_byte:
     
     
 ; =========== FIXME: put this somewhere else! ==============
+
+
+; -- FIXME: SLOW HACK! --
+MULTIPLIER_XOR_MULTIPLICAND_NEGATED = TMP2
+multply_16bits_signed:
+    stz MULTIPLIER_XOR_MULTIPLICAND_NEGATED
+    
+    lda MULTIPLIER+1
+    bpl multiplier_is_positive
+    
+    ; We negate the multiplier
+    sec
+    lda #0
+    sbc MULTIPLIER
+    sta MULTIPLIER
+    lda #0
+    sbc MULTIPLIER+1
+    sta MULTIPLIER+1
+    
+    lda #1
+    sta MULTIPLIER_XOR_MULTIPLICAND_NEGATED
+multiplier_is_positive:
+
+    lda MULTIPLICAND
+    bpl multiplcand_is_positive
+
+    ; We negate the multiplicand
+    sec
+    lda #0
+    sbc MULTIPLICAND
+    sta MULTIPLICAND
+    lda #0
+    sbc MULTIPLICAND+1
+    sta MULTIPLICAND+1
+    
+    lda MULTIPLIER_XOR_MULTIPLICAND_NEGATED
+    eor #1
+    sta MULTIPLIER_XOR_MULTIPLICAND_NEGATED
+    
+multiplcand_is_positive:
+
+    jsr multply_16bits
+    
+    lda MULTIPLIER_XOR_MULTIPLICAND_NEGATED
+    beq signed_product_is_valid
+    
+    ;We negate the product
+    sec
+    lda #0
+    sbc PRODUCT
+    sta PRODUCT
+    lda #0
+    sbc PRODUCT+1
+    sta PRODUCT+1
+    lda #0
+    sbc PRODUCT+2
+    sta PRODUCT+2
+    lda #0
+    sbc PRODUCT+3
+    sta PRODUCT+3
+    
+signed_product_is_valid:
+
+    rts
+
+
 ; https://codebase64.org/doku.php?id=base:16bit_multiplication_32-bit_product
 multply_16bits:
     phx

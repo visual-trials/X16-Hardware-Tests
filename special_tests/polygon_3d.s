@@ -168,6 +168,13 @@ TMP_POINT_Y              = $A3 ; A4
 TMP_POINT_Z              = $A5 ; A6
 
 
+ANGLE_X                  = $A7 ; A8  ; number between 0 and 511
+ANGLE_Z                  = $A9 ; AA  ; number between 0 and 511
+
+ANGLE                    = $AB ; AC
+SINE_OUTPUT              = $AD ; AE
+COSINE_OUTPUT            = $AF ; B0
+
 DEBUG_VALUE              = $C7
 
 
@@ -565,40 +572,51 @@ test_speed_of_simple_3d_polygon_scene:
     
 MACRO_scale_and_position_on_screen_x .macro TRIANGLES_3D_POINT_X, TRIANGLES_POINT_X
 
-    lda \TRIANGLES_3D_POINT_X, y
+    lda \TRIANGLES_3D_POINT_X, x
     sta TMP_POINT_X
-    lda \TRIANGLES_3D_POINT_X+MAX_NR_OF_TRIANGLES, y
+    lda \TRIANGLES_3D_POINT_X+MAX_NR_OF_TRIANGLES, x
     sta TMP_POINT_X+1
     
+    clc
+    lda TMP_POINT_X+1
+    bpl \@point_x_is_sign_extended
+    sec
+\@point_x_is_sign_extended:
+
     ; First we multiply by 128 (by dividing by 2)
-    lsr TMP_POINT_X+1
+    ror TMP_POINT_X+1
     ror TMP_POINT_X
 ; FIXME: REMOVE THIS!!
 ; FIXME: REMOVE THIS!!
 ; FIXME: REMOVE THIS!!
 ; FIXME: REMOVE THIS!!
-    lsr TMP_POINT_X+1
-    ror TMP_POINT_X
+;    lsr TMP_POINT_X+1  ; NOT SIGN EXTENDED!
+;    ror TMP_POINT_X
     
     ; We then add half of the screen width
     clc
     lda TMP_POINT_X
     adc #<(SCREEN_WIDTH/2)
-    sta \TRIANGLES_POINT_X, y
+    sta \TRIANGLES_POINT_X, x
     
     lda TMP_POINT_X+1
     adc #>(SCREEN_WIDTH/2)
-    sta \TRIANGLES_POINT_X+MAX_NR_OF_TRIANGLES, y
+    sta \TRIANGLES_POINT_X+MAX_NR_OF_TRIANGLES, x
 
 .endmacro
     
 MACRO_scale_and_position_on_screen_y .macro TRIANGLES_3D_POINT_Y, TRIANGLES_POINT_Y
 
-    lda \TRIANGLES_3D_POINT_Y, y
+    lda \TRIANGLES_3D_POINT_Y, x
     sta TMP_POINT_Y
-    lda \TRIANGLES_3D_POINT_Y+MAX_NR_OF_TRIANGLES, y
+    lda \TRIANGLES_3D_POINT_Y+MAX_NR_OF_TRIANGLES, x
     sta TMP_POINT_Y+1
     
+    clc
+    lda TMP_POINT_Y+1
+    bpl \@point_y_is_sign_extended
+    sec
+\@point_y_is_sign_extended:
     ; First we multiply by 128 (by dividing by 2)
     lsr TMP_POINT_Y+1
     ror TMP_POINT_Y
@@ -606,65 +624,212 @@ MACRO_scale_and_position_on_screen_y .macro TRIANGLES_3D_POINT_Y, TRIANGLES_POIN
 ; FIXME: REMOVE THIS!!
 ; FIXME: REMOVE THIS!!
 ; FIXME: REMOVE THIS!!
-    lsr TMP_POINT_Y+1
-    ror TMP_POINT_Y
+;    lsr TMP_POINT_Y+1  ; NOT SIGN EXTENDED!
+;    ror TMP_POINT_Y
     
     ; We then add half of the screen width
     clc
     lda TMP_POINT_Y
     adc #<(SCREEN_HEIGHT/2)
-    sta \TRIANGLES_POINT_Y, y
+    sta \TRIANGLES_POINT_Y, x
     
     lda TMP_POINT_Y+1
     adc #>(SCREEN_HEIGHT/2)
-    sta \TRIANGLES_POINT_Y+MAX_NR_OF_TRIANGLES, y
+    sta \TRIANGLES_POINT_Y+MAX_NR_OF_TRIANGLES, x
 
 .endmacro
 
+
+MACRO_rotate_in_z_calc_x .macro TRIANGLES_3D_POINT_X, TRIANGLES_3D_POINT_Y, TRIANGLES_3D_POINT_X_OUTPUT
+
+    ; -- Rotate in Z: calculate x --
+
+    ; - x = x*cos - y*sin -
+    
+    ; - x*cos -
+    
+    lda ANGLE_Z
+    sta ANGLE
+    lda ANGLE_Z+1
+    sta ANGLE+1
+    
+    jsr get_cosine_for_angle ; Note: this *destroys* ANGLE!
+    
+    lda COSINE_OUTPUT
+    sta MULTIPLIER
+    lda COSINE_OUTPUT+1
+    sta MULTIPLIER+1
+
+    lda \TRIANGLES_3D_POINT_X, x
+    sta MULTIPLICAND
+    lda \TRIANGLES_3D_POINT_X+MAX_NR_OF_TRIANGLES, x
+    sta MULTIPLICAND+1
+
+    jsr multply_16bits_signed
+    
+    lda PRODUCT+2
+    sta TMP_POINT_X
+    lda PRODUCT+3
+    sta TMP_POINT_X+1
+    
+    ; - y*sin -
+    
+    lda ANGLE_Z
+    sta ANGLE
+    lda ANGLE_Z+1
+    sta ANGLE+1
+    
+    jsr get_sine_for_angle ; Note: this *destroys* ANGLE!
+    
+    lda SINE_OUTPUT
+    sta MULTIPLIER
+    lda SINE_OUTPUT+1
+    sta MULTIPLIER+1
+
+    lda \TRIANGLES_3D_POINT_Y, x
+    sta MULTIPLICAND
+    lda \TRIANGLES_3D_POINT_Y+MAX_NR_OF_TRIANGLES, x
+    sta MULTIPLICAND+1
+
+    jsr multply_16bits_signed
+    
+    sec
+    lda TMP_POINT_X
+    sbc PRODUCT+2
+    sta \TRIANGLES_3D_POINT_X_OUTPUT, x
+    lda TMP_POINT_X+1
+    sbc PRODUCT+3
+    sta \TRIANGLES_3D_POINT_X_OUTPUT+MAX_NR_OF_TRIANGLES, x
+
+.endmacro
+
+
+MACRO_rotate_in_z_calc_y .macro TRIANGLES_3D_POINT_X, TRIANGLES_3D_POINT_Y, TRIANGLES_3D_POINT_Y_OUTPUT
+
+    ; -- Rotate in Z: calculate y --
+
+    ; - y = x*sin + y*cos -
+    
+    ; - x*sin -
+    
+    lda ANGLE_Z
+    sta ANGLE
+    lda ANGLE_Z+1
+    sta ANGLE+1
+    
+    jsr get_sine_for_angle ; Note: this *destroys* ANGLE!
+    
+    lda SINE_OUTPUT
+    sta MULTIPLIER
+    lda SINE_OUTPUT+1
+    sta MULTIPLIER+1
+
+    lda \TRIANGLES_3D_POINT_X, x
+    sta MULTIPLICAND
+    lda \TRIANGLES_3D_POINT_X+MAX_NR_OF_TRIANGLES, x
+    sta MULTIPLICAND+1
+
+    jsr multply_16bits_signed
+    
+    lda PRODUCT+2
+    sta TMP_POINT_Y
+    lda PRODUCT+3
+    sta TMP_POINT_Y+1
+    
+    ; - y*cos -
+    
+    lda ANGLE_Z
+    sta ANGLE
+    lda ANGLE_Z+1
+    sta ANGLE+1
+    
+    jsr get_cosine_for_angle ; Note: this *destroys* ANGLE!
+    
+    lda COSINE_OUTPUT
+    sta MULTIPLIER
+    lda COSINE_OUTPUT+1
+    sta MULTIPLIER+1
+
+    lda \TRIANGLES_3D_POINT_Y, x
+    sta MULTIPLICAND
+    lda \TRIANGLES_3D_POINT_Y+MAX_NR_OF_TRIANGLES, x
+    sta MULTIPLICAND+1
+
+    jsr multply_16bits_signed
+    
+    clc
+    lda TMP_POINT_Y
+    adc PRODUCT+2
+    sta \TRIANGLES_3D_POINT_Y_OUTPUT, x
+    lda TMP_POINT_Y+1
+    adc PRODUCT+3
+    sta \TRIANGLES_3D_POINT_Y_OUTPUT+MAX_NR_OF_TRIANGLES, x
+
+.endmacro
+
+
 calculate_projection_of_3d_onto_2d_screen:
 
-    ; FIXME: implement this!
-    ; FIXME: implement this!
-    ; FIXME: implement this!
+
+; PROBLEM: our cos/sin values range between -0.5 and +0.5, which means that all values will be HALVED!!
+; PROBLEM: our cos/sin values range between -0.5 and +0.5, which means that all values will be HALVED!!
+; PROBLEM: our cos/sin values range between -0.5 and +0.5, which means that all values will be HALVED!!
+
+
+    lda #30
+    sta ANGLE_Z
+    lda #0
+    sta ANGLE_Z+1
+
+    ldx #0
+rotate_in_z_next_triangle:
     
-    ; FIXME: THIS IS *SLAP* CODE!
-    ; FIXME: THIS IS *SLAP* CODE!
-    ; FIXME: THIS IS *SLAP* CODE!
-    ; FIXME: THIS IS *SLAP* CODE!
-    ; FIXME: THIS IS *SLAP* CODE!
-    ; FIXME: THIS IS *SLAP* CODE!
-    ; FIXME: THIS IS *SLAP* CODE!
-    ; FIXME: THIS IS *SLAP* CODE!
+    ; -- Point 1 --
+    MACRO_rotate_in_z_calc_x TRIANGLES_3D_POINT1_X, TRIANGLES_3D_POINT1_Y, TRIANGLES2_3D_POINT1_X
+    MACRO_rotate_in_z_calc_y TRIANGLES_3D_POINT1_X, TRIANGLES_3D_POINT1_Y, TRIANGLES2_3D_POINT1_Y
     
-; FIXME: not using register x right now!    ldx #0 --> keeping SAME *order* of triangles!
-    ldy #0
+    ; -- Point 2 --
+    MACRO_rotate_in_z_calc_x TRIANGLES_3D_POINT2_X, TRIANGLES_3D_POINT2_Y, TRIANGLES2_3D_POINT2_X
+    MACRO_rotate_in_z_calc_y TRIANGLES_3D_POINT2_X, TRIANGLES_3D_POINT2_Y, TRIANGLES2_3D_POINT2_Y
+
+    ; -- Point 3 --
+    MACRO_rotate_in_z_calc_x TRIANGLES_3D_POINT3_X, TRIANGLES_3D_POINT3_Y, TRIANGLES2_3D_POINT3_X
+    MACRO_rotate_in_z_calc_y TRIANGLES_3D_POINT3_X, TRIANGLES_3D_POINT3_Y, TRIANGLES2_3D_POINT3_Y
+    
+    inx
+    cpx #NR_OF_TRIANGLES
+    beq rotate_in_z_done
+    jmp rotate_in_z_next_triangle
+rotate_in_z_done:
+
+    
+; FIXME: BE CAREFUL!! If we ALSO rotate in X, we need more space for the intermediate values!
+; FIXME: BE CAREFUL!! If we ALSO rotate in X, we need more space for the intermediate values!
+; FIXME: BE CAREFUL!! If we ALSO rotate in X, we need more space for the intermediate values!
+    
+    
+    ldx #0
 scale_and_position_next_triangle:
     
     ; -- Point 1 --
-    MACRO_scale_and_position_on_screen_x TRIANGLES_3D_POINT1_X, TRIANGLES_POINT1_X
-    MACRO_scale_and_position_on_screen_y TRIANGLES_3D_POINT1_Y, TRIANGLES_POINT1_Y
+    MACRO_scale_and_position_on_screen_x TRIANGLES2_3D_POINT1_X, TRIANGLES_POINT1_X
+    MACRO_scale_and_position_on_screen_y TRIANGLES2_3D_POINT1_Y, TRIANGLES_POINT1_Y
     
     ; -- Point 2 --
-    MACRO_scale_and_position_on_screen_x TRIANGLES_3D_POINT2_X, TRIANGLES_POINT2_X
-    MACRO_scale_and_position_on_screen_y TRIANGLES_3D_POINT2_Y, TRIANGLES_POINT2_Y
+    MACRO_scale_and_position_on_screen_x TRIANGLES2_3D_POINT2_X, TRIANGLES_POINT2_X
+    MACRO_scale_and_position_on_screen_y TRIANGLES2_3D_POINT2_Y, TRIANGLES_POINT2_Y
     
     ; -- Point 3 --
-    MACRO_scale_and_position_on_screen_x TRIANGLES_3D_POINT3_X, TRIANGLES_POINT3_X
-    MACRO_scale_and_position_on_screen_y TRIANGLES_3D_POINT3_Y, TRIANGLES_POINT3_Y
+    MACRO_scale_and_position_on_screen_x TRIANGLES2_3D_POINT3_X, TRIANGLES_POINT3_X
+    MACRO_scale_and_position_on_screen_y TRIANGLES2_3D_POINT3_Y, TRIANGLES_POINT3_Y
     
-    iny
-    
-; FIXME: this is now a FIXED number, it probably shouldnt be in the future!
-    cpy #NR_OF_TRIANGLES
-    bne scale_and_position_next_triangle_jmp
-    
+    inx
+    cpx #NR_OF_TRIANGLES
+    beq scale_and_position_done
+    jmp scale_and_position_next_triangle
+scale_and_position_done:
 
     rts
-    
-scale_and_position_next_triangle_jmp:
-    jmp scale_and_position_next_triangle
-
-    
     
 clear_screen_slow:
   
@@ -949,6 +1114,57 @@ load_next_triangle_jmp:
     jmp load_next_triangle
     
     
+get_sine_for_angle:
+
+    ; We multiply the angle by 2 (shift left)
+    asl ANGLE
+    rol ANGLE+1
+    
+    ; We add the angle to the table base address
+    clc
+    lda #<sine_words
+    adc ANGLE
+    sta LOAD_ADDRESS
+    lda #>sine_words
+    adc ANGLE+1
+    sta LOAD_ADDRESS+1
+    
+    ldy #0
+    
+    lda (LOAD_ADDRESS), y
+    sta SINE_OUTPUT
+    iny
+    lda (LOAD_ADDRESS), y
+    sta SINE_OUTPUT+1
+    
+    rts
+    
+get_cosine_for_angle:
+
+    ; We multiply the angle by 2 (shift left)
+    asl ANGLE
+    rol ANGLE+1
+    
+    ; We add the angle to the table base address
+    clc
+    lda #<cosine_words
+    adc ANGLE
+    sta LOAD_ADDRESS
+    lda #>cosine_words
+    adc ANGLE+1
+    sta LOAD_ADDRESS+1
+    
+    ldy #0
+    
+    lda (LOAD_ADDRESS), y
+    sta COSINE_OUTPUT
+    iny
+    lda (LOAD_ADDRESS), y
+    sta COSINE_OUTPUT+1
+    
+    rts
+    
+    
     .if(1)
 NR_OF_TRIANGLES = 2
 triangle_3d_data:
@@ -971,6 +1187,26 @@ end_of_palette_data:
     .include utils/setup_vera_for_bitmap_and_tilemap.s
     .include special_tests/fx_polygon_fill.s
 
+    
+    ; === Cosine and sine tables ===
+
+    .org $EF00
+    
+    ; FIXME: put this in a more general place!
+
+    ; Python script to generate sine and cosine words    
+    ;   import math
+    ;   cycle=512
+    ;   ampl=256*256/2
+    ;   [int(math.sin(float(i)/cycle*2.0*math.pi)*ampl+0.5) for i in range(cycle)]
+    ;   [int(math.cos(float(i)/cycle*2.0*math.pi)*ampl+0.5) for i in range(cycle)]
+    
+    ; FIXME: *manually* changed 32768 into 32767 -> we should change the ampl instead!
+sine_words:
+    .word 0, 402, 804, 1206, 1608, 2009, 2411, 2811, 3212, 3612, 4011, 4410, 4808, 5205, 5602, 5998, 6393, 6787, 7180, 7571, 7962, 8351, 8740, 9127, 9512, 9896, 10279, 10660, 11039, 11417, 11793, 12167, 12540, 12910, 13279, 13646, 14010, 14373, 14733, 15091, 15447, 15800, 16151, 16500, 16846, 17190, 17531, 17869, 18205, 18538, 18868, 19195, 19520, 19841, 20160, 20475, 20788, 21097, 21403, 21706, 22006, 22302, 22595, 22884, 23170, 23453, 23732, 24008, 24279, 24548, 24812, 25073, 25330, 25583, 25833, 26078, 26320, 26557, 26791, 27020, 27246, 27467, 27684, 27897, 28106, 28311, 28511, 28707, 28899, 29086, 29269, 29448, 29622, 29792, 29957, 30118, 30274, 30425, 30572, 30715, 30853, 30986, 31114, 31238, 31357, 31471, 31581, 31686, 31786, 31881, 31972, 32058, 32138, 32214, 32286, 32352, 32413, 32470, 32522, 32568, 32610, 32647, 32679, 32706, 32729, 32746, 32758, 32766, 32767, 32766, 32758, 32746, 32729, 32706, 32679, 32647, 32610, 32568, 32522, 32470, 32413, 32352, 32286, 32214, 32138, 32058, 31972, 31881, 31786, 31686, 31581, 31471, 31357, 31238, 31114, 30986, 30853, 30715, 30572, 30425, 30274, 30118, 29957, 29792, 29622, 29448, 29269, 29086, 28899, 28707, 28511, 28311, 28106, 27897, 27684, 27467, 27246, 27020, 26791, 26557, 26320, 26078, 25833, 25583, 25330, 25073, 24812, 24548, 24279, 24008, 23732, 23453, 23170, 22884, 22595, 22302, 22006, 21706, 21403, 21097, 20788, 20475, 20160, 19841, 19520, 19195, 18868, 18538, 18205, 17869, 17531, 17190, 16846, 16500, 16151, 15800, 15447, 15091, 14733, 14373, 14010, 13646, 13279, 12910, 12540, 12167, 11793, 11417, 11039, 10660, 10279, 9896, 9512, 9127, 8740, 8351, 7962, 7571, 7180, 6787, 6393, 5998, 5602, 5205, 4808, 4410, 4011, 3612, 3212, 2811, 2411, 2009, 1608, 1206, 804, 402, 0, -401, -803, -1205, -1607, -2008, -2410, -2810, -3211, -3611, -4010, -4409, -4807, -5204, -5601, -5997, -6392, -6786, -7179, -7570, -7961, -8350, -8739, -9126, -9511, -9895, -10278, -10659, -11038, -11416, -11792, -12166, -12539, -12909, -13278, -13645, -14009, -14372, -14732, -15090, -15446, -15799, -16150, -16499, -16845, -17189, -17530, -17868, -18204, -18537, -18867, -19194, -19519, -19840, -20159, -20474, -20787, -21096, -21402, -21705, -22005, -22301, -22594, -22883, -23169, -23452, -23731, -24007, -24278, -24547, -24811, -25072, -25329, -25582, -25832, -26077, -26319, -26556, -26790, -27019, -27245, -27466, -27683, -27896, -28105, -28310, -28510, -28706, -28898, -29085, -29268, -29447, -29621, -29791, -29956, -30117, -30273, -30424, -30571, -30714, -30852, -30985, -31113, -31237, -31356, -31470, -31580, -31685, -31785, -31880, -31971, -32057, -32137, -32213, -32285, -32351, -32412, -32469, -32521, -32567, -32609, -32646, -32678, -32705, -32728, -32745, -32757, -32765, -32767, -32765, -32757, -32745, -32728, -32705, -32678, -32646, -32609, -32567, -32521, -32469, -32412, -32351, -32285, -32213, -32137, -32057, -31971, -31880, -31785, -31685, -31580, -31470, -31356, -31237, -31113, -30985, -30852, -30714, -30571, -30424, -30273, -30117, -29956, -29791, -29621, -29447, -29268, -29085, -28898, -28706, -28510, -28310, -28105, -27896, -27683, -27466, -27245, -27019, -26790, -26556, -26319, -26077, -25832, -25582, -25329, -25072, -24811, -24547, -24278, -24007, -23731, -23452, -23169, -22883, -22594, -22301, -22005, -21705, -21402, -21096, -20787, -20474, -20159, -19840, -19519, -19194, -18867, -18537, -18204, -17868, -17530, -17189, -16845, -16499, -16150, -15799, -15446, -15090, -14732, -14372, -14009, -13645, -13278, -12909, -12539, -12166, -11792, -11416, -11038, -10659, -10278, -9895, -9511, -9126, -8739, -8350, -7961, -7570, -7179, -6786, -6392, -5997, -5601, -5204, -4807, -4409, -4010, -3611, -3211, -2810, -2410, -2008, -1607, -1205, -803, -401
+cosine_words:
+    .word 32767, 32766, 32758, 32746, 32729, 32706, 32679, 32647, 32610, 32568, 32522, 32470, 32413, 32352, 32286, 32214, 32138, 32058, 31972, 31881, 31786, 31686, 31581, 31471, 31357, 31238, 31114, 30986, 30853, 30715, 30572, 30425, 30274, 30118, 29957, 29792, 29622, 29448, 29269, 29086, 28899, 28707, 28511, 28311, 28106, 27897, 27684, 27467, 27246, 27020, 26791, 26557, 26320, 26078, 25833, 25583, 25330, 25073, 24812, 24548, 24279, 24008, 23732, 23453, 23170, 22884, 22595, 22302, 22006, 21706, 21403, 21097, 20788, 20475, 20160, 19841, 19520, 19195, 18868, 18538, 18205, 17869, 17531, 17190, 16846, 16500, 16151, 15800, 15447, 15091, 14733, 14373, 14010, 13646, 13279, 12910, 12540, 12167, 11793, 11417, 11039, 10660, 10279, 9896, 9512, 9127, 8740, 8351, 7962, 7571, 7180, 6787, 6393, 5998, 5602, 5205, 4808, 4410, 4011, 3612, 3212, 2811, 2411, 2009, 1608, 1206, 804, 402, 0, -401, -803, -1205, -1607, -2008, -2410, -2810, -3211, -3611, -4010, -4409, -4807, -5204, -5601, -5997, -6392, -6786, -7179, -7570, -7961, -8350, -8739, -9126, -9511, -9895, -10278, -10659, -11038, -11416, -11792, -12166, -12539, -12909, -13278, -13645, -14009, -14372, -14732, -15090, -15446, -15799, -16150, -16499, -16845, -17189, -17530, -17868, -18204, -18537, -18867, -19194, -19519, -19840, -20159, -20474, -20787, -21096, -21402, -21705, -22005, -22301, -22594, -22883, -23169, -23452, -23731, -24007, -24278, -24547, -24811, -25072, -25329, -25582, -25832, -26077, -26319, -26556, -26790, -27019, -27245, -27466, -27683, -27896, -28105, -28310, -28510, -28706, -28898, -29085, -29268, -29447, -29621, -29791, -29956, -30117, -30273, -30424, -30571, -30714, -30852, -30985, -31113, -31237, -31356, -31470, -31580, -31685, -31785, -31880, -31971, -32057, -32137, -32213, -32285, -32351, -32412, -32469, -32521, -32567, -32609, -32646, -32678, -32705, -32728, -32745, -32757, -32765, -32767, -32765, -32757, -32745, -32728, -32705, -32678, -32646, -32609, -32567, -32521, -32469, -32412, -32351, -32285, -32213, -32137, -32057, -31971, -31880, -31785, -31685, -31580, -31470, -31356, -31237, -31113, -30985, -30852, -30714, -30571, -30424, -30273, -30117, -29956, -29791, -29621, -29447, -29268, -29085, -28898, -28706, -28510, -28310, -28105, -27896, -27683, -27466, -27245, -27019, -26790, -26556, -26319, -26077, -25832, -25582, -25329, -25072, -24811, -24547, -24278, -24007, -23731, -23452, -23169, -22883, -22594, -22301, -22005, -21705, -21402, -21096, -20787, -20474, -20159, -19840, -19519, -19194, -18867, -18537, -18204, -17868, -17530, -17189, -16845, -16499, -16150, -15799, -15446, -15090, -14732, -14372, -14009, -13645, -13278, -12909, -12539, -12166, -11792, -11416, -11038, -10659, -10278, -9895, -9511, -9126, -8739, -8350, -7961, -7570, -7179, -6786, -6392, -5997, -5601, -5204, -4807, -4409, -4010, -3611, -3211, -2810, -2410, -2008, -1607, -1205, -803, -401, 0, 402, 804, 1206, 1608, 2009, 2411, 2811, 3212, 3612, 4011, 4410, 4808, 5205, 5602, 5998, 6393, 6787, 7180, 7571, 7962, 8351, 8740, 9127, 9512, 9896, 10279, 10660, 11039, 11417, 11793, 12167, 12540, 12910, 13279, 13646, 14010, 14373, 14733, 15091, 15447, 15800, 16151, 16500, 16846, 17190, 17531, 17869, 18205, 18538, 18868, 19195, 19520, 19841, 20160, 20475, 20788, 21097, 21403, 21706, 22006, 22302, 22595, 22884, 23170, 23453, 23732, 24008, 24279, 24548, 24812, 25073, 25330, 25583, 25833, 26078, 26320, 26557, 26791, 27020, 27246, 27467, 27684, 27897, 28106, 28311, 28511, 28707, 28899, 29086, 29269, 29448, 29622, 29792, 29957, 30118, 30274, 30425, 30572, 30715, 30853, 30986, 31114, 31238, 31357, 31471, 31581, 31686, 31786, 31881, 31972, 32058, 32138, 32214, 32286, 32352, 32413, 32470, 32522, 32568, 32610, 32647, 32679, 32706, 32729, 32746, 32758, 32766
+    
     ; ======== PETSCII CHARSET =======
 
     .org $F700
