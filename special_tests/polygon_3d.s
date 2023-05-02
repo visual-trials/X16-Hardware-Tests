@@ -1,10 +1,10 @@
 
 DO_SPEED_TEST = 1
 
-USE_POLYGON_FILLER = 0
-USE_SLOPE_TABLES = 0
-USE_UNROLLED_LOOP = 0
-USE_JUMP_TABLE = 0
+USE_POLYGON_FILLER = 1
+USE_SLOPE_TABLES = 1
+USE_UNROLLED_LOOP = 1
+USE_JUMP_TABLE = 0      ; FIXME: THIS ONE IS BROKEN ATM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
 TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
