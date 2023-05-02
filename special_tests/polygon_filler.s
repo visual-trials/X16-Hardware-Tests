@@ -5,7 +5,7 @@ DO_SPEED_TEST = 1
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 0
+USE_UNROLLED_LOOP = 1
 USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
@@ -176,7 +176,7 @@ FILL_LENGTH_HIGH_SOFT    = $2801
 
 ; RAM addresses
 FILL_LINE_JUMP_TABLE     = $2F00
-FILL_LINE_BELOW_16_CODE  = $3000   ; 128 different (below 16 pixel) fill line code patterns
+FILL_LINE_BELOW_16_CODE  = $3000   ; 128 different (below 16 pixel) fill line code patterns -> safe: takes $0D00 bytes
 
 
 ; FIXME: can we put these jump tables closer to each other? Do they need to be aligned to 256 bytes? (they are 80 bytes each)
@@ -197,6 +197,7 @@ TEST_FILL_LINE_CODE      = $7300
 
 ; Triangle data is (easely) accessed through an single index (0-255)
 ; == IMPORTANT: we assume a *clockwise* ordering of the 3 points of a triangle! ==
+MAX_NR_OF_TRIANGLES      = 256
 TRIANGLES_POINT1_X       = $7400 ; 7500
 TRIANGLES_POINT1_Y       = $7600 ; 7700
 TRIANGLES_POINT2_X       = $7800 ; 7900
@@ -1033,7 +1034,7 @@ load_next_triangle:
     lda (LOAD_ADDRESS), y
     iny
     adc #>BX
-    sta TRIANGLES_POINT1_X+256, x
+    sta TRIANGLES_POINT1_X+MAX_NR_OF_TRIANGLES, x
     
     clc
     lda (LOAD_ADDRESS), y
@@ -1043,7 +1044,7 @@ load_next_triangle:
     lda (LOAD_ADDRESS), y
     iny
     adc #>BY
-    sta TRIANGLES_POINT1_Y+256, x
+    sta TRIANGLES_POINT1_Y+MAX_NR_OF_TRIANGLES, x
     
     ; -- Point 2 --
     clc
@@ -1054,7 +1055,7 @@ load_next_triangle:
     lda (LOAD_ADDRESS), y
     iny
     adc #>BX
-    sta TRIANGLES_POINT2_X+256, x
+    sta TRIANGLES_POINT2_X+MAX_NR_OF_TRIANGLES, x
     
     clc
     lda (LOAD_ADDRESS), y
@@ -1064,7 +1065,7 @@ load_next_triangle:
     lda (LOAD_ADDRESS), y
     iny
     adc #>BY
-    sta TRIANGLES_POINT2_Y+256, x
+    sta TRIANGLES_POINT2_Y+MAX_NR_OF_TRIANGLES, x
 
     ; -- Point 3 --
     clc
@@ -1075,7 +1076,7 @@ load_next_triangle:
     lda (LOAD_ADDRESS), y
     iny
     adc #>BX
-    sta TRIANGLES_POINT3_X+256, x
+    sta TRIANGLES_POINT3_X+MAX_NR_OF_TRIANGLES, x
     
     clc
     lda (LOAD_ADDRESS), y
@@ -1085,7 +1086,7 @@ load_next_triangle:
     lda (LOAD_ADDRESS), y
     iny
     adc #>BY
-    sta TRIANGLES_POINT3_Y+256, x
+    sta TRIANGLES_POINT3_Y+MAX_NR_OF_TRIANGLES, x
     
     lda (LOAD_ADDRESS), y
     iny

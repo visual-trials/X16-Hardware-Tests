@@ -121,7 +121,7 @@
 ; FILL_LENGTH_HIGH_SOFT (1 byte)
 
 ; FILL_LINE_JUMP_TABLE (256 bytes)
-; FILL_LINE_BELOW_16_CODE ; 128 different (below 16 pixel) fill line code patterns -> several kB long (FIXME: determine more exactly how much!)
+; FILL_LINE_BELOW_16_CODE ; 128 different (below 16 pixel) fill line code patterns -> takes roughly $0C28 (3112) bytes -> so $0D00 is safe
 
 ; -- IMPORTANT: we set the two lower bits of this address in the code, using JUMP_TABLE_16_0 as base. So the distance between the 4 tables should be $100! AND bits 8 and 9 should be 00b! (for JUMP_TABLE_16_0) --
 ; JUMP_TABLE_16_0 ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_0
@@ -136,14 +136,15 @@
 ; FILL_LINE_CODE_3 ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 
 ; -- Triangle data is (easely) accessed through an single index (0-255) --
+; MAX_NR_OF_TRIANGLES = 256  ; has to be set to the distance in memory of the tables below
 ; == IMPORTANT: we assume a *clockwise* ordering of the 3 points of a triangle! ==
-; TRIANGLES_POINT1_X (256 * 2 bytes)
-; TRIANGLES_POINT1_Y (256 * 2 bytes)
-; TRIANGLES_POINT2_X (256 * 2 bytes)
-; TRIANGLES_POINT2_Y (256 * 2 bytes)
-; TRIANGLES_POINT3_X (256 * 2 bytes)
-; TRIANGLES_POINT3_Y (256 * 2 bytes)
-; TRIANGLES_COLOR (256 bytes)
+; TRIANGLES_POINT1_X (MAX_NR_OF_TRIANGLES * 2 bytes)
+; TRIANGLES_POINT1_Y (MAX_NR_OF_TRIANGLES * 2 bytes)
+; TRIANGLES_POINT2_X (MAX_NR_OF_TRIANGLES * 2 bytes)
+; TRIANGLES_POINT2_Y (MAX_NR_OF_TRIANGLES * 2 bytes)
+; TRIANGLES_POINT3_X (MAX_NR_OF_TRIANGLES * 2 bytes)
+; TRIANGLES_POINT3_Y (MAX_NR_OF_TRIANGLES * 2 bytes)
+; TRIANGLES_COLOR (MAX_NR_OF_TRIANGLES bytes)
 
 ; Y_TO_ADDRESS_LOW (256 bytes)
 ; Y_TO_ADDRESS_HIGH (256 bytes)
@@ -899,14 +900,14 @@ generate_rts_code:
 MACRO_copy_point_x .macro TRIANGLES_POINT_X, POINT_X
     lda \TRIANGLES_POINT_X, x
     sta \POINT_X
-    lda \TRIANGLES_POINT_X+256, x
+    lda \TRIANGLES_POINT_X+MAX_NR_OF_TRIANGLES, x
     sta \POINT_X+1
 .endmacro
 
 MACRO_copy_point_y .macro TRIANGLES_POINT_Y, POINT_Y
     lda \TRIANGLES_POINT_Y, x
     sta \POINT_Y
-;    lda \TRIANGLES_POINT_Y+256, x
+;    lda \TRIANGLES_POINT_Y+MAX_NR_OF_TRIANGLES, x
 ;    sta \POINT_Y+1
 .endmacro
 
@@ -999,8 +1000,8 @@ draw_next_triangle:
     
     ; -- Determining which point is/are top point(s) --
 
-;    lda TRIANGLES_POINT1_Y+256, x
-;    cmp TRIANGLES_POINT2_Y+256, x
+;    lda TRIANGLES_POINT1_Y+MAX_NR_OF_TRIANGLES, x
+;    cmp TRIANGLES_POINT2_Y+MAX_NR_OF_TRIANGLES, x
 ;    bcc point1_is_lower_in_y_than_point2
 ;    bne point1_is_higher_in_y_than_point2
 
@@ -1012,8 +1013,8 @@ draw_next_triangle:
     
 point1_is_lower_in_y_than_point2:
     
-;    lda TRIANGLES_POINT1_Y+256, x
-;    cmp TRIANGLES_POINT3_Y+256, x
+;    lda TRIANGLES_POINT1_Y+MAX_NR_OF_TRIANGLES, x
+;    cmp TRIANGLES_POINT3_Y+MAX_NR_OF_TRIANGLES, x
 ;    bcc pt1_lower_pt2_point1_is_lower_in_y_than_point3
 ;    bne pt1_lower_pt2_point1_is_higher_in_y_than_point3
 
@@ -1041,8 +1042,8 @@ pt1_lower_pt2_point1_is_the_same_in_y_as_point3:
     
 point1_is_higher_in_y_than_point2:
 
-;    lda TRIANGLES_POINT2_Y+256, x
-;    cmp TRIANGLES_POINT3_Y+256, x
+;    lda TRIANGLES_POINT2_Y+MAX_NR_OF_TRIANGLES, x
+;    cmp TRIANGLES_POINT3_Y+MAX_NR_OF_TRIANGLES, x
 ;    bcc pt1_higher_pt2_point2_is_lower_in_y_than_point3
 ;    bne pt1_higher_pt2_point2_is_higher_in_y_than_point3
 
@@ -1070,8 +1071,8 @@ pt1_higher_pt2_point2_is_the_same_in_y_as_point3:
     
 point1_is_the_same_in_y_as_point2:
 
-;    lda TRIANGLES_POINT1_Y+256, x
-;    cmp TRIANGLES_POINT3_Y+256, x
+;    lda TRIANGLES_POINT1_Y+MAX_NR_OF_TRIANGLES, x
+;    cmp TRIANGLES_POINT3_Y+MAX_NR_OF_TRIANGLES, x
 ;    bcc pt1_same_pt2_point1_is_lower_in_y_than_point3
 ;    bne pt1_same_pt2_point1_is_higher_in_y_than_point3
 
