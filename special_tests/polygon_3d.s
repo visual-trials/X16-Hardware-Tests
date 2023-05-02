@@ -338,8 +338,6 @@ test_speed_of_simple_3d_polygon_scene:
         jsr clear_screen_slow
     .endif
     
-    stp
-
     jsr calculate_projection_of_3d_onto_2d_screen
     
     jsr draw_all_triangles
@@ -361,186 +359,189 @@ test_speed_of_simple_3d_polygon_scene:
     
     jsr print_text_zero
     
-    
-    lda #10
-    sta CURSOR_X
-    lda #4
-    sta CURSOR_Y
-    
-    lda #<rectangle_200x200_8bpp_message
-    sta TEXT_TO_PRINT
-    lda #>rectangle_200x200_8bpp_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
+    .if(0)
+        lda #10
+        sta CURSOR_X
+        lda #4
+        sta CURSOR_Y
+        
+        lda #<rectangle_200x200_8bpp_message
+        sta TEXT_TO_PRINT
+        lda #>rectangle_200x200_8bpp_message
+        sta TEXT_TO_PRINT + 1
+        
+        jsr print_text_zero
+    .endif
 
 
-    ; ---------- Used techniques -----------
-    
-    lda #2
-    sta CURSOR_X
-    lda #23
-    sta CURSOR_Y
+    .if(0)
+        ; ---------- Used techniques -----------
+        
+        lda #2
+        sta CURSOR_X
+        lda #23
+        sta CURSOR_Y
 
-    ; -- Slope table --
-    
-    .if(USE_SLOPE_TABLES)
-        lda #COLOR_CHECK
-        sta TEXT_COLOR
-    
-        lda #<check_raw_message
-        sta TEXT_TO_PRINT
-        lda #>check_raw_message
-        sta TEXT_TO_PRINT + 1
-    .else
-        lda #COLOR_CROSS
-        sta TEXT_COLOR
-    
-        lda #<cross_raw_message
-        sta TEXT_TO_PRINT
-        lda #>cross_raw_message
-        sta TEXT_TO_PRINT + 1
-    .endif
-    jsr print_raw_text_zero
-    
-    lda #COLOR_TRANSPARANT
-    sta TEXT_COLOR
+        ; -- Slope table --
         
-    lda #<slope_table_message
-    sta TEXT_TO_PRINT
-    lda #>slope_table_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
-    
-    ; -- Unrolled loop --
-    
-    .if(USE_UNROLLED_LOOP)
-        lda #COLOR_CHECK
-        sta TEXT_COLOR
-    
-        lda #<check_raw_message
-        sta TEXT_TO_PRINT
-        lda #>check_raw_message
-        sta TEXT_TO_PRINT + 1
-    .else
-        lda #COLOR_CROSS
-        sta TEXT_COLOR
-    
-        lda #<cross_raw_message
-        sta TEXT_TO_PRINT
-        lda #>cross_raw_message
-        sta TEXT_TO_PRINT + 1
-    .endif
-    jsr print_raw_text_zero
-    
-    lda #COLOR_TRANSPARANT
-    sta TEXT_COLOR
+        .if(USE_SLOPE_TABLES)
+            lda #COLOR_CHECK
+            sta TEXT_COLOR
         
-    lda #<unrolled_message
-    sta TEXT_TO_PRINT
-    lda #>unrolled_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
+            lda #<check_raw_message
+            sta TEXT_TO_PRINT
+            lda #>check_raw_message
+            sta TEXT_TO_PRINT + 1
+        .else
+            lda #COLOR_CROSS
+            sta TEXT_COLOR
+        
+            lda #<cross_raw_message
+            sta TEXT_TO_PRINT
+            lda #>cross_raw_message
+            sta TEXT_TO_PRINT + 1
+        .endif
+        jsr print_raw_text_zero
+        
+        lda #COLOR_TRANSPARANT
+        sta TEXT_COLOR
+            
+        lda #<slope_table_message
+        sta TEXT_TO_PRINT
+        lda #>slope_table_message
+        sta TEXT_TO_PRINT + 1
+        
+        jsr print_text_zero
+        
+        ; -- Unrolled loop --
+        
+        .if(USE_UNROLLED_LOOP)
+            lda #COLOR_CHECK
+            sta TEXT_COLOR
+        
+            lda #<check_raw_message
+            sta TEXT_TO_PRINT
+            lda #>check_raw_message
+            sta TEXT_TO_PRINT + 1
+        .else
+            lda #COLOR_CROSS
+            sta TEXT_COLOR
+        
+            lda #<cross_raw_message
+            sta TEXT_TO_PRINT
+            lda #>cross_raw_message
+            sta TEXT_TO_PRINT + 1
+        .endif
+        jsr print_raw_text_zero
+        
+        lda #COLOR_TRANSPARANT
+        sta TEXT_COLOR
+            
+        lda #<unrolled_message
+        sta TEXT_TO_PRINT
+        lda #>unrolled_message
+        sta TEXT_TO_PRINT + 1
+        
+        jsr print_text_zero
 
-    ; -- Jump table --
-    
-    .if(USE_JUMP_TABLE)
-        lda #COLOR_CHECK
-        sta TEXT_COLOR
-    
-        lda #<check_raw_message
-        sta TEXT_TO_PRINT
-        lda #>check_raw_message
-        sta TEXT_TO_PRINT + 1
-    .else
-        lda #COLOR_CROSS
-        sta TEXT_COLOR
-    
-        lda #<cross_raw_message
-        sta TEXT_TO_PRINT
-        lda #>cross_raw_message
-        sta TEXT_TO_PRINT + 1
-    .endif
-    jsr print_raw_text_zero
-    
-    lda #COLOR_TRANSPARANT
-    sta TEXT_COLOR
+        ; -- Jump table --
         
-    lda #<jump_table_message
-    sta TEXT_TO_PRINT
-    lda #>jump_table_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
+        .if(USE_JUMP_TABLE)
+            lda #COLOR_CHECK
+            sta TEXT_COLOR
+        
+            lda #<check_raw_message
+            sta TEXT_TO_PRINT
+            lda #>check_raw_message
+            sta TEXT_TO_PRINT + 1
+        .else
+            lda #COLOR_CROSS
+            sta TEXT_COLOR
+        
+            lda #<cross_raw_message
+            sta TEXT_TO_PRINT
+            lda #>cross_raw_message
+            sta TEXT_TO_PRINT + 1
+        .endif
+        jsr print_raw_text_zero
+        
+        lda #COLOR_TRANSPARANT
+        sta TEXT_COLOR
+            
+        lda #<jump_table_message
+        sta TEXT_TO_PRINT
+        lda #>jump_table_message
+        sta TEXT_TO_PRINT + 1
+        
+        jsr print_text_zero
 
-    lda #4
-    sta CURSOR_X
-    lda #24
-    sta CURSOR_Y
-    
-    ; -- Polygon filler --
-    
-    .if(USE_POLYGON_FILLER)
-        lda #COLOR_CHECK
-        sta TEXT_COLOR
-    
-        lda #<check_raw_message
-        sta TEXT_TO_PRINT
-        lda #>check_raw_message
-        sta TEXT_TO_PRINT + 1
-    .else
-        lda #COLOR_CROSS
-        sta TEXT_COLOR
-    
-        lda #<cross_raw_message
-        sta TEXT_TO_PRINT
-        lda #>cross_raw_message
-        sta TEXT_TO_PRINT + 1
-    .endif
-    jsr print_raw_text_zero
-    
-    lda #COLOR_TRANSPARANT
-    sta TEXT_COLOR
+        lda #4
+        sta CURSOR_X
+        lda #24
+        sta CURSOR_Y
         
-    lda #<polygon_filler_message
-    sta TEXT_TO_PRINT
-    lda #>polygon_filler_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
-    
-    ; -- Write cache --
-    
-    .if(USE_WRITE_CACHE)
-        lda #COLOR_CHECK
-        sta TEXT_COLOR
-    
-        lda #<check_raw_message
-        sta TEXT_TO_PRINT
-        lda #>check_raw_message
-        sta TEXT_TO_PRINT + 1
-    .else
-        lda #COLOR_CROSS
-        sta TEXT_COLOR
-    
-        lda #<cross_raw_message
-        sta TEXT_TO_PRINT
-        lda #>cross_raw_message
-        sta TEXT_TO_PRINT + 1
-    .endif
-    jsr print_raw_text_zero
-    
-    lda #COLOR_TRANSPARANT
-    sta TEXT_COLOR
+        ; -- Polygon filler --
         
-    lda #<write_cache_message
-    sta TEXT_TO_PRINT
-    lda #>write_cache_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
+        .if(USE_POLYGON_FILLER)
+            lda #COLOR_CHECK
+            sta TEXT_COLOR
+        
+            lda #<check_raw_message
+            sta TEXT_TO_PRINT
+            lda #>check_raw_message
+            sta TEXT_TO_PRINT + 1
+        .else
+            lda #COLOR_CROSS
+            sta TEXT_COLOR
+        
+            lda #<cross_raw_message
+            sta TEXT_TO_PRINT
+            lda #>cross_raw_message
+            sta TEXT_TO_PRINT + 1
+        .endif
+        jsr print_raw_text_zero
+        
+        lda #COLOR_TRANSPARANT
+        sta TEXT_COLOR
+            
+        lda #<polygon_filler_message
+        sta TEXT_TO_PRINT
+        lda #>polygon_filler_message
+        sta TEXT_TO_PRINT + 1
+        
+        jsr print_text_zero
+        
+        ; -- Write cache --
+        
+        .if(USE_WRITE_CACHE)
+            lda #COLOR_CHECK
+            sta TEXT_COLOR
+        
+            lda #<check_raw_message
+            sta TEXT_TO_PRINT
+            lda #>check_raw_message
+            sta TEXT_TO_PRINT + 1
+        .else
+            lda #COLOR_CROSS
+            sta TEXT_COLOR
+        
+            lda #<cross_raw_message
+            sta TEXT_TO_PRINT
+            lda #>cross_raw_message
+            sta TEXT_TO_PRINT + 1
+        .endif
+        jsr print_raw_text_zero
+        
+        lda #COLOR_TRANSPARANT
+        sta TEXT_COLOR
+            
+        lda #<write_cache_message
+        sta TEXT_TO_PRINT
+        lda #>write_cache_message
+        sta TEXT_TO_PRINT + 1
+        
+        jsr print_text_zero
+    .endif
     
 
     
@@ -952,7 +953,7 @@ load_next_triangle_jmp:
 NR_OF_TRIANGLES = 2
 triangle_3d_data:
     ;        x1,   y1,   z1,    x2,   y2,   z2,     x3,   y3,   z3,    cl
-   .word      0,    0,    0,   $100,    0,    0,     0,  $100,    0,    1
+   .word      0,    0,    0,   $100,    0,    0,     0,  $100,    0,   29
    .word   $100,    0, $100,   $100, $100, $100,     0,  $100, $100,    2
 palette_data:   
     ; dummy
