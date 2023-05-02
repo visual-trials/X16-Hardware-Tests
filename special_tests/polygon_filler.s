@@ -5,7 +5,7 @@ DO_SPEED_TEST = 1
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 1     ; FIXME: BROKEN ATM!!
+USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
@@ -211,7 +211,11 @@ Y_TO_ADDRESS_BANK        = $8300
 
 COPY_SLOPE_TABLES_TO_BANKED_RAM   = $8400
 
-DRAW_ROW_64_CODE         = $AA00   ; A0-A9 and B6-BF are accucpied by the slope tables!
+    .if(USE_POLYGON_FILLER)
+DRAW_ROW_64_CODE         = $AA00   ; When USE_POLYGON_FILLER is 1: A000-A9FF and B0600-BFFF are occucpied by the slope tables! (the latter by the 90-180 degrees slope tables)
+    .else
+DRAW_ROW_64_CODE         = $B500   ; When USE_POLYGON_FILLER is 0: A000-B4FF are occucpied by the slope tables!
+    .endif
 
   .org $C000
 
@@ -249,7 +253,9 @@ reset:
         jsr generate_fill_line_codes_and_table
     .endif
     
-    jsr generate_y_to_address_table
+    .if(USE_Y_TO_ADDRESS_TABLE)
+        jsr generate_y_to_address_table
+    .endif
     
     .if(USE_SLOPE_TABLES)
         jsr copy_slope_table_copier_to_ram

@@ -152,9 +152,10 @@
 ; COPY_SLOPE_TABLES_TO_BANKED_RAM (less than 256 bytes)
 
 ; -- This is used for unrolled code, not used when jump tables are used --
-; - IMPORTANT: Rigth now: A000-A9FF and B600-BFFF are accucpied by the slope tables! (the later by the 90-180 degrees slope tables) -
-; DRAW_ROW_64_CODE         = $AA00   ; This should be an address inside Banked RAM (in 64 banks: 3 (stz) * 64 + rts) -> so $100 of space is safe
-  
+; This should be an address inside Banked RAM (in 64 banks: 3 (stz) * 64 + rts) -> so $100 of space is safe
+; Example addresses:
+;   DRAW_ROW_64_CODE         = $AA00   ; When USE_POLYGON_FILLER is 1: A000-A9FF and B0600-BFFF are occucpied by the slope tables! (the latter by the 90-180 degrees slope tables)
+;   DRAW_ROW_64_CODE         = $B500   ; When USE_POLYGON_FILLER is 0: A000-B4FF are occucpied by the slope tables!
     
 generate_fill_line_codes_and_table:
 
