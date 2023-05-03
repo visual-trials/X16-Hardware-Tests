@@ -2,8 +2,12 @@
 DO_SPEED_TEST = 1
 KEEP_RUNNING = 1
 
+
+; BUG: when using JUMP_TABLES, the triangles look very 'edgy'!!
+
+
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 0
+USE_SLOPE_TABLES = 1
 USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
@@ -36,7 +40,7 @@ LEFT_MARGIN = 16
 VSPACING = 10
 
 SCREEN_WIDTH = 320
-SCREEN_HEIGHT = 240
+SCREEN_HEIGHT = 200
 
 ; === Zero page addresses ===
 
@@ -320,6 +324,22 @@ reset:
     .endif
     
     .if(DO_SPEED_TEST)
+    
+       lda #%00000000  ; DCSEL=0
+       sta VERA_CTRL
+       
+       lda #BACKGROUND_COLOR
+       sta VERA_DC_BORDER
+    
+       lda #%00000010  ; DCSEL=1
+       sta VERA_CTRL
+       
+       lda #20
+       sta VERA_DC_VSTART
+       lda #220-1
+       sta VERA_DC_VSTOP
+    
+    
        jsr test_speed_of_simple_3d_polygon_scene
     .else
       lda #%00000000           ; DCSEL=0, ADDRSEL=0
@@ -392,7 +412,7 @@ keep_running:
     
     lda #2
     sta CURSOR_X
-    lda #2
+    lda #0
     sta CURSOR_Y
 
     lda #<simple_3d_polygon_scene_message
@@ -405,7 +425,7 @@ keep_running:
     .if(0)
         lda #10
         sta CURSOR_X
-        lda #4
+        lda #2
         sta CURSOR_Y
         
         lda #<rectangle_200x200_8bpp_message
@@ -422,7 +442,7 @@ keep_running:
         
         lda #2
         sta CURSOR_X
-        lda #23
+        lda #21
         sta CURSOR_Y
 
         ; -- Slope table --
@@ -520,7 +540,7 @@ keep_running:
 
         lda #4
         sta CURSOR_X
-        lda #24
+        lda #22
         sta CURSOR_Y
         
         ; -- Polygon filler --
@@ -593,7 +613,7 @@ keep_running:
     
     lda #8
     sta CURSOR_X
-    lda #27
+    lda #24
     sta CURSOR_Y
     
     jsr print_time_elapsed
@@ -620,7 +640,7 @@ init_world:
     lda #0
     sta ANGLE_X+1
     
-    lda #$90
+    lda #$B0
     sta TRANSLATE_Z
     lda #$02
     sta TRANSLATE_Z+1
@@ -648,7 +668,7 @@ angle_z_updated:
     .if(1)
     clc
     lda ANGLE_X
-    adc #2
+    adc #1
     sta ANGLE_X
     lda ANGLE_X+1
     adc #0
@@ -1314,7 +1334,7 @@ vera_wr_fill_bitmap_once:
     ; We use A as color
     lda #BACKGROUND_COLOR
     
-    ldy #240/16
+    ldy #SCREEN_HEIGHT/8
 vera_wr_fill_bitmap_col_once:
 ; FIXME: now drawing a pattern!
 ;    tya
@@ -1327,14 +1347,6 @@ vera_wr_fill_bitmap_col_once:
     sta VERA_DATA0           ; store pixel
     sta VERA_DATA0           ; store pixel
 
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
     dey
     bne vera_wr_fill_bitmap_col_once
     inx
@@ -1354,7 +1366,7 @@ vera_wr_fill_bitmap_once2:
     ; We use A as color
     lda #BACKGROUND_COLOR
     
-    ldy #240/16
+    ldy #SCREEN_HEIGHT/8
 vera_wr_fill_bitmap_col_once2:
 ; FIXME: now drawing a pattern!
 ;    tya
@@ -1366,15 +1378,7 @@ vera_wr_fill_bitmap_col_once2:
     sta VERA_DATA0           ; store pixel
     sta VERA_DATA0           ; store pixel
     sta VERA_DATA0           ; store pixel
-
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
+    
     dey
     bne vera_wr_fill_bitmap_col_once2
     inx
@@ -1492,7 +1496,7 @@ next_clear_instruction:
     jsr add_code_byte
     
     inx
-    cpx #240               ; 240 clear pixels written to VERA
+    cpx #SCREEN_HEIGHT     ; SCREEN_HEIGHT times clear pixels written to VERA
     bne next_clear_instruction
 
     ; -- rts --
