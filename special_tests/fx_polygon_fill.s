@@ -966,8 +966,9 @@ draw_next_triangle:
 ; FIXME: we should use a different VRAM address for this cache filling!!
         lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
         sta VERA_ADDR_BANK
-        stz VERA_ADDR_HIGH
-        stz VERA_ADDR_LOW
+        lda #$FF
+        sta VERA_ADDR_HIGH
+        sta VERA_ADDR_LOW
 
         lda TRIANGLE_COLOR
         sta VERA_DATA1
@@ -1605,6 +1606,21 @@ MACRO_set_address_using_y2address_table .macro POINT_Y
     
 .endmacro
 
+MACRO_set_address_using_y2address_table2 .macro POINT_Y
+    
+    ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
+    ldx \POINT_Y
+    
+    lda Y_TO_ADDRESS_LOW, x
+    sta VERA_ADDR_LOW
+    lda Y_TO_ADDRESS_HIGH, x
+    sta VERA_ADDR_HIGH
+    lda Y_TO_ADDRESS_BANK2, x     ; This will include the auto-increment of 320 byte
+    sta VERA_ADDR_BANK
+    
+.endmacro
+
+
 MACRO_set_address_using_y2address_table_and_point_x .macro POINT_Y, POINT_X
     
     ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
@@ -1619,6 +1635,9 @@ MACRO_set_address_using_y2address_table_and_point_x .macro POINT_Y, POINT_X
     sta VERA_ADDR_HIGH
     lda Y_TO_ADDRESS_BANK, x     ; This will include the auto-increment of 1 byte
     adc #0
+    .if(USE_DOUBLE_BUFFER)
+        ora FRAME_BUFFER_INDEX   ; contains 0 or 1
+    .endif
     sta VERA_ADDR_BANK
     
 .endmacro
@@ -1627,6 +1646,9 @@ MACRO_set_address_using_multiplication .macro POINT_Y
 
     ; SPEED: we should do this *much* earlier and not for every triangle!
     lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    .if(USE_DOUBLE_BUFFER)
+        ora FRAME_BUFFER_INDEX   ; contains 0 or 1
+    .endif
     sta VERA_ADDR_BANK
     
     ; -- THIS IS SLOW! --
@@ -1831,7 +1853,18 @@ slope_right_left_is_correctly_signed:
         ; Setting up for drawing a polygon, setting both addresses at the same starting point
 
         .if(USE_Y_TO_ADDRESS_TABLE)
-            MACRO_set_address_using_y2address_table TOP_POINT_Y
+            .if(USE_DOUBLE_BUFFER)
+                ; FIXME/SPEED: this is SLOW!
+                lda FRAME_BUFFER_INDEX
+                bne y2address_high_vram_single_top
+                MACRO_set_address_using_y2address_table TOP_POINT_Y
+                bra y2address_is_setup_single_top
+y2address_high_vram_single_top:
+                MACRO_set_address_using_y2address_table2 TOP_POINT_Y
+y2address_is_setup_single_top:
+            .else
+                MACRO_set_address_using_y2address_table TOP_POINT_Y
+            .endif
         .else
             MACRO_set_address_using_multiplication TOP_POINT_Y
         .endif
@@ -2207,7 +2240,18 @@ slope_right_bottom_is_correctly_signed:
         ; Setting up for drawing a polygon, setting both addresses at the same starting point
 
         .if(USE_Y_TO_ADDRESS_TABLE)
-            MACRO_set_address_using_y2address_table LEFT_POINT_Y
+            .if(USE_DOUBLE_BUFFER)
+                ; FIXME/SPEED: this is SLOW!
+                lda FRAME_BUFFER_INDEX
+                bne y2address_high_vram_double_top
+                MACRO_set_address_using_y2address_table TOP_POINT_Y
+                bra y2address_is_setup_double_top
+y2address_high_vram_double_top:
+                MACRO_set_address_using_y2address_table2 TOP_POINT_Y
+y2address_is_setup_double_top:
+            .else
+                MACRO_set_address_using_y2address_table TOP_POINT_Y
+            .endif
         .else
             MACRO_set_address_using_multiplication LEFT_POINT_Y
         .endif
@@ -2711,6 +2755,10 @@ generate_next_y_to_address_entry:
         ora #%00010000              ; Without polygon filler helper: auto-increment = 1
     .endif
     sta Y_TO_ADDRESS_BANK, y
+    .if(USE_DOUBLE_BUFFER)
+        ora #%00000001              ; We set bit16 to 1
+        sta Y_TO_ADDRESS_BANK2, y
+    .endif
     
     iny
     

@@ -1,21 +1,22 @@
 
+; FIXME: double buffer only works with polygon filler ON!
+
 DO_SPEED_TEST = 1
 KEEP_RUNNING = 1
+USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 
-
-; BUG: when using JUMP_TABLES, the triangles look very 'edgy'!!
-
+; WEIRD BUG: when using JUMP_TABLES, the triangles look very 'edgy'!! --> it is 'SOLVED' by putting the jump FILL_LINE_CODE_x-block aligned to 256 bytes!?!?
 
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 1
+USE_SLOPE_TABLES = 0
 USE_UNROLLED_LOOP = 0
-USE_JUMP_TABLE = 1
+USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
 TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
 USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
-USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
+USE_180_DEGREES_SLOPE_TABLE = 1  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 
 USE_Y_TO_ADDRESS_TABLE = 1
 
@@ -40,7 +41,7 @@ LEFT_MARGIN = 16
 VSPACING = 10
 
 SCREEN_WIDTH = 320
-SCREEN_HEIGHT = 200
+SCREEN_HEIGHT = 200-1   ; FIXME: A minus 1 since we only have room (atm) for 199.7 lines! (we need to move the second buffer a little lower in vram)
 
 ; === Zero page addresses ===
 
@@ -186,6 +187,8 @@ DO_CORRECT_WINDING       = $B3
 DOT_PRODUCT              = $B4 ; B5
 SUM_Z_DIFF               = $B6 ; B7
 
+FRAME_BUFFER_INDEX       = $B8     ; 0 or 1: indicating which frame buffer is to be filled (for double buffering)
+
 DEBUG_VALUE              = $C7
 
 
@@ -195,23 +198,23 @@ FILL_LENGTH_HIGH_SOFT    = $2801
 
 ; RAM addresses
 
-CLEAR_COLUMN_CODE        = $2C00   ; takes up to 02D0
+CLEAR_COLUMN_CODE        = $2B00   ; takes up to 02D0
 
-FILL_LINE_JUMP_TABLE     = $2F00
-FILL_LINE_BELOW_16_CODE  = $3000   ; 128 different (below 16 pixel) fill line code patterns -> safe: takes $0D00 bytes
+FILL_LINE_JUMP_TABLE     = $2E00
+FILL_LINE_BELOW_16_CODE  = $2F00   ; 128 different (below 16 pixel) fill line code patterns -> safe: takes $0D00 bytes
 
 ; FIXME: can we put these jump tables closer to each other? Do they need to be aligned to 256 bytes? (they are 80 bytes each)
 ; FIXME: IMPORTANT: we set the two lower bits of this address in the code, using JUMP_TABLE_16_0 as base. So the distance between the 4 tables should stay $100! AND the two lower bits should stay 00b!
-JUMP_TABLE_16_0          = $3D00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_0)
-JUMP_TABLE_16_1          = $3E00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_1)
-JUMP_TABLE_16_2          = $3F00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_2)
-JUMP_TABLE_16_3          = $4000   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_3)
+JUMP_TABLE_16_0          = $3C00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_0)
+JUMP_TABLE_16_1          = $3D00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_1)
+JUMP_TABLE_16_2          = $3E00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_2)
+JUMP_TABLE_16_3          = $3F00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_3)
 
 ; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> MORE than 256 bytes!!
-FILL_LINE_CODE_0         = $4100   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_CODE_1         = $4280   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_CODE_2         = $4500   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_CODE_3         = $4680   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_CODE_0         = $4000   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_CODE_1         = $4200   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_CODE_2         = $4400   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_CODE_3         = $4600   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 
 ; Triangle data is (easely) accessed through an single index (0-127)
 ; == IMPORTANT: we assume a *clockwise* ordering of the 3 points of a triangle! ==
@@ -271,6 +274,7 @@ TRIANGLES3_3D_SUM_Z      = $7400 ; 7480
 Y_TO_ADDRESS_LOW         = $8400
 Y_TO_ADDRESS_HIGH        = $8500
 Y_TO_ADDRESS_BANK        = $8600
+Y_TO_ADDRESS_BANK2       = $8700   ; Only use when double buffering
 
 COPY_SLOPE_TABLES_TO_BANKED_RAM   = $8700
 
@@ -325,31 +329,39 @@ reset:
     
     .if(DO_SPEED_TEST)
     
-       lda #%00000000  ; DCSEL=0
-       sta VERA_CTRL
+        lda #%00000000  ; DCSEL=0
+        sta VERA_CTRL
        
-       lda #BACKGROUND_COLOR
-       sta VERA_DC_BORDER
+        lda #BACKGROUND_COLOR
+;        sta VERA_DC_BORDER
     
-       lda #%00000010  ; DCSEL=1
-       sta VERA_CTRL
+        .if(USE_DOUBLE_BUFFER)
+            lda #%00010001           ; Enable Layer 0, Enable VGA
+            sta VERA_DC_VIDEO
+        .endif
+    
+        lda #%00000010  ; DCSEL=1
+        sta VERA_CTRL
        
-       lda #20
-       sta VERA_DC_VSTART
-       lda #220-1
-       sta VERA_DC_VSTOP
+        lda #20
+        sta VERA_DC_VSTART
+        lda #SCREEN_HEIGHT+20-1
+        sta VERA_DC_VSTOP
     
-    
-       jsr test_speed_of_simple_3d_polygon_scene
-    .else
-      lda #%00000000           ; DCSEL=0, ADDRSEL=0
-      sta VERA_CTRL
+        lda #1
+        sta FRAME_BUFFER_INDEX
+        jsr switch_frame_buffer   ; This will switch to filling buffer 0, but *showing* buffer 1
         
-;      lda #$40                 ; 8:1 scale
-;      sta VERA_DC_HSCALE
-;      sta VERA_DC_VSCALE      
+        jsr test_speed_of_simple_3d_polygon_scene
+    .else
+        lda #%00000000           ; DCSEL=0, ADDRSEL=0
+        sta VERA_CTRL
+        
+;        lda #$40                 ; 8:1 scale
+;        sta VERA_DC_HSCALE
+;        sta VERA_DC_VSCALE      
       
-;      jsr ...
+;        jsr ...
     .endif
     
   
@@ -401,6 +413,9 @@ keep_running:
     jsr draw_all_triangles
     
     .if(KEEP_RUNNING)
+        .if(USE_DOUBLE_BUFFER)
+            jsr switch_frame_buffer   ; This will switch to filling buffer 0, but *showing* buffer 1
+        .endif
         jsr update_world
         bra keep_running
     .endif
@@ -623,6 +638,45 @@ keep_running:
 ;    jsr print_byte_as_hex
 
     rts
+ 
+ 
+switch_frame_buffer:
+
+    lda FRAME_BUFFER_INDEX
+    beq switch_to_filling_high_vram_buffer
+    
+switch_to_filling_low_vram_buffer:
+    lda #0
+    sta FRAME_BUFFER_INDEX
+    
+    ; While we are going to fill framebuffer 0, we *show* framebuffer 1
+    ; VERA.layer0.tilebase = ; set new tilebase for layer 0 (0x10000)
+    ; NOTE: this also sets the TILE WIDTH to 320 px!!
+    lda #($100 >> 1)
+    sta VERA_L0_TILEBASE
+
+;    lda TMP4
+;    beq tmp_over_loop
+;tmp_loop:
+;    jmp tmp_loop
+;tmp_over_loop:
+;    lda #1
+;    sta TMP4
+    
+    rts
+    
+switch_to_filling_high_vram_buffer:
+    lda #1
+    sta FRAME_BUFFER_INDEX
+    
+    ; While we are going to fill framebuffer 1, we *show* framebuffer 0
+    ; VERA.layer0.tilebase = ; set new tilebase for layer 0 (0x00000)
+    ; NOTE: this also sets the TILE WIDTH to 320 px!!
+    lda #($000 >> 1)
+    sta VERA_L0_TILEBASE
+    
+    rts
+
     
     
 init_world:    
@@ -631,16 +685,12 @@ init_world:
     lda #0
     sta ANGLE_Z+1
 
-; FIXME: when a triangle turns around its WINDING is incorrect!!
-; FIXME: when a triangle turns around its WINDING is incorrect!!
-; FIXME: when a triangle turns around its WINDING is incorrect!!
-    
     lda #0
     sta ANGLE_X
     lda #0
     sta ANGLE_X+1
     
-    lda #$B0
+    lda #$B8
     sta TRANSLATE_Z
     lda #$02
     sta TRANSLATE_Z+1
@@ -1325,8 +1375,14 @@ vera_wr_start:
     ldx #0
 vera_wr_fill_bitmap_once:
 
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
-    sta VERA_ADDR_BANK
+    .if(USE_DOUBLE_BUFFER)
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
+        ora FRAME_BUFFER_INDEX   ; this is either $00 or $01
+        sta VERA_ADDR_BANK
+    .else
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
+        sta VERA_ADDR_BANK
+    .endif
     lda #$00
     sta VERA_ADDR_HIGH
     stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
@@ -1349,6 +1405,16 @@ vera_wr_fill_bitmap_col_once:
 
     dey
     bne vera_wr_fill_bitmap_col_once
+    
+    ; FIXME: workaround for SCREEN_HEIGHT = 199
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    
     inx
     bne vera_wr_fill_bitmap_once
 
@@ -1357,8 +1423,14 @@ vera_wr_fill_bitmap_col_once:
     ldx #0
 vera_wr_fill_bitmap_once2:
 
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
-    sta VERA_ADDR_BANK
+    .if(USE_DOUBLE_BUFFER)
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
+        ora FRAME_BUFFER_INDEX   ; this is either $00 or $01
+        sta VERA_ADDR_BANK
+    .else
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
+        sta VERA_ADDR_BANK
+    .endif
     lda #$01                ; The right side part of the screen has a start byte starting at address 256 and up
     sta VERA_ADDR_HIGH
     stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
@@ -1381,6 +1453,16 @@ vera_wr_fill_bitmap_col_once2:
     
     dey
     bne vera_wr_fill_bitmap_col_once2
+    
+    ; FIXME: workaround for SCREEN_HEIGHT = 199
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+
     inx
     cpx #64                  ; The right part of the screen is 320 - 256 = 64 pixels
     bne vera_wr_fill_bitmap_once2
@@ -1401,8 +1483,14 @@ clear_screen_fast_4_bytes:
     lda #%00000001           ; ... cache fill enabled = 1
     sta $9F2C   
     
-    lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
-    sta VERA_ADDR_BANK
+    .if(USE_DOUBLE_BUFFER)
+        ; lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
+        lda FRAME_BUFFER_INDEX   ; this is either $00 or $01
+        sta VERA_ADDR_BANK
+    .else
+        lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
+        sta VERA_ADDR_BANK
+    .endif
     stz VERA_ADDR_HIGH
     stz VERA_ADDR_LOW
 
@@ -1427,8 +1515,15 @@ clear_screen_fast_4_bytes:
     ldx #0
     
 clear_next_column_left_4_bytes:
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
-    sta VERA_ADDR_BANK
+
+    .if(USE_DOUBLE_BUFFER)
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+        ora FRAME_BUFFER_INDEX   ; this is either $00 or $01
+        sta VERA_ADDR_BANK
+    .else
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+        sta VERA_ADDR_BANK
+    .endif
     lda #$00
     sta VERA_ADDR_HIGH
     stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
@@ -1448,8 +1543,14 @@ clear_next_column_left_4_bytes:
     ldx #0
 
 clear_next_column_right_4_bytes:
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
-    sta VERA_ADDR_BANK
+    .if(USE_DOUBLE_BUFFER)
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+        ora FRAME_BUFFER_INDEX   ; this is either $00 or $01
+        sta VERA_ADDR_BANK
+    .else
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+        sta VERA_ADDR_BANK
+    .endif
     lda #$01
     sta VERA_ADDR_HIGH
     stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column

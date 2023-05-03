@@ -16,6 +16,8 @@ USE_180_DEGREES_SLOPE_TABLE = 1  ; When in polygon filler mode and slope tables 
 
 USE_Y_TO_ADDRESS_TABLE = 1
 
+USE_DOUBLE_BUFFER = 0   ; Note: this is not setup in this program!
+
     .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
 BACKGROUND_COLOR = 251  ; Nice purple
     .else
