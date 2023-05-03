@@ -1,5 +1,6 @@
 
 DO_SPEED_TEST = 1
+KEEP_RUNNING = 0
 
 USE_POLYGON_FILLER = 0
 USE_SLOPE_TABLES = 0
@@ -352,6 +353,10 @@ test_speed_of_simple_3d_polygon_scene:
 
     jsr start_timer
     
+    jsr init_world
+    
+    
+keep_running:
     .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
         jsr clear_screen_fast_4_bytes
     .else
@@ -359,8 +364,12 @@ test_speed_of_simple_3d_polygon_scene:
     .endif
     
     jsr calculate_projection_of_3d_onto_2d_screen
-    
     jsr draw_all_triangles
+    
+    .if(KEEP_RUNNING)
+        jsr update_world
+        bra keep_running
+    .endif
 
     jsr stop_timer
 
@@ -581,6 +590,54 @@ test_speed_of_simple_3d_polygon_scene:
 
     rts
     
+    
+init_world:    
+;    lda #30
+;    lda #10
+    lda #0
+    sta ANGLE_Z
+    lda #0
+    sta ANGLE_Z+1
+
+; FIXME: when a triangle turns around its WINDING is incorrect!!
+; FIXME: when a triangle turns around its WINDING is incorrect!!
+; FIXME: when a triangle turns around its WINDING is incorrect!!
+    
+; FIXME: When entering 10 or 20 here (and ANGLE_Z == 10), it looks *WRONG*, when entering 0 it looks *RIGHT*!
+;    lda #10
+    lda #0
+    sta ANGLE_X
+    lda #0
+    sta ANGLE_X+1
+    
+    lda #$90
+    sta TRANSLATE_Z
+    lda #$02
+    sta TRANSLATE_Z+1
+    
+    rts
+    
+update_world:
+
+;    clc
+;    lda ANGLE_Z
+;    adc #2
+;    sta ANGLE_Z
+;    lda ANGLE_Z+1
+;    adc #0
+ ;   sta ANGLE_Z+1
+
+    clc
+    lda ANGLE_X
+    adc #1
+    sta ANGLE_X
+    lda ANGLE_X+1
+    adc #0
+    sta ANGLE_X+1
+
+    rts
+    
+
     
     
 MACRO_scale_and_position_on_screen_x .macro TRIANGLES_3D_POINT_X, TRIANGLES_POINT_X
@@ -860,27 +917,6 @@ MACRO_divide_by_z .macro TRIANGLES_3D_POINT_X_OR_Y, TRIANGLES_3D_POINT_Z, OUTPUT
 calculate_projection_of_3d_onto_2d_screen:
 
 
-;    lda #30
-    lda #10
-    sta ANGLE_Z
-    lda #0
-    sta ANGLE_Z+1
-
-; FIXME: when a triangle turns around its WINDING is incorrect!!
-; FIXME: when a triangle turns around its WINDING is incorrect!!
-; FIXME: when a triangle turns around its WINDING is incorrect!!
-    
-; FIXME: When entering 10 or 20 here, it looks *WRONG*, when entering 0 it looks *RIGHT*!
-    lda #10
-    sta ANGLE_X
-    lda #0
-    sta ANGLE_X+1
-    
-    lda #$90
-    sta TRANSLATE_Z
-    lda #$02
-    sta TRANSLATE_Z+1
-
     ldx #0
 rotate_in_z_next_triangle:
     
@@ -980,10 +1016,26 @@ vera_wr_fill_bitmap_once:
     ; We use A as color
     lda #BACKGROUND_COLOR
     
-    ldy #240
+    ldy #240/16
 vera_wr_fill_bitmap_col_once:
 ; FIXME: now drawing a pattern!
 ;    tya
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
     sta VERA_DATA0           ; store pixel
     dey
     bne vera_wr_fill_bitmap_col_once
@@ -1004,10 +1056,26 @@ vera_wr_fill_bitmap_once2:
     ; We use A as color
     lda #BACKGROUND_COLOR
     
-    ldy #240
+    ldy #240/16
 vera_wr_fill_bitmap_col_once2:
 ; FIXME: now drawing a pattern!
 ;    tya
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
+    sta VERA_DATA0           ; store pixel
     sta VERA_DATA0           ; store pixel
     dey
     bne vera_wr_fill_bitmap_col_once2
@@ -1300,7 +1368,7 @@ get_cosine_for_angle:
     
     
     .if(1)
-NR_OF_TRIANGLES = 2
+NR_OF_TRIANGLES = 1
 triangle_3d_data:
     ;        x1,   y1,   z1,    x2,   y2,   z2,     x3,   y3,   z3,    cl
    .word      0,    0,    0,   $100,    0,    0,     0,  $100,    0,   29
