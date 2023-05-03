@@ -4,6 +4,7 @@
 DO_SPEED_TEST = 1
 KEEP_RUNNING = 1
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
+SLOW_DOWN = 0
 
 ; WEIRD BUG: when using JUMP_TABLES, the triangles look very 'edgy'!! --> it is 'SOLVED' by putting the jump FILL_LINE_CODE_x-block aligned to 256 bytes!?!?
 
@@ -16,7 +17,7 @@ USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (
 TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
 USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
-USE_180_DEGREES_SLOPE_TABLE = 1  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
+USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 
 USE_Y_TO_ADDRESS_TABLE = 1
 
@@ -348,9 +349,11 @@ reset:
         lda #SCREEN_HEIGHT+20-1
         sta VERA_DC_VSTOP
     
-        lda #1
-        sta FRAME_BUFFER_INDEX
-        jsr switch_frame_buffer   ; This will switch to filling buffer 0, but *showing* buffer 1
+        .if(USE_DOUBLE_BUFFER)
+            lda #1
+            sta FRAME_BUFFER_INDEX
+            jsr switch_frame_buffer   ; This will switch to filling buffer 0, but *showing* buffer 1
+        .endif
         
         jsr test_speed_of_simple_3d_polygon_scene
     .else
@@ -390,7 +393,30 @@ jump_table_message:
     .asciiz " Jump table "
 write_cache_message: 
     .asciiz " Write cache "
-  
+
+    
+wait_for_a_while:
+
+    lda #2
+    sta TMP1
+wait_256_256:
+    stz TMP2
+wait_256:
+    stz TMP3
+wait_1:
+    inc TMP3
+    nop
+    nop
+    nop
+    bne wait_1
+    
+    inc TMP2
+    bne wait_256
+    
+    dec TMP1
+    bne wait_256_256
+
+    rts
   
   
 test_speed_of_simple_3d_polygon_scene:
@@ -415,6 +441,9 @@ keep_running:
     .if(KEEP_RUNNING)
         .if(USE_DOUBLE_BUFFER)
             jsr switch_frame_buffer   ; This will switch to filling buffer 0, but *showing* buffer 1
+        .endif
+        .if(SLOW_DOWN)
+            jsr wait_for_a_while
         .endif
         jsr update_world
         bra keep_running

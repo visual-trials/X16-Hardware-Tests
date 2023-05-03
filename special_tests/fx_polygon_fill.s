@@ -2244,13 +2244,13 @@ slope_right_bottom_is_correctly_signed:
                 ; FIXME/SPEED: this is SLOW!
                 lda FRAME_BUFFER_INDEX
                 bne y2address_high_vram_double_top
-                MACRO_set_address_using_y2address_table TOP_POINT_Y
+                MACRO_set_address_using_y2address_table LEFT_POINT_Y
                 bra y2address_is_setup_double_top
 y2address_high_vram_double_top:
-                MACRO_set_address_using_y2address_table2 TOP_POINT_Y
+                MACRO_set_address_using_y2address_table2 LEFT_POINT_Y
 y2address_is_setup_double_top:
             .else
-                MACRO_set_address_using_y2address_table TOP_POINT_Y
+                MACRO_set_address_using_y2address_table LEFT_POINT_Y
             .endif
         .else
             MACRO_set_address_using_multiplication LEFT_POINT_Y
