@@ -1,6 +1,6 @@
 
 DO_SPEED_TEST = 1
-KEEP_RUNNING = 0
+KEEP_RUNNING = 1
 
 USE_POLYGON_FILLER = 0
 USE_SLOPE_TABLES = 0
@@ -218,7 +218,7 @@ TRIANGLES_COLOR          = $4E00 ; Only 128 bytes used
 
 ; FIXME: We should instead use a series of POINTS and INDEXES to those points are used to define TRIANGLES!
 TRIANGLES_3D_POINT1_X    = $5000 ; 5080
-TRIANGLES_3D_POINT1_Y    = $5180 ; 5100
+TRIANGLES_3D_POINT1_Y    = $5100 ; 5180
 TRIANGLES_3D_POINT1_Z    = $5200 ; 5280
 TRIANGLES_3D_POINT2_X    = $5300 ; 5380
 TRIANGLES_3D_POINT2_Y    = $5400 ; 5480
@@ -619,13 +619,13 @@ init_world:
     
 update_world:
 
-;    clc
-;    lda ANGLE_Z
-;    adc #2
-;    sta ANGLE_Z
-;    lda ANGLE_Z+1
-;    adc #0
- ;   sta ANGLE_Z+1
+    clc
+    lda ANGLE_Z
+    adc #2
+    sta ANGLE_Z
+    lda ANGLE_Z+1
+    adc #0
+    sta ANGLE_Z+1
 
     clc
     lda ANGLE_X
