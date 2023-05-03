@@ -2,10 +2,10 @@
 DO_SPEED_TEST = 1
 KEEP_RUNNING = 1
 
-USE_POLYGON_FILLER = 0
+USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 0
 USE_UNROLLED_LOOP = 0
-USE_JUMP_TABLE = 0      ; FIXME: THIS ONE IS BROKEN ATM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
 TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
@@ -190,6 +190,9 @@ FILL_LENGTH_LOW_SOFT     = $2800
 FILL_LENGTH_HIGH_SOFT    = $2801
 
 ; RAM addresses
+
+CLEAR_COLUMN_CODE        = $2C00   ; takes up to 02D0
+
 FILL_LINE_JUMP_TABLE     = $2F00
 FILL_LINE_BELOW_16_CODE  = $3000   ; 128 different (below 16 pixel) fill line code patterns -> safe: takes $0D00 bytes
 
@@ -200,13 +203,11 @@ JUMP_TABLE_16_1          = $3E00   ; 20 entries (* 4 bytes) of jumps into FILL_L
 JUMP_TABLE_16_2          = $3F00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_2)
 JUMP_TABLE_16_3          = $4000   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_3)
 
-; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes?
+; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> MORE than 256 bytes!!
 FILL_LINE_CODE_0         = $4100   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_CODE_1         = $4200   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_CODE_2         = $4300   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_CODE_3         = $4400   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-
-CLEAR_COLUMN_CODE        = $4500   ; takes up to 02D0
+FILL_LINE_CODE_1         = $4280   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_CODE_2         = $4500   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_CODE_3         = $4680   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 
 ; Triangle data is (easely) accessed through an single index (0-127)
 ; == IMPORTANT: we assume a *clockwise* ordering of the 3 points of a triangle! ==
@@ -368,8 +369,8 @@ test_speed_of_simple_3d_polygon_scene:
     
     jsr init_world
     
-    
 keep_running:
+    
     .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
         jsr clear_screen_fast_4_bytes
     .else
@@ -385,7 +386,7 @@ keep_running:
     .endif
 
     jsr stop_timer
-
+    
     lda #COLOR_TRANSPARANT
     sta TEXT_COLOR
     

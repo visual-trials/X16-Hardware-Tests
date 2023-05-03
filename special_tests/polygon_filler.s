@@ -186,7 +186,7 @@ JUMP_TABLE_16_1          = $6500   ; 20 entries (* 4 bytes) of jumps into FILL_L
 JUMP_TABLE_16_2          = $6600   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_2)
 JUMP_TABLE_16_3          = $6700   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_3)
 
-; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes?
+; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> MORE than 256 bytes!!
 FILL_LINE_CODE_0         = $6800   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_CODE_1         = $6A00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_CODE_2         = $6C00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
