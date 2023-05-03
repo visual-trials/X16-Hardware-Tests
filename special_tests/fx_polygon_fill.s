@@ -3039,7 +3039,7 @@ multply_16bits_signed:
     sta MULTIPLIER_XOR_MULTIPLICAND_NEGATED
 multiplier_is_positive:
 
-    lda MULTIPLICAND
+    lda MULTIPLICAND+1
     bpl multiplcand_is_positive
 
     ; We negate the multiplicand

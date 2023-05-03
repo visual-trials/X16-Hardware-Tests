@@ -592,8 +592,6 @@ keep_running:
     
     
 init_world:    
-;    lda #30
-;    lda #10
     lda #0
     sta ANGLE_Z
     lda #0
@@ -603,8 +601,6 @@ init_world:
 ; FIXME: when a triangle turns around its WINDING is incorrect!!
 ; FIXME: when a triangle turns around its WINDING is incorrect!!
     
-; FIXME: When entering 10 or 20 here (and ANGLE_Z == 10), it looks *WRONG*, when entering 0 it looks *RIGHT*!
-;    lda #10
     lda #0
     sta ANGLE_X
     lda #0
@@ -919,7 +915,7 @@ calculate_projection_of_3d_onto_2d_screen:
 
     ldx #0
 rotate_in_z_next_triangle:
-    
+
     ; -- Point 1 --
     MACRO_rotate_cos_minus_sin ANGLE_Z, TRIANGLES_3D_POINT1_X, TRIANGLES_3D_POINT1_Y, TRIANGLES2_3D_POINT1_X
     MACRO_rotate_sin_plus_cos  ANGLE_Z, TRIANGLES_3D_POINT1_X, TRIANGLES_3D_POINT1_Y, TRIANGLES2_3D_POINT1_Y
@@ -934,7 +930,7 @@ rotate_in_z_next_triangle:
     MACRO_rotate_cos_minus_sin ANGLE_Z, TRIANGLES_3D_POINT3_X, TRIANGLES_3D_POINT3_Y, TRIANGLES2_3D_POINT3_X
     MACRO_rotate_sin_plus_cos  ANGLE_Z, TRIANGLES_3D_POINT3_X, TRIANGLES_3D_POINT3_Y, TRIANGLES2_3D_POINT3_Y
     MACRO_copy_point_value TRIANGLES_3D_POINT3_Z, TRIANGLES2_3D_POINT3_Z
-    
+
     inx
     cpx #NR_OF_TRIANGLES
     beq rotate_in_z_done
@@ -959,6 +955,7 @@ rotate_in_x_next_triangle:
     MACRO_rotate_cos_minus_sin ANGLE_X, TRIANGLES2_3D_POINT3_Y, TRIANGLES2_3D_POINT3_Z, TRIANGLES3_3D_POINT3_Y
     MACRO_rotate_sin_plus_cos  ANGLE_X, TRIANGLES2_3D_POINT3_Y, TRIANGLES2_3D_POINT3_Z, TRIANGLES3_3D_POINT3_Z
     MACRO_copy_point_value TRIANGLES2_3D_POINT3_X, TRIANGLES3_3D_POINT3_X
+    
     
     inx
     cpx #NR_OF_TRIANGLES
@@ -1368,7 +1365,7 @@ get_cosine_for_angle:
     
     
     .if(1)
-NR_OF_TRIANGLES = 1
+NR_OF_TRIANGLES = 2
 triangle_3d_data:
     ;        x1,   y1,   z1,    x2,   y2,   z2,     x3,   y3,   z3,    cl
    .word      0,    0,    0,   $100,    0,    0,     0,  $100,    0,   29
