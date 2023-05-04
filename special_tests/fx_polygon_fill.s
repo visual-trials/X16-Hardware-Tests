@@ -1882,8 +1882,10 @@ y2address_is_setup_single_top:
         sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
-; FIXME: dont do this when using JUMP tables!
-        ldy TRIANGLE_COLOR      ; We use y as color
+        
+        .if(!USE_JUMP_TABLE)
+            ldy TRIANGLE_COLOR      ; We use y as color
+        .endif
     .else 
     
         ; Setting up for drawing a polygon, setting both X1 and X2 positions at the same starting point
@@ -2272,7 +2274,9 @@ y2address_is_setup_double_top:
 
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
     
-        ldy TRIANGLE_COLOR      ; We use y as color
+        .if(!USE_JUMP_TABLE)
+            ldy TRIANGLE_COLOR      ; We use y as color
+        .endif
     .else 
     
         ; Setting up for drawing a polygon, setting both X1 and X2 positions at the same starting point
