@@ -813,6 +813,7 @@ generate_draw_starting_and_ending_pixels_code:
     lda nr_of_ending_pixels_to_nibble_pattern, x
     ora TMP2
     sta NIBBLE_PATTERN
+    beq generate_nibble_pattern_is_0
     
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
@@ -833,6 +834,20 @@ generate_draw_starting_and_ending_pixels_code:
     
     rts
 
+generate_nibble_pattern_is_0:
+
+    ; -- stz VERA_DATA1 ($9F24)
+    lda #$9C               ; stz ....
+    jsr add_code_byte
+
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+
+    rts
+    
     
 generate_draw_starting_pixels_code:
 
