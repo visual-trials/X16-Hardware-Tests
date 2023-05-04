@@ -172,11 +172,11 @@ GEN_FILL_LINE_CODE_INDEX = $A0
 DEBUG_VALUE              = $C7
 
 
+; ------------- RAM addresses -------------
 
 FILL_LENGTH_LOW_SOFT     = $2800
 FILL_LENGTH_HIGH_SOFT    = $2801
 
-; RAM addresses
 FILL_LINE_JUMP_TABLE     = $2F00
 FILL_LINE_BELOW_16_CODE  = $3000   ; 128 different (below 16 pixel) fill line code patterns -> safe: takes $0D00 bytes
 
@@ -219,6 +219,11 @@ DRAW_ROW_64_CODE         = $AA00   ; When USE_POLYGON_FILLER is 1: A000-A9FF and
     .else
 DRAW_ROW_64_CODE         = $B500   ; When USE_POLYGON_FILLER is 0: A000-B4FF are occucpied by the slope tables!
     .endif
+    
+; ------------- VRAM addresses -------------
+
+COLOR_PIXELS_ADDRESS     = $12C00  ; The place where all color pixels are stored (the cache is filled with these colors) -> Just after 320x240 pxiels.
+    
 
   .org $C000
 
@@ -254,6 +259,7 @@ reset:
         jsr generate_four_times_fill_line_code
         jsr generate_four_times_jump_table_16
         jsr generate_fill_line_codes_and_table
+        jsr put_color_pixels_in_vram
     .endif
     
     .if(USE_Y_TO_ADDRESS_TABLE)

@@ -895,6 +895,26 @@ generate_rts_code:
     rts
   
   
+put_color_pixels_in_vram:
+
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+
+    ldx #0
+next_color_pixel:
+    lda #(COLOR_PIXELS_ADDRESS >> 16)
+    sta VERA_ADDR_BANK
+    lda #>COLOR_PIXELS_ADDRESS
+    sta VERA_ADDR_HIGH
+    stx VERA_ADDR_LOW
+    
+    stx VERA_DATA0
+    
+    inx 
+    bne next_color_pixel
+
+    rts
+  
   
     
 MACRO_copy_point_x .macro TRIANGLES_POINT_X, POINT_X
@@ -932,6 +952,9 @@ draw_all_triangles:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
+    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
+    sta $9F2B  
+
     ; Loop though a series of 3-points:
     ;   check which type of triangle this is (single top-point or double top-point_
     ;   Store in appropiate variables: TOP_POINT_X/Y, LEFT_POINT_X/Y, RIGHT_POINT_X/Y, BOTTOM_POINT_X/Y
@@ -947,28 +970,21 @@ draw_next_triangle:
     sta TRIANGLE_COLOR
     
     .if(USE_JUMP_TABLE)
-; FIXME: we should create a (fast) macro for this!
         ; We first need to fill the 32-bit cache with 4 times our color
-; FIXME: cant we assume we are still in this mode?
+        
         lda #%00000100           ; DCSEL=2, ADDRSEL=0
         sta VERA_CTRL
         
         lda #%00000001           ; ... cache fill enabled = 1
         sta $9F2C   
         
-; FIXME: why would we need to do this? -> this seems to disable cache filling
-        lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
-        sta $9F2B  
-        
-        lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
+        lda #(COLOR_PIXELS_ADDRESS >> 16)  ; Setting bit 16 of vram address to the highest bit (=bit16 of COLOR_PIXELS_ADDRESS), setting auto-increment value to 0 bytes (=0=%00000)
         sta VERA_ADDR_BANK
-        lda #$FF
+        lda #>COLOR_PIXELS_ADDRESS
         sta VERA_ADDR_HIGH
+        lda TRIANGLE_COLOR
         sta VERA_ADDR_LOW
 
-        lda TRIANGLE_COLOR
-        sta VERA_DATA0
-        
         lda VERA_DATA0    
         lda VERA_DATA0
         lda VERA_DATA0
@@ -976,10 +992,6 @@ draw_next_triangle:
          
         lda #%00000000           ; ... cache fill enabled = 0
         sta $9F2C   
-
-        lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
-        sta $9F2B  
-
     .endif
     
     

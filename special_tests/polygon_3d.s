@@ -286,6 +286,10 @@ DRAW_ROW_64_CODE         = $AA00   ; When USE_POLYGON_FILLER is 1: A000-A9FF and
 DRAW_ROW_64_CODE         = $B500   ; When USE_POLYGON_FILLER is 0: A000-B4FF are occucpied by the slope tables!
     .endif
 
+; ------------- VRAM addresses -------------
+
+COLOR_PIXELS_ADDRESS     = $0FF00  ; The place where all color pixels are stored (the cache is filled with these colors) -> After the first frame buffer, just before the second frame buffer.
+
   .org $C000
 
 reset:
@@ -318,6 +322,7 @@ reset:
         jsr generate_four_times_fill_line_code
         jsr generate_four_times_jump_table_16
         jsr generate_fill_line_codes_and_table
+        jsr put_color_pixels_in_vram
     .endif
     
     .if(USE_Y_TO_ADDRESS_TABLE)
