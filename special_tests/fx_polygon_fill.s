@@ -1014,8 +1014,9 @@ draw_next_triangle:
         lda VERA_DATA0
         lda VERA_DATA0
          
-        lda #%00000000           ; ... cache fill enabled = 0
-        sta $9F2C   
+        ; lda #%00000000           ; ... cache fill enabled = 0
+        ; sta $9F2C
+        stz $9F2C                ; ... cache fill enabled = 0
     .endif
     
     
