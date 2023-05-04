@@ -1535,14 +1535,13 @@ MACRO_negate_slope .macro SLOPE
     
     .if(USE_POLYGON_FILLER)
         ; We need to preserve the x32 bit here!
+        ; IMPORTANT: we *ASSUME* that the accumulator is filled with \SLOPE+1 here!!!
         and #%10000000
         sta TMP2
 
         ; We unset the x32 (in case it was set) because we have to negate the number
-        ; SPEED: can we use a different opcode here to unset the x32 bit?
-        lda \SLOPE+1
-        and #%01111111
-        sta \SLOPE+1
+        ; Note that the accumulator is %10000000 when the x32 *was* set, so the trb will (in that case) unset it!
+        trb \SLOPE+1
     .endif
     
     sec
