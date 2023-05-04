@@ -1893,7 +1893,6 @@ y2address_is_setup_single_top:
         ;       but its ok, since its reset to half a pixel (see above), meaning bit0 is 0 anyway
         lda TOP_POINT_X+1
         sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
-        ora #%00100000           ; Reset subpixel position
         sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
@@ -2284,7 +2283,6 @@ y2address_is_setup_double_top:
         lda LEFT_POINT_X+1
         sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
         lda RIGHT_POINT_X+1
-        ora #%00100000           ; Reset subpixel position
         sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
