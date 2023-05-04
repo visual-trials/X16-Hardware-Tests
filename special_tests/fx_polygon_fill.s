@@ -952,9 +952,11 @@ draw_all_triangles:
     lda #%00000101           ; DCSEL=2, ADDRSEL=1
     sta VERA_CTRL
 
-    ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
-    lda #%00000011
-    sta $9F29
+    .if(USE_POLYGON_FILLER)
+        ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
+        lda #%00000011
+        sta $9F29
+    .endif
     
     .if(USE_JUMP_TABLE)
         lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011)
@@ -967,8 +969,15 @@ draw_all_triangles:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
-    sta $9F2B  
+    .if(USE_POLYGON_FILLER)
+        lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
+        sta $9F2B  
+    .endif
+    
+    .if(USE_SLOPE_TABLES)
+        lda #<($A000)
+        sta LOAD_ADDRESS
+    .endif
 
     ; Loop though a series of 3-points:
     ;   check which type of triangle this is (single top-point or double top-point_
@@ -1234,9 +1243,11 @@ done_drawing_all_triangles:
         sta $9F2B     
     .endif
     
-    ; Normal addr1 mode
-    lda #%00000000
-    sta $9F29
+    .if(USE_POLYGON_FILLER)
+        ; Normal addr1 mode
+        lda #%00000000
+        sta $9F29
+    .endif
     
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
@@ -1262,19 +1273,14 @@ MACRO_get_slope_from_180_degrees_slope_table: .macro Y_DISTANCE, SLOPE
     asl X_DISTANCE
     rol X_DISTANCE+1
     asl X_DISTANCE
-    rol X_DISTANCE+1
+    lda X_DISTANCE+1
+    rol a
     
     ; We shift bits 9, 8, 7 and 6 into bits 4, 3, 2 and 1
-    asl X_DISTANCE+1
-    
-    lda X_DISTANCE+1
+    asl a
     and #%00011111         ; we use bit9 of X_DISTANCE (here bit4) to switch between Ax and Bx. The upper bits we discard, since we dont want an address too high when the X_DISTANCE is negative
     ora #>($A000)          ; We combine bits 4:1 with A0
     sta LOAD_ADDRESS+1
-    
-    ; SPEED: we dont need to do this again and again, this stays at zero!
-    lda #<($A000)
-    sta LOAD_ADDRESS
     
     ; We load the SLOPE_LOW
     lda (LOAD_ADDRESS), y
@@ -1306,19 +1312,15 @@ MACRO_get_slope_from_slope_table: .macro Y_DISTANCE, SLOPE
         asl X_DISTANCE
         rol X_DISTANCE+1
         asl X_DISTANCE
-        rol X_DISTANCE+1
+        lda X_DISTANCE+1
+        rol a
         
         ; We shift bits 8, 7 and 6 into bits 3, 2 and 1
-        asl X_DISTANCE+1
+        asl a
         
         ; We combine bits 3:1 with A0
-        lda #>($A000)
-        ora X_DISTANCE+1
+        ora #>($A000)
         sta LOAD_ADDRESS+1
-        
-        ; SPEED: we dont need to do this again and again, this stays at zero!
-        lda #<($A000)
-        sta LOAD_ADDRESS
         
         ; We load the SLOPE_LOW
         lda (LOAD_ADDRESS), y
@@ -1344,20 +1346,16 @@ MACRO_get_slope_from_slope_table: .macro Y_DISTANCE, SLOPE
         asl X_DISTANCE
         rol X_DISTANCE+1
         asl X_DISTANCE
-        rol X_DISTANCE+1
+        lda X_DISTANCE+1
+        rol a
         
         ; We shift bits 8, 7 and 6 into bits 4, 3 and 2
-        asl X_DISTANCE+1
-        asl X_DISTANCE+1
+        asl a
+        asl a
         
         ; We combine bits 4:2 with A0
-        lda #>($A000)
-        ora X_DISTANCE+1
+        ora #>($A000)
         sta LOAD_ADDRESS+1
-        
-        ; SPEED: we dont need to do this again and again, this stays at zero!
-        lda #<($A000)
-        sta LOAD_ADDRESS
         
         ; We load the SLOPE_LOW
         lda (LOAD_ADDRESS), y
