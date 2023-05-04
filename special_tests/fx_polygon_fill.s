@@ -1797,12 +1797,15 @@ slope_top_right_is_correctly_signed:
     
         ; We subtract: Y_DISTANCE_RIGHT_LEFT: RIGHT_POINT_Y - LEFT_POINT_Y
         
-        MACRO_subtract_and_make_positive_y RIGHT_POINT_Y, LEFT_POINT_Y, Y_DISTANCE_RIGHT_LEFT, Y_DISTANCE_IS_NEGATED
-        
-        ldx Y_DISTANCE_IS_NEGATED
-        bne left_point_is_higher_in_y
-        
+        sec
+        lda RIGHT_POINT_Y
+        sbc LEFT_POINT_Y
+        sta Y_DISTANCE_RIGHT_LEFT
+        bmi left_point_is_higher_in_y
+    
 right_point_is_higher_in_y:
+
+        stz Y_DISTANCE_IS_NEGATED
 
         ; We subtract: X_DISTANCE: RIGHT_POINT_X - LEFT_POINT_X
         
@@ -1814,6 +1817,15 @@ right_point_is_higher_in_y:
         
 left_point_is_higher_in_y:
         
+        ; We negate the Y_DISTANCE_RIGHT_LEFT
+        sec
+        lda #0
+        sbc Y_DISTANCE_RIGHT_LEFT
+        sta Y_DISTANCE_RIGHT_LEFT
+        
+        lda #1
+        sta Y_DISTANCE_IS_NEGATED
+
         ; We subtract: X_DISTANCE: LEFT_POINT_X - RIGHT_POINT_X
         
         MACRO_subtract_x LEFT_POINT_X, RIGHT_POINT_X, X_DISTANCE
