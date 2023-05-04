@@ -4,8 +4,8 @@
 DO_SPEED_TEST = 1
 
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 0
-USE_UNROLLED_LOOP = 0
+USE_SLOPE_TABLES = 1
+USE_UNROLLED_LOOP = 1
 USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
@@ -1110,7 +1110,7 @@ load_next_triangle:
     rts
     
     
-    .if(1)
+    .if(0)
 NR_OF_TRIANGLES = 12
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
@@ -1132,7 +1132,7 @@ end_of_palette_data:
     .endif
    
    
-    .if(0)
+    .if(1)
 palette_data:
     .byte $c8, $08  ; palette index 16
     .byte $c9, $07  ; palette index 17

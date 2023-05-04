@@ -950,20 +950,16 @@ draw_next_triangle:
 ; FIXME: we should create a (fast) macro for this!
         ; We first need to fill the 32-bit cache with 4 times our color
 ; FIXME: cant we assume we are still in this mode?
-        lda #%00000101           ; DCSEL=2, ADDRSEL=1
+        lda #%00000100           ; DCSEL=2, ADDRSEL=0
         sta VERA_CTRL
-        
-        lda #%00000000           ; normal addr1 mode 
-        sta $9F29
         
         lda #%00000001           ; ... cache fill enabled = 1
         sta $9F2C   
         
-; FIXME: why would we need to do this?
+; FIXME: why would we need to do this? -> this seems to disable cache filling
         lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
         sta $9F2B  
         
-; FIXME: we should use a different VRAM address for this cache filling!!
         lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
         sta VERA_ADDR_BANK
         lda #$FF
@@ -971,31 +967,19 @@ draw_next_triangle:
         sta VERA_ADDR_LOW
 
         lda TRIANGLE_COLOR
-        sta VERA_DATA1
+        sta VERA_DATA0
         
-        lda VERA_DATA1    
-        lda VERA_DATA1
-        lda VERA_DATA1
-        lda VERA_DATA1
+        lda VERA_DATA0    
+        lda VERA_DATA0
+        lda VERA_DATA0
+        lda VERA_DATA0
          
         lda #%00000000           ; ... cache fill enabled = 0
         sta $9F2C   
 
-; FIXME: This is SLOW!
-        lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011)
-        sta VERA_ADDR_BANK
-        
         lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
         sta $9F2B  
 
-        ; FIXME: this is SLOW
-        lda #%00000100           ; DCSEL=2, ADDRSEL=0
-        sta VERA_CTRL
-        
-        ; Re-entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
-        lda #%00000011
-        sta $9F29
-        
     .endif
     
     
