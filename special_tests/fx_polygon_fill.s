@@ -1270,9 +1270,10 @@ MACRO_get_slope_from_180_degrees_slope_table: .macro Y_DISTANCE, SLOPE
     sta RAM_BANK
 
     ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8 and 9)
-    asl X_DISTANCE
+    lda X_DISTANCE
+    asl a
     rol X_DISTANCE+1
-    asl X_DISTANCE
+    asl a
     lda X_DISTANCE+1
     rol a
     
@@ -1309,9 +1310,10 @@ MACRO_get_slope_from_slope_table: .macro Y_DISTANCE, SLOPE
         sta RAM_BANK
 
         ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8)
-        asl X_DISTANCE
+        lda X_DISTANCE
+        asl a
         rol X_DISTANCE+1
-        asl X_DISTANCE
+        asl a
         lda X_DISTANCE+1
         rol a
         
@@ -1343,9 +1345,10 @@ MACRO_get_slope_from_slope_table: .macro Y_DISTANCE, SLOPE
         sta RAM_BANK
 
         ; We rotate bits 7 and 6 into X_DISTANCE+1 (which contains bit 8)
-        asl X_DISTANCE
+        lda X_DISTANCE
+        asl a
         rol X_DISTANCE+1
-        asl X_DISTANCE
+        asl a
         lda X_DISTANCE+1
         rol a
         
