@@ -2149,7 +2149,14 @@ soft_first_right_point_is_lower_in_y:
         
 done_drawing_polygon_part_single_top:
     
-    jmp done_drawing_polygon_part
+    inc TRIANGLE_INDEX
+    lda TRIANGLE_INDEX
+    cmp #NR_OF_TRIANGLES
+    beq done_drawing_all_triangles_single_top
+    jmp draw_next_triangle
+    
+done_drawing_all_triangles_single_top:
+    jmp done_drawing_all_triangles
     
     
 draw_triangle_with_double_top_points:
@@ -2397,7 +2404,14 @@ y2address_is_setup_double_top:
         
     .endif
         
-    jmp done_drawing_polygon_part
+    inc TRIANGLE_INDEX
+    lda TRIANGLE_INDEX
+    cmp #NR_OF_TRIANGLES
+    beq done_drawing_all_triangles_double_top
+    jmp draw_next_triangle
+    
+done_drawing_all_triangles_double_top:
+    jmp done_drawing_all_triangles
     
     
 
