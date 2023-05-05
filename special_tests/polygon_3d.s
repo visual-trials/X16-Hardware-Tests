@@ -4,14 +4,14 @@
 
 DO_SPEED_TEST = 1
 KEEP_RUNNING = 1
-USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
+USE_DOUBLE_BUFFER = 0  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
 
 ; WEIRD BUG: when using JUMP_TABLES, the triangles look very 'edgy'!! --> it is 'SOLVED' by putting the jump FILL_LINE_CODE_x-block aligned to 256 bytes!?!?
 
 USE_POLYGON_FILLER = 0
-USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 1
+USE_SLOPE_TABLES = 0
+USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
@@ -1292,7 +1292,9 @@ back_face_cull_next_triangle:
     bmi triangle_is_not_facing_camera
     
     ; The triangle is visible (that is: facing our side) and should be added to the linked list of triangles
-    jsr insert_sort_triangle_using_sum_of_z
+; FIXME!
+;    jsr insert_sort_triangle_using_sum_of_z
+    jsr insert_triangle_without_sorting
     
 triangle_is_not_facing_camera:
     inx
@@ -1360,6 +1362,29 @@ scale_and_position_done:
 
     rts
     
+    
+insert_triangle_without_sorting:
+
+    ; We add the entry at the end of the linked list
+    
+    ; IMPORTANT: x is filled with the current triangle index!
+
+    ; Note: when we reach this point CURRENT_LINKED_LIST_ENTRY is filled with the *last* entry in the linked list
+    ldy CURRENT_LINKED_LIST_ENTRY
+    lda LINKED_LIST_NEW_ENTRY
+    sta TRIANGLES_LINKED_LIST_NEXT, y   ; We store the new linked list entry as the 'next' linked list entry of the current entry
+    
+    sta CURRENT_LINKED_LIST_ENTRY       ; The newly created link list entry has now become our current linked list entry
+    tay                                 ; y is now filled with the (new) link list entry
+; FIXME: cant we do stx here instead?
+    txa                                 ; x is filled with the current triangle index, we copy it to a
+    sta TRIANGLES_LINKED_LIST_INDEX, y     ; We store the triangle index in the current (newly created) linked list entry
+    lda #0
+    sta TRIANGLES_LINKED_LIST_NEXT, y   ; we set the _NEXT for the last entry to 0 (measning: end of list)
+    
+    inc LINKED_LIST_NEW_ENTRY           ; We increment the new entry of the linked list
+
+    rts
     
     
 insert_sort_triangle_using_sum_of_z:
@@ -1873,16 +1898,51 @@ get_cosine_for_angle:
     
     
     .if(1)
-NR_OF_TRIANGLES = 4
+NR_OF_TRIANGLES = 12
 triangle_3d_data:
 
 ; FIXME: should we do a NEGATIVE or a NEGATIVE Z for the NORMAL?
     ; Note: the normal is a normal point relative to 0.0 (with a length of $100)
     ;        x1,   y1,   z1,    x2,   y2,   z2,     x3,   y3,   z3,    xn,   yn,   zn,   cl
-   .word      0,    0,    0,   $100,    0,    0,     0,  $100,    0,    0,    0, $100,   29
-   .word   $100,    0,    0,   $100, $100,    0,     0,  $100,    0,    0,    0, $100,   13
-   .word   $100,    0, $100,      0,    0, $100,     0,  $100, $100,    0,    0,-$100,   3   
-   .word   $100, $100, $100,   $100,    0, $100,     0,  $100, $100,    0,    0,-$100,   2   
+;   .word      0,    0,    0,   $100,    0,    0,     0,  $100,    0,    0,    0, $100,   29
+;   .word   $100,    0,    0,   $100, $100,    0,     0,  $100,    0,    0,    0, $100,   13
+;   .word   $100,    0, $100,      0,    0, $100,     0,  $100, $100,    0,    0,-$100,   3   
+;   .word   $100, $100, $100,   $100,    0, $100,     0,  $100, $100,    0,    0,-$100,   2   
+   
+; FIXME: the winding is exactly the OPPOSITE as javidx9!!! -> we may want to invert Z in the engine!
+
+    ;        x1,    y1,   z1,      x2,   y2,   z2,      x3,   y3,   z3,      xn,   yn,   zn,    cl
+   ; SOUTH
+   .word       0, $100,    0,       0,    0,    0,    $100, $100,    0,       0,    0, $100,     1
+   .word    $100, $100,    0,       0,    0,    0,    $100,    0,    0,       0,    0, $100,     1
+
+   ; NORTH                                                     
+   .word    $100, $100, $100,    $100,    0, $100,       0, $100, $100,       0,    0,-$100,     3
+   .word       0, $100, $100,    $100,    0, $100,       0,    0, $100,       0,    0,-$100,     3
+
+   ; EAST                                                      
+   .word    $100, $100,    0,    $100,    0,    0,    $100, $100, $100,   -$100,    0,    0,     2
+; FIXME: THIS CAUSES A RED *FLASH*!!!
+; FIXME: THIS CAUSES A RED *FLASH*!!!
+; FIXME: THIS CAUSES A RED *FLASH*!!!
+   .word    $100, $100, $100,    $100,    0,    0,    $100,    0, $100,   -$100,    0,    0,     2
+
+   ; WEST                                                      
+; FIXME: THESE DO NOT WORK AT ALL!!!
+; FIXME: THESE DO NOT WORK AT ALL!!!
+; FIXME: THESE DO NOT WORK AT ALL!!!
+   .word       0, $100, $100,       0,    0, $100,       0, $100,    0,    $100,    0,    0,     4
+   .word       0, $100,    0,       0,    0, $100,       0,    0,    0,    $100,    0,    0,     4
+
+   ; TOP                                                       
+   .word       0, $100, $100,       0, $100,    0,    $100, $100, $100,       0,-$100,    0,     5
+   .word    $100, $100, $100,       0, $100,    0,    $100, $100,    0,       0,-$100,    0,     5
+
+   ; BOTTOM                                                    
+   .word       0,    0, $100,    $100,    0, $100,       0,    0,    0,       0, $100,    0,     7
+   .word       0,    0,    0,    $100,    0, $100,    $100,    0,    0,       0, $100,    0,     7
+   
+   
 palette_data:   
     ; dummy
 end_of_palette_data:
