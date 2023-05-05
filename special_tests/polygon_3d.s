@@ -1881,8 +1881,8 @@ triangle_3d_data:
     ;        x1,   y1,   z1,    x2,   y2,   z2,     x3,   y3,   z3,    xn,   yn,   zn,   cl
    .word      0,    0,    0,   $100,    0,    0,     0,  $100,    0,    0,    0, $100,   29
    .word   $100,    0,    0,   $100, $100,    0,     0,  $100,    0,    0,    0, $100,   13
-   .word      0,    0, $100,   $100,    0, $100,     0,  $100, $100,    0,    0, $100,   3    ; FIXME: the winding on this triangle is actually WRONG! (and its normal too!) -> its the other side of a cube!
-   .word   $100,    0, $100,   $100, $100, $100,     0,  $100, $100,    0,    0, $100,   2    ; FIXME: the winding on this triangle is actually WRONG! (and its normal too!) -> its the other side of a cube!
+   .word   $100,    0, $100,      0,    0, $100,     0,  $100, $100,    0,    0,-$100,   3   
+   .word   $100, $100, $100,   $100,    0, $100,     0,  $100, $100,    0,    0,-$100,   2   
 palette_data:   
     ; dummy
 end_of_palette_data:
