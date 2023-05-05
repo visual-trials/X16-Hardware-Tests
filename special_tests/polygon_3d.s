@@ -3,7 +3,7 @@
 ; BUG: when turning on all options (SLOPE_TABLES and JUMP_TABLES) it shows horizontal "stripes" on real HW!
 
 DO_SPEED_TEST = 1
-KEEP_RUNNING = 1
+KEEP_RUNNING = 0
 USE_DOUBLE_BUFFER = 0  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
 
@@ -725,12 +725,16 @@ switch_to_filling_high_vram_buffer:
     
     
 init_world:    
-    lda #0
+    lda #8
+; FIXME!
+;    lda #0
     sta ANGLE_Z
     lda #0
     sta ANGLE_Z+1
 
-    lda #0
+    lda #4
+; FIXME!
+;    lda #0
     sta ANGLE_X
     lda #0
     sta ANGLE_X+1
@@ -1898,7 +1902,7 @@ get_cosine_for_angle:
     
     
     .if(1)
-NR_OF_TRIANGLES = 12
+NR_OF_TRIANGLES = 1
 triangle_3d_data:
 
 ; FIXME: should we do a NEGATIVE or a NEGATIVE Z for the NORMAL?
@@ -1913,34 +1917,38 @@ triangle_3d_data:
 
     ;        x1,    y1,   z1,      x2,   y2,   z2,      x3,   y3,   z3,      xn,   yn,   zn,    cl
    ; SOUTH
-   .word       0, $100,    0,       0,    0,    0,    $100, $100,    0,       0,    0, $100,     1
-   .word    $100, $100,    0,       0,    0,    0,    $100,    0,    0,       0,    0, $100,     1
+;   .word       0, $100,    0,       0,    0,    0,    $100, $100,    0,       0,    0, $100,     1
+;   .word    $100, $100,    0,       0,    0,    0,    $100,    0,    0,       0,    0, $100,     1
 
    ; NORTH                                                     
-   .word    $100, $100, $100,    $100,    0, $100,       0, $100, $100,       0,    0,-$100,     3
-   .word       0, $100, $100,    $100,    0, $100,       0,    0, $100,       0,    0,-$100,     3
+;   .word    $100, $100, $100,    $100,    0, $100,       0, $100, $100,       0,    0,-$100,     3
+;   .word       0, $100, $100,    $100,    0, $100,       0,    0, $100,       0,    0,-$100,     3
 
    ; EAST                                                      
-   .word    $100, $100,    0,    $100,    0,    0,    $100, $100, $100,   -$100,    0,    0,     2
+; This ALSO FLASHES!
+;   .word    $100, $100,    0,    $100,    0,    0,    $100,    0, $100,   -$100,    0,    0,     2
+;   .word    $100, $100, $100,    $100, $100,    0,    $100,    0, $100,   -$100,    0,    0,     2
+   
+;   .word    $100, $100,    0,    $100,    0,    0,    $100, $100, $100,   -$100,    0,    0,     2
 ; FIXME: THIS CAUSES A RED *FLASH*!!!
 ; FIXME: THIS CAUSES A RED *FLASH*!!!
 ; FIXME: THIS CAUSES A RED *FLASH*!!!
-   .word    $100, $100, $100,    $100,    0,    0,    $100,    0, $100,   -$100,    0,    0,     2
+;   .word    $100, $100, $100,    $100,    0,    0,    $100,    0, $100,   -$100,    0,    0,     2
 
    ; WEST                                                      
 ; FIXME: THESE DO NOT WORK AT ALL!!!
 ; FIXME: THESE DO NOT WORK AT ALL!!!
 ; FIXME: THESE DO NOT WORK AT ALL!!!
    .word       0, $100, $100,       0,    0, $100,       0, $100,    0,    $100,    0,    0,     4
-   .word       0, $100,    0,       0,    0, $100,       0,    0,    0,    $100,    0,    0,     4
+;   .word       0, $100,    0,       0,    0, $100,       0,    0,    0,    $100,    0,    0,     4
 
    ; TOP                                                       
-   .word       0, $100, $100,       0, $100,    0,    $100, $100, $100,       0,-$100,    0,     5
-   .word    $100, $100, $100,       0, $100,    0,    $100, $100,    0,       0,-$100,    0,     5
+;   .word       0, $100, $100,       0, $100,    0,    $100, $100, $100,       0,-$100,    0,     5
+;   .word    $100, $100, $100,       0, $100,    0,    $100, $100,    0,       0,-$100,    0,     5
 
    ; BOTTOM                                                    
-   .word       0,    0, $100,    $100,    0, $100,       0,    0,    0,       0, $100,    0,     7
-   .word       0,    0,    0,    $100,    0, $100,    $100,    0,    0,       0, $100,    0,     7
+;   .word       0,    0, $100,    $100,    0, $100,       0,    0,    0,       0, $100,    0,     7
+;   .word       0,    0,    0,    $100,    0, $100,    $100,    0,    0,       0, $100,    0,     7
    
    
 palette_data:   
