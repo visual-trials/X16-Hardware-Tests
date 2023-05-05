@@ -452,6 +452,9 @@ keep_running:
     .endif
     
     jsr calculate_projection_of_3d_onto_2d_screen
+; FIXME!    
+    stp
+    
     jsr draw_all_triangles
     
     .if(KEEP_RUNNING)
@@ -827,7 +830,7 @@ MACRO_scale_and_position_on_screen_y .macro TRIANGLES_3D_POINT_Y, TRIANGLES_POIN
     sec
 \@point_y_is_sign_extended:
     ; First we multiply by 128 (by dividing by 2)
-    lsr TMP_POINT_Y+1
+    ror TMP_POINT_Y+1
     ror TMP_POINT_Y
     
     ; We then add half of the screen width
@@ -1939,7 +1942,7 @@ triangle_3d_data:
 ; FIXME: THESE DO NOT WORK AT ALL!!!
 ; FIXME: THESE DO NOT WORK AT ALL!!!
 ; FIXME: THESE DO NOT WORK AT ALL!!!
-   .word       0, $100, $100,       0,    0, $100,       0, $100,    0,    $100,    0,    0,     4
+   .word       0, $100, $100,       0,    0, $100,       0, $100,    0,     $100,    0,    0,     4
 ;   .word       0, $100,    0,       0,    0, $100,       0,    0,    0,    $100,    0,    0,     4
 
    ; TOP                                                       
