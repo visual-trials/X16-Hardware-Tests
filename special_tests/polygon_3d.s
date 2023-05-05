@@ -189,12 +189,13 @@ TRANSLATE_Z              = $B1 ; B2
 ; TODO: room here!
 
 DOT_PRODUCT              = $B4 ; B5
-SUM_Z_DIFF               = $B6 ; B7
+CURRENT_SUM_Z            = $B6 ; B7
 
 FRAME_BUFFER_INDEX       = $B8     ; 0 or 1: indicating which frame buffer is to be filled (for double buffering)
 
-CURRENT_LINKED_LIST_ENTRY = $BB
-LINKED_LIST_NEW_ENTRY     = $BC
+CURRENT_LINKED_LIST_ENTRY  = $BB
+PREVIOUS_LINKED_LIST_ENTRY = $BC
+LINKED_LIST_NEW_ENTRY      = $BD
 
 
 DEBUG_VALUE              = $C7
@@ -1291,23 +1292,7 @@ back_face_cull_next_triangle:
     bmi triangle_is_not_facing_camera
     
     ; The triangle is visible (that is: facing our side) and should be added to the linked list of triangles
-    
-; FIXME: we now do an *UNORDERED* list of triangles!
-; FIXME: we now do an *UNORDERED* list of triangles!
-; FIXME: we now do an *UNORDERED* list of triangles!
-    
-    ldy CURRENT_LINKED_LIST_ENTRY
-    lda LINKED_LIST_NEW_ENTRY
-    sta TRIANGLES_LINKED_LIST_NEXT, y   ; We store the new linked list entry as the 'next' linked list entry of the current entry
-    
-    sta CURRENT_LINKED_LIST_ENTRY       ; The newly created link list entry has now become our current linked list entry
-    tay                                 ; y is now filled with the (new) link list entry
-    txa                                 ; x is filled with the current triangle index, we copy it to a
-    sta TRIANGLES_LINKED_LIST_INDEX, y     ; We store the triangle index in the current (newly created) linked list entry
-    lda #0
-    sta TRIANGLES_LINKED_LIST_NEXT, y   ; we set the _NEXT for the last entry to 0 (measning: end of list)
-    
-    inc LINKED_LIST_NEW_ENTRY               ; We increment the new entry of the linked list
+    jsr insert_sort_triangle_using_sum_of_z
     
 triangle_is_not_facing_camera:
     inx
@@ -1315,6 +1300,8 @@ triangle_is_not_facing_camera:
     beq back_face_culling_done
     jmp back_face_cull_next_triangle
 back_face_culling_done:
+
+
 
 
     ; == We loop through the linked list and color (by light), project onto 2D, scale and position the triangles ==
@@ -1325,7 +1312,7 @@ back_face_culling_done:
 scale_and_position_next_triangle:
     ; FIXME: this looks SLOW!
     ldy CURRENT_LINKED_LIST_ENTRY
-    lda TRIANGLES_LINKED_LIST_NEXT, y   ; We get the first linked list entry
+    lda TRIANGLES_LINKED_LIST_NEXT, y   ; We get the next linked list entry
     bne scale_and_position_keep_going   ; If our next linked list entry is 0, we know we reached the end, otherwise go on
     jmp scale_and_position_done
 scale_and_position_keep_going:
@@ -1370,6 +1357,89 @@ scale_and_position_keep_going:
     jmp scale_and_position_next_triangle
 scale_and_position_done:
 
+
+    rts
+    
+    
+    
+insert_sort_triangle_using_sum_of_z:
+
+    ; IMPORTANT: x is filled with the current triangle index!
+    lda TRIANGLES3_3D_SUM_Z,x
+    sta CURRENT_SUM_Z
+    lda TRIANGLES3_3D_SUM_Z+MAX_NR_OF_TRIANGLES,x
+    sta CURRENT_SUM_Z+1
+    stx TRIANGLE_INDEX                  ; Backing up the current 3D triangle index
+    
+    ; IMPORTANT NOTE: the first entry is the *start* entry and does not contain a (valid) triangle index!
+    stz CURRENT_LINKED_LIST_ENTRY
+insertion_sort_compare_with_next_triangle:
+    ldy CURRENT_LINKED_LIST_ENTRY
+    sty PREVIOUS_LINKED_LIST_ENTRY
+    lda TRIANGLES_LINKED_LIST_NEXT, y   ; We get the next linked list entry
+    beq reached_end_of_linked_list      ; If our next linked list entry is 0, we know we reached the end, otherwise go on
+    sta CURRENT_LINKED_LIST_ENTRY
+    tay
+    ldx TRIANGLES_LINKED_LIST_INDEX, y  ; We put the (3D) triangle index into register x
+    
+    
+    ; We do: CURRENT_SUM_Z - TRIANGLES3_3D_SUM_Z and check if its negative or positive
+    sec
+    lda CURRENT_SUM_Z
+    sbc TRIANGLES3_3D_SUM_Z,x
+    lda CURRENT_SUM_Z+1
+    sbc TRIANGLES3_3D_SUM_Z+MAX_NR_OF_TRIANGLES,x
+    bpl new_triangle_sum_z_is_higher
+    
+    ; The new triangle (current sum z) has a lower sum of z than the one in the linked list. So we should *not* insert the new triangle yet. We move on.
+    
+    bra insertion_sort_compare_with_next_triangle
+
+new_triangle_sum_z_is_higher:
+
+    ; The new triangle (current sum z) has a higher (or equal) sum of z than the one in the linked list. So we should insert the new triangle at this point in the linked list.
+
+    ; We add the entry at *this* point in the linked list
+    
+    ldx TRIANGLE_INDEX                  ; Restoring the current 3D triangle index
+
+    ; Note: when we reach this point CURRENT_LINKED_LIST_ENTRY is filled with the *compared* entry in the linked list. We have to add the current one *BEFORE* the compared one!
+    ldy LINKED_LIST_NEW_ENTRY
+    lda CURRENT_LINKED_LIST_ENTRY       ; the compared linked list entry
+    sta TRIANGLES_LINKED_LIST_NEXT, y   ; We store the compared linked list entry as the 'next' linked list entry of the newly added/current entry
+; FIXME: cant we do stx here instead?
+    txa                                 ; x is filled with the current triangle index, we copy it to a
+    sta TRIANGLES_LINKED_LIST_INDEX, y  ; We store the triangle index in the current (newly created) linked list entry
+    
+    ; We store the new entry as the 'next'-entry in the previous entry (the one BEFORE the one we just compared to)
+    ldy PREVIOUS_LINKED_LIST_ENTRY
+    lda LINKED_LIST_NEW_ENTRY
+    sta TRIANGLES_LINKED_LIST_NEXT, y
+    
+    inc LINKED_LIST_NEW_ENTRY           ; We increment the new entry of the linked list
+
+    rts
+
+reached_end_of_linked_list:
+
+    ; We add the entry at the end of the linked list
+    
+    ldx TRIANGLE_INDEX                  ; Restoring the current 3D triangle index
+
+    ; Note: when we reach this point CURRENT_LINKED_LIST_ENTRY is filled with the *last* entry in the linked list
+    ldy CURRENT_LINKED_LIST_ENTRY
+    lda LINKED_LIST_NEW_ENTRY
+    sta TRIANGLES_LINKED_LIST_NEXT, y   ; We store the new linked list entry as the 'next' linked list entry of the current entry
+    
+    sta CURRENT_LINKED_LIST_ENTRY       ; The newly created link list entry has now become our current linked list entry
+    tay                                 ; y is now filled with the (new) link list entry
+; FIXME: cant we do stx here instead?
+    txa                                 ; x is filled with the current triangle index, we copy it to a
+    sta TRIANGLES_LINKED_LIST_INDEX, y     ; We store the triangle index in the current (newly created) linked list entry
+    lda #0
+    sta TRIANGLES_LINKED_LIST_NEXT, y   ; we set the _NEXT for the last entry to 0 (measning: end of list)
+    
+    inc LINKED_LIST_NEW_ENTRY           ; We increment the new entry of the linked list
 
     rts
     
