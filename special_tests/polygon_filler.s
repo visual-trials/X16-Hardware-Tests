@@ -3,10 +3,10 @@
 
 DO_SPEED_TEST = 1
 
-USE_POLYGON_FILLER = 1
+USE_POLYGON_FILLER = 0
 USE_SLOPE_TABLES = 1
 USE_UNROLLED_LOOP = 1
-USE_JUMP_TABLE = 1
+USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
 TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
@@ -83,15 +83,16 @@ DIVISOR                   = $23 ; 24 ; 25  ; the thing you divide by (e.g. / 10)
 REMAINDER                 = $26 ; 27 ; 28
 
 ; For geneating code
-JUMP16_ADDRESS            = $2C ; 2D
-JUMP_ADDRESS              = $2E ; 2F
-CODE_ADDRESS              = $30 ; 31
-LOAD_ADDRESS              = $32 ; 33
-STORE_ADDRESS             = $34 ; 35
+JUMP16_ADDRESS            = $2B ; 2C
+JUMP_ADDRESS              = $2D ; 2E
+CODE_ADDRESS              = $2F ; 30
+LOAD_ADDRESS              = $31 ; 32
+STORE_ADDRESS             = $33 ; 34
 
-TABLE_ROM_BANK            = $36
-DRAW_LENGTH               = $37  ; for generating draw code
+TABLE_ROM_BANK            = $35
+DRAW_LENGTH               = $36  ; for generating draw code
 
+TRIANGLE_COUNT            = $37
 TRIANGLE_INDEX            = $38
 
 
@@ -332,11 +333,13 @@ write_cache_message:
   
 test_speed_of_filling_triangle:
 
-
     jsr load_triangle_data_into_ram
 
     jsr start_timer
 
+    lda #NR_OF_TRIANGLES
+    sta TRIANGLE_COUNT
+    
     jsr draw_all_triangles
 
     jsr stop_timer

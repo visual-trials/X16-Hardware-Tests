@@ -9,10 +9,10 @@ SLOW_DOWN = 0
 
 ; WEIRD BUG: when using JUMP_TABLES, the triangles look very 'edgy'!! --> it is 'SOLVED' by putting the jump FILL_LINE_CODE_x-block aligned to 256 bytes!?!?
 
-USE_POLYGON_FILLER = 1
+USE_POLYGON_FILLER = 0
 USE_SLOPE_TABLES = 1
 USE_UNROLLED_LOOP = 1
-USE_JUMP_TABLE = 1
+USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
 TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
@@ -86,15 +86,16 @@ DIVISOR                   = $23 ; 24 ; 25  ; the thing you divide by (e.g. / 10)
 REMAINDER                 = $26 ; 27 ; 28
 
 ; For geneating code
-JUMP16_ADDRESS            = $2C ; 2D
-JUMP_ADDRESS              = $2E ; 2F
-CODE_ADDRESS              = $30 ; 31
-LOAD_ADDRESS              = $32 ; 33
-STORE_ADDRESS             = $34 ; 35
+JUMP16_ADDRESS            = $2B ; 2C
+JUMP_ADDRESS              = $2D ; 2E
+CODE_ADDRESS              = $2F ; 30
+LOAD_ADDRESS              = $31 ; 32
+STORE_ADDRESS             = $33 ; 34
 
-TABLE_ROM_BANK            = $36
-DRAW_LENGTH               = $37  ; for generating draw code
+TABLE_ROM_BANK            = $35
+DRAW_LENGTH               = $36  ; for generating draw code
 
+TRIANGLE_COUNT            = $37
 TRIANGLE_INDEX            = $38
 
 
@@ -184,12 +185,17 @@ SINE_OUTPUT              = $AD ; AE
 COSINE_OUTPUT            = $AF ; B0
 
 TRANSLATE_Z              = $B1 ; B2
-DO_CORRECT_WINDING       = $B3
+
+; TODO: room here!
 
 DOT_PRODUCT              = $B4 ; B5
 SUM_Z_DIFF               = $B6 ; B7
 
 FRAME_BUFFER_INDEX       = $B8     ; 0 or 1: indicating which frame buffer is to be filled (for double buffering)
+
+CURRENT_LINKED_LIST_ENTRY = $BB
+LINKED_LIST_NEW_ENTRY     = $BC
+
 
 DEBUG_VALUE              = $C7
 
@@ -230,6 +236,9 @@ TRIANGLES_POINT3_Y       = $4D00 ; 4D80
 
 TRIANGLES_ORG_COLOR      = $4E00 ; Only 128 bytes used
 TRIANGLES_COLOR          = $4E80 ; Only 128 bytes used
+
+TRIANGLES_LINKED_LIST_INDEX = $4F00 ; Only 128 bytes used
+TRIANGLES_LINKED_LIST_NEXT  = $4F80 ; Only 128 bytes used
 
 ; FIXME: We should instead use a series of POINTS and INDEXES to those points are used to define TRIANGLES!
 TRIANGLES_3D_POINT1_X    = $5000 ; 5080
@@ -792,11 +801,11 @@ MACRO_scale_and_position_on_screen_x .macro TRIANGLES_3D_POINT_X, TRIANGLES_POIN
     clc
     lda TMP_POINT_X
     adc #<(SCREEN_WIDTH/2)
-    sta \TRIANGLES_POINT_X, x
+    sta \TRIANGLES_POINT_X, y
     
     lda TMP_POINT_X+1
     adc #>(SCREEN_WIDTH/2)
-    sta \TRIANGLES_POINT_X+MAX_NR_OF_TRIANGLES, x
+    sta \TRIANGLES_POINT_X+MAX_NR_OF_TRIANGLES, y
 
 .endmacro
     
@@ -820,11 +829,11 @@ MACRO_scale_and_position_on_screen_y .macro TRIANGLES_3D_POINT_Y, TRIANGLES_POIN
     clc
     lda TMP_POINT_Y
     adc #<(SCREEN_HEIGHT/2)
-    sta \TRIANGLES_POINT_Y, x
+    sta \TRIANGLES_POINT_Y, y
     
     lda TMP_POINT_Y+1
     adc #>(SCREEN_HEIGHT/2)
-    sta \TRIANGLES_POINT_Y+MAX_NR_OF_TRIANGLES, x
+    sta \TRIANGLES_POINT_Y+MAX_NR_OF_TRIANGLES, y
 
 .endmacro
 
@@ -1148,41 +1157,6 @@ MACRO_calculate_sum_of_z .macro TRIANGLES_3D_POINT1_Z, TRIANGLES_3D_POINT2_Z, TR
 .endmacro
 
 
-MACRO_copy_2d_triangle_to_2d_triangle .macro ; x = index of source triangle, y = index of destination triangle
-
-    lda TRIANGLES_POINT1_X,x
-    sta TRIANGLES_POINT1_X,y
-    lda TRIANGLES_POINT1_Y,x
-    sta TRIANGLES_POINT1_Y,y
-
-    lda TRIANGLES_POINT2_X,x
-    sta TRIANGLES_POINT2_X,y
-    lda TRIANGLES_POINT2_Y,x
-    sta TRIANGLES_POINT2_Y,y
-
-    lda TRIANGLES_POINT3_X,x
-    sta TRIANGLES_POINT3_X,y
-    lda TRIANGLES_POINT3_Y,x
-    sta TRIANGLES_POINT3_Y,y
-    
-    lda TRIANGLES_POINT1_X+MAX_NR_OF_TRIANGLES,x
-    sta TRIANGLES_POINT1_X+MAX_NR_OF_TRIANGLES,y
-    lda TRIANGLES_POINT1_Y+MAX_NR_OF_TRIANGLES,x
-    sta TRIANGLES_POINT1_Y+MAX_NR_OF_TRIANGLES,y
-
-    lda TRIANGLES_POINT2_X+MAX_NR_OF_TRIANGLES,x
-    sta TRIANGLES_POINT2_X+MAX_NR_OF_TRIANGLES,y
-    lda TRIANGLES_POINT2_Y+MAX_NR_OF_TRIANGLES,x
-    sta TRIANGLES_POINT2_Y+MAX_NR_OF_TRIANGLES,y
-
-    lda TRIANGLES_POINT3_X+MAX_NR_OF_TRIANGLES,x
-    sta TRIANGLES_POINT3_X+MAX_NR_OF_TRIANGLES,y
-    lda TRIANGLES_POINT3_Y+MAX_NR_OF_TRIANGLES,x
-    sta TRIANGLES_POINT3_Y+MAX_NR_OF_TRIANGLES,y
-    
-    lda TRIANGLES_COLOR,x
-    sta TRIANGLES_COLOR,y
-.endmacro
 
 calculate_projection_of_3d_onto_2d_screen:
 
@@ -1291,118 +1265,115 @@ rotate_in_x_next_triangle:
 rotate_in_x_done:
     
     
+    ; We start with a new linked list 
+    ; IMPORTANT NOTE: the first entry is the *start* entry and does not contain a (valid) triangle index!
+    stz CURRENT_LINKED_LIST_ENTRY
+    stz TRIANGLES_LINKED_LIST_NEXT  ; First entry of the linked list contains a next-value of 0, meaning the end of the list
+    lda #1
+    sta LINKED_LIST_NEW_ENTRY       ; Our new entry is going to be 1
+    
     ldx #0
-scale_and_position_next_triangle:
+back_face_cull_next_triangle:
 
     ; -- Translate into z --
     MACRO_translate_z TRIANGLES3_3D_POINT1_Z, TRANSLATE_Z
     MACRO_translate_z TRIANGLES3_3D_POINT2_Z, TRANSLATE_Z
     MACRO_translate_z TRIANGLES3_3D_POINT3_Z, TRANSLATE_Z
     
-    ; -- Copy color of triangle --
-    
-    lda TRIANGLES_ORG_COLOR,x
-    sta TRIANGLES_COLOR,x
-    
     ; -- We calculate the average Z (or actually: the *sum* of Z) for all 3 points --
     
     MACRO_calculate_sum_of_z TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINT2_Z, TRIANGLES3_3D_POINT3_Z, TRIANGLES3_3D_SUM_Z
 
     ; --  We check whether the triangle should be visible.
-    ; FIXME: right now we *flip* two points to correct the winding of the triangle, but we shouldnt really show the triangle!
     ; We calculate the dot-product between point1 and pointN (the normal of the triange)
     MACRO_calculate_dot_product TRIANGLES3_3D_POINT1_X, TRIANGLES3_3D_POINT1_Y, TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINTN_X, TRIANGLES3_3D_POINTN_Y, TRIANGLES3_3D_POINTN_Z
-    
-    stz DO_CORRECT_WINDING
     lda DOT_PRODUCT+1
-    bpl triangle_is_correctly_wounded
-    lda #1
-    sta DO_CORRECT_WINDING
-triangle_is_correctly_wounded:
+    bmi triangle_is_not_facing_camera
     
-    ; -- Point 1 --
+    ; The triangle is visible (that is: facing our side) and should be added to the linked list of triangles
+    
+; FIXME: we now do an *UNORDERED* list of triangles!
+; FIXME: we now do an *UNORDERED* list of triangles!
+; FIXME: we now do an *UNORDERED* list of triangles!
+    
+    ldy CURRENT_LINKED_LIST_ENTRY
+    lda LINKED_LIST_NEW_ENTRY
+    sta TRIANGLES_LINKED_LIST_NEXT, y   ; We store the new linked list entry as the 'next' linked list entry of the current entry
+    
+    sta CURRENT_LINKED_LIST_ENTRY       ; The newly created link list entry has now become our current linked list entry
+    tay                                 ; y is now filled with the (new) link list entry
+    txa                                 ; x is filled with the current triangle index, we copy it to a
+    sta TRIANGLES_LINKED_LIST_INDEX, y     ; We store the triangle index in the current (newly created) linked list entry
+    lda #0
+    sta TRIANGLES_LINKED_LIST_NEXT, y   ; we set the _NEXT for the last entry to 0 (measning: end of list)
+    
+    inc LINKED_LIST_NEW_ENTRY               ; We increment the new entry of the linked list
+    
+triangle_is_not_facing_camera:
+    inx
+    cpx #NR_OF_TRIANGLES
+    beq back_face_culling_done
+    jmp back_face_cull_next_triangle
+back_face_culling_done:
+
+
+    ; == We loop through the linked list and color (by light), project onto 2D, scale and position the triangles ==
+
+    ; IMPORTANT NOTE: the first entry is the *start* entry and does not contain a (valid) triangle index!
+    stz CURRENT_LINKED_LIST_ENTRY
+    stz TRIANGLE_COUNT                  ; We start with a new (2D) triangle index
+scale_and_position_next_triangle:
+    ; FIXME: this looks SLOW!
+    ldy CURRENT_LINKED_LIST_ENTRY
+    lda TRIANGLES_LINKED_LIST_NEXT, y   ; We get the first linked list entry
+    bne scale_and_position_keep_going   ; If our next linked list entry is 0, we know we reached the end, otherwise go on
+    jmp scale_and_position_done
+scale_and_position_keep_going:
+    sta CURRENT_LINKED_LIST_ENTRY
+    tay
+    ldx TRIANGLES_LINKED_LIST_INDEX, y  ; We put the (3D) triangle index into register x
+    ldy TRIANGLE_COUNT                  ; We put the 2D triangle index into register y
+    
+; FIXME: do the LIGHTING here!
+; FIXME: do the LIGHTING here!
+; FIXME: do the LIGHTING here!
+
+    ; -- Copy color of triangle --
+    
+    lda TRIANGLES_ORG_COLOR,x
+    sta TRIANGLES_COLOR,y
+
+    ; -- Project triangle from 3D world onto 2D screen --
+
+    ; - Point 1 -
     MACRO_divide_by_z TRIANGLES3_3D_POINT1_X, TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINT1_X
     MACRO_divide_by_z TRIANGLES3_3D_POINT1_Y, TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINT1_Y
     
-    ; -- Point 2 --
+    ; - Point 2 -
     MACRO_divide_by_z TRIANGLES3_3D_POINT2_X, TRIANGLES3_3D_POINT2_Z, TRIANGLES3_3D_POINT2_X
     MACRO_divide_by_z TRIANGLES3_3D_POINT2_Y, TRIANGLES3_3D_POINT2_Z, TRIANGLES3_3D_POINT2_Y
     
-    ; -- Point 3 --
+    ; - Point 3 -
     MACRO_divide_by_z TRIANGLES3_3D_POINT3_X, TRIANGLES3_3D_POINT3_Z, TRIANGLES3_3D_POINT3_X
     MACRO_divide_by_z TRIANGLES3_3D_POINT3_Y, TRIANGLES3_3D_POINT3_Z, TRIANGLES3_3D_POINT3_Y
     
-    lda DO_CORRECT_WINDING
-    beq scale_and_dont_correct_winding
-    jmp scale_and_correct_winding
-    
-scale_and_dont_correct_winding:
+    ; These macro will use register x as 3D triangle index, whicle using register y as 2D triangle index
     MACRO_scale_and_position_on_screen_x TRIANGLES3_3D_POINT1_X, TRIANGLES_POINT1_X
     MACRO_scale_and_position_on_screen_y TRIANGLES3_3D_POINT1_Y, TRIANGLES_POINT1_Y
     MACRO_scale_and_position_on_screen_x TRIANGLES3_3D_POINT2_X, TRIANGLES_POINT2_X
     MACRO_scale_and_position_on_screen_y TRIANGLES3_3D_POINT2_Y, TRIANGLES_POINT2_Y
     MACRO_scale_and_position_on_screen_x TRIANGLES3_3D_POINT3_X, TRIANGLES_POINT3_X
     MACRO_scale_and_position_on_screen_y TRIANGLES3_3D_POINT3_Y, TRIANGLES_POINT3_Y
-    jmp triangle_has_been_scaled_and_positioned
-    
-scale_and_correct_winding:
-    MACRO_scale_and_position_on_screen_x TRIANGLES3_3D_POINT1_X, TRIANGLES_POINT2_X  ; pt1 -> pt2
-    MACRO_scale_and_position_on_screen_y TRIANGLES3_3D_POINT1_Y, TRIANGLES_POINT2_Y  ; pt1 -> pt2
-    MACRO_scale_and_position_on_screen_x TRIANGLES3_3D_POINT2_X, TRIANGLES_POINT1_X  ; pt2 -> pt1
-    MACRO_scale_and_position_on_screen_y TRIANGLES3_3D_POINT2_Y, TRIANGLES_POINT1_Y  ; pt2 -> pt1
-    MACRO_scale_and_position_on_screen_x TRIANGLES3_3D_POINT3_X, TRIANGLES_POINT3_X
-    MACRO_scale_and_position_on_screen_y TRIANGLES3_3D_POINT3_Y, TRIANGLES_POINT3_Y
-    
-triangle_has_been_scaled_and_positioned:
 
-    inx
-    cpx #NR_OF_TRIANGLES
-    beq scale_and_position_done
+    inc TRIANGLE_COUNT                  ; We increment our 2D list counter
+
     jmp scale_and_position_next_triangle
 scale_and_position_done:
 
 
-    .if(1)
-    ; FIXME: HACK: we "sort" the two triangles here in an UGLY hardcoded way!!
-    sec
-    ldy #0
-    lda TRIANGLES3_3D_SUM_Z,y
-    iny
-    sbc TRIANGLES3_3D_SUM_Z,y
-    sta SUM_Z_DIFF
-    ldy #0
-    lda TRIANGLES3_3D_SUM_Z+MAX_NR_OF_TRIANGLES,y
-    iny
-    sbc TRIANGLES3_3D_SUM_Z+MAX_NR_OF_TRIANGLES,y
-    sta SUM_Z_DIFF+1
-    
-    bmi triangles_need_to_be_sorted
-    jmp triangles_are_in_correct_order
-    
-triangles_need_to_be_sorted:
-;    stp
-    
-; FIXME: VERY UGLY!!!
-; FIXME: VERY UGLY!!!
-; FIXME: VERY UGLY!!!
-
-    ldx #0
-    ldy #2
-    MACRO_copy_2d_triangle_to_2d_triangle
-
-    ldx #1
-    ldy #0
-    MACRO_copy_2d_triangle_to_2d_triangle 
-    
-    ldx #2
-    ldy #1
-    MACRO_copy_2d_triangle_to_2d_triangle 
-    
-triangles_are_in_correct_order:
-    .endif
-
-
     rts
+    
+    
     
 clear_screen_slow:
   
@@ -1832,13 +1803,15 @@ get_cosine_for_angle:
     
     
     .if(1)
-NR_OF_TRIANGLES = 2
+NR_OF_TRIANGLES = 4
 triangle_3d_data:
 
 ; FIXME: should we do a NEGATIVE or a NEGATIVE Z for the NORMAL?
     ; Note: the normal is a normal point relative to 0.0 (with a length of $100)
     ;        x1,   y1,   z1,    x2,   y2,   z2,     x3,   y3,   z3,    xn,   yn,   zn,   cl
    .word      0,    0,    0,   $100,    0,    0,     0,  $100,    0,    0,    0, $100,   29
+   .word   $100,    0,    0,   $100, $100,    0,     0,  $100,    0,    0,    0, $100,   13
+   .word      0,    0, $100,   $100,    0, $100,     0,  $100, $100,    0,    0, $100,   3    ; FIXME: the winding on this triangle is actually WRONG! (and its normal too!) -> its the other side of a cube!
    .word   $100,    0, $100,   $100, $100, $100,     0,  $100, $100,    0,    0, $100,   2    ; FIXME: the winding on this triangle is actually WRONG! (and its normal too!) -> its the other side of a cube!
 palette_data:   
     ; dummy

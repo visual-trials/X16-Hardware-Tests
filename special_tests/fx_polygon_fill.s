@@ -984,6 +984,13 @@ draw_all_triangles:
     ;   Store in appropiate variables: TOP_POINT_X/Y, LEFT_POINT_X/Y, RIGHT_POINT_X/Y, BOTTOM_POINT_X/Y
     ;   jump to correct draw_triangle-function
 
+    lda TRIANGLE_COUNT
+    bne start_drawing_triangles
+    ; When there are no triangles to draw, draw nothing
+    rts
+    
+start_drawing_triangles:
+
     ; We start at triangle 0
     stz TRIANGLE_INDEX
 draw_next_triangle:
@@ -1226,7 +1233,7 @@ done_drawing_polygon_part:
 
     inc TRIANGLE_INDEX
     lda TRIANGLE_INDEX
-    cmp #NR_OF_TRIANGLES
+    cmp TRIANGLE_COUNT
     beq done_drawing_all_triangles
     jmp draw_next_triangle
     
@@ -2150,7 +2157,7 @@ done_drawing_polygon_part_single_top:
     
     inc TRIANGLE_INDEX
     lda TRIANGLE_INDEX
-    cmp #NR_OF_TRIANGLES
+    cmp TRIANGLE_COUNT
     beq done_drawing_all_triangles_single_top
     jmp draw_next_triangle
     
@@ -2405,7 +2412,7 @@ y2address_is_setup_double_top:
         
     inc TRIANGLE_INDEX
     lda TRIANGLE_INDEX
-    cmp #NR_OF_TRIANGLES
+    cmp TRIANGLE_COUNT
     beq done_drawing_all_triangles_double_top
     jmp draw_next_triangle
     
