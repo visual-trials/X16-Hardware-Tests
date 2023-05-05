@@ -949,6 +949,13 @@ MACRO_copy_point_y .macro TRIANGLES_POINT_Y, POINT_Y
     
 draw_all_triangles:
 
+    lda TRIANGLE_COUNT
+    bne start_drawing_triangles
+    ; When there are no triangles to draw, draw nothing
+    rts
+    
+start_drawing_triangles:
+    
     lda #%00000101           ; DCSEL=2, ADDRSEL=1
     sta VERA_CTRL
 
@@ -983,13 +990,6 @@ draw_all_triangles:
     ;   check which type of triangle this is (single top-point or double top-point_
     ;   Store in appropiate variables: TOP_POINT_X/Y, LEFT_POINT_X/Y, RIGHT_POINT_X/Y, BOTTOM_POINT_X/Y
     ;   jump to correct draw_triangle-function
-
-    lda TRIANGLE_COUNT
-    bne start_drawing_triangles
-    ; When there are no triangles to draw, draw nothing
-    rts
-    
-start_drawing_triangles:
 
     ; We start at triangle 0
     stz TRIANGLE_INDEX
@@ -2481,6 +2481,9 @@ soft_polygon_fill_triangle_row_next:
     sbc SOFT_X1+1
     sta FILL_LENGTH_HIGH
 
+    ; Safety feature: when fill length is negative, we are done
+    ; FIXME: we should actually check bits 8 *and* 9 to see if they are 1 (>=768 fill length)
+    bmi soft_polygon_fill_triangle_done
 
     .if(USE_UNROLLED_LOOP)
         lda FILL_LENGTH_LOW
@@ -2637,6 +2640,19 @@ polygon_fill_triangle_row_next:
     .if(USE_JUMP_TABLE)
         ldx $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
         
+
+; FIXME! WORKAROUND/TESTING!
+; FIXME! WORKAROUND/TESTING!
+; FIXME! WORKAROUND/TESTING!
+        cpx #%00100000
+        bne tmp_keep_moving_on
+        lda $9F2C
+        ; Safety feature: when fill length is negative, we are done
+        ; FIXME: we should actually check bits 8 *and* 9 to see if they are 1 (>=768 fill length)
+        bmi polygon_fill_triangle_done
+tmp_keep_moving_on:
+
+
         jsr do_the_jump_to_the_table
     
         ; We always increment ADDR0
@@ -2675,6 +2691,10 @@ polygon_fill_triangle_done_table:
     sta FILL_LENGTH_LOW
 
     lda $9F2C               ; This contains FILL_LENGTH[9:3], 0
+; FIXME! THIS DOESNT SEEM TO WORK!
+    ; Safety feature: when fill length is negative, we are done
+    ; FIXME: we should actually check bits 8 *and* 9 to see if they are 1 (>=768 fill length)
+    bmi polygon_fill_triangle_done
     asl
     rol FILL_LENGTH_HIGH
     asl
