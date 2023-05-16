@@ -197,7 +197,7 @@ gen_next_fill_line_code:
 
     
 ; This routines expects:
-;    FILL_LENGTH_LOW    : X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+;    FILL_LENGTH_LOW    : FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
 
 generate_single_fill_line_code:
 
@@ -211,12 +211,13 @@ generate_single_fill_line_code:
     ; stp
     
     lda FILL_LENGTH_LOW
+    asl                   ; We remove the bit for FILL_LENGTH >= 16
     lsr
     lsr
     lsr
     lsr
     lsr
-    lsr
+    lsr                   ; We keep the X1[1:0] part
     sta GEN_START_X
     
     lda FILL_LENGTH_LOW
@@ -225,7 +226,9 @@ generate_single_fill_line_code:
     sta GEN_FILL_LENGTH_LOW
     
     lda FILL_LENGTH_LOW
-    and #%00100000
+    and #%10000000
+    lsr
+    lsr
     lsr
     lsr
     lsr
@@ -1982,7 +1985,7 @@ first_left_point_is_lower_in_y:
 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
-            ldx $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+            ldx $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
             
             jsr do_the_jump_to_the_table
         .else
@@ -2020,7 +2023,7 @@ first_left_point_is_lower_in_y:
 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
-            ldx $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+            ldx $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
             
             jsr do_the_jump_to_the_table
         .else
@@ -2038,7 +2041,7 @@ first_right_point_is_lower_in_y:
 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
-            ldx $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+            ldx $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
             
             jsr do_the_jump_to_the_table
         .else
@@ -2075,7 +2078,7 @@ first_right_point_is_lower_in_y:
 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
-            ldx $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+            ldx $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
             
             jsr do_the_jump_to_the_table
         .else
@@ -2376,7 +2379,7 @@ y2address_is_setup_double_top:
 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
-            ldx $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+            ldx $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
             
             jsr do_the_jump_to_the_table
         .else
@@ -2635,13 +2638,13 @@ draw_polygon_part_using_polygon_filler_naively:
 polygon_fill_triangle_row_next:
 
     .if(USE_JUMP_TABLE)
-        ldx $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+        ldx $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
         
 
 ; FIXME! WORKAROUND/TESTING!
 ; FIXME! WORKAROUND/TESTING!
 ; FIXME! WORKAROUND/TESTING!
-        cpx #%00100000
+        cpx #%10000000
         bne tmp_keep_moving_on
         lda $9F2C
         ; Safety feature: when fill length is negative, we are done
@@ -2682,7 +2685,7 @@ polygon_fill_triangle_done_table:
     
     stz FILL_LENGTH_HIGH
     
-    lda $9F2B               ; This contains: X1[1:0], FILL_LENGTH >= 16, FILL_LENGTH[3:0], 0
+    lda $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
     lsr
     and #%00000111          ; we keep the 3 lower bits (bit 4 is ALSO in the HIGH byte, so we discard it here)
     sta FILL_LENGTH_LOW

@@ -1,12 +1,12 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 0
+DO_SPEED_TEST = 1
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 0
 USE_UNROLLED_LOOP = 0
-USE_JUMP_TABLE = 1
+USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
 USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
@@ -15,10 +15,10 @@ USE_Y_TO_ADDRESS_TABLE = 1
 
 USE_DOUBLE_BUFFER = 0   ; Note: this is not setup in this program!
 
-TEST_JUMP_TABLE = 1 ; This turns off the iteration in-between the jump-table calls
+TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
 
-; This setting is only used in the routine test_fill_length_jump_table.
-USE_SOFT_FILL_LEN = 1; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
+; This setting is used in the routine test_fill_length_jump_table. -> turn this OFF when using the jump tables otherwise! (it changes the jump table code!)
+USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
     .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
 BACKGROUND_COLOR = 251  ; Nice purple
@@ -287,7 +287,7 @@ reset:
       jsr start_timer
 
       ; jsr test_simple_polygon_filler
-      jsr test_fill_length_jump_table
+      ; jsr test_fill_length_jump_table
       ; jsr TMP_test_4bit_hello_world
       ; jsr TMP_test_16bit_hop_mode
       
@@ -757,7 +757,7 @@ test_fill_length_jump_table:
     sta LEFT_POINT_X+1
 
     lda #4
-    sta TMP1               ; X START[1:0]
+    sta TMP1               ; Column number (4 -> 1)
 TEST_pattern_column_next:
     lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
     sta TMP3
@@ -779,15 +779,17 @@ TEST_pattern_next:
     asl
     asl
     asl
-    asl
-    sta TMP4
+    asl                  ; X1[0:1], 000000
+    lsr                  ; 0, X1[0:1], 00000
+    sta TMP4             ; 0, X1[0:1], 00000
     
     lda TMP3             ; FILL_LEN[9:0]
     asl
-    and #%00011110       ; FILL_LEN[3:0], 0
-    ora TMP4    ; X1[0:1]
+    and #%00011110       ; 000, FILL_LEN[3:0], 0
+    ora TMP4             ; 0, X1[0:1], FILL_LEN[3:0], 0
     sta FILL_LENGTH_LOW
     
+; FIXME: we are missing the 2 highest bits here!
     lda TMP3             ; FILL_LEN[9:0]
     lsr
     lsr
@@ -802,8 +804,8 @@ TEST_pattern_next:
     beq fill_len_not_higher_than_or_equal_to_16
     
     lda FILL_LENGTH_LOW
-    ora #%00100000
-    sta FILL_LENGTH_LOW
+    ora #%10000000
+    sta FILL_LENGTH_LOW  ; FILL_LEN >= 16, X1[0:1], FILL_LEN[3:0], 0
 fill_len_not_higher_than_or_equal_to_16:
     .if(USE_SOFT_FILL_LEN)
         lda FILL_LENGTH_LOW
