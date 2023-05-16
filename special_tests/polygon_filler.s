@@ -4,15 +4,15 @@
 DO_SPEED_TEST = 1
 
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 1
-USE_JUMP_TABLE = 1
+USE_SLOPE_TABLES = 0
+USE_UNROLLED_LOOP = 0
+USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
 TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
 USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
-USE_180_DEGREES_SLOPE_TABLE = 1  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
+USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 
 USE_Y_TO_ADDRESS_TABLE = 1
 
@@ -278,14 +278,16 @@ reset:
       lda #%00000000           ; DCSEL=0, ADDRSEL=0
       sta VERA_CTRL
         
-;      lda #$20                 ; 4:1 scale
-;      sta VERA_DC_HSCALE
-;      sta VERA_DC_VSCALE      
+      ; lda #$10                 ; 8:1 scale
+      ; sta VERA_DC_HSCALE
+      ; sta VERA_DC_VSCALE      
     
       jsr start_timer
 
       ; jsr test_simple_polygon_filler
       jsr test_fill_length_jump_table
+      ; jsr TMP_test_4bit_hello_world
+      ; jsr TMP_test_16bit_hop_mode
       
       jsr stop_timer
       
@@ -329,7 +331,139 @@ jump_table_message:
 write_cache_message: 
     .asciiz " Write cache "
   
+
   
+TMP_test_16bit_hop_mode:
+
+    ; VERA.layer0.config = (4 + 2) ; enable bitmap mode and color depth = 4bpp on layer 0
+;    lda #(4+2)
+;    sta VERA_L0_CONFIG
+
+
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%00000001              ; 16bit hopping addr1 mode, 8-bit mode 
+    sta $9F29
+
+    lda #%00110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 4 bytes
+    sta VERA_ADDR_BANK
+    
+    stz VERA_ADDR_HIGH
+
+    
+    lda #0
+    sta VERA_ADDR_LOW
+
+    lda #$2
+    ldx #$7
+    sta VERA_DATA1
+    stx VERA_DATA1
+    
+    sta VERA_DATA1
+    stx VERA_DATA1
+    
+    sta VERA_DATA1
+    stx VERA_DATA1
+    
+    lda #%00000000              ; normal addr1 mode, 8-bit mode 
+    sta $9F29
+    
+    rts
+  
+TMP_test_4bit_hello_world:
+
+    ; VERA.layer0.config = (4 + 2) ; enable bitmap mode and color depth = 4bpp on layer 0
+    lda #(4+2)
+    sta VERA_L0_CONFIG
+
+
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00001000           ; normal addr1 mode, 4-bit mode 
+    sta $9F29
+
+;    lda #%00000000           ; normal addr1 mode, 8-bit mode 
+;    sta $9F29
+
+    lda #%00000100           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0.5 bytes
+    sta VERA_ADDR_BANK
+    
+    stz VERA_ADDR_HIGH
+
+    ; --- clear some pixels ---
+    
+    lda #11                   ; 22 pixels from the left
+    sta VERA_ADDR_LOW
+    
+    lda #$11
+    sta VERA_DATA0
+    sta VERA_DATA0
+    
+    sta VERA_DATA0      ; 24th pixel
+    sta VERA_DATA0
+    sta VERA_DATA0
+    sta VERA_DATA0
+    sta VERA_DATA0
+    sta VERA_DATA0
+    sta VERA_DATA0
+    sta VERA_DATA0
+    
+    sta VERA_DATA0
+    sta VERA_DATA0
+    
+    ; --- writing nibbles to VRAM ---
+    
+    lda #3                   ; 6 pixels from the left
+    sta VERA_ADDR_LOW
+
+    lda #$26        ; red and blue
+    sta VERA_DATA0
+    
+    lda #$35        ; cyan and green
+    sta VERA_DATA0
+
+    lda #$47        ; purple and yellow
+    sta VERA_DATA0
+    
+    ; --- loading into cache ---
+    
+    lda #3                   ; 6 pixels from the left
+    sta VERA_ADDR_LOW
+    
+    lda #%00000001           ; ... cache fill enabled = 1
+    sta $9F2C   
+    
+    
+; FIXME: maybe cache reset?
+; FIXME: maybe set nibble of address differently to test?
+    
+    lda VERA_DATA0
+    lda VERA_DATA0
+    lda VERA_DATA0
+    
+    
+    
+    lda #%00000001           ; ... cache fill enabled = 0
+    sta $9F2C   
+    
+    
+    ; --- writing cache to VRAM ---
+    
+    lda #14                   ; 28 pixels from the left
+    sta VERA_ADDR_LOW
+    
+    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
+    sta $9F2B     
+    
+    ; Write the full cache to VRAM
+    stz VERA_DATA0
+    
+    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
+    sta $9F2B     
+    
+    rts
   
 test_speed_of_filling_triangle:
 
@@ -1119,7 +1253,7 @@ load_next_triangle:
     rts
     
     
-    .if(0)
+    .if(1)
 NR_OF_TRIANGLES = 12
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
@@ -1141,7 +1275,7 @@ end_of_palette_data:
     .endif
    
    
-    .if(1)
+    .if(0)
 palette_data:
     .byte $c8, $08  ; palette index 16
     .byte $c9, $07  ; palette index 17

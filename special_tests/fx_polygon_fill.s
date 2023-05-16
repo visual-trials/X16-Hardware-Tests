@@ -976,7 +976,7 @@ start_drawing_triangles:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    .if(USE_POLYGON_FILLER)
+    .if(USE_WRITE_CACHE)
         lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
         sta $9F2B  
     .endif
@@ -1023,7 +1023,6 @@ draw_next_triangle:
          
         stz $9F2C                ; ... cache fill enabled = 0
     .endif
-    
     
     ; -- Determining which point is/are top point(s) --
 
@@ -1240,16 +1239,14 @@ done_drawing_polygon_part:
     
 done_drawing_all_triangles:
     
-    ; Turning off polygon filler mode
-    lda #%00000100           ; DCSEL=2, ADDRSEL=0
-    sta VERA_CTRL
-    
-    .if(USE_JUMP_TABLE)
+    .if(USE_POLYGON_FILLER)
+        ; Turning off polygon filler mode
+        lda #%00000100           ; DCSEL=2, ADDRSEL=0
+        sta VERA_CTRL
+
         lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
         sta $9F2B     
-    .endif
-    
-    .if(USE_POLYGON_FILLER)
+        
         ; Normal addr1 mode
         lda #%00000000
         sta $9F29
