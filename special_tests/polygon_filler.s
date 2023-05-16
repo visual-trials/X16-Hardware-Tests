@@ -1,22 +1,24 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 1
+DO_SPEED_TEST = 0
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 0
 USE_UNROLLED_LOOP = 0
-USE_JUMP_TABLE = 0
+USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
-
-TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
-USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
 USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 
 USE_Y_TO_ADDRESS_TABLE = 1
 
 USE_DOUBLE_BUFFER = 0   ; Note: this is not setup in this program!
+
+TEST_JUMP_TABLE = 1 ; This turns off the iteration in-between the jump-table calls
+
+; This setting is only used in the routine test_fill_length_jump_table.
+USE_SOFT_FILL_LEN = 1; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
     .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
 BACKGROUND_COLOR = 251  ; Nice purple
@@ -817,6 +819,7 @@ fill_len_not_higher_than_or_equal_to_16:
         
         ;stp 
         
+        ; IMPORTANT NOTE: this *requires* USE_JUMP_TABLE to be 1!
         jsr do_the_jump_to_the_table
     .endif
 
