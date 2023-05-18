@@ -1,5 +1,5 @@
 
-DO_SPEED_TEST = 1
+DO_SPEED_TEST = 0
 USE_AFFINE_HELPER = 1
 
     .if (USE_AFFINE_HELPER)
@@ -121,7 +121,7 @@ test_sub_pixel_increments:
     sta VERA_ADDR_BANK
     
     ; Entering *line draw mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
-    lda #%00000010
+    lda #%00000001
     sta $9F29
     
     lda #%00000101           ; DCSEL=2, ADDRSEL=1
@@ -144,46 +144,71 @@ test_sub_pixel_increments:
     
     ; Note: we do not need to set the Y low/high increments.
     
-    
-    ; Starting to draw: 4 cpu cycles per pixel
-    
-    ldy #TEST_LINE_COLOR     ; We use y as color
-    
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
 
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
+    ldx #150 ; Drawing 150 pixels to the right
+    lda #1   ; White color
 
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
+    .if(0)
+draw_line_next_pixel:
+    sta VERA_DATA1
+    dex
+    bne draw_line_next_pixel
+    .endif
+
+    .if(1)
+draw_dotted_line_next_pixel:
+    sta VERA_DATA1
+    dex
+    ; We are not interested in the value we get back so we just put it in y
+    ldy VERA_DATA1
+    dex
+    ldy VERA_DATA1
+    dex
+    bne draw_dotted_line_next_pixel
+    .endif
     
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
-    sty VERA_DATA1
+    
+    .if(0)
+        ; Starting to draw: 4 cpu cycles per pixel
+        
+        ldy #TEST_LINE_COLOR     ; We use y as color
+        
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+        sty VERA_DATA1
+    .endif
     
     rts
   
@@ -291,7 +316,7 @@ draw_line_to_the_right_from_left_top_corner_next:
         sta VERA_ADDR_BANK
         
         ; Entering *line draw mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
-        lda #%00000010
+        lda #%00000001
         sta $9F29
         
         lda #%00000101           ; DCSEL=2, ADDRSEL=1
@@ -379,7 +404,7 @@ draw_line_to_the_bottom_from_left_top_corner_next:
         sta VERA_ADDR_BANK
         
         ; Entering *line draw mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
-        lda #%00000010
+        lda #%00000001
         sta $9F29
         
         lda #%00000101           ; DCSEL=2, ADDRSEL=1
