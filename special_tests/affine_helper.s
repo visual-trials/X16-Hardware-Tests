@@ -472,6 +472,9 @@ x_pixel_pos_high_correct:
 y_pixel_pos_high_positive:
         lda #%01100000
 y_pixel_pos_high_correct:
+; FIXME: we cannot reset the subpixel position this way anymore!
+; FIXME: we cannot reset the subpixel position this way anymore!
+; FIXME: we cannot reset the subpixel position this way anymore!
         sta $9F2C                ; Y subpixel position[0] = 0, Reset cache byte index = 1, Reset subpixel position = 1, Y pixel position high [10:8] = 000 or 111
     .else
         ; == SHEAR ==
@@ -483,6 +486,9 @@ y_pixel_pos_high_correct:
         txa
         sta $9F2B                ; Y pixel position low [7:0]
         lda #%01100000
+; FIXME: we cannot reset the subpixel position this way anymore!
+; FIXME: we cannot reset the subpixel position this way anymore!
+; FIXME: we cannot reset the subpixel position this way anymore!
         sta $9F2C                ; Y subpixel position[0] = 0, Reset cache byte index = 1, Reset subpixel position = 1, Y pixel position high [10:8] = 000
     .endif
 

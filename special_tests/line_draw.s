@@ -1,8 +1,8 @@
 
-DO_SPEED_TEST = 0
-USE_AFFINE_HELPER = 1
+DO_SPEED_TEST = 1
+USE_LINE_DRAW_HELPER = 1
 
-    .if (USE_AFFINE_HELPER)
+    .if (USE_LINE_DRAW_HELPER)
 BACKGROUND_COLOR = 251  ; Nice purple
     .else
 BACKGROUND_COLOR = 06  ; Blue 
@@ -69,9 +69,9 @@ LINE_COLOR                 = $27
 
 ; RAM addresses
 CLEAR_COLUMN_CODE     = $7000
-AFFINE_DRAW_256_CODE  = $7C00
-AFFINE_DRAW_240_CODE  = $8000
-AFFINE_DRAW_64_CODE   = $8400
+LINE_DRAW_256_CODE    = $7C00
+LINE_DRAW_240_CODE    = $8000
+LINE_DRAW_64_CODE     = $8400
 
 
   .org $C000
@@ -216,8 +216,8 @@ draw_dotted_line_next_pixel:
 test_speed_of_drawing_lines:
         
     ; TODO: do we want to unroll the loop when doing a comparison? Probably.
-    .if(USE_AFFINE_HELPER)
-        jsr generate_affine_draw_line_code
+    .if(USE_LINE_DRAW_HELPER)
+        jsr generate_line_draw_code
     .endif
 
     jsr start_timer
@@ -243,20 +243,20 @@ test_speed_of_drawing_lines:
     lda #12
     sta CURSOR_Y
 
-    .if(USE_AFFINE_HELPER)
+    .if(USE_LINE_DRAW_HELPER)
     
         lda #6
         sta CURSOR_X
-        lda #<draw_lines_with_affine_helper_message
+        lda #<draw_lines_with_line_draw_helper_message
         sta TEXT_TO_PRINT
-        lda #>draw_lines_with_affine_helper_message
+        lda #>draw_lines_with_line_draw_helper_message
         sta TEXT_TO_PRINT + 1
     .else
-        lda #6
+        lda #4
         sta CURSOR_X
-        lda #<draw_lines_without_affine_helper_message
+        lda #<draw_lines_without_line_draw_helper_message
         sta TEXT_TO_PRINT
-        lda #>draw_lines_without_affine_helper_message
+        lda #>draw_lines_without_line_draw_helper_message
         sta TEXT_TO_PRINT + 1
     .endif
     
@@ -273,11 +273,11 @@ test_speed_of_drawing_lines:
 
 draw_lines_320x240_8bpp_message: 
     .asciiz "Drew 32 lines 320x240 (8bpp) "
-draw_lines_without_affine_helper_message: 
+draw_lines_without_line_draw_helper_message: 
     ; TODO: maybe specify what method exactly is used!
-    .asciiz "Method: not using affine helper"
-draw_lines_with_affine_helper_message: 
-    .asciiz "Method: using affine helper"
+    .asciiz "Method: not using line draw helper"
+draw_lines_with_line_draw_helper_message: 
+    .asciiz "Method: using line draw helper"
     
     
 
@@ -306,7 +306,7 @@ draw_line_to_the_right_from_left_top_corner_next:
     adc #SLOPE_INCREMENT_HOR
     sta SLOPE
     
-    .if(USE_AFFINE_HELPER)
+    .if(USE_LINE_DRAW_HELPER)
         ; Setting up for drawing a new line
 
         lda #%00000100           ; DCSEL=2, ADDRSEL=0
@@ -353,10 +353,10 @@ draw_line_to_the_right_from_left_top_corner_next:
     inc LINE_COLOR
     ldy LINE_COLOR
 
-    .if(USE_AFFINE_HELPER)
+    .if(USE_LINE_DRAW_HELPER)
         ; FIXME: we can make a single routines for 320 pixels instead
-        jsr AFFINE_DRAW_256_CODE
-        jsr AFFINE_DRAW_64_CODE
+        jsr LINE_DRAW_256_CODE
+        jsr LINE_DRAW_64_CODE
     .else
         lda #<(320)
         sta LINE_LENGTH
@@ -393,7 +393,7 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     adc #SLOPE_INCREMENT_VER
     sta SLOPE
     
-    .if(USE_AFFINE_HELPER)
+    .if(USE_LINE_DRAW_HELPER)
     
         ; Setting up for drawing a new line
 
@@ -441,8 +441,8 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     inc LINE_COLOR
     ldy LINE_COLOR
 
-    .if(USE_AFFINE_HELPER)
-        jsr AFFINE_DRAW_240_CODE
+    .if(USE_LINE_DRAW_HELPER)
+        jsr LINE_DRAW_240_CODE
     .else
         lda #<(240)
         sta LINE_LENGTH
@@ -461,8 +461,8 @@ draw_line_to_the_bottom_from_left_top_corner_next:
     
     ; ====================== / Drawing mainly top to bottom and then right ===================
     
-    .if(USE_AFFINE_HELPER)
-        ; Turn off affine helper mode
+    .if(USE_LINE_DRAW_HELPER)
+        ; Turn off line draw helper mode
         lda #%00000000           ; DCSEL=0, ADDRSEL=0
         sta VERA_CTRL
     .endif
@@ -615,15 +615,15 @@ clear_next_column_right_4_bytes:
 
 
     
-generate_affine_draw_line_code:
-    lda #<AFFINE_DRAW_256_CODE
+generate_line_draw_code:
+    lda #<LINE_DRAW_256_CODE
     sta CODE_ADDRESS
-    lda #>AFFINE_DRAW_256_CODE
+    lda #>LINE_DRAW_256_CODE
     sta CODE_ADDRESS+1
     
     ldy #0                 ; generated code byte counter
     ldx #0                 ; counts nr of clear instructions
-next_affine_line_draw_instruction_256:
+next_line_draw_instruction_256:
 
     ; -- sty VERA_DATA1 ($9F24)
     lda #$8C               ; sty ....
@@ -637,7 +637,7 @@ next_affine_line_draw_instruction_256:
     
     inx
     cpx #0                 ; 256 draw pixels written to VERA
-    bne next_affine_line_draw_instruction_256
+    bne next_line_draw_instruction_256
 
     ; -- rts --
     lda #$60
@@ -645,14 +645,14 @@ next_affine_line_draw_instruction_256:
     
 
 
-    lda #<AFFINE_DRAW_240_CODE
+    lda #<LINE_DRAW_240_CODE
     sta CODE_ADDRESS
-    lda #>AFFINE_DRAW_240_CODE
+    lda #>LINE_DRAW_240_CODE
     sta CODE_ADDRESS+1
     
     ldy #0                 ; generated code byte counter
     ldx #0                 ; counts nr of clear instructions
-next_affine_line_draw_instruction_240:
+next_line_draw_instruction_240:
 
     ; -- sty VERA_DATA1 ($9F24)
     lda #$8C               ; sty ....
@@ -666,7 +666,7 @@ next_affine_line_draw_instruction_240:
     
     inx
     cpx #240                 ; 256 draw pixels written to VERA
-    bne next_affine_line_draw_instruction_240
+    bne next_line_draw_instruction_240
 
     ; -- rts --
     lda #$60
@@ -675,14 +675,14 @@ next_affine_line_draw_instruction_240:
 
 
 
-    lda #<AFFINE_DRAW_64_CODE
+    lda #<LINE_DRAW_64_CODE
     sta CODE_ADDRESS
-    lda #>AFFINE_DRAW_64_CODE
+    lda #>LINE_DRAW_64_CODE
     sta CODE_ADDRESS+1
     
     ldy #0                 ; generated code byte counter
     ldx #0                 ; counts nr of clear instructions
-next_affine_line_draw_instruction_64:
+next_line_draw_instruction_64:
 
     ; -- sty VERA_DATA1 ($9F24)
     lda #$8C               ; sty ....
@@ -696,7 +696,7 @@ next_affine_line_draw_instruction_64:
     
     inx
     cpx #64                 ; 64 draw pixels written to VERA
-    bne next_affine_line_draw_instruction_64
+    bne next_line_draw_instruction_64
 
     ; -- rts --
     lda #$60
