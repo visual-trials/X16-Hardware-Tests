@@ -1,7 +1,7 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 1
+DO_SPEED_TEST = 0
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 0
@@ -280,16 +280,16 @@ reset:
       lda #%00000000           ; DCSEL=0, ADDRSEL=0
       sta VERA_CTRL
         
-      ; lda #$10                 ; 8:1 scale
-      ; sta VERA_DC_HSCALE
-      ; sta VERA_DC_VSCALE      
+      lda #$10                 ; 8:1 scale
+      sta VERA_DC_HSCALE
+      sta VERA_DC_VSCALE      
     
       jsr start_timer
 
       ; jsr test_simple_polygon_filler
       ; jsr test_fill_length_jump_table
       ; jsr TMP_test_4bit_hello_world
-      ; jsr TMP_test_16bit_hop_mode
+      jsr TMP_test_16bit_hop_mode
       
       jsr stop_timer
       
@@ -345,7 +345,8 @@ TMP_test_16bit_hop_mode:
     lda #%00000101           ; DCSEL=2, ADDRSEL=1
     sta VERA_CTRL
     
-    lda #%00000001              ; 16bit hopping addr1 mode, 8-bit mode 
+; FIXME: 16bit hop mode!
+    lda #%00001000           ; 16bit hopping, normal addr1 mode, 8-bit mode 
     sta $9F29
 
     lda #%00110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 4 bytes
@@ -383,7 +384,7 @@ TMP_test_4bit_hello_world:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00001000           ; normal addr1 mode, 4-bit mode 
+    lda #%00000100           ; normal addr1 mode, 4-bit mode 
     sta $9F29
 
 ;    lda #%00000000           ; normal addr1 mode, 8-bit mode 
@@ -870,7 +871,7 @@ test_simple_polygon_filler:
     sta VERA_ADDR_LOW
     
     ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
-    lda #%00000011
+    lda #%00000010
     sta $9F29
 
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
@@ -1258,7 +1259,7 @@ load_next_triangle:
     rts
     
     
-    .if(1)
+    .if(0)
 NR_OF_TRIANGLES = 12
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
@@ -1280,7 +1281,7 @@ end_of_palette_data:
     .endif
    
    
-    .if(0)
+    .if(1)
 palette_data:
     .byte $c8, $08  ; palette index 16
     .byte $c9, $07  ; palette index 17

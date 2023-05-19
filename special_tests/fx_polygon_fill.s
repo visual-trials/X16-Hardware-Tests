@@ -964,7 +964,7 @@ start_drawing_triangles:
 
     .if(USE_POLYGON_FILLER)
         ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
-        lda #%00000011
+        lda #%00000010
         sta $9F29
     .endif
     

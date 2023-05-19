@@ -1,9 +1,12 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 0
-DO_NO_TILE_LOOKUP = 1
+USE_TABLE_FILES = 1
+; FIXME: there is no more non-tile-lookup mode!
+; FIXME: there is no more non-tile-lookup mode!
+; FIXME: there is no more non-tile-lookup mode!
+DO_NO_TILE_LOOKUP = 0
 DO_CLIP = 0
-DRAW_TILED_PERSPECTIVE = 0  ; Otherwise FLAT tiles
+DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 1
 TURN_AROUND = 0
 MOVE_SLOWLY = 0
@@ -406,9 +409,11 @@ tiled_perspective_fast:
     sta $9F2C
     
     .if(DO_NO_TILE_LOOKUP)
-        lda #%00000100  ; 100 for no tile lookup
+; FIXME: there is no more mode without tile lookup!
+NON TILE LOOK MODE DOESNT EXIST ANYMORE
+        lda #%00000011  ; 11 for no tile lookup
     .else
-        lda #%00000101  ; 101 for tile lookup
+        lda #%00000011  ; 11 for tile lookup
     .endif
     sta $9F29
     
@@ -700,11 +705,14 @@ flat_tiles_fast:
     sta $9F2C
     
     .if(DO_NO_TILE_LOOKUP)
-        lda #%00000100  ; 100 for no tile lookup
+; FIXME: there is no more mode without tile lookup!
+NON TILE LOOK MODE DOESNT EXIST ANYMORE
+        lda #%00000011  ; 11 for no tile lookup
     .else
-        lda #%00000101  ; 101 for tile lookup
+        lda #%00000011  ; 11 for tile lookup
     .endif
     sta $9F29
+    
     
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
