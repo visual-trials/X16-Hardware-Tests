@@ -289,7 +289,8 @@ reset:
       ; jsr test_simple_polygon_filler
       ; jsr test_fill_length_jump_table
       ; jsr TMP_test_4bit_hello_world
-      jsr TMP_test_16bit_hop_mode
+      ; jsr TMP_test_16bit_hop_mode
+      jsr TMP_test_cache_handling
       
       jsr stop_timer
       
@@ -355,7 +356,7 @@ TMP_test_16bit_hop_mode:
     stz VERA_ADDR_HIGH
 
     
-    lda #0
+    lda #1
     sta VERA_ADDR_LOW
 
     lda #$2
@@ -373,6 +374,80 @@ TMP_test_16bit_hop_mode:
     sta $9F29
     
     rts
+  
+TMP_test_cache_handling:
+
+
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000000           ; normal addr1 mode, 8-bit mode 
+    sta $9F29
+    
+    lda #%00001100           ; DCSEL=6, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #$01           ; cache32[7:0]
+    sta $9F29
+    lda #$02           ; cache32[15:8]
+    sta $9F2A
+    lda #$03           ; cache32[23:16]
+    sta $9F2B
+    lda #$05           ; cache32[31:24]
+    sta $9F2C
+
+    
+    ; --- Enable blit writing ---
+    
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
+    sta $9F2B     
+    
+    ; --- writing cache to VRAM : ONCE ---
+    
+    lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes
+    sta VERA_ADDR_BANK
+    stz VERA_ADDR_HIGH
+    lda #0                   ; 0 pixels from the left
+    sta VERA_ADDR_LOW
+    
+    ; Write the full cache to VRAM
+    stz VERA_DATA0
+    
+    ; --- writing cache to VRAM : FOUR TIMES WITH BYTE CYCLING ---
+    
+    
+    lda #%00110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 4 bytes
+    sta VERA_ADDR_BANK
+    lda #>(320*4)
+    sta VERA_ADDR_HIGH
+    lda #<(320*4)                   ; 0 pixels from the left
+    sta VERA_ADDR_LOW
+    
+    lda #%00100000           ; map size = 00, use byte cache cycling, cache byte index = 00, 
+    sta $9F2C
+    stz VERA_DATA0
+    
+    lda #%00101000           ; map size = 00, use byte cache cycling, cache byte index = 01, 
+    sta $9F2C
+    stz VERA_DATA0
+    
+    lda #%00110000           ; map size = 00, use byte cache cycling, cache byte index = 10, 
+    sta $9F2C
+    stz VERA_DATA0
+    
+    lda #%00111000           ; map size = 00, use byte cache cycling, cache byte index = 11, 
+    sta $9F2C
+    stz VERA_DATA0
+    
+    
+    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
+    sta $9F2B     
+
+    rts
+  
   
 TMP_test_4bit_hello_world:
 
