@@ -389,7 +389,7 @@ TMP_test_polygon_dither_4bit:
     lda #%00000100           ; normal addr1 mode, 4-bit mode 
     sta $9F29
     
-    lda #%00000001           ; ... cache fill enabled = 0
+    lda #%00000000           ; ... cache fill enabled = 0
     sta $9F2C   
     
     ; --- setup dither colors ---
@@ -488,12 +488,12 @@ TMP_test_polygon_dither_4bit:
     stz VERA_DATA1
     stz VERA_DATA1
     
-    ; We increment by half, which should do nothing, but as a side affect of incrementing ADDR0 by +320
+    ; We increment by half, which should do nothing, but as a side affect of incrementing ADDR0 by +160
     lda VERA_DATA0
     
     ; We increment by half, which should do nothing, but as a side affect ADDR1 will be set to ADDR0 + X1
     lda VERA_DATA1
-    
+
     ; Write the full cache to VRAM
     stz VERA_DATA1
     stz VERA_DATA1
