@@ -2,6 +2,8 @@
 DO_SPEED_TEST = 1
 USE_LINE_DRAW_HELPER = 1
 
+CLEAR_SCREEN_FAST = 0
+
     .if (USE_LINE_DRAW_HELPER)
 BACKGROUND_COLOR = 251  ; Nice purple
     .else
@@ -91,8 +93,12 @@ reset:
     jsr init_cursor
     jsr init_timer
 
-    jsr generate_clear_column_code
-    jsr clear_screen_fast_4_bytes
+    .if(CLEAR_SCREEN_FAST)
+        jsr generate_clear_column_code
+        jsr clear_screen_fast_4_bytes
+    .else
+        jsr clear_screen_slow
+    .endif
     
     .if(DO_SPEED_TEST)
       jsr test_speed_of_drawing_lines
@@ -747,6 +753,60 @@ add_code_byte:
     bne done_adding_code_byte
     inc CODE_ADDRESS+1     ; increment high-byte of CODE_ADDRESS
 done_adding_code_byte:
+    rts
+
+
+
+clear_screen_slow:
+  
+vera_wr_start:
+    ldx #0
+vera_wr_fill_bitmap_once:
+
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
+    sta VERA_ADDR_BANK
+    lda #$00
+    sta VERA_ADDR_HIGH
+    stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
+    
+    ; We use A as color
+    lda #BACKGROUND_COLOR
+    
+    ldy #240
+vera_wr_fill_bitmap_col_once:
+; FIXME: now drawing a pattern!
+;    tya
+    sta VERA_DATA0           ; store pixel
+    dey
+    bne vera_wr_fill_bitmap_col_once
+    inx
+    bne vera_wr_fill_bitmap_once
+
+    ; Right part of the screen
+
+    ldx #0
+vera_wr_fill_bitmap_once2:
+
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
+    sta VERA_ADDR_BANK
+    lda #$01                ; The right side part of the screen has a start byte starting at address 256 and up
+    sta VERA_ADDR_HIGH
+    stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
+    
+    ; We use A as color
+    lda #BACKGROUND_COLOR
+    
+    ldy #240
+vera_wr_fill_bitmap_col_once2:
+; FIXME: now drawing a pattern!
+;    tya
+    sta VERA_DATA0           ; store pixel
+    dey
+    bne vera_wr_fill_bitmap_col_once2
+    inx
+    cpx #64                  ; The right part of the screen is 320 - 256 = 64 pixels
+    bne vera_wr_fill_bitmap_once2
+    
     rts
 
 
