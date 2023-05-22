@@ -414,6 +414,9 @@ TMP_test_polygon_dither_4bit:
     lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011)
     sta VERA_ADDR_BANK
     
+    lda #%00100000           ; map size = 00, use byte cache cycling, cache byte index = 00, 
+    sta $9F2C
+    
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
@@ -464,7 +467,7 @@ TMP_test_polygon_dither_4bit:
 
     ; -- start drawing the polygon fill lines --
     
-    lda #%00001010           ; DCSEL=5, ADDRSEL=0
+    lda #%00001011           ; DCSEL=5, ADDRSEL=1
     sta VERA_CTRL
     
     ; We increment by half, which should do nothing, but as a side affect ADDR1 will be set to ADDR0 + X1
@@ -474,10 +477,9 @@ TMP_test_polygon_dither_4bit:
     ; ldx $9F2B               ; This contains: FILL_LENGTH >= 8, X1[1:0], X1[2], FILL_LENGTH[2:0], 0
     
     
-    
     ; --- Enable blit writing ---
     
-    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
     sta VERA_CTRL
     
     lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
@@ -494,6 +496,9 @@ TMP_test_polygon_dither_4bit:
     ; We increment by half, which should do nothing, but as a side affect ADDR1 will be set to ADDR0 + X1
     lda VERA_DATA1
 
+    ; This will trigger a cache byte index increment
+    stz VERA_ADDR_LOW    ; TODO: currently setting to 0, but it doesnt matter if we use cache writes anyway
+
     ; Write the full cache to VRAM
     stz VERA_DATA1
     stz VERA_DATA1
@@ -502,7 +507,10 @@ TMP_test_polygon_dither_4bit:
     lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
     sta $9F2B     
 
-
+    ; Back to  normal addr1-mode
+    lda #%00000000
+    sta $9F29
+    
     rts
 
     
