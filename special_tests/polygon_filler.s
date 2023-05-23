@@ -291,7 +291,8 @@ reset:
       ; jsr TMP_test_4bit_hello_world
       ; jsr TMP_test_16bit_hop_mode
       ; jsr TMP_test_cache_handling
-      jsr TMP_test_polygon_dither_4bit
+      ; jsr TMP_test_polygon_dither_4bit
+      jsr TMP_test_polygon_dither_2bit
       
       jsr stop_timer
       
@@ -375,6 +376,156 @@ TMP_test_16bit_hop_mode:
     sta $9F29
     
     rts
+    
+    
+TMP_test_polygon_dither_2bit:
+
+    ; VERA.layer0.config = (4 + 1) ; enable bitmap mode and color depth = 2bpp on layer 0
+    lda #(4+1)
+    sta VERA_L0_CONFIG
+
+
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000100           ; normal addr1 mode, 4-bit mode 
+    sta $9F29
+    
+    lda #%00000000           ; ... cache fill enabled = 0
+    sta $9F2C   
+    
+    ; --- setup dither colors ---
+    
+    lda #%00001100           ; DCSEL=6, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00010001           ; cache32[7:0]
+    sta $9F29
+    lda #%01000100           ; cache32[15:8]
+    sta $9F2A
+    lda #%00100010           ; cache32[23:16]
+    sta $9F2B
+    lda #%11001100           ; cache32[31:24]
+    sta $9F2C
+
+    ; --- setup polygon drawing ---
+
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    sta VERA_CTRL
+
+    lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011)
+    sta VERA_ADDR_BANK
+    
+    lda #%00100000           ; map size = 00, use byte cache cycling, cache byte index = 00, 
+    sta $9F2C
+    
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%11000000           ; Setting auto-increment value to 80 byte increment (=%1100)
+    sta VERA_ADDR_BANK
+    ; Note: we are setting ADDR0 to the left most pixel of a pixel row. This means it will be aligned to 4-bytes (which is needed for the polygon filler to work nicely).
+    lda #>(4*320)
+    sta VERA_ADDR_HIGH
+    lda #<(4*320)
+    sta VERA_ADDR_LOW
+    
+    ; Entering *polygon fill mode* combined with *4bit mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
+    lda #%00000110
+    sta $9F29
+
+    lda #%00000001           ; 2bit polygon pixels
+    sta $9F2A
+    
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
+    sta VERA_CTRL
+ 
+
+; FIXME: for now we use the default increments, which is 0 
+    ; NOTE that these increments are *HALF* steps!!
+;    lda #<(-110)             ; X1 increment low (signed)
+;    sta $9F29
+;    lda #>(-110)             ; X1 increment high (signed)
+;    and #%01111111           ; increment is only 15-bits long
+;    sta $9F2A
+;    lda #<(380)              ; X2 increment low (signed)
+;    sta $9F2B                
+;    lda #>(380)              ; X2 increment high (signed)
+;    and #%01111111           ; increment is only 15-bits long
+;    sta $9F2C    
+    
+    
+    ; Setting x1 and x2 pixel position
+    
+    lda #%00001001           ; DCSEL=4, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #<2
+    sta $9F29                ; X (=X1) pixel position low [7:0]
+    lda #<20
+    sta $9F2B                ; Y (=X2) pixel position low [7:0]
+    
+    lda #>2
+    sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
+    lda #>20
+    sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
+
+    ; -- start drawing the polygon fill lines --
+    
+    lda #%00001011           ; DCSEL=5, ADDRSEL=1
+    sta VERA_CTRL
+    
+    ; We increment by half, which should do nothing, but as a side affect ADDR1 will be set to ADDR0 + X1
+    lda VERA_DATA1
+    
+    ; FIXME: we should read fill length low here!
+    ; ldx $9F2B               ; This contains: FILL_LENGTH >= 8, X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+    
+    
+    ; --- Enable blit writing ---
+    
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
+    sta $9F2B     
+
+    ; Write the full cache to VRAM
+    stz VERA_DATA1
+    stz VERA_DATA1
+    stz VERA_DATA1
+    
+    ; We increment by half, which should do nothing, but as a side affect of incrementing ADDR0 by +80
+    lda VERA_DATA0
+    
+    ; We increment by half, which should do nothing, but as a side affect ADDR1 will be set to ADDR0 + X1
+    lda VERA_DATA1
+
+
+    ; This will *also* trigger a cache byte index increment
+; FIXME: we need to put in some *magic* number here!!
+    lda #%00000111
+    sta VERA_ADDR_LOW    ; TODO: currently setting to 0, but it doesnt matter if we use cache writes anyway
+    sta VERA_DATA1
+
+    ; Write the full cache to VRAM
+    lda #%00001111
+    sta VERA_DATA1
+    stz VERA_DATA1
+    stz VERA_DATA1
+    
+    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
+    sta $9F2B     
+
+    ; Back to  normal addr1-mode
+    lda #%00000000
+    sta $9F29
+    
+tmp_loop:
+    jmp tmp_loop
+
+
+    rts
 
 TMP_test_polygon_dither_4bit:
 
@@ -420,7 +571,7 @@ TMP_test_polygon_dither_4bit:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%11010000           ; Setting auto-increment value to 160 byte increment (=%1110)
+    lda #%11010000           ; Setting auto-increment value to 160 byte increment (=%1101)
     sta VERA_ADDR_BANK
     ; Note: we are setting ADDR0 to the left most pixel of a pixel row. This means it will be aligned to 4-bytes (which is needed for the polygon filler to work nicely).
     lda #>(4*320)
