@@ -2,7 +2,7 @@
 DO_SPEED_TEST = 1
 USE_LINE_DRAW_HELPER = 1
 
-CLEAR_SCREEN_FAST = 0
+CLEAR_SCREEN_FAST = 1
 
     .if (USE_LINE_DRAW_HELPER)
 BACKGROUND_COLOR = 251  ; Nice purple
@@ -541,37 +541,25 @@ clear_screen_fast_4_bytes:
 
     ; We first need to fill the 32-bit cache with 4 times our background color
 
-    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    lda #%00001100           ; DCSEL=6, ADDRSEL=0
     sta VERA_CTRL
-    
-    lda #%00000000           ; normal addr1 mode 
-    sta $9F29
-    
-    lda #%00000001           ; ... cache fill enabled = 1
-    sta $9F2C   
-    
-    lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
-    sta VERA_ADDR_BANK
-    stz VERA_ADDR_HIGH
-    stz VERA_ADDR_LOW
 
+    ; TODO: we *could* use 'one byte cache cycling' so we have to set only *one* byte of the cache here
     lda #BACKGROUND_COLOR
-    sta VERA_DATA1
-    
-    lda VERA_DATA1    
-    lda VERA_DATA1
-    lda VERA_DATA1
-    lda VERA_DATA1
-     
-    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
-    sta $9F2B     
+    sta $9F29                ; cache32[7:0]
+    sta $9F2A                ; cache32[15:8]
+    sta $9F2B                ; cache32[23:16]
+    sta $9F2C                ; cache32[31:24]
 
+    ; We setup blit writes
+    
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
 
+    lda #%01000000           ; transparent writes = 0, blit write = 1, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
+    sta $9F29
     
     ; Left part of the screen (256 columns)
-
     
     ldx #0
     
@@ -614,8 +602,8 @@ clear_next_column_right_4_bytes:
     cpx #64
     bne clear_next_column_right_4_bytes
 
-    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
-    sta $9F2B       
+    lda #%00000000           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
+    sta $9F29
     
     rts
 
@@ -755,10 +743,9 @@ add_code_byte:
 done_adding_code_byte:
     rts
 
-
-
+    
 clear_screen_slow:
-  
+
 vera_wr_start:
     ldx #0
 vera_wr_fill_bitmap_once:
@@ -768,10 +755,10 @@ vera_wr_fill_bitmap_once:
     lda #$00
     sta VERA_ADDR_HIGH
     stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
-    
+
     ; We use A as color
     lda #BACKGROUND_COLOR
-    
+
     ldy #240
 vera_wr_fill_bitmap_col_once:
 ; FIXME: now drawing a pattern!
@@ -792,10 +779,10 @@ vera_wr_fill_bitmap_once2:
     lda #$01                ; The right side part of the screen has a start byte starting at address 256 and up
     sta VERA_ADDR_HIGH
     stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
-    
+
     ; We use A as color
     lda #BACKGROUND_COLOR
-    
+
     ldy #240
 vera_wr_fill_bitmap_col_once2:
 ; FIXME: now drawing a pattern!
@@ -806,9 +793,8 @@ vera_wr_fill_bitmap_col_once2:
     inx
     cpx #64                  ; The right part of the screen is 320 - 256 = 64 pixels
     bne vera_wr_fill_bitmap_once2
-    
-    rts
 
+    rts
 
     ; === Included files ===
     

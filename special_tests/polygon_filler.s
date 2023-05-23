@@ -504,7 +504,7 @@ TMP_test_polygon_dither_2bit:
 
     ; This will *also* trigger a cache byte index increment
 ; FIXME: we need to put in some *magic* number here!!
-    lda #%00000111
+    lda #%11000101       ; nibble, subnibble, 000, increment_cache_byte_index, byte[1:0] 
     sta VERA_ADDR_LOW    ; TODO: currently setting to 0, but it doesnt matter if we use cache writes anyway
     sta VERA_DATA1
 
@@ -648,7 +648,8 @@ TMP_test_polygon_dither_4bit:
     lda VERA_DATA1
 
     ; This will trigger a cache byte index increment
-    stz VERA_ADDR_LOW    ; TODO: currently setting to 0, but it doesnt matter if we use cache writes anyway
+    lda #%00000100       ; increment cache byte index = 1
+    sta VERA_ADDR_LOW    ; TODO: currently setting to 0, but it doesnt matter if we use cache writes anyway
 
     ; Write the full cache to VRAM
     stz VERA_DATA1

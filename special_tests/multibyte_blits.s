@@ -123,6 +123,7 @@ loop:
 
   
 ; FIXME: THIS NEEDS TO BE CHANGED! WRPATTERN is replaced by BLITTING from CACHE!
+; FIXME: ALSO, a bits have been MOVED for DCSEL=2!!
 blit_some_bytes:
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
@@ -333,14 +334,8 @@ test_speed_of_copying_bitmap_4_bytes_per_copy:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00000000           ; reset accumulator = 0, accumulate = 0, add or sub = 0, multiplier enabled = 0, addr1 mode = 000
+    lda #%01100000           ; transparent writes = 0, blit write = 1, cache fill enabled = 1, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
     sta $9F29
-    
-    lda #%00000001           ; Map size = 000, cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
-    sta $9F2C
-
-    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
-    sta $9F2B     
     
     ; Setup FROM and TO VRAM addresses
     lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
@@ -382,8 +377,8 @@ test_speed_of_copying_bitmap_4_bytes_per_copy:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
-    sta $9F2B       
+    lda #%00000000           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
+    sta $9F29
     
     jsr stop_timer
 

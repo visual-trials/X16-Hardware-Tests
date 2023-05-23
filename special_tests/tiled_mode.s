@@ -402,9 +402,9 @@ tiled_perspective_fast:
     sta $9F2B
     
     .if(DO_NO_TILE_LOOKUP)
-        lda #%01100001  ; Map size = 011 (8x8 map), cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
+        lda #%01000001  ; Map size = 01 (8x8 map), one byte cache cycling = 0, cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
     .else
-        lda #%10100001  ; Map size = 101 (32x32 map), cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
+        lda #%10000001  ; Map size = 10 (32x32 map), one byte cache cycling = 0, cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
     .endif
     sta $9F2C
     
@@ -698,9 +698,9 @@ flat_tiles_fast:
     sta $9F2B
     
     .if(DO_NO_TILE_LOOKUP)
-        lda #%01100001  ; Map size = 011 (8x8 map), cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
+        lda #%01000001  ; Map size = 01 (8x8 map), one byte cache cycling = 0, cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
     .else
-        lda #%10100001  ; Map size = 101 (32x32 map), cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
+        lda #%10000001  ; Map size = 10 (32x32 map), one byte cache cycling = 0, cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
     .endif
     sta $9F2C
     
