@@ -334,7 +334,6 @@ reset:
         jsr generate_four_times_fill_line_code
         jsr generate_four_times_jump_table_16
         jsr generate_fill_line_codes_and_table
-        jsr put_color_pixels_in_vram
     .endif
     
     .if(USE_Y_TO_ADDRESS_TABLE)
@@ -1584,39 +1583,23 @@ clear_screen_fast_4_bytes:
 
     ; We first need to fill the 32-bit cache with 4 times our background color
 
-    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    lda #%00001100           ; DCSEL=6, ADDRSEL=0
     sta VERA_CTRL
-    
-    lda #%00000000           ; normal addr1 mode 
-    sta $9F29
-    
-    lda #%00000001           ; ... cache fill enabled = 1
-    sta $9F2C   
-    
-    .if(USE_DOUBLE_BUFFER)
-        ; lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
-        lda FRAME_BUFFER_INDEX   ; this is either $00 or $01
-        sta VERA_ADDR_BANK
-    .else
-        lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
-        sta VERA_ADDR_BANK
-    .endif
-    stz VERA_ADDR_HIGH
-    stz VERA_ADDR_LOW
 
+    ; TODO: we *could* use 'one byte cache cycling' so we have to set only *one* byte of the cache here
     lda #BACKGROUND_COLOR
-    sta VERA_DATA1
-    
-    lda VERA_DATA1    
-    lda VERA_DATA1
-    lda VERA_DATA1
-    lda VERA_DATA1
-     
-    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
-    sta $9F2B     
+    sta $9F29                ; cache32[7:0]
+    sta $9F2A                ; cache32[15:8]
+    sta $9F2B                ; cache32[23:16]
+    sta $9F2C                ; cache32[31:24]
 
+    ; We setup blit writes
+    
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
+
+    lda #%01000000           ; transparent writes = 0, blit write = 1, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
+    sta $9F29
     
     
     ; Left part of the screen (256 columns)

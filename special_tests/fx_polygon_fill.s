@@ -912,28 +912,6 @@ generate_rts_code:
     
     rts
   
-  
-put_color_pixels_in_vram:
-
-    lda #%00000100           ; DCSEL=2, ADDRSEL=0
-    sta VERA_CTRL
-
-    ldx #0
-next_color_pixel:
-    lda #(COLOR_PIXELS_ADDRESS >> 16)
-    sta VERA_ADDR_BANK
-    lda #>COLOR_PIXELS_ADDRESS
-    sta VERA_ADDR_HIGH
-    stx VERA_ADDR_LOW
-    
-    stx VERA_DATA0
-    
-    inx 
-    bne next_color_pixel
-
-    rts
-  
-  
     
 MACRO_copy_point_x .macro TRIANGLES_POINT_X, POINT_X
     lda \TRIANGLES_POINT_X, x
@@ -965,6 +943,9 @@ start_drawing_triangles:
     .if(USE_POLYGON_FILLER)
         ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
         lda #%00000010
+        .if(USE_WRITE_CACHE)
+            ora #%01000000           ; blit write enabled = 1
+        .endif
         sta $9F29
     .endif
     
@@ -978,11 +959,6 @@ start_drawing_triangles:
     
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
-    
-    .if(USE_WRITE_CACHE)
-        lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
-        sta $9F2B  
-    .endif
     
     .if(USE_SLOPE_TABLES)
         lda #<($A000)
@@ -1006,25 +982,19 @@ draw_next_triangle:
     .if(USE_JUMP_TABLE)
         ; We first need to fill the 32-bit cache with 4 times our color
         
+        lda #%00001100           ; DCSEL=6, ADDRSEL=0
+        sta VERA_CTRL
+
+        ; SPEED: we can skip this load if we use register y for setting up DCSEL=6
+        lda TRIANGLE_COLOR
+        sta $9F29                ; cache32[7:0]
+        sta $9F2A                ; cache32[15:8]
+        sta $9F2B                ; cache32[23:16]
+        sta $9F2C                ; cache32[31:24]
+
+        ; FIXME: do we *need* to set this to DCSEL=2 here?
         lda #%00000100           ; DCSEL=2, ADDRSEL=0
         sta VERA_CTRL
-        
-        lda #%00000001           ; ... cache fill enabled = 1
-        sta $9F2C   
-        
-        lda #(COLOR_PIXELS_ADDRESS >> 16)  ; Setting bit 16 of vram address to the highest bit (=bit16 of COLOR_PIXELS_ADDRESS), setting auto-increment value to 0 bytes (=0=%00000)
-        sta VERA_ADDR_BANK
-        lda #>COLOR_PIXELS_ADDRESS
-        sta VERA_ADDR_HIGH
-        lda TRIANGLE_COLOR
-        sta VERA_ADDR_LOW
-
-        lda VERA_DATA0    
-        lda VERA_DATA0
-        lda VERA_DATA0
-        lda VERA_DATA0
-         
-        stz $9F2C                ; ... cache fill enabled = 0
     .endif
     
     ; -- Determining which point is/are top point(s) --
@@ -1243,15 +1213,11 @@ done_drawing_polygon_part:
 done_drawing_all_triangles:
     
     .if(USE_POLYGON_FILLER)
-        ; Turning off polygon filler mode
+        ; Turning off polygon filler mode and blit writes
         lda #%00000100           ; DCSEL=2, ADDRSEL=0
         sta VERA_CTRL
 
-        lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
-        sta $9F2B     
-        
-        ; Normal addr1 mode
-        lda #%00000000
+        lda #%00000000           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
         sta $9F29
     .endif
     
