@@ -1,15 +1,16 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 1
+DO_SPEED_TEST = 0
+DO_4BIT = 1
 
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 1
-USE_JUMP_TABLE = 1
+USE_SLOPE_TABLES = 0
+USE_UNROLLED_LOOP = 0
+USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
-USE_180_DEGREES_SLOPE_TABLE = 1  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
+USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 
 USE_Y_TO_ADDRESS_TABLE = 1
 
@@ -20,11 +21,6 @@ TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table cal
 ; This setting is used in the routine test_fill_length_jump_table. -> turn this OFF when using the jump tables otherwise! (it changes the jump table code!)
 USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
-    .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
-BACKGROUND_COLOR = 251  ; Nice purple
-    .else
-BACKGROUND_COLOR = 06  ; Blue 
-    .endif
     
 COLOR_CHECK        = $05 ; Background color = 0, foreground color 5 (green)
 COLOR_CROSS        = $02 ; Background color = 0, foreground color 2 (red)
@@ -33,8 +29,24 @@ BASE_X = 20
 BASE_Y = 50
 BX = BASE_X
 BY = BASE_Y
-    
-TEST_FILL_COLOR = 1
+
+    .if(DO_4BIT)
+TEST_FILL_COLOR = $11
+NR_OF_BYTES_PER_LINE = 160
+        .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+BACKGROUND_COLOR = $44  ; Purple
+        .else
+BACKGROUND_COLOR = $66  ; Blue 
+        .endif
+    .else
+TEST_FILL_COLOR = $01
+NR_OF_BYTES_PER_LINE = 320
+        .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+BACKGROUND_COLOR = 251  ; Nice purple
+        .else
+BACKGROUND_COLOR = 06  ; Blue 
+        .endif
+    .endif
 TEST_TRIANGLE_TOP_POINT_X = 90
 TEST_TRIANGLE_TOP_POINT_Y = 20
     
@@ -240,6 +252,15 @@ reset:
     txs
     
     jsr setup_vera_for_bitmap_and_tile_map
+    
+    .if(DO_4BIT)
+        .include utils/rom_only_change_palette_colors.s
+        
+        ; VERA.layer0.config = (4 + 2) ; enable bitmap mode and color depth = 4bpp on layer 0
+        lda #(4+2)
+        sta VERA_L0_CONFIG
+    .endif
+    
     jsr copy_petscii_charset
     jsr clear_tilemap_screen
     jsr init_cursor
@@ -248,23 +269,28 @@ reset:
     jsr copy_palette_from_index_16
 
     .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+; FIXME: this should be adapted for 4bit clearing
         jsr generate_clear_column_code
         jsr clear_screen_fast_4_bytes
     .else
+; FIXME: this should be adapter for 4bit clearing
         jsr clear_screen_slow
     .endif
     
     .if(USE_UNROLLED_LOOP)
+; FIXME: this should be adapted for 4bit drawing
         jsr generate_draw_row_64_code
     .endif
     
     .if(USE_JUMP_TABLE)
+; FIXME: this should be adapted for 4bit jump tables
         jsr generate_four_times_fill_line_code
         jsr generate_four_times_jump_table_16
         jsr generate_fill_line_codes_and_table
     .endif
     
     .if(USE_Y_TO_ADDRESS_TABLE)
+; FIXME: this should be adapter for 4bit addresses
         jsr generate_y_to_address_table
     .endif
     
@@ -711,36 +737,26 @@ test_speed_of_filling_triangle:
 set_cache32_with_color_slow:
 
 ; FIXME: we should create a (fast) macro for this!
-    ; We first need to fill the 32-bit cache with 4 times our color
 
-    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    ; We first need to fill the 32-bit cache with 4 times our background color
+
+    lda #%00001100           ; DCSEL=6, ADDRSEL=0
     sta VERA_CTRL
-    
-    lda #%00000000           ; normal addr1 mode 
-    sta $9F29
-    
-    lda #%00000001           ; ... cache fill enabled = 1
-    sta $9F2C   
-    
-; FIXME: we should use a different VRAM address for this cache filling!!
-    lda #%00000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0 bytes (=0=%00000)
-    sta VERA_ADDR_BANK
-    stz VERA_ADDR_HIGH
-    stz VERA_ADDR_LOW
 
+    ; TODO: we *could* use 'one byte cache cycling' so we have to set only *one* byte of the cache here
     lda #TEST_FILL_COLOR
-    sta VERA_DATA1
+    sta $9F29                ; cache32[7:0]
+    sta $9F2A                ; cache32[15:8]
+    sta $9F2B                ; cache32[23:16]
+    sta $9F2C                ; cache32[31:24]
+
+    ; We setup blit writes
     
-    lda VERA_DATA1    
-    lda VERA_DATA1
-    lda VERA_DATA1
-    lda VERA_DATA1
-     
-    lda #%00000000           ; ... cache fill enabled = 0
-    sta $9F2C   
-    
-    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
-    sta $9F2B     
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+
+    lda #%01000000           ; transparent writes = 0, blit write = 1, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
+    sta $9F29
 
     rts
   
@@ -851,7 +867,7 @@ fill_len_not_higher_than_or_equal_to_16:
 test_simple_polygon_filler:
 
     .if(USE_JUMP_TABLE)
-        ; NOTE: this will reset/screw up your ADDR1 settings!
+        ; NOTE: this will reset/screw up your ADDR1 settings! -> TODO: not anymore?
         jsr set_cache32_with_color_slow
     .else
         ldy #TEST_FILL_COLOR     ; We use y as color
@@ -863,18 +879,26 @@ test_simple_polygon_filler:
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
-    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    .if(DO_4BIT)
+        lda #%11010000           ; Setting auto-increment value to 160 byte increment (=%1101)
+    .else
+        lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    .endif
     sta VERA_ADDR_BANK
     ; Note: we are setting ADDR0 to the left most pixel of a pixel row. This means it will be aligned to 4-bytes (which is needed for the polygon filler to work nicely).
-    lda #>(TEST_TRIANGLE_TOP_POINT_Y*320)
+    lda #>(TEST_TRIANGLE_TOP_POINT_Y*NR_OF_BYTES_PER_LINE)
     sta VERA_ADDR_HIGH
-    lda #<(TEST_TRIANGLE_TOP_POINT_Y*320)
+    lda #<(TEST_TRIANGLE_TOP_POINT_Y*NR_OF_BYTES_PER_LINE)
     sta VERA_ADDR_LOW
     
-    ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
-    lda #%00000010
+    ; Entering *polygon fill mode* 
+    .if(DO_4BIT)
+        lda #%00000110           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 1, polygon filler mode 
+    .else
+        lda #%00000010           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, polygon filler mode 
+    .endif
     sta $9F29
-
+    
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
@@ -913,7 +937,11 @@ test_simple_polygon_filler:
         sta VERA_ADDR_BANK
     .else
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
-        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+        .if(DO_4BIT)
+            lda #%00000100           ; Setting auto-increment value to 1 nibble (0.5 byte) increment (=%0000 + nibble increment = 1)
+        .else
+            lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+        .endif
         sta VERA_ADDR_BANK
     .endif
 
@@ -947,13 +975,6 @@ test_simple_polygon_filler:
     
 ; WE USED THIS, NOW WE DO THIS OURSELVES:    jsr draw_polygon_part_using_polygon_filler_naively
     jsr test_draw_polygon_part_using_polygon_filler
-
-    
-    
-tmp_loop:
-    jmp tmp_loop
-
-
     
 
     ; Turning off polygon filler mode
@@ -976,7 +997,8 @@ tmp_loop:
     
 test_draw_polygon_part_using_polygon_filler:
     
-    lda #%00001010           ; DCSEL=5, ADDRSEL=0
+    ; Note: for testing purposes we are setting ADDR1_LOW, so -in this case- we switch to ADDRSEL=1 here
+    lda #%00001011           ; DCSEL=5, ADDRSEL=1
     sta VERA_CTRL
 
 test_polygon_fill_triangle_row_next:
@@ -988,19 +1010,91 @@ test_polygon_fill_triangle_row_next:
     
     ; What we do below is SLOW: we are not using all the information we get here and are *only* reconstructing the 10-bit value.
     
-    lda $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
-    lsr
-    and #%00000111          ; We keep the 3 lower bits (note that bit 3 is ALSO in the HIGH byte, so we discard it here)
-    sta FILL_LENGTH_LOW     ; We now have 3 bits in FILL_LENGTH_LOW
+    .if(DO_4BIT)
+        lda $9F2B               ; This contains: FILL_LENGTH >= 8, X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+        sta TMP2
+    
+        ; --- TESTING HW ---
+    
+        ; For testing purposes we use the X1 data to explicitly set the lower bits of ADDR1, this is not needed, since ADDR1 has just been set,
+        ; but it will show if the hardware is working correctly (that is: giving us the correct X1 bits).
+        
+        lda VERA_ADDR_BANK ; this contains the address nibble bit in bit 1
+        and #%11111101     ; we keep everything EXCEPT bit 1
+        sta TMP3           ; and tmp store it in TMP3
+        
+        lda TMP2           ; this contains X1[0] at bit5
+        and #%00100000     ; we keep this bit and shift if 4 times to the right (so its a bit1-position)
+        lsr
+        lsr
+        lsr
+        lsr
+        ora TMP3           ; We are mixing it with the VERA_ADDR_BANK regsiter that does NOT have the nibble bit anymore
+        sta VERA_ADDR_BANK ; We store this back into the register
+        
+        lda VERA_ADDR_LOW  ; this contains the address bit 0 and 1
+        and #%11111100     ; we keep everything EXCEPT bit for bit 0 and 1
+        sta TMP3           ; and tmp store it in TMP3
+        
+        lda TMP2           ; this contains X1[1] at bit6
+        and #%01000000     ; we keep this bit and shift if 6 times to the right (so its a bit0-position)
+        lsr
+        lsr
+        lsr
+        lsr
+        lsr
+        lsr
+        sta TMP4           ; We tmp store it in TMP4
+        
+        lda TMP2           ; this contains X1[2] at bit4
+        and #%00010000     ; we keep this bit and shift if 3 times to the right (so its a bit1-position)
+        lsr
+        lsr
+        lsr
+        ora TMP4           ; we mix this with the X1[1] bit
+        ora TMP3           ; We are mixing it with the VERA_ADDR_LOW regsiter that does NOT have bits 0 and 1
+        sta VERA_ADDR_LOW  ; We store this back into the register
+        
+        ; --- / TESTING HW ---
+        
+    
+        lda TMP2
+        lsr
+        and #%00000111          ; We keep the 3 lower bits (note that bit 3 is ALSO in the HIGH byte, so we discard it here)
+        sta FILL_LENGTH_LOW     ; We now have 3 bits in FILL_LENGTH_LOW
+        
+        stz FILL_LENGTH_HIGH
+        
+        ; For testing purposes we should also test if the overflow bit is set correctly!
+        lda TMP2
+        bpl test_skip_reading_fill_len_high   ; bit7 is the overflow bit, so if the number is positive (bit7=0) then we dont have to read the high bigts
+        
+        lda $9F2C               ; This contains: FILL_LENGTH[9:3], 0
+        asl
+        rol FILL_LENGTH_HIGH
+        asl
+        rol FILL_LENGTH_HIGH    ; FILL_LENGTH_HIGH now contains the two highest bits: 8 and 9
+        ora FILL_LENGTH_LOW
+        sta FILL_LENGTH_LOW     ; FILL_LENGTH_LOW now contains all lower 8 bits
+test_skip_reading_fill_len_high:
+        
+        lda FILL_LENGTH_LOW
+    .else
+        lda $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+        
+        lsr
+        and #%00000111          ; We keep the 3 lower bits (note that bit 3 is ALSO in the HIGH byte, so we discard it here)
+        sta FILL_LENGTH_LOW     ; We now have 3 bits in FILL_LENGTH_LOW
 
-    stz FILL_LENGTH_HIGH
-    lda $9F2C               ; This contains: FILL_LENGTH[9:3], 0
-    asl
-    rol FILL_LENGTH_HIGH
-    asl
-    rol FILL_LENGTH_HIGH    ; FILL_LENGTH_HIGH now contains the two highest bits: 8 and 9
-    ora FILL_LENGTH_LOW
-    sta FILL_LENGTH_LOW     ; FILL_LENGTH_LOW now contains all lower 8 bits
+        stz FILL_LENGTH_HIGH
+        lda $9F2C               ; This contains: FILL_LENGTH[9:3], 0
+        asl
+        rol FILL_LENGTH_HIGH
+        asl
+        rol FILL_LENGTH_HIGH    ; FILL_LENGTH_HIGH now contains the two highest bits: 8 and 9
+        ora FILL_LENGTH_LOW
+        sta FILL_LENGTH_LOW     ; FILL_LENGTH_LOW now contains all lower 8 bits
+    .endif
 
     tax
     beq test_done_fill_triangle_pixel  ; If x = 0, we dont have to draw any pixels (for now)
@@ -1028,7 +1122,7 @@ test_polygon_fill_triangle_pixel_next_256_0:
 test_polygon_fill_triangle_row_done:
 
     ; We always increment ADDR0
-    lda VERA_DATA0   ; this will increment ADDR0 with 320 bytes (= +1 vertically)
+    lda VERA_DATA0   ; this will increment ADDR0 with 320/160 bytes (= +1 vertically)
     
     ; We check if we have reached the end, if so, we do *NOT* change ADDR1!
     dec NUMBER_OF_ROWS
@@ -1044,10 +1138,18 @@ test_polygon_fill_triangle_row_done:
 clear_screen_slow:
   
 vera_wr_start:
-    ldx #0
+    .if(DO_4BIT)
+        ldx #0     ; We first do 256 8-bit columns, later we do the extra 64 columns
+    .else
+        ldx #160     ; We only do 160*2 4-bit columns
+    .endif
 vera_wr_fill_bitmap_once:
 
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
+    .if(DO_4BIT)
+        lda #%11010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 160px (=14=%1101)
+    .else
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
+    .endif
     sta VERA_ADDR_BANK
     lda #$00
     sta VERA_ADDR_HIGH
@@ -1063,15 +1165,24 @@ vera_wr_fill_bitmap_col_once:
     sta VERA_DATA0           ; store pixel
     dey
     bne vera_wr_fill_bitmap_col_once
-    inx
+    dex
     bne vera_wr_fill_bitmap_once
 
+    .if(DO_4BIT)
+        ; In 4-bit mode we are done after clearing 160*2 4-bit columns
+        rts
+    .endif
+    
     ; Right part of the screen
 
     ldx #0
 vera_wr_fill_bitmap_once2:
 
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
+    .if(DO_4BIT)
+        lda #%11010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 160px (=14=%1101)
+    .else
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
+    .endif
     sta VERA_ADDR_BANK
     lda #$01                ; The right side part of the screen has a start byte starting at address 256 and up
     sta VERA_ADDR_HIGH
@@ -1094,6 +1205,7 @@ vera_wr_fill_bitmap_col_once2:
     rts
 
     
+; FIXME: we need to adapt this for 4-bit mode!
 clear_screen_fast_4_bytes:
 
     ; We first need to fill the 32-bit cache with 4 times our background color
