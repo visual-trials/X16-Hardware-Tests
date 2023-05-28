@@ -3,6 +3,7 @@
 
 DO_SPEED_TEST = 0
 DO_4BIT = 1
+DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 0
@@ -31,12 +32,22 @@ BX = BASE_X
 BY = BASE_Y
 
     .if(DO_4BIT)
+        .if(DO_2BIT)
+TEST_FILL_COLOR = %01010101
+NR_OF_BYTES_PER_LINE = 80
+            .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+BACKGROUND_COLOR = %00000000  ; Purple (originally Black, but pallete is changed)
+            .else
+BACKGROUND_COLOR = %11111111  ; Red
+            .endif
+        .else
 TEST_FILL_COLOR = $11
 NR_OF_BYTES_PER_LINE = 160
-        .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+            .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
 BACKGROUND_COLOR = $44  ; Purple
-        .else
+            .else
 BACKGROUND_COLOR = $66  ; Blue 
+            .endif
         .endif
     .else
 TEST_FILL_COLOR = $01
@@ -254,11 +265,31 @@ reset:
     jsr setup_vera_for_bitmap_and_tile_map
     
     .if(DO_4BIT)
-        .include utils/rom_only_change_palette_colors.s
-        
-        ; VERA.layer0.config = (4 + 2) ; enable bitmap mode and color depth = 4bpp on layer 0
-        lda #(4+2)
-        sta VERA_L0_CONFIG
+        .if(DO_2BIT)
+            lda #%00010001           ; Setting bit 16 of vram address to the highest bit in the tilebase (=1), setting auto-increment value to 1
+            sta VERA_ADDR_BANK
+            
+            lda #$FA
+            sta VERA_ADDR_HIGH
+            lda #$00                 ; We overwrite color 0 here
+            sta VERA_ADDR_LOW
+
+            ; Nice purple
+            lda #$05                 ; gb
+            sta VERA_DATA0
+            lda #$05                 ; -r
+            sta VERA_DATA0
+            
+            ; VERA.layer0.config = (4 + 1) ; enable bitmap mode and color depth = 2bpp on layer 0
+            lda #(4+1)
+            sta VERA_L0_CONFIG
+        .else
+            .include utils/rom_only_change_palette_colors.s
+            
+            ; VERA.layer0.config = (4 + 2) ; enable bitmap mode and color depth = 4bpp on layer 0
+            lda #(4+2)
+            sta VERA_L0_CONFIG
+        .endif
     .endif
     
     jsr copy_petscii_charset
@@ -880,7 +911,11 @@ test_simple_polygon_filler:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     .if(DO_4BIT)
-        lda #%11010000           ; Setting auto-increment value to 160 byte increment (=%1101)
+        .if(DO_2BIT)
+            lda #%11000000           ; Setting auto-increment value to 80 byte increment (=%1100)
+        .else
+            lda #%11010000           ; Setting auto-increment value to 160 byte increment (=%1101)
+        .endif
     .else
         lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     .endif
@@ -893,42 +928,66 @@ test_simple_polygon_filler:
     
     ; Entering *polygon fill mode* 
     .if(DO_4BIT)
-        lda #%00000110           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 1, polygon filler mode 
+            lda #%00000110           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 1, polygon filler mode 
     .else
         lda #%00000010           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, polygon filler mode 
     .endif
     sta $9F29
     
+    .if(DO_2BIT)
+        lda #%00000001           ; 2bit polygon mode = 1
+        sta $9F2A
+    .endif
+        
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
-    ; NOTE that these increments are *HALF* steps!!
-    lda #<(-110)             ; X1 increment low (signed)
-    sta $9F29
-    lda #>(-110)             ; X1 increment high (signed)
-    and #%01111111           ; increment is only 15-bits long
-    sta $9F2A
-    lda #<(380)              ; X2 increment low (signed)
-    sta $9F2B                
-    lda #>(380)              ; X2 increment high (signed)
-    and #%01111111           ; increment is only 15-bits long
-    sta $9F2C       
+    .if(DO_2BIT)
+        ; NOTE that these increments are *HALF* steps!!
+        lda #<(-110/2)             ; X1 increment low (signed)
+        sta $9F29
+        lda #>(-110/2)             ; X1 increment high (signed)
+        and #%01111111           ; increment is only 15-bits long
+        sta $9F2A
+        lda #<(380/2)              ; X2 increment low (signed)
+        sta $9F2B                
+        lda #>(380/2)              ; X2 increment high (signed)
+        and #%01111111           ; increment is only 15-bits long
+        sta $9F2C       
+    .else
+        ; NOTE that these increments are *HALF* steps!!
+        lda #<(-110)             ; X1 increment low (signed)
+        sta $9F29
+        lda #>(-110)             ; X1 increment high (signed)
+        and #%01111111           ; increment is only 15-bits long
+        sta $9F2A
+        lda #<(380)              ; X2 increment low (signed)
+        sta $9F2B                
+        lda #>(380)              ; X2 increment high (signed)
+        and #%01111111           ; increment is only 15-bits long
+        sta $9F2C       
+    .endif
     
     ; Setting x1 and x2 pixel position
     
     lda #%00001001           ; DCSEL=4, ADDRSEL=1
     sta VERA_CTRL
     
-    lda #<TEST_TRIANGLE_TOP_POINT_X
-    sta $9F29                ; X (=X1) pixel position low [7:0]
-    sta $9F2B                ; Y (=X2) pixel position low [7:0]
-    
-    ; NOTE: we are also *setting* the subpixel position (bit0) here! Even though we just resetted it! 
-    ;       but its ok, since its reset to half a pixel (see above), meaning bit0 is 0 anyway
-    lda #>TEST_TRIANGLE_TOP_POINT_X
-    sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
-    ora #%00100000           ; Reset subpixel position
-    sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
+    .if(DO_2BIT)
+        lda #<(TEST_TRIANGLE_TOP_POINT_X/2)
+        sta $9F29                ; X (=X1) pixel position low [7:0]
+        sta $9F2B                ; Y (=X2) pixel position low [7:0]
+        lda #>(TEST_TRIANGLE_TOP_POINT_X/2)
+        sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
+        sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
+    .else
+        lda #<TEST_TRIANGLE_TOP_POINT_X
+        sta $9F29                ; X (=X1) pixel position low [7:0]
+        sta $9F2B                ; Y (=X2) pixel position low [7:0]
+        lda #>TEST_TRIANGLE_TOP_POINT_X
+        sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
+        sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
+    .endif
 
 
     .if(USE_JUMP_TABLE)
@@ -961,12 +1020,21 @@ test_simple_polygon_filler:
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
-    ; NOTE that these increments are *HALF* steps!!
-    lda #<(-1590)             ; X2 increment low
-    sta $9F2B                
-    lda #>(-1590)             ; X2 increment high
-    and #%01111111            ; increment is only 15-bits long
-    sta $9F2C
+    .if(DO_2BIT)
+        ; NOTE that these increments are *HALF* steps!!
+        lda #<(-1590/2)             ; X2 increment low
+        sta $9F2B                
+        lda #>(-1590/2)             ; X2 increment high
+        and #%01111111            ; increment is only 15-bits long
+        sta $9F2C
+    .else
+        ; NOTE that these increments are *HALF* steps!!
+        lda #<(-1590)             ; X2 increment low
+        sta $9F2B                
+        lda #>(-1590)             ; X2 increment high
+        and #%01111111            ; increment is only 15-bits long
+        sta $9F2C
+    .endif
 
     ; -------- Drawing BOTTOM part ----------
     
@@ -1023,6 +1091,20 @@ test_polygon_fill_triangle_row_next:
         and #%11111101     ; we keep everything EXCEPT bit 1
         sta TMP3           ; and tmp store it in TMP3
         
+        .if(DO_2BIT)
+            lda TMP2           ; this contains X1[-1] at bit0
+            and #%00000001     ; we keep this bit and shift if 4 times to the right (so its a bit1-position)
+            sta TMP1           ; this contains 0 or 1: whether the starting pixel is needed in 2bit mode
+            
+
+            lda TMP2           ; this contains X2[-1] at bit7
+            and #%10000000     ; we keep this bit and shift if 4 times to the right (so its a bit1-position)
+; FIXME: using DEBUG_VALUE variable as a TMP variable!
+            sta DEBUG_VALUE
+            
+; FIXME: determine at which *position* we have to POKE! (at the beginning and at the end!)
+        .endif
+        
         lda TMP2           ; this contains X1[0] at bit5
         and #%00100000     ; we keep this bit and shift if 4 times to the right (so its a bit1-position)
         lsr
@@ -1053,7 +1135,27 @@ test_polygon_fill_triangle_row_next:
         lsr
         ora TMP4           ; we mix this with the X1[1] bit
         ora TMP3           ; We are mixing it with the VERA_ADDR_LOW regsiter that does NOT have bits 0 and 1
+        
+; FIXME: VERY UGLY workaround, to prevent POKE mode from being triggered here: we switch off 2bit-polygons for a short moment        
+        .if(DO_2BIT)
+            pha
+            
+            lda #%00000101           ; DCSEL=2, ADDRSEL=1
+            sta VERA_CTRL
+        
+            lda #%00000000           ; 2bit polygon mode = 0
+            sta $9F2A
+            
+            pla
+        .endif
         sta VERA_ADDR_LOW  ; We store this back into the register
+        .if(DO_2BIT)
+            lda #%00000001           ; 2bit polygon mode = 1
+            sta $9F2A
+
+            lda #%00001011           ; DCSEL=5, ADDRSEL=1
+            sta VERA_CTRL
+        .endif
         
         ; --- / TESTING HW ---
         
@@ -1065,9 +1167,11 @@ test_polygon_fill_triangle_row_next:
         
         stz FILL_LENGTH_HIGH
         
-        ; For testing purposes we should also test if the overflow bit is set correctly!
-        lda TMP2
-        bpl test_skip_reading_fill_len_high   ; bit7 is the overflow bit, so if the number is positive (bit7=0) then we dont have to read the high bigts
+        ; For testing purposes we should also test if the overflow bit is set correctly! (but not for bit2-mode, since no overflow bit is available)
+        .if(!DO_2BIT)
+            lda TMP2
+            bpl test_skip_reading_fill_len_high   ; bit7 is the overflow bit, so if the number is positive (bit7=0) then we dont have to read the high bigts
+        .endif
         
         lda $9F2C               ; This contains: FILL_LENGTH[9:3], 0
         asl
@@ -1099,8 +1203,20 @@ test_skip_reading_fill_len_high:
     tax
     beq test_done_fill_triangle_pixel  ; If x = 0, we dont have to draw any pixels (for now)
 
+; FIXME: this is a really UGLY hack to realize pseudo 2bit POKING at the START! But for now, it proves that the fill_len info from the HW works!
+    .if(DO_2BIT)
+        lda TMP1     ; contains 1 if starting pixels should start at half a nibble
+        beq test_starting_color_test_correctly
+        lda #TEST_FILL_COLOR
+        and #%00110011       ; removing the starting pixel from both nibble -> UGLY! (this is NOT accounting for the pixels already drawn, but its background now)
+        tay
+test_starting_color_test_correctly:
+    .endif
 test_polygon_fill_triangle_pixel_next:
     sty VERA_DATA1
+    .if(DO_2BIT)
+        ldy #TEST_FILL_COLOR
+    .endif
     dex
     bne test_polygon_fill_triangle_pixel_next
     
@@ -1121,13 +1237,28 @@ test_polygon_fill_triangle_pixel_next_256_0:
     
 test_polygon_fill_triangle_row_done:
 
+; FIXME: this is a really UGLY hack to realize pseudo 2bit POKING at the ENDING! But for now, it proves that the fill_len info from the HW works!
+; FIXME: this DOESNT work for fill len > 256!!
+    .if(DO_2BIT)
+        lda DEBUG_VALUE
+        beq test_ending_pixel_is_correct
+        lda #TEST_FILL_COLOR
+        and #%11001100       ; removing the ending pixel from both nibbles -> UGLY! (this is NOT accounting for the pixels already drawn, but its background now)
+        tay
+        sty VERA_DATA1 
+        ldy #TEST_FILL_COLOR ; restoring y
+test_ending_pixel_is_correct:
+    .endif
+
     ; We always increment ADDR0
     lda VERA_DATA0   ; this will increment ADDR0 with 320/160 bytes (= +1 vertically)
     
     ; We check if we have reached the end, if so, we do *NOT* change ADDR1!
     dec NUMBER_OF_ROWS
-    bne test_polygon_fill_triangle_row_next
-    
+    beq test_polygon_fill_triangle_done
+    jmp test_polygon_fill_triangle_row_next
+test_polygon_fill_triangle_done:
+
     rts
 
 
@@ -1139,9 +1270,13 @@ clear_screen_slow:
   
 vera_wr_start:
     .if(DO_4BIT)
-        ldx #0     ; We first do 256 8-bit columns, later we do the extra 64 columns
+        .if(DO_2BIT)
+            ldx #80     ; We only do 80*4 2-bit columns
+        .else
+            ldx #160     ; We only do 160*2 4-bit columns
+        .endif
     .else
-        ldx #160     ; We only do 160*2 4-bit columns
+        ldx #0     ; We first do 256 8-bit columns, later we do the extra 64 columns
     .endif
 vera_wr_fill_bitmap_once:
 
@@ -1170,19 +1305,16 @@ vera_wr_fill_bitmap_col_once:
 
     .if(DO_4BIT)
         ; In 4-bit mode we are done after clearing 160*2 4-bit columns
+        ; In 2-bit mode we are done after clearing 80*4 2-bit columns
         rts
     .endif
     
-    ; Right part of the screen
+    ; Right part of the screen (only for 8-bit mode)
 
     ldx #0
 vera_wr_fill_bitmap_once2:
 
-    .if(DO_4BIT)
-        lda #%11010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 160px (=14=%1101)
-    .else
-        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
-    .endif
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
     sta VERA_ADDR_BANK
     lda #$01                ; The right side part of the screen has a start byte starting at address 256 and up
     sta VERA_ADDR_HIGH
