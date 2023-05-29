@@ -385,37 +385,39 @@ tiled_perspective_fast:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
+    
     ; Setting base addresses and map size
+    
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
     and #$FC   ; only the 6 highest bits of the address can be set
-    sta $9F2A
-    lda #(MAPDATA_VRAM_ADDRESS >> 9)
-    and #$FC   ; only the 6 highest bits of the address can be set
     .if(DO_CLIP)
-        ora #%00000001  ; 1 for Clip
+        ora #%00000010  ; 1 for Clip
     .else
         ora #%00000000  ; 0 for Repeat
     .endif
-    .if(USE_CACHE_FOR_WRITING)
-        ora #%00000010  ; blit write enabled = 1
+    sta $9F2A
+    
+    lda #(MAPDATA_VRAM_ADDRESS >> 9)
+    and #$FC   ; only the 6 highest bits of the address can be set
+    .if(DO_NO_TILE_LOOKUP)
+NON TILE LOOK MODE DOESNT EXIST ANYMORE
+        ora #%00000001  ; Map size = 01 (8x8 map)
+    .else
+        ora #%00000010  ; Map size = 10 (32x32 map)
     .endif
     sta $9F2B
     
     .if(DO_NO_TILE_LOOKUP)
-        lda #%01000001  ; Map size = 01 (8x8 map), one byte cache cycling = 0, cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
-    .else
-        lda #%10000001  ; Map size = 10 (32x32 map), one byte cache cycling = 0, cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
-    .endif
-    sta $9F2C
-    
-    .if(DO_NO_TILE_LOOKUP)
 ; FIXME: there is no more mode without tile lookup!
 NON TILE LOOK MODE DOESNT EXIST ANYMORE
-        lda #%00000011  ; 11 for no tile lookup
     .else
-        lda #%00000011  ; 11 for tile lookup
+        lda #%00100011  ; cache fill enabled = 1, affine helper mode (with tile lookup)
+    .endif
+    .if(USE_CACHE_FOR_WRITING)
+        ora #%01000000  ; blit write = 1
     .endif
     sta $9F29
+    
     
 ;    lda #%00000110           ; DCSEL=3, ADDRSEL=0
 ;    sta VERA_CTRL
@@ -684,32 +686,31 @@ flat_tiles_fast:
     
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
     and #$FC   ; only the 6 highest bits of the address can be set
-    sta $9F2A
-    lda #(MAPDATA_VRAM_ADDRESS >> 9)
-    and #$FC   ; only the 6 highest bits of the address can be set
     .if(DO_CLIP)
-        ora #%00000001  ; 1 for Clip
+        ora #%00000010  ; 1 for Clip
     .else
         ora #%00000000  ; 0 for Repeat
     .endif
-    .if(USE_CACHE_FOR_WRITING)
-        ora #%00000010  ; blit write enabled = 1
+    sta $9F2A
+    
+    lda #(MAPDATA_VRAM_ADDRESS >> 9)
+    and #$FC   ; only the 6 highest bits of the address can be set
+    .if(DO_NO_TILE_LOOKUP)
+NON TILE LOOK MODE DOESNT EXIST ANYMORE
+        ora #%00000001  ; Map size = 01 (8x8 map)
+    .else
+        ora #%00000010  ; Map size = 10 (32x32 map)
     .endif
     sta $9F2B
     
     .if(DO_NO_TILE_LOOKUP)
-        lda #%01000001  ; Map size = 01 (8x8 map), one byte cache cycling = 0, cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
-    .else
-        lda #%10000001  ; Map size = 10 (32x32 map), one byte cache cycling = 0, cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
-    .endif
-    sta $9F2C
-    
-    .if(DO_NO_TILE_LOOKUP)
 ; FIXME: there is no more mode without tile lookup!
 NON TILE LOOK MODE DOESNT EXIST ANYMORE
-        lda #%00000011  ; 11 for no tile lookup
     .else
-        lda #%00000011  ; 11 for tile lookup
+        lda #%00100011  ; cache fill enabled = 1, affine helper mode (with tile lookup)
+    .endif
+    .if(USE_CACHE_FOR_WRITING)
+        ora #%01000000  ; blit write = 1
     .endif
     sta $9F29
     
