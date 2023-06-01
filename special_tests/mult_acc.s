@@ -356,8 +356,8 @@ passthrough_of_c_and_x1:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00000000           ; Multiplier NOT enabled, normal addr1 mode
-    sta $9F29
+    lda #%00000000           ; Multiplier NOT enabled
+    sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -404,8 +404,8 @@ multiply_c_and_x1:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00010000           ; reset accumulator = 0, accumulate = 0, add or sub = 0, multiplier enabled = 1, addr1 mode = 000
-    sta $9F29
+    lda #%00010000           ; reset accumulator = 0, accumulate = 0, add or sub = 0, multiplier enabled = 1, cache index  = 0
+    sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -453,8 +453,8 @@ multiply_s_and_x2:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
 
-    lda #%10010000           ; reset accumulator = 1, accumulate = 0, add or sub = 0, multiplier enabled = 1, addr1 mode = 000
-    sta $9F29
+    lda #%10010000           ; reset accumulator = 1, accumulate = 0, add or sub = 0, multiplier enabled = 1, cache index  = 0
+    sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X2>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -505,8 +505,8 @@ x1_times_c_plus_y1_times_s:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%10010000           ; reset accumulator = 1, accumulate = 0, add or sub = 0, multiplier enabled = 1, addr1 mode = 000
-    sta $9F29
+    lda #%10010000           ; reset accumulator = 1, accumulate = 0, add or sub = 0, multiplier enabled = 1, cache index  = 0
+    sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -529,8 +529,8 @@ x1_times_c_plus_y1_times_s:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%01010000           ; reset accumulator = 0, accumulate = 1, add or sub = 0, multiplier enabled = 1, addr1 mode = 000
-    sta $9F29
+    lda #%01010000           ; reset accumulator = 0, accumulate = 1, add or sub = 0, multiplier enabled = 1, cache index  = 0
+    sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_Y1>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -580,8 +580,8 @@ x2_times_s_minus_y2_times_c:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%10010000           ; reset accumulator = 1, accumulate = 0, add or sub = 0, multiplier enabled = 1, addr1 mode = 000
-    sta $9F29
+    lda #%10010000           ; reset accumulator = 1, accumulate = 0, add or sub = 0, multiplier enabled = 1, cache index  = 0
+    sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X2>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -604,12 +604,12 @@ x2_times_s_minus_y2_times_c:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%01010000           ; reset accumulator = 0, accumulate = 1, add or sub = 0, multiplier enabled = 1, addr1 mode = 000
-    sta $9F29
+    lda #%01010000           ; reset accumulator = 0, accumulate = 1, add or sub = 0, multiplier enabled = 1, cache index  = 0
+    sta $9F2C
     
 ; FIXME: a switch to subtracting will immidiatly have an effect, which means the cant do an accumulate and *then* do the switch to subtracting in one write! So we first do an accumulate, then switch to subtracting
-    lda #%00110000           ; reset accumulator = 0, accumulate = 0, add or sub = 1, multiplier enabled = 1, addr1 mode = 000
-    sta $9F29
+    lda #%00110000           ; reset accumulator = 0, accumulate = 0, add or sub = 1, multiplier enabled = 1, cache index  = 0
+    sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_Y2>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -666,8 +666,12 @@ load_low_operand_into_cache:
     lda VERA_ADDR_LOW_OPERAND
     sta VERA_ADDR_LOW
 
+    lda #%00100000           ; cache write enabled = 0, cache fill enabled = 1
+    sta $9F29
+    
     ; We set cache byte index to 0 here
-    lda #%00000001           ; Map size = 000, cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
+; FIXME: is it ok that we disable the multiplier here?
+    lda #%00000000           ; 0000, cache byte index = 00, cache nibble index = 0, cache increment mode = 0
     sta $9F2C
     
     ; Loading the 16-bit value into the cache32
@@ -692,8 +696,12 @@ load_high_operand_into_cache:
     lda VERA_ADDR_HIGH_OPERAND
     sta VERA_ADDR_LOW
 
+    lda #%00100000           ; cache write enabled = 0, cache fill enabled = 1
+    sta $9F29
+    
     ; We set cache byte index to 2 here
-    lda #%00010001           ; Map size = 000, cache byte index = 10, 0, cache increment mode = 0, cache fill enabled = 1
+; FIXME: is it ok that we disable the multiplier here?
+    lda #%00001000           ; 0000, cache byte index = 10, cache nibble index = 0, cache increment mode = 0
     sta $9F2C
     
     ; Loading the 16-bit value into the cache32
@@ -712,8 +720,8 @@ write_mult_acc_result_into_vram:
     
     
     ; SLOW: dont do this each time we write the cache to VRAM!
-    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
-    sta $9F2B     
+    lda #%01000000           ; blit write enabled = 1
+    sta $9F29
     
     ; Writing cache to vram 
     
@@ -728,8 +736,8 @@ write_mult_acc_result_into_vram:
     stz VERA_DATA0
     
     ; SLOW: dont do this each time we write the cache to VRAM!
-    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
-    sta $9F2B     
+    lda #%00000000           ; blit write enabled = 0
+    sta $9F29
     
     rts
     
