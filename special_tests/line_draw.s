@@ -1,6 +1,7 @@
 
-DO_SPEED_TEST = 1
+DO_SPEED_TEST = 0
 USE_LINE_DRAW_HELPER = 1
+DO_4BIT = 1
 
 CLEAR_SCREEN_FAST = 1
 
@@ -118,26 +119,48 @@ loop:
 
 test_sub_pixel_increments:
 
+    .if(DO_4BIT)
+        ; VERA.layer0.config = (4 + 2) ; enable bitmap mode and color depth = 4bpp on layer 0
+        lda #(4+2)
+        sta VERA_L0_CONFIG
+    .endif
+
     ; Setting up for drawing a new line
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    .if(DO_4BIT)
+        lda #%11010000           ; Setting auto-increment value to 160 byte increment (=%1101)
+    .else
+        lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    .endif
     sta VERA_ADDR_BANK
     
     ; Entering *line draw mode*: from now on ADDR1 will use two incrementers: the one from ADDR0 and from itself
-    lda #%00000001
+    .if(DO_4BIT)
+        lda #%00000101  ; 4bit
+    .else
+        lda #%00000001
+    .endif
     sta $9F29
     
     lda #%00000101           ; DCSEL=2, ADDRSEL=1
     sta VERA_CTRL
     
-    lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+    .if(DO_4BIT)
+;        lda #%00000100           ; Setting auto-increment value to 0.5 byte increment
+       lda #%00001100           ; Setting auto-increment value to 0.5 byte decrement
+    .else
+        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+;       lda #%00011000           ; Setting auto-increment value to 1 byte decrement (=%00011)
+    .endif
     sta VERA_ADDR_BANK
     lda #0
+;    lda #1
     sta VERA_ADDR_HIGH       ; Setting $00000
-    lda #0
+;    lda #0
+    lda #128
     sta VERA_ADDR_LOW        ; Setting $00000
     
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
@@ -152,16 +175,20 @@ test_sub_pixel_increments:
     
 
     ldx #150 ; Drawing 150 pixels to the right
-    lda #1   ; White color
+    .if(DO_4BIT)
+        lda #$11   ; White color
+    .else
+        lda #1   ; White color
+    .endif
 
-    .if(0)
+    .if(1)
 draw_line_next_pixel:
     sta VERA_DATA1
     dex
     bne draw_line_next_pixel
     .endif
 
-    .if(1)
+    .if(0)
 draw_dotted_line_next_pixel:
     sta VERA_DATA1
     dex
