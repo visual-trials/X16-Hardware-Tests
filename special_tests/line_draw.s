@@ -131,7 +131,8 @@ test_sub_pixel_increments:
     sta VERA_CTRL
     
     .if(DO_4BIT)
-        lda #%11010000           ; Setting auto-increment value to 160 byte increment (=%1101)
+;        lda #%11010000           ; Setting auto-increment value to 160 byte increment (=%1101)
+        lda #%11011000           ; Setting auto-increment value to 160 byte decrement (=%11011)
     .else
         lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     .endif
@@ -156,7 +157,8 @@ test_sub_pixel_increments:
 ;       lda #%00011000           ; Setting auto-increment value to 1 byte decrement (=%00011)
     .endif
     sta VERA_ADDR_BANK
-    lda #0
+;    lda #0
+    lda #30
 ;    lda #1
     sta VERA_ADDR_HIGH       ; Setting $00000
 ;    lda #0
