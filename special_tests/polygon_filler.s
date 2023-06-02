@@ -336,16 +336,16 @@ reset:
       lda #%00000000           ; DCSEL=0, ADDRSEL=0
       sta VERA_CTRL
         
-      lda #$10                 ; 8:1 scale
-      sta VERA_DC_HSCALE
-      sta VERA_DC_VSCALE      
+      ;lda #$10                 ; 8:1 scale
+      ;sta VERA_DC_HSCALE
+      ;sta VERA_DC_VSCALE      
     
       jsr start_timer
 
-      ; jsr test_simple_polygon_filler
+      jsr test_simple_polygon_filler
       ; jsr test_fill_length_jump_table
       ; jsr TMP_test_4bit_hello_world
-      jsr TMP_test_16bit_hop_mode
+      ; jsr TMP_test_16bit_hop_mode
       
       jsr stop_timer
       
@@ -358,6 +358,30 @@ reset:
       sta CURSOR_Y
         
       jsr print_time_elapsed
+
+      ; This is for testing if *reading* from $9F29 works
+      .if(0)
+        
+        lda #%00000100           ; DCSEL=2, ADDRSEL=0
+        sta VERA_CTRL
+        
+        lda #%01010101           ; random setting
+        sta $9F29
+        lda #0
+        
+        ldx $9F29
+        stx BYTE_TO_PRINT
+        
+        lda #%00000000
+        sta $9F29
+        
+        lda #%00000000           ; DCSEL=0, ADDRSEL=0
+        sta VERA_CTRL
+        
+        jsr print_byte_as_hex
+        
+      .endif
+      
     .endif
     
   
@@ -400,7 +424,7 @@ TMP_test_16bit_hop_mode:
 
     lda #%00000101           ; DCSEL=2, ADDRSEL=1
     sta VERA_CTRL
-    
+
 ; FIXME: 16bit hop mode!
     lda #%00001000           ; 16bit hopping, normal addr1 mode, 8-bit mode 
     sta $9F29

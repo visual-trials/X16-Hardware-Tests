@@ -1,9 +1,4 @@
 
-
-; !!! BUG: running without JUMP TABLES does work anymore!!!!
-
-; BUG: when turning on all options (SLOPE_TABLES and JUMP_TABLES) it shows horizontal "stripes" on real HW!
-
 DO_SPEED_TEST = 1
 KEEP_RUNNING = 1
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
@@ -17,7 +12,7 @@ USE_UNROLLED_LOOP = 1
 USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
-TEST_JUMP_TABLE = 1 ; This turns off the iteration in-between the jump-table calls
+TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
 USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
 USE_180_DEGREES_SLOPE_TABLE = 1  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
