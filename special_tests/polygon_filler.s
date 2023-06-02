@@ -2,8 +2,8 @@
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
 DO_SPEED_TEST = 0
-DO_4BIT = 1
-DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
+DO_4BIT = 0
+DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 0
@@ -336,16 +336,16 @@ reset:
       lda #%00000000           ; DCSEL=0, ADDRSEL=0
       sta VERA_CTRL
         
-      ;lda #$10                 ; 8:1 scale
-      ;sta VERA_DC_HSCALE
-      ;sta VERA_DC_VSCALE      
+      lda #$10                 ; 8:1 scale
+      sta VERA_DC_HSCALE
+      sta VERA_DC_VSCALE      
     
       jsr start_timer
 
-      jsr test_simple_polygon_filler
+      ; jsr test_simple_polygon_filler
       ; jsr test_fill_length_jump_table
       ; jsr TMP_test_4bit_hello_world
-      ; jsr TMP_test_16bit_hop_mode
+      jsr TMP_test_16bit_hop_mode
       
       jsr stop_timer
       
@@ -424,6 +424,21 @@ TMP_test_16bit_hop_mode:
     
     sta VERA_DATA1
     stx VERA_DATA1
+
+    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes
+    sta VERA_ADDR_BANK
+
+    lda #$3
+    ldx #$8
+    sta VERA_DATA1
+    stx VERA_DATA1
+    
+    sta VERA_DATA1
+    stx VERA_DATA1
+    
+    sta VERA_DATA1
+    stx VERA_DATA1
+    
     
     lda #%00000000              ; normal addr1 mode, 8-bit mode 
     sta $9F29
@@ -442,9 +457,6 @@ TMP_test_4bit_hello_world:
     
     lda #%00000100           ; normal addr1 mode, 4-bit mode 
     sta $9F29
-
-;    lda #%00000000           ; normal addr1 mode, 8-bit mode 
-;    sta $9F29
 
     lda #%00000100           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0.5 bytes
     sta VERA_ADDR_BANK
@@ -491,8 +503,8 @@ TMP_test_4bit_hello_world:
     lda #3                   ; 6 pixels from the left
     sta VERA_ADDR_LOW
     
-    lda #%00000001           ; ... cache fill enabled = 1
-    sta $9F2C   
+    lda #%00100100           ; cache fill enabled = 1, 4-bit mode, normal addr1 mode
+    sta $9F29
     
     
 ; FIXME: maybe cache reset?
@@ -503,9 +515,8 @@ TMP_test_4bit_hello_world:
     lda VERA_DATA0
     
     
-    
-    lda #%00000001           ; ... cache fill enabled = 0
-    sta $9F2C   
+    lda #%00000100           ; cache fill enabled = 0, 4-bit mode, normal addr1 mode
+    sta $9F29
     
     
     ; --- writing cache to VRAM ---
@@ -513,14 +524,14 @@ TMP_test_4bit_hello_world:
     lda #14                   ; 28 pixels from the left
     sta VERA_ADDR_LOW
     
-    lda #%00000010           ; map base addr = 0, blit write enabled = 1, repeat/clip = 0
-    sta $9F2B     
+    lda #%01000100           ; blit write enabled = 1, 4-bit mode, normal addr1 mode
+    sta $9F29
     
     ; Write the full cache to VRAM
     stz VERA_DATA0
     
-    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
-    sta $9F2B     
+    lda #%00000100           ; blit write enabled = 0, 4-bit mode, normal addr1 mode
+    sta $9F29
     
     rts
   
