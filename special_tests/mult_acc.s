@@ -74,6 +74,8 @@ VERA_ADDR_MULT_RESULT_ACC = $36 ; 37 ; 38
 
 MULT_RESULT_ACC           = $3A ; 3B ; 3C ; 3D
 
+MULTIPLIER_STATE          = $3E
+
 ; FIXME: these are leftovers of memory tests in the general hardware tester (needed by utils.s atm). We dont use them, but cant remove them right now
 BANK_TESTING              = $52   
 BAD_VALUE                 = $5A
@@ -357,6 +359,7 @@ passthrough_of_c_and_x1:
     sta VERA_CTRL
     
     lda #%00000000           ; Multiplier NOT enabled
+    sta MULTIPLIER_STATE
     sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
@@ -404,7 +407,8 @@ multiply_c_and_x1:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00010000           ; reset accumulator = 0, accumulate = 0, add or sub = 0, multiplier enabled = 1, cache index  = 0
+    lda #%00010000           ; multiplier enabled = 1, cache index  = 0
+    sta MULTIPLIER_STATE
     sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
@@ -453,7 +457,9 @@ multiply_s_and_x2:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
 
-    lda #%10010000           ; reset accumulator = 1, accumulate = 0, add or sub = 0, multiplier enabled = 1, cache index  = 0
+    lda #%00010000           ; multiplier enabled = 1, cache index  = 0
+    sta MULTIPLIER_STATE
+    ora #%10000000           ; reset accumulator = 1
     sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X2>>16)
@@ -505,7 +511,9 @@ x1_times_c_plus_y1_times_s:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%10010000           ; reset accumulator = 1, accumulate = 0, add or sub = 0, multiplier enabled = 1, cache index  = 0
+    lda #%00010000           ; multiplier enabled = 1, cache index  = 0
+    sta MULTIPLIER_STATE
+    ora #%10000000           ; reset accumulator = 1
     sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
@@ -529,7 +537,9 @@ x1_times_c_plus_y1_times_s:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%01010000           ; reset accumulator = 0, accumulate = 1, add or sub = 0, multiplier enabled = 1, cache index  = 0
+    lda #%00010000           ; multiplier enabled = 1, cache index  = 0
+    sta MULTIPLIER_STATE
+    ora #%01000000           ; accumulate = 1
     sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_Y1>>16)
@@ -580,7 +590,9 @@ x2_times_s_minus_y2_times_c:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%10010000           ; reset accumulator = 1, accumulate = 0, add or sub = 0, multiplier enabled = 1, cache index  = 0
+    lda #%00010000           ; multiplier enabled = 1, cache index  = 0
+    sta MULTIPLIER_STATE
+    ora #%10000000           ; reset accumulator = 1
     sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X2>>16)
@@ -604,11 +616,15 @@ x2_times_s_minus_y2_times_c:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%01010000           ; reset accumulator = 0, accumulate = 1, add or sub = 0, multiplier enabled = 1, cache index  = 0
+    lda #%00010000           ; multiplier enabled = 1, cache index  = 0
+    sta MULTIPLIER_STATE
+    ora #%01000000           ; accumulate = 1
     sta $9F2C
     
 ; FIXME: a switch to subtracting will immidiatly have an effect, which means the cant do an accumulate and *then* do the switch to subtracting in one write! So we first do an accumulate, then switch to subtracting
-    lda #%00110000           ; reset accumulator = 0, accumulate = 0, add or sub = 1, multiplier enabled = 1, cache index  = 0
+    lda #%00010000           ; multiplier enabled = 1, cache index  = 0
+    sta MULTIPLIER_STATE
+    ora #%00100000           add or sub = 1
     sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_Y2>>16)
@@ -670,8 +686,8 @@ load_low_operand_into_cache:
     sta $9F29
     
     ; We set cache byte index to 0 here
-; FIXME: is it ok that we disable the multiplier here?
     lda #%00000000           ; 0000, cache byte index = 00, cache nibble index = 0, cache increment mode = 0
+    ora MULTIPLIER_STATE
     sta $9F2C
     
     ; Loading the 16-bit value into the cache32
@@ -700,8 +716,8 @@ load_high_operand_into_cache:
     sta $9F29
     
     ; We set cache byte index to 2 here
-; FIXME: is it ok that we disable the multiplier here?
     lda #%00001000           ; 0000, cache byte index = 10, cache nibble index = 0, cache increment mode = 0
+    ora MULTIPLIER_STATE
     sta $9F2C
     
     ; Loading the 16-bit value into the cache32
