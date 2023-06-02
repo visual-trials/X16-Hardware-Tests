@@ -624,7 +624,7 @@ x2_times_s_minus_y2_times_c:
 ; FIXME: a switch to subtracting will immidiatly have an effect, which means the cant do an accumulate and *then* do the switch to subtracting in one write! So we first do an accumulate, then switch to subtracting
     lda #%00010000           ; multiplier enabled = 1, cache index  = 0
     sta MULTIPLIER_STATE
-    ora #%00100000           add or sub = 1
+    ora #%00100000           ; add or sub = 1
     sta $9F2C
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_Y2>>16)
