@@ -1,13 +1,14 @@
 
 USE_CACHE_FOR_WRITING = 1
-USE_TABLE_FILES = 1
+DO_4BIT = 1
+USE_TABLE_FILES = 0
 ; FIXME: there is no more non-tile-lookup mode!
 ; FIXME: there is no more non-tile-lookup mode!
 ; FIXME: there is no more non-tile-lookup mode!
 DO_NO_TILE_LOOKUP = 0
 DO_CLIP = 0
-DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
-MOVE_XY_POSITION = 1
+DRAW_TILED_PERSPECTIVE = 0  ; Otherwise FLAT tiles
+MOVE_XY_POSITION = 0
 TURN_AROUND = 0
 MOVE_SLOWLY = 0
 DEBUG_LEDS = 1
@@ -24,6 +25,13 @@ MAP_WIDTH = 32
 MAP_HEIGHT = 32
     .endif
 
+    .if(DO_4BIT)
+NR_OF_BYTES_PER_LINE = 160
+    .else
+NR_OF_BYTES_PER_LINE = 320
+    .endif
+    
+    
 ;MAP_WIDTH = 4
 ;MAP_HEIGHT = 4
 
@@ -170,14 +178,16 @@ reset:
     jsr output_debug_leds
     
 ;    jsr clear_screen_slow
-;    lda #$10                 ; 8:1 scale, so we can clearly see the pixels
+;    lda #$20                 ; 4:1 scale, so we can clearly see the pixels
 ;    sta VERA_DC_HSCALE
 ;    sta VERA_DC_VSCALE
 ;    jsr affine_transform_some_bytes
     
     ; Put orginal picture on screen (slow)
     jsr clear_screen_slow
-    jsr copy_palette
+    .if(!DO_4BIT)
+        jsr copy_palette
+    .endif
     .if(DO_NO_TILE_LOOKUP)
         jsr copy_texture_pixels_as_tile_pixels_to_high_vram
     .else
@@ -294,10 +304,17 @@ wait_a_bit_2:
         lda #4
         sta CURSOR_Y
 
-        lda #<tiled_perspective_192x64_8bpp_message
-        sta TEXT_TO_PRINT
-        lda #>tiled_perspective_192x64_8bpp_message
-        sta TEXT_TO_PRINT + 1
+        if (DO_4BIT)
+            lda #<tiled_perspective_192x64_4bpp_message
+            sta TEXT_TO_PRINT
+            lda #>tiled_perspective_192x64_4bpp_message
+            sta TEXT_TO_PRINT + 1
+        .else
+            lda #<tiled_perspective_192x64_8bpp_message
+            sta TEXT_TO_PRINT
+            lda #>tiled_perspective_192x64_8bpp_message
+            sta TEXT_TO_PRINT + 1
+        .endif
         
         jsr print_text_zero
         
@@ -338,6 +355,8 @@ wait_a_bit_2:
 
 tiled_perspective_192x64_8bpp_message: 
     .asciiz "Tiled perspective 192x64 (8bpp) "
+tiled_perspective_192x64_4bpp_message: 
+    .asciiz "Tiled perspective 192x64 (4bpp) "
 
     
 ; For tiled perspective we need to set the x and y coordinate within the tilemap for each pixel row on the screen. 
@@ -373,9 +392,9 @@ y_sub_pixel_steps_high:
 tiled_perspective_fast:
 
     ; Setup FROM and TO VRAM addresses
-    lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
+    lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
     sta VERA_ADDR_ZP_TO
-    lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
+    lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
     sta VERA_ADDR_ZP_TO+1
 ;    lda #<(TILEDATA_VRAM_ADDRESS)
 ;    sta VERA_ADDR_ZP_FROM
@@ -572,13 +591,13 @@ tiled_perspective_copy_next_row_1:
     jsr COPY_ROW_CODE
     jsr COPY_ROW_CODE
     
-    ; We increment our VERA_ADDR_TO with 320
+    ; We increment our VERA_ADDR_TO with NR_OF_BYTES_PER_LINE
     clc
     lda VERA_ADDR_ZP_TO
-    adc #<(320)
+    adc #<(NR_OF_BYTES_PER_LINE)
     sta VERA_ADDR_ZP_TO
     lda VERA_ADDR_ZP_TO+1
-    adc #>(320)
+    adc #>(NR_OF_BYTES_PER_LINE)
     sta VERA_ADDR_ZP_TO+1
 
     inx
@@ -621,10 +640,17 @@ test_speed_of_flat_tiles:
     lda #4
     sta CURSOR_Y
 
-    lda #<flat_tiles_24x8_8bpp_message
-    sta TEXT_TO_PRINT
-    lda #>flat_tiles_24x8_8bpp_message
-    sta TEXT_TO_PRINT + 1
+    .if(DO_4BIT)
+        lda #<flat_tiles_24x8_4bpp_message
+        sta TEXT_TO_PRINT
+        lda #>flat_tiles_24x8_4bpp_message
+        sta TEXT_TO_PRINT + 1
+    .else
+        lda #<flat_tiles_24x8_8bpp_message
+        sta TEXT_TO_PRINT
+        lda #>flat_tiles_24x8_8bpp_message
+        sta TEXT_TO_PRINT + 1
+    .endif
     
     jsr print_text_zero
     
@@ -663,17 +689,32 @@ test_speed_of_flat_tiles:
 
 flat_tiles_24x8_8bpp_message: 
     .asciiz "24x8 flat tiles of 8x8 size (8bpp) "
+flat_tiles_24x8_4bpp_message: 
+    .asciiz "24x8 flat tiles of 8x8 size (4bpp) "
 
     
 
 
 flat_tiles_fast:
 
+    .if(DO_4BIT)
+        ; VERA.layer0.config = (4 + 2) ; enable bitmap mode and color depth = 4bpp on layer 0
+        lda #(4+2)
+        sta VERA_L0_CONFIG
+    .endif
+
     ; Setup FROM and TO VRAM addresses
-    lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_TO
-    lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_TO+1
+    .if(DO_4BIT)
+        lda #<(DESTINATION_PICTURE_POS_X/2+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
+        sta VERA_ADDR_ZP_TO
+        lda #>(DESTINATION_PICTURE_POS_X/2+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
+        sta VERA_ADDR_ZP_TO+1
+    .else
+        lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
+        sta VERA_ADDR_ZP_TO
+        lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
+        sta VERA_ADDR_ZP_TO+1
+    .endif
 ;    lda #<(TILEDATA_VRAM_ADDRESS)
 ;    sta VERA_ADDR_ZP_FROM
 ;    lda #>(TILEDATA_VRAM_ADDRESS)
@@ -699,7 +740,11 @@ flat_tiles_fast:
 NON TILE LOOK MODE DOESNT EXIST ANYMORE
         ora #%00000001  ; Map size = 01 (8x8 map)
     .else
-        ora #%00000010  ; Map size = 10 (32x32 map)
+        .if(DO_4BIT)
+            ora #%00000000  ; Map size = 00 (2x2 map)
+        .else
+            ora #%00000010  ; Map size = 10 (32x32 map)
+        .endif
     .endif
     sta $9F2B
     
@@ -707,7 +752,11 @@ NON TILE LOOK MODE DOESNT EXIST ANYMORE
 ; FIXME: there is no more mode without tile lookup!
 NON TILE LOOK MODE DOESNT EXIST ANYMORE
     .else
-        lda #%00100011  ; cache fill enabled = 1, affine helper mode (with tile lookup)
+        if(DO_4BIT)
+            lda #%00100111  ; cache fill enabled = 1, 4-bit mode, affine helper mode (with tile lookup)
+        .else
+            lda #%00100011  ; cache fill enabled = 1, affine helper mode (with tile lookup)
+        .endif
     .endif
     .if(USE_CACHE_FOR_WRITING)
         ora #%01000000  ; blit write = 1
@@ -737,8 +786,13 @@ repetitive_copy_next_row_1:
         lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011) 
         sta VERA_ADDR_BANK
     .else
-        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-        sta VERA_ADDR_BANK
+        .if(DO_4BIT)
+            lda #%00000100           ; Setting auto-increment value to 0.5 byte (1 nibble) increment (=%0000 + 1)
+            sta VERA_ADDR_BANK
+        .else
+            lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+            sta VERA_ADDR_BANK
+        .endif
     .endif
     lda VERA_ADDR_ZP_TO+1
     sta VERA_ADDR_HIGH
@@ -766,17 +820,55 @@ repetitive_copy_next_row_1:
     sta $9F2C
     
     ; Copy three rows of 64 pixels
-    jsr COPY_ROW_CODE
-    jsr COPY_ROW_CODE
-    jsr COPY_ROW_CODE
     
-    ; We increment our VERA_ADDR_TO with 320
+    .if(USE_CACHE_FOR_WRITING)
+        lda VERA_DATA1
+        lda VERA_DATA1
+        lda VERA_DATA1
+        lda VERA_DATA1
+        lda VERA_DATA1
+        lda VERA_DATA1
+        lda VERA_DATA1
+        lda VERA_DATA1
+        sta VERA_DATA0
+    .else
+        lda VERA_DATA1
+        sta VERA_DATA0
+        
+        lda VERA_DATA1
+        sta VERA_DATA0
+        
+        lda VERA_DATA1
+        sta VERA_DATA0
+        
+        lda VERA_DATA1
+        sta VERA_DATA0
+        
+        lda VERA_DATA1
+        sta VERA_DATA0
+        
+        lda VERA_DATA1
+        sta VERA_DATA0
+        
+        lda VERA_DATA1
+        sta VERA_DATA0
+        
+        lda VERA_DATA1
+        sta VERA_DATA0
+    .endif
+    
+; FIXME!    
+;    jsr COPY_ROW_CODE
+;    jsr COPY_ROW_CODE
+;    jsr COPY_ROW_CODE
+    
+    ; We increment our VERA_ADDR_TO with NR_OF_BYTES_PER_LINE
     clc
     lda VERA_ADDR_ZP_TO
-    adc #<(320)
+    adc #<(NR_OF_BYTES_PER_LINE)
     sta VERA_ADDR_ZP_TO
     lda VERA_ADDR_ZP_TO+1
-    adc #>(320)
+    adc #>(NR_OF_BYTES_PER_LINE)
     sta VERA_ADDR_ZP_TO+1
 
     inx
@@ -786,8 +878,8 @@ repetitive_copy_next_row_1:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00000000  ; blit write enabled = 0
-    sta $9F2B
+    lda #%00000000  ; cache fill enabled = 0, blit write = 0, 8-bit mode, normal addr1-mode
+    sta $9F29
     
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
@@ -912,6 +1004,7 @@ vera_wr_start:
     ldx #0
 vera_wr_fill_bitmap_once:
 
+; FIXME! this is WRONG for 4-bit mode!
     lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
     sta VERA_ADDR_BANK
     lda #$00
@@ -936,6 +1029,7 @@ vera_wr_fill_bitmap_col_once:
     ldx #0
 vera_wr_fill_bitmap_once2:
 
+; FIXME! this is WRONG for 4-bit mode!
     lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
     sta VERA_ADDR_BANK
     lda #$01                ; The right side part of the screen has a start byte starting at address 256 and up
@@ -953,6 +1047,7 @@ vera_wr_fill_bitmap_col_once2:
     dey
     bne vera_wr_fill_bitmap_col_once2
     inx
+; FIXME! this is WRONG for 4-bit mode! Right?
     cpx #64                  ; The right part of the screen is 320 - 256 = 64 pixels
     bne vera_wr_fill_bitmap_once2
     
@@ -1872,6 +1967,28 @@ irq:
 
   .else 
   
+  
+    .if(DO_4BIT)
+  .byte $12, $21, $12, $21
+  .byte $34, $34, $34, $34
+  .byte $56, $56, $56, $56
+  .byte $78, $78, $78, $78
+  .byte $9A, $9A, $9A, $9A
+  .byte $BC, $BC, $BC, $BC
+  .byte $D0, $D0, $D0, $D0
+  .byte $EF, $EF, $EF, $EF
+      
+  .byte $12, $34, $56, $78
+  .byte $12, $34, $56, $78
+  .byte $12, $34, $56, $78
+  .byte $12, $34, $56, $78
+  .byte $12, $34, $56, $78
+  .byte $12, $34, $56, $78
+  .byte $12, $34, $56, $78
+  .byte $12, $34, $56, $78
+      
+    .else
+  
   .byte $7b, $85, $7b, $79, $7c, $7f, $7a, $85
   .byte $79, $7b, $7c, $7a, $76, $7e, $7c, $7a
   .byte $7c, $7a, $7b, $87, $85, $84, $81, $7c
@@ -2001,6 +2118,8 @@ irq:
   .byte $a6, $aa, $a5, $a7, $ac, $a6, $a9, $a3
   .byte $a5, $aa, $ac, $a3, $9f, $a1, $a9, $aa
 
+    .endif
+    
   .endif
 
   ; manual TILEMAP
@@ -2010,7 +2129,15 @@ irq:
 ;  .byte 5, 4, 5, 4
 ;  .byte 6, 7, 8, 9
 
-  .if(1)
+  .if(DO_4BIT)
+  
+  .byte 0, 1
+  .byte 1, 0
+  
+  .else
+  
+    .if(1)
+
   .byte  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9
   .byte  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9
   .byte  9,  4,  9,  9,  9,  4,  9,  9,  5,  5,  9,  9,  1,  1,  9,  9,  7,  9,  7,  9,  9,  3,  3,  9,  9,  9,  9,  9,  9,  9,  9,  9
@@ -2046,7 +2173,7 @@ irq:
   .byte  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9
   .byte  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9
   .byte  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9
-  .else
+    .else
   .byte  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9
   .byte  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4
   .byte  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9
@@ -2082,6 +2209,7 @@ irq:
   .byte  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4
   .byte  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9
   .byte  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4,  9,  4
+    .endif
   .endif
 
     
