@@ -1,14 +1,14 @@
 
 USE_CACHE_FOR_WRITING = 1
-DO_4BIT = 1
-USE_TABLE_FILES = 0
+DO_4BIT = 0
+USE_TABLE_FILES = 1
 ; FIXME: there is no more non-tile-lookup mode!
 ; FIXME: there is no more non-tile-lookup mode!
 ; FIXME: there is no more non-tile-lookup mode!
 DO_NO_TILE_LOOKUP = 0
 DO_CLIP = 0
-DRAW_TILED_PERSPECTIVE = 0  ; Otherwise FLAT tiles
-MOVE_XY_POSITION = 0
+DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
+MOVE_XY_POSITION = 1
 TURN_AROUND = 0
 MOVE_SLOWLY = 0
 DEBUG_LEDS = 1
@@ -145,9 +145,9 @@ Y_SUB_PIXEL_STEPS_HIGH                 = $AB00
 
 
 ; ROM addresses
-PALLETE           = $CE00
-PIXELS            = $D000
-TILEMAP           = $E000
+PALLETE           = $D000
+PIXELS            = $D200
+TILEMAP           = $E200
 
 
   .org $C000
@@ -400,15 +400,38 @@ y_sub_pixel_steps_high:
     
 tiled_perspective_fast:
 
+    .if(DO_4BIT)
+        lda #%00010001           ; Setting bit 16 of vram address to the highest bit in the tilebase (=1), setting auto-increment value to 1
+        sta VERA_ADDR_BANK
+        
+        lda #$FA
+        sta VERA_ADDR_HIGH
+        lda #$00                 ; We overwrite color 0 here
+        sta VERA_ADDR_LOW
+
+        ; Nice purple
+        lda #$05                 ; gb
+        sta VERA_DATA0
+        lda #$05                 ; -r
+        sta VERA_DATA0
+            
+        ; VERA.layer0.config = (4 + 2) ; enable bitmap mode and color depth = 4bpp on layer 0
+        lda #(4+2)
+        sta VERA_L0_CONFIG
+    .endif
+
     ; Setup FROM and TO VRAM addresses
-    lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
-    sta VERA_ADDR_ZP_TO
-    lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
-    sta VERA_ADDR_ZP_TO+1
-;    lda #<(TILEDATA_VRAM_ADDRESS)
-;    sta VERA_ADDR_ZP_FROM
-;    lda #>(TILEDATA_VRAM_ADDRESS)
-;    sta VERA_ADDR_ZP_FROM+1
+    .if(DO_4BIT)
+        lda #<(DESTINATION_PICTURE_POS_X/2+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
+        sta VERA_ADDR_ZP_TO
+        lda #>(DESTINATION_PICTURE_POS_X/2+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
+        sta VERA_ADDR_ZP_TO+1
+    .else
+        lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
+        sta VERA_ADDR_ZP_TO
+        lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
+        sta VERA_ADDR_ZP_TO+1
+    .endif
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
@@ -431,7 +454,11 @@ tiled_perspective_fast:
 NON TILE LOOK MODE DOESNT EXIST ANYMORE
         ora #%00000001  ; Map size = 01 (8x8 map)
     .else
-        ora #%00000010  ; Map size = 10 (32x32 map)
+        .if(DO_4BIT)
+            ora #%00000000  ; Map size = 00 (2x2 map)
+        .else
+            ora #%00000010  ; Map size = 10 (32x32 map)
+        .endif
     .endif
     sta $9F2B
     
@@ -439,7 +466,11 @@ NON TILE LOOK MODE DOESNT EXIST ANYMORE
 ; FIXME: there is no more mode without tile lookup!
 NON TILE LOOK MODE DOESNT EXIST ANYMORE
     .else
-        lda #%00100011  ; cache fill enabled = 1, affine helper mode (with tile lookup)
+        if(DO_4BIT)
+            lda #%00100111  ; cache fill enabled = 1, 4-bit mode, affine helper mode (with tile lookup)
+        .else
+            lda #%00100011  ; cache fill enabled = 1, affine helper mode (with tile lookup)
+        .endif
     .endif
     .if(USE_CACHE_FOR_WRITING)
         ora #%01000000  ; blit write = 1
@@ -471,8 +502,13 @@ tiled_perspective_copy_next_row_1:
         lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011)
         sta VERA_ADDR_BANK
     .else
-        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
-        sta VERA_ADDR_BANK
+        .if(DO_4BIT)
+            lda #%00000100           ; Setting auto-increment value to 0.5 byte (1 nibble) increment (=%0000 + 1)
+            sta VERA_ADDR_BANK
+        .else
+            lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+            sta VERA_ADDR_BANK
+        .endif
     .endif
     lda VERA_ADDR_ZP_TO+1
     sta VERA_ADDR_HIGH
@@ -618,8 +654,8 @@ done_tiled_perspective_copy:
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00000000  ; blit write enabled = 0
-    sta $9F2B
+    lda #%00000000  ; cache fill enabled = 0, blit write = 0, 8-bit mode, normal addr1-mode
+    sta $9F29
     
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
@@ -736,10 +772,6 @@ flat_tiles_fast:
         lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
         sta VERA_ADDR_ZP_TO+1
     .endif
-;    lda #<(TILEDATA_VRAM_ADDRESS)
-;    sta VERA_ADDR_ZP_FROM
-;    lda #>(TILEDATA_VRAM_ADDRESS)
-;    sta VERA_ADDR_ZP_FROM+1
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
@@ -840,43 +872,6 @@ repetitive_copy_next_row_1:
     lda #%01000000           ; Y subpixel position[0] = 0, Reset cache byte index = 1, Y pixel position high [10:8] = 0
     sta $9F2C
     
-    .if(0)
-        .if(USE_CACHE_FOR_WRITING)
-            lda VERA_DATA1
-            lda VERA_DATA1
-            lda VERA_DATA1
-            lda VERA_DATA1
-            lda VERA_DATA1
-            lda VERA_DATA1
-            lda VERA_DATA1
-            lda VERA_DATA1
-            stz VERA_DATA0
-        .else
-            lda VERA_DATA1
-            sta VERA_DATA0
-            
-            lda VERA_DATA1
-            sta VERA_DATA0
-            
-            lda VERA_DATA1
-            sta VERA_DATA0
-            
-            lda VERA_DATA1
-            sta VERA_DATA0
-            
-            lda VERA_DATA1
-            sta VERA_DATA0
-            
-            lda VERA_DATA1
-            sta VERA_DATA0
-            
-            lda VERA_DATA1
-            sta VERA_DATA0
-            
-            lda VERA_DATA1
-            sta VERA_DATA0
-        .endif
-    .endif
     
     ; Copy one row of 192 pixels
     jsr COPY_ROW_CODE
@@ -1445,7 +1440,7 @@ irq:
     
     
     
-  .org $CE00
+  .org $D000
   
   .if(DO_NO_TILE_LOOKUP)
   
@@ -1967,7 +1962,7 @@ irq:
 
   .endif
 
-  .org $D000
+  .org $D200
 
   .if(DO_NO_TILE_LOOKUP)
   
@@ -2040,6 +2035,26 @@ irq:
   
   
     .if(DO_4BIT)
+        .if(DRAW_TILED_PERSPECTIVE)
+  .byte $11, $11, $11, $11
+  .byte $11, $11, $11, $11
+  .byte $11, $11, $11, $11
+  .byte $11, $11, $11, $11
+  .byte $11, $11, $11, $11
+  .byte $11, $11, $11, $11
+  .byte $11, $11, $11, $11
+  .byte $11, $11, $11, $11
+  
+  .byte $22, $22, $22, $22
+  .byte $22, $22, $22, $22
+  .byte $22, $22, $22, $22
+  .byte $22, $22, $22, $22
+  .byte $22, $22, $22, $22
+  .byte $22, $22, $22, $22
+  .byte $22, $22, $22, $22
+  .byte $22, $22, $22, $22
+  
+        .else
   .byte $11, $11, $11, $11
   .byte $22, $22, $22, $22
   .byte $33, $33, $33, $33
@@ -2057,6 +2072,7 @@ irq:
   .byte $12, $34, $56, $78
   .byte $12, $34, $56, $78
   .byte $12, $34, $56, $78
+        .endif
       
     .else
   
@@ -2194,7 +2210,7 @@ irq:
   .endif
 
   ; manual TILEMAP
-  .org $E000
+  .org $E200
 ;  .byte 9, 1, 2, 3
 ;  .byte 3, 2, 1, 0
 ;  .byte 5, 4, 5, 4
