@@ -1,14 +1,14 @@
 
 USE_CACHE_FOR_WRITING = 1
-DO_4BIT = 0
+DO_4BIT = 1
 USE_TABLE_FILES = 1
 ; FIXME: there is no more non-tile-lookup mode!
 ; FIXME: there is no more non-tile-lookup mode!
 ; FIXME: there is no more non-tile-lookup mode!
 DO_NO_TILE_LOOKUP = 0
 DO_CLIP = 0
-DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
-MOVE_XY_POSITION = 1
+DRAW_TILED_PERSPECTIVE = 0  ; Otherwise FLAT tiles
+MOVE_XY_POSITION = 0
 TURN_AROUND = 0
 MOVE_SLOWLY = 0
 DEBUG_LEDS = 1
