@@ -1,17 +1,17 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 1
-DO_4BIT = 0
-DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
+DO_SPEED_TEST = 0
+DO_4BIT = 1
+DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
 
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 1
-USE_JUMP_TABLE = 1
+USE_SLOPE_TABLES = 0
+USE_UNROLLED_LOOP = 0
+USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
-USE_180_DEGREES_SLOPE_TABLE = 1  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
+USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 
 USE_Y_TO_ADDRESS_TABLE = 1
 
@@ -1240,12 +1240,12 @@ test_skip_reading_fill_len_high:
 
 ; FIXME: this is a really UGLY hack to realize pseudo 2bit POKING at the START! But for now, it proves that the fill_len info from the HW works!
     .if(DO_2BIT)
-        lda TMP1     ; contains 1 if starting pixels should start at half a nibble
-        beq test_starting_color_test_correctly
-        lda #TEST_FILL_COLOR
-        and #%00110011       ; removing the starting pixel from both nibble -> UGLY! (this is NOT accounting for the pixels already drawn, but its background now)
-        tay
-test_starting_color_test_correctly:
+;        lda TMP1     ; contains 1 if starting pixels should start at half a nibble
+;        beq test_starting_color_test_correctly
+;        lda #TEST_FILL_COLOR
+;        and #%00110011       ; removing the starting pixel from both nibble -> UGLY! (this is NOT accounting for the pixels already drawn, but its background now)
+;        tay
+;test_starting_color_test_correctly:
     .endif
 test_polygon_fill_triangle_pixel_next:
     sty VERA_DATA1
@@ -1275,14 +1275,14 @@ test_polygon_fill_triangle_row_done:
 ; FIXME: this is a really UGLY hack to realize pseudo 2bit POKING at the ENDING! But for now, it proves that the fill_len info from the HW works!
 ; FIXME: this DOESNT work for fill len > 256!!
     .if(DO_2BIT)
-        lda DEBUG_VALUE
-        beq test_ending_pixel_is_correct
-        lda #TEST_FILL_COLOR
-        and #%11001100       ; removing the ending pixel from both nibbles -> UGLY! (this is NOT accounting for the pixels already drawn, but its background now)
-        tay
-        sty VERA_DATA1 
-        ldy #TEST_FILL_COLOR ; restoring y
-test_ending_pixel_is_correct:
+;        lda DEBUG_VALUE
+;        beq test_ending_pixel_is_correct
+;        lda #TEST_FILL_COLOR
+;        and #%11001100       ; removing the ending pixel from both nibbles -> UGLY! (this is NOT accounting for the pixels already drawn, but its background now)
+;        tay
+;        sty VERA_DATA1 
+;        ldy #TEST_FILL_COLOR ; restoring y
+;test_ending_pixel_is_correct:
     .endif
 
     ; We always increment ADDR0
