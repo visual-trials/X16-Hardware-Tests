@@ -1,14 +1,14 @@
 
 USE_CACHE_FOR_WRITING = 1
-DO_4BIT = 0
-USE_TABLE_FILES = 1
+DO_4BIT = 1
+USE_TABLE_FILES = 0
 ; FIXME: there is no more non-tile-lookup mode!
 ; FIXME: there is no more non-tile-lookup mode!
 ; FIXME: there is no more non-tile-lookup mode!
 DO_NO_TILE_LOOKUP = 0
 DO_CLIP = 0
-DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
-MOVE_XY_POSITION = 1
+DRAW_TILED_PERSPECTIVE = 0  ; Otherwise FLAT tiles
+MOVE_XY_POSITION = 0
 TURN_AROUND = 0
 MOVE_SLOWLY = 0
 DEBUG_LEDS = 1
@@ -19,10 +19,17 @@ COLOR_TEXT  = $03       ; Background color = 0 (transparent), foreground color 3
 MAP_WIDTH = 8    ; 8 * 8 = 64 pixels
 MAP_HEIGHT = 8   ; 8 * 8 = 64 pixels
     .else
+        .if(DO_4BIT)
+BACKGROUND_COLOR = $00  ; Purple (black is changed to purple)
+COLOR_TEXT  = $01       ; Background color = 0 (transparent), foreground color 1 (white)
+MAP_WIDTH = 2
+MAP_HEIGHT = 2
+        .else
 BACKGROUND_COLOR = 255  ; 255 = Purple in this palette
 COLOR_TEXT  = $06       ; Background color = 0 (transparent), foreground color 6 (grey in this palette)
 MAP_WIDTH = 32
 MAP_HEIGHT = 32
+        .endif
     .endif
 
     .if(DO_4BIT)
@@ -53,6 +60,8 @@ TILEDATA_VRAM_ADDRESS = $18000  ; should be aligned to 1kB
 DESTINATION_PICTURE_POS_X = 64
 DESTINATION_PICTURE_POS_Y = 65
 
+DESTINATION_PICTURE_WIDTH = 192
+DESTINATION_PICTURE_HEIGHT = 64
 
 ; Mode7 projection: 
 ;    https://www.coranac.com/tonc/text/mode7.htm
@@ -586,9 +595,7 @@ tiled_perspective_copy_next_row_1:
     sta $9F2A                ; Y subpixel increment [8:1]
     
 
-    ; Copy three rows of 64 pixels (= 192 pixels)
-    jsr COPY_ROW_CODE
-    jsr COPY_ROW_CODE
+    ; Copy one row of 192 pixels
     jsr COPY_ROW_CODE
     
     ; We increment our VERA_ADDR_TO with NR_OF_BYTES_PER_LINE
@@ -602,7 +609,7 @@ tiled_perspective_copy_next_row_1:
 
     inx
 ; FIXME: this is a bad name! We are not doing textures anymore!
-    cpx #TEXTURE_HEIGHT          ; we do 64 rows
+    cpx #DESTINATION_PICTURE_HEIGHT     ; we do 64 rows
     beq done_tiled_perspective_copy
 
     jmp tiled_perspective_copy_next_row_1
@@ -698,6 +705,20 @@ flat_tiles_24x8_4bpp_message:
 flat_tiles_fast:
 
     .if(DO_4BIT)
+        lda #%00010001           ; Setting bit 16 of vram address to the highest bit in the tilebase (=1), setting auto-increment value to 1
+        sta VERA_ADDR_BANK
+        
+        lda #$FA
+        sta VERA_ADDR_HIGH
+        lda #$00                 ; We overwrite color 0 here
+        sta VERA_ADDR_LOW
+
+        ; Nice purple
+        lda #$05                 ; gb
+        sta VERA_DATA0
+        lda #$05                 ; -r
+        sta VERA_DATA0
+            
         ; VERA.layer0.config = (4 + 2) ; enable bitmap mode and color depth = 4bpp on layer 0
         lda #(4+2)
         sta VERA_L0_CONFIG
@@ -819,48 +840,46 @@ repetitive_copy_next_row_1:
     lda #%01000000           ; Y subpixel position[0] = 0, Reset cache byte index = 1, Y pixel position high [10:8] = 0
     sta $9F2C
     
-    ; Copy three rows of 64 pixels
-    
-    .if(USE_CACHE_FOR_WRITING)
-        lda VERA_DATA1
-        lda VERA_DATA1
-        lda VERA_DATA1
-        lda VERA_DATA1
-        lda VERA_DATA1
-        lda VERA_DATA1
-        lda VERA_DATA1
-        lda VERA_DATA1
-        sta VERA_DATA0
-    .else
-        lda VERA_DATA1
-        sta VERA_DATA0
-        
-        lda VERA_DATA1
-        sta VERA_DATA0
-        
-        lda VERA_DATA1
-        sta VERA_DATA0
-        
-        lda VERA_DATA1
-        sta VERA_DATA0
-        
-        lda VERA_DATA1
-        sta VERA_DATA0
-        
-        lda VERA_DATA1
-        sta VERA_DATA0
-        
-        lda VERA_DATA1
-        sta VERA_DATA0
-        
-        lda VERA_DATA1
-        sta VERA_DATA0
+    .if(0)
+        .if(USE_CACHE_FOR_WRITING)
+            lda VERA_DATA1
+            lda VERA_DATA1
+            lda VERA_DATA1
+            lda VERA_DATA1
+            lda VERA_DATA1
+            lda VERA_DATA1
+            lda VERA_DATA1
+            lda VERA_DATA1
+            stz VERA_DATA0
+        .else
+            lda VERA_DATA1
+            sta VERA_DATA0
+            
+            lda VERA_DATA1
+            sta VERA_DATA0
+            
+            lda VERA_DATA1
+            sta VERA_DATA0
+            
+            lda VERA_DATA1
+            sta VERA_DATA0
+            
+            lda VERA_DATA1
+            sta VERA_DATA0
+            
+            lda VERA_DATA1
+            sta VERA_DATA0
+            
+            lda VERA_DATA1
+            sta VERA_DATA0
+            
+            lda VERA_DATA1
+            sta VERA_DATA0
+        .endif
     .endif
     
-; FIXME!    
-;    jsr COPY_ROW_CODE
-;    jsr COPY_ROW_CODE
-;    jsr COPY_ROW_CODE
+    ; Copy one row of 192 pixels
+    jsr COPY_ROW_CODE
     
     ; We increment our VERA_ADDR_TO with NR_OF_BYTES_PER_LINE
     clc
@@ -872,7 +891,7 @@ repetitive_copy_next_row_1:
     sta VERA_ADDR_ZP_TO+1
 
     inx
-    cpx #TEXTURE_HEIGHT          ; we do 64 rows
+    cpx #DESTINATION_PICTURE_HEIGHT     ; we do 64 rows
     bne repetitive_copy_next_row_1
     
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
@@ -944,6 +963,51 @@ next_copy_instruction:
         
         lda #$9F         
         jsr add_code_byte
+        
+        .if(DO_4BIT)
+            ; When using the cache for writing we only write 1/8th of the time, so we read 4 extra bytes here (they go into the cache)
+        
+            ; -- lda VERA_DATA1 ($9F24)
+            lda #$AD               ; lda ....
+            jsr add_code_byte
+            
+            lda #$24               ; VERA_DATA1
+            jsr add_code_byte
+            
+            lda #$9F         
+            jsr add_code_byte
+
+            ; -- lda VERA_DATA1 ($9F24)
+            lda #$AD               ; lda ....
+            jsr add_code_byte
+            
+            lda #$24               ; VERA_DATA1
+            jsr add_code_byte
+            
+            lda #$9F         
+            jsr add_code_byte
+
+            ; -- lda VERA_DATA1 ($9F24)
+            lda #$AD               ; lda ....
+            jsr add_code_byte
+            
+            lda #$24               ; VERA_DATA1
+            jsr add_code_byte
+            
+            lda #$9F         
+            jsr add_code_byte
+
+            ; -- lda VERA_DATA1 ($9F24)
+            lda #$AD               ; lda ....
+            jsr add_code_byte
+            
+            lda #$24               ; VERA_DATA1
+            jsr add_code_byte
+            
+            lda #$9F         
+            jsr add_code_byte
+
+        .endif
 
     .endif
 
@@ -975,11 +1039,18 @@ next_copy_instruction:
     
     inx
     .if (USE_CACHE_FOR_WRITING)
-        cpx #TEXTURE_WIDTH/4             ; 16*4 copy pixels written to VERA (due to diagonal)
+        .if(DO_4BIT)
+            cpx #DESTINATION_PICTURE_WIDTH/8   ; 24*8=192 copy pixels written to VERA (due to diagonal)
+        .else
+            cpx #DESTINATION_PICTURE_WIDTH/4   ; 48*4=192 copy pixels written to VERA (due to diagonal)
+        .endif
     .else
-        cpx #TEXTURE_WIDTH               ; 64 copy pixels written to VERA (due to diagonal)
+        cpx #DESTINATION_PICTURE_WIDTH     ; 192 copy pixels written to VERA (due to diagonal)
     .endif
-    bne next_copy_instruction
+    beq copy_instruction_end
+    jmp next_copy_instruction
+    
+copy_instruction_end:
 
     ; -- rts --
     lda #$60
