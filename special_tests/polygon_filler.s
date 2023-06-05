@@ -4,6 +4,7 @@
 DO_SPEED_TEST = 0
 DO_4BIT = 1
 DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
+USE_DITHERING = 1
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 0
@@ -33,7 +34,10 @@ BY = BASE_Y
 
     .if(DO_4BIT)
         .if(DO_2BIT)
-TEST_FILL_COLOR = %01010101
+TEST_FILL_COLOR_0 = %01010101
+TEST_FILL_COLOR_1 = %01000100
+TEST_FILL_COLOR_2 = %01010101
+TEST_FILL_COLOR_3 = %00010001
 NR_OF_BYTES_PER_LINE = 80
             .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
 BACKGROUND_COLOR = %00000000  ; Purple (originally Black, but pallete is changed)
@@ -194,6 +198,7 @@ GEN_FILL_LENGTH_IS_16_OR_MORE = $9E
 GEN_LOANED_16_PIXELS     = $9F
 GEN_FILL_LINE_CODE_INDEX = $A0
 
+TEST_POKE_BYTE           = $A1
 
 DEBUG_VALUE              = $C7
 
@@ -810,11 +815,23 @@ set_cache32_with_color_slow:
     sta VERA_CTRL
 
     ; TODO: we *could* use 'one byte cache cycling' so we have to set only *one* byte of the cache here
-    lda #TEST_FILL_COLOR
-    sta $9F29                ; cache32[7:0]
-    sta $9F2A                ; cache32[15:8]
-    sta $9F2B                ; cache32[23:16]
-    sta $9F2C                ; cache32[31:24]
+    .if(USE_DITHERING)
+        ; TODO: right now we assume that dithering is only used for 2bit mode, but we might use it for 4bit mode as well
+        lda #TEST_FILL_COLOR_0
+        sta $9F29                ; cache32[7:0]
+        lda #TEST_FILL_COLOR_1
+        sta $9F2A                ; cache32[15:8]
+        lda #TEST_FILL_COLOR_2
+        sta $9F2B                ; cache32[23:16]
+        lda #TEST_FILL_COLOR_3
+        sta $9F2C                ; cache32[31:24]
+    .else
+        lda #TEST_FILL_COLOR
+        sta $9F29                ; cache32[7:0]
+        sta $9F2A                ; cache32[15:8]
+        sta $9F2B                ; cache32[23:16]
+        sta $9F2C                ; cache32[31:24]
+    .endif
 
     ; We setup blit writes
     
@@ -936,7 +953,12 @@ test_simple_polygon_filler:
         ; NOTE: this will reset/screw up your ADDR1 settings! -> TODO: not anymore?
         jsr set_cache32_with_color_slow
     .else
-        ldy #TEST_FILL_COLOR     ; We use y as color
+        .if(DO_2BIT)
+; FIXME: y is not set in 2bit mode, will this give problems?
+            jsr set_cache32_with_color_slow
+        .else
+            ldy #TEST_FILL_COLOR     ; We use y as color
+        .endif
     .endif
 
     ; -------- Setting up TOP part ----------
@@ -963,7 +985,11 @@ test_simple_polygon_filler:
     
     ; Entering *polygon fill mode* 
     .if(DO_4BIT)
+        .if(DO_2BIT)
+            lda #%00010110           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 1, 16bit hop = 0, 4bit mode = 1, polygon filler mode 
+        .else
             lda #%00000110           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 1, polygon filler mode 
+        .endif
     .else
         lda #%00000010           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, polygon filler mode 
     .endif
@@ -1128,16 +1154,56 @@ test_polygon_fill_triangle_row_next:
         
         .if(DO_2BIT)
             lda TMP2           ; this contains X1[-1] at bit0
-            and #%00000001     ; we keep this bit and shift if 4 times to the right (so its a bit1-position)
+            and #%00000001
             sta TMP1           ; this contains 0 or 1: whether the starting pixel is needed in 2bit mode
-            
 
             lda TMP2           ; this contains X2[-1] at bit7
-            and #%10000000     ; we keep this bit and shift if 4 times to the right (so its a bit1-position)
+            and #%10000000
 ; FIXME: using DEBUG_VALUE variable as a TMP variable!
             sta DEBUG_VALUE
             
-; FIXME: determine at which *position* we have to POKE! (at the beginning and at the end!)
+            ; Creating the *first* POKE byte (to be written to _LOW and to DATA1)
+            
+            lda TMP2           ; this contains X1[-1] at bit0
+            and #%00000001
+            asl
+            asl
+            asl
+            asl
+            asl
+            asl
+            sta TEST_POKE_BYTE  ; 0, X1[-1], 000000
+            
+            lda TMP2            ; this contains X1[0] at bit5
+            and #%00100000
+            asl
+            asl
+            ora TEST_POKE_BYTE
+            sta TEST_POKE_BYTE  ; X[0], X1[-1], 000000
+            
+            lda TMP2            ; this contains X1[1] at bit6
+            and #%01000000
+            lsr
+            lsr
+            lsr
+            lsr
+            lsr
+            lsr
+            ora TEST_POKE_BYTE
+            sta TEST_POKE_BYTE   ; X1[0], X1[-1], 00000, X1[1]
+            
+            lda TMP2             ; this contains X1[2] at bit4
+            and #%00010000
+            lsr
+            lsr
+            lsr
+            ora TEST_POKE_BYTE
+            
+; FIXME: forcing cache byte index to be incremented!
+            ora #%00000100
+
+            sta TEST_POKE_BYTE   ; X1[0], X1[-1], 0000, X1[2], X1[1]
+            
         .endif
         
         lda TMP2           ; this contains X1[0] at bit5
@@ -1170,6 +1236,7 @@ test_polygon_fill_triangle_row_next:
         lsr
         ora TMP4           ; we mix this with the X1[1] bit
         ora TMP3           ; We are mixing it with the VERA_ADDR_LOW regsiter that does NOT have bits 0 and 1
+        
         
 ; FIXME: VERY UGLY workaround, to prevent POKE mode from being triggered here: we switch off 2bit-polygons for a short moment        
         .if(DO_2BIT)
@@ -1240,20 +1307,53 @@ test_skip_reading_fill_len_high:
 
 ; FIXME: this is a really UGLY hack to realize pseudo 2bit POKING at the START! But for now, it proves that the fill_len info from the HW works!
     .if(DO_2BIT)
-;        lda TMP1     ; contains 1 if starting pixels should start at half a nibble
-;        beq test_starting_color_test_correctly
+    
+        lda TMP1     ; contains 1 if starting pixels should start at half a nibble
+        beq test_starting_color_test_correctly
+        
+        ; -- We are POKING 2bits here --
+        lda TEST_POKE_BYTE
+        sta VERA_ADDR_LOW
+        sta VERA_DATA1
+    
+        ; FIXME: VERY UGLY WORKAROUND!! We want to increment ADDR1 by 1. We can do that by reading from DATA1, but NOT in polygon mode! So we switch to normal mode (and back)
+        .if(DO_2BIT)
+            lda #%00000101           ; DCSEL=2, ADDRSEL=1
+            sta VERA_CTRL
+        
+            lda $9F29
+            eor #%00000010           ; turn off polygon mode
+            sta $9F29
+            
+            lda VERA_DATA1
+            dex                      ; one less nibble length to draw (so 2 pixels less)
+            
+            lda $9F29
+            eor #%00000010           ; turn on polygon mode
+            sta $9F29
+
+            lda #%00001011           ; DCSEL=5, ADDRSEL=1
+            sta VERA_CTRL
+        .endif
+        
+; FIXME: this is the OLD/MANUAL way of drawing 2bit pixels
 ;        lda #TEST_FILL_COLOR
 ;        and #%00110011       ; removing the starting pixel from both nibble -> UGLY! (this is NOT accounting for the pixels already drawn, but its background now)
 ;        tay
-;test_starting_color_test_correctly:
+
+test_starting_color_test_correctly:
     .endif
+; FIXME!
+    .if(1)
 test_polygon_fill_triangle_pixel_next:
     sty VERA_DATA1
     .if(DO_2BIT)
-        ldy #TEST_FILL_COLOR
+; FIXME: for 2bit mode we dont need y to be set at all, right?
+;        ldy #TEST_FILL_COLOR
     .endif
     dex
     bne test_polygon_fill_triangle_pixel_next
+    .endif
     
 test_done_fill_triangle_pixel:
 
@@ -1275,14 +1375,21 @@ test_polygon_fill_triangle_row_done:
 ; FIXME: this is a really UGLY hack to realize pseudo 2bit POKING at the ENDING! But for now, it proves that the fill_len info from the HW works!
 ; FIXME: this DOESNT work for fill len > 256!!
     .if(DO_2BIT)
-;        lda DEBUG_VALUE
-;        beq test_ending_pixel_is_correct
+        lda DEBUG_VALUE
+        beq test_ending_pixel_is_correct
+        
+; FIXME: implement POKING here!
+; FIXME: implement POKING here!
+; FIXME: implement POKING here!
+        
+; FIXME: this is the OLD/MANUAL way of drawing 2bit pixels
 ;        lda #TEST_FILL_COLOR
 ;        and #%11001100       ; removing the ending pixel from both nibbles -> UGLY! (this is NOT accounting for the pixels already drawn, but its background now)
 ;        tay
 ;        sty VERA_DATA1 
 ;        ldy #TEST_FILL_COLOR ; restoring y
-;test_ending_pixel_is_correct:
+
+test_ending_pixel_is_correct:
     .endif
 
     ; We always increment ADDR0
