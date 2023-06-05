@@ -4,7 +4,13 @@ DO_ROTATE = 0  ; otherwise SHEAR
 USE_CACHE_FOR_WRITING = 1
 USE_TRANSPARENT_WRITING = 1
 
+USE_EXAMPLE_CODE = 1
+
+    .if (1)
+BACKGROUND_COLOR = 4 ; nice purple (for example code)
+    .else
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
+    .endif
 FOREGROUND_COLOR = 1
 CLEAR_COLOR = 0
 
@@ -82,9 +88,17 @@ Y_SUB_PIXEL               = $42 ; 43
 TILE_X                    = $46
 TILE_Y                    = $47
 
+LOAD_ADDRESS              = $48 ; 49
+
+VRAM_ADDR_DESTINATION     = $4A ; 4B ; 4C
+
 ; RAM addresses
 COPY_ROW_CODE               = $7800
 
+
+; VRAM addresses
+VRAM_ADDR_TILE_DATA       = $13000
+VRAM_ADDR_MAP_DATA        = $13800
 
 ; ROM addresses
 PALLETE           = $CC00
@@ -108,12 +122,33 @@ reset:
     jsr init_cursor
     jsr init_timer
 
+    .if(USE_EXAMPLE_CODE)
+        lda #%00010001           ; Setting bit 16 of vram address to the highest bit in the tilebase (=1), setting auto-increment value to 1
+        sta VERA_ADDR_BANK
+        
+        lda #$FA
+        sta VERA_ADDR_HIGH
+        lda #$08                 ; We use color 4 in the pallete (each color takes 2 bytes)
+        sta VERA_ADDR_LOW
+
+        ; Nice purple
+        lda #$05                 ; gb
+        sta VERA_DATA0
+        lda #$05                 ; -r
+        sta VERA_DATA0
+        
+        jsr clear_screen_slow
+        jsr example_affine_helper
+        
+        jmp loop
+    .endif
+    
 ;    jsr clear_screen_slow
 ;    lda #$10                 ; 8:1 scale, so we can clearly see the pixels
 ;    sta VERA_DC_HSCALE
 ;    sta VERA_DC_VSCALE
 ;    jsr affine_transform_some_bytes
-    
+
     ; Put orginal picture on screen (slow)
     jsr clear_screen_slow
     jsr copy_palette
@@ -137,6 +172,190 @@ reset:
 loop:
   jmp loop
 
+  
+  
+example_affine_helper:
+
+
+    ; -- Setting up the VRAM address for the tile data --
+    lda #%00010000         ; increment 1 byte
+    ora #(VRAM_ADDR_TILE_DATA >> 16)
+    sta VERA_ADDR_BANK
+    lda #>VRAM_ADDR_TILE_DATA
+    sta VERA_ADDR_HIGH
+    lda #<VRAM_ADDR_TILE_DATA
+    sta VERA_ADDR_LOW
+    
+    ; -- Tile 0 data --
+    lda #0         ; black
+    ldx #64
+next_black_pixel:
+    sta VERA_DATA0
+    dex
+    bne next_black_pixel
+    
+    ; -- Tile 1 data --
+    lda #2         ; red
+    ldx #64
+next_red_pixel:
+    sta VERA_DATA0
+    dex
+    bne next_red_pixel
+    
+    ; -- Tile 2 data --
+    lda #1         ; white
+    ldx #64
+next_white_pixel:
+    sta VERA_DATA0
+    dex
+    bne next_white_pixel
+    
+    ; -- Tile 2 data --
+    lda #6         ; blue
+    ldx #64
+next_blue_pixel:
+    sta VERA_DATA0
+    dex
+    bne next_blue_pixel
+
+
+    ; -- Setting up the VRAM address for the map data --
+    lda #%00010000         ; increment 1 byte
+    ora #(VRAM_ADDR_MAP_DATA >> 16)
+    sta VERA_ADDR_BANK
+    lda #>VRAM_ADDR_MAP_DATA
+    sta VERA_ADDR_HIGH
+    lda #<VRAM_ADDR_MAP_DATA
+    sta VERA_ADDR_LOW
+    
+    ; -- Load tile indexes into VRAM (32x32 map) --
+    
+    lda #<tile_map_data
+    sta LOAD_ADDRESS
+    lda #>tile_map_data
+    sta LOAD_ADDRESS+1
+    
+    ldx #4
+next_eight_rows:
+    ldy #0
+next_tile_index:
+    lda (LOAD_ADDRESS), y
+    sta VERA_DATA0
+    iny
+    bne next_tile_index
+    inc LOAD_ADDRESS+1     ; we increment the address by 256 
+    dex
+    bne next_eight_rows
+    
+    ; -- Set up tile data and map data addresses, map size and clipping --
+    
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #(VRAM_ADDR_TILE_DATA >> 9)
+    and #%11111100   ; only the 6 highest bits of the address can be set
+    ora #%00000010   ; clip = 1
+    sta $9F2A
+    
+    lda #(VRAM_ADDR_MAP_DATA >> 9)
+    and #%11111100   ; only the 6 highest bits of the address can be set
+    ora #%00000010   ; Map size = 32x32 tiles
+    sta $9F2B
+
+    ; -- turn on affine helper mode and transparent writes
+    lda #%10000011  ; transparent writes = 1, affine helper mode
+    sta $9F29
+    
+    ; -- Set up x and y increments --
+
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #0        
+    sta $9F29
+    lda #%00000010           ; X increment high = 1.0 pixel to the right each step
+    sta $9F2A
+    lda #<(-40<<1)
+    sta $9F2B
+    lda #>(-40<<1)           ; Y increment low = 40/256th of a pixel each step
+    and #%01111111           ; increment is only 15 bits long
+    sta $9F2C
+    
+    ; We start to draw at the top-left position on screen
+    stz VRAM_ADDR_DESTINATION
+    stz VRAM_ADDR_DESTINATION+1
+    stz VRAM_ADDR_DESTINATION+2
+    
+    ldx #0
+    
+draw_next_row:
+
+
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
+    sta VERA_CTRL
+
+    lda #%00010000           ; ADDR0 increment is +1 byte
+    ora VRAM_ADDR_DESTINATION+2
+    sta VERA_ADDR_BANK
+    lda VRAM_ADDR_DESTINATION+1
+    sta VERA_ADDR_HIGH
+    lda VRAM_ADDR_DESTINATION
+    sta VERA_ADDR_LOW
+    
+    
+    ; Setting the source x/y position
+    
+    lda #%00001001           ; DCSEL=4, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #0                   ; X pixel position low [7:0]
+    sta $9F29
+    lda #0                   ; X subpixel position[0] = 0, X pixel position high [10:8]
+    sta $9F2A
+    
+    txa                      ; we use register x (= destination y) as our y-position in the source
+    sta $9F2B
+    lda #%00000000           ; Y subpixel position[0] = 0, Y pixel position high [10:8] = 0
+    sta $9F2C
+    
+    ldy #0
+draw_next_pixel:
+    lda VERA_DATA1
+    sta VERA_DATA0
+    
+    iny
+    bne draw_next_pixel
+    
+    
+    ; We increment our destination address with +320
+    clc
+    lda VRAM_ADDR_DESTINATION
+    adc #<320
+    sta VRAM_ADDR_DESTINATION
+    lda VRAM_ADDR_DESTINATION+1
+    adc #>320
+    sta VRAM_ADDR_DESTINATION+1
+    lda VRAM_ADDR_DESTINATION+2
+    adc #0
+    sta VRAM_ADDR_DESTINATION+2
+
+    inx
+    cpx #180                 ; we do 180 rows
+    bne draw_next_row
+    
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000000          ; normal addr1-mode
+    sta $9F29
+    
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+
+    rts
+  
+  
 affine_transform_some_bytes:
 
 ; FIXME: this hasnt been implemented yet!
@@ -1315,6 +1534,52 @@ irq:
   .byte  $12, $fa, $f9, $0d, $0d, $0d, $f9, $17, $17, $fa, $0d, $12, $15, $f9, $10, $f9, $12, $12, $16, $15, $15, $19, $20, $fb, $fa, $fc, $1e, $1d, $18, $1d, $18, $fd, $5a, $17, $15, $17, $17, $16, $53, $16, $16, $15, $11, $16, $10, $15, $11, $10, $10, $13, $11, $11, $10, $13, $0f, $11, $13, $11, $0f, $0d, $0f, $11, $11, $10, $0f, $0f, $10, $0f, $09, $0b, $0f, $10, $11, $0f, $0f, $0f, $10, $0f, $10, $10, $14, $14, $11, $13, $16, $53, $14, $14, $16, $53, $53, $18, $20, $14, $14, $11, $13, $13, $16, $15
     
     
+    ; This is used for example code
+    .if(USE_EXAMPLE_CODE)
+tile_map_data:
+
+    .byte 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    
+    .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    
+    .byte 3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    
+    .endif
+
     
     ; ======== PETSCII CHARSET =======
 
