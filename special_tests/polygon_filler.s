@@ -990,6 +990,7 @@ test_simple_polygon_filler:
     ; Entering *polygon fill mode* 
     .if(DO_4BIT)
         .if(DO_2BIT)
+; FIXME: shouldnt we only turn on one_byte_cache_cycling when USE_DITHERING is 1?
             lda #%00010110           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 1, 16bit hop = 0, 4bit mode = 1, polygon filler mode 
         .else
             lda #%00000110           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 1, polygon filler mode 
@@ -1163,8 +1164,11 @@ test_polygon_fill_triangle_row_next:
 
             lda TMP2           ; this contains X2[-1] at bit7
             and #%10000000
+            asl
 ; FIXME: using DEBUG_VALUE variable as a TMP variable!
-            sta DEBUG_VALUE
+            stz DEBUG_VALUE
+            rol DEBUG_VALUE    ; 0000000, X2[-1]
+            
             
             ; Creating the *first* POKE byte (to be written to _LOW and to DATA1)
             
@@ -1202,12 +1206,6 @@ test_polygon_fill_triangle_row_next:
             lsr
             lsr
             ora TEST_POKE_BYTE
-            
-; FIXME: forcing cache byte index to be incremented!
-            ora #%00000100
-; FIXME: FORCING bit2 to be 0 here
-;            and #%11111011
-
             sta TEST_POKE_BYTE   ; X1[0], X1[-1], 0000, X1[2], X1[1]
             
         .endif
@@ -1321,7 +1319,7 @@ test_skip_reading_fill_len_high:
         lda TEST_POKE_BYTE
         sta VERA_ADDR_LOW
         sta VERA_DATA1
-    
+        
         ; FIXME: VERY UGLY WORKAROUND!! We want to increment ADDR1 by 1. We can do that by reading from DATA1, but NOT in polygon mode! So we switch to normal mode (and back)
         .if(DO_2BIT)
             lda #%00000101           ; DCSEL=2, ADDRSEL=1
@@ -1352,7 +1350,7 @@ test_starting_color_test_correctly:
 ; FIXME!
     .if(1)
 test_polygon_fill_triangle_pixel_next:
-    sty VERA_DATA1
+    sty VERA_DATA1    ; Note that when using one_byte_cache_cycling (and cache_write = 0) the y is ignored!
     .if(DO_2BIT)
 ; FIXME: for 2bit mode we dont need y to be set at all, right?
 ;        ldy #TEST_FILL_COLOR
@@ -1384,9 +1382,32 @@ test_polygon_fill_triangle_row_done:
         lda DEBUG_VALUE
         beq test_ending_pixel_is_correct
         
-; FIXME: implement POKING here!
-; FIXME: implement POKING here!
-; FIXME: implement POKING here!
+        ; We take the X1[2:0] values
+        stz TMP1
+        lda TEST_POKE_BYTE   ; X1[0], X1[-1], 0000, X1[2], X1[1]
+        and #%10000011       ; X1[0], 00000, X1[2], X1[1]
+        asl                  ; 00000, X1[2], X1[1], 0
+        rol TMP1             ; 0000000, X1[0]
+        ora TMP1             ; 00000, X1[2], X1[1], X1[0]
+        
+        clc
+        adc FILL_LENGTH_LOW
+        sta TMP1             ; FILL_LENGTH_LOW + X1[2:0]
+        and #%00000111        ; 00000, X2[2:0]
+        asl                  ; 0000, X2[2:0], 0
+        ora DEBUG_VALUE      ; 0000, X2[2:-1]
+        stz TMP1
+        lsr                  ; 00000, X2[2:0]
+; FIXME!        ror TMP1             ; X2[-1], 0000000
+        lsr                  ; 000000, X2[2], X2[1]
+        ror TMP1             ; X2[0], X2[-1], 000000
+        ora TMP1             ; X2[0], X2[-1], 0000, X2[2], X2[1]
+        sta TEST_POKE_BYTE
+        
+        ; -- We are POKING 2bits here --
+        lda TEST_POKE_BYTE
+        sta VERA_ADDR_LOW
+        sta VERA_DATA1
         
 ; FIXME: this is the OLD/MANUAL way of drawing 2bit pixels
 ;        lda #TEST_FILL_COLOR
