@@ -1398,7 +1398,8 @@ test_polygon_fill_triangle_row_done:
         ora DEBUG_VALUE      ; 0000, X2[2:-1]
         stz TMP1
         lsr                  ; 00000, X2[2:0]
-; FIXME!        ror TMP1             ; X2[-1], 0000000
+        ; NOTE: we are setting X2[-1] to 0 here! (by ignoring it). We need an *even* number at the end!
+        ; ror TMP1             ; X2[-1], 0000000
         lsr                  ; 000000, X2[2], X2[1]
         ror TMP1             ; X2[0], X2[-1], 000000
         ora TMP1             ; X2[0], X2[-1], 0000, X2[2], X2[1]
