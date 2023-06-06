@@ -4,7 +4,7 @@
 DO_SPEED_TEST = 0
 DO_4BIT = 1
 DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
-USE_DITHERING = 1
+USE_DITHERING = 0
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 0
@@ -34,10 +34,14 @@ BY = BASE_Y
 
     .if(DO_4BIT)
         .if(DO_2BIT)
+            .if(USE_DITHERING)
 TEST_FILL_COLOR_0 = %01010101
-TEST_FILL_COLOR_1 = %01000100
-TEST_FILL_COLOR_2 = %01010101
-TEST_FILL_COLOR_3 = %00010001
+TEST_FILL_COLOR_1 = %11001100
+TEST_FILL_COLOR_2 = %01110111
+TEST_FILL_COLOR_3 = %00110010
+            .else
+TEST_FILL_COLOR = %01010101
+            .endif
 NR_OF_BYTES_PER_LINE = 80
             .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
 BACKGROUND_COLOR = %00000000  ; Purple (originally Black, but pallete is changed)
@@ -1201,6 +1205,8 @@ test_polygon_fill_triangle_row_next:
             
 ; FIXME: forcing cache byte index to be incremented!
             ora #%00000100
+; FIXME: FORCING bit2 to be 0 here
+;            and #%11111011
 
             sta TEST_POKE_BYTE   ; X1[0], X1[-1], 0000, X1[2], X1[1]
             
@@ -1307,7 +1313,7 @@ test_skip_reading_fill_len_high:
 
 ; FIXME: this is a really UGLY hack to realize pseudo 2bit POKING at the START! But for now, it proves that the fill_len info from the HW works!
     .if(DO_2BIT)
-    
+ 
         lda TMP1     ; contains 1 if starting pixels should start at half a nibble
         beq test_starting_color_test_correctly
         
