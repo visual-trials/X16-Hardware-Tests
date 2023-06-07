@@ -1,14 +1,14 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 0
-DO_4BIT = 1
-DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
-USE_DITHERING = 1
+DO_SPEED_TEST = 1
+DO_4BIT = 0
+DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
+USE_DITHERING = 0
 
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 0
-USE_UNROLLED_LOOP = 0
+USE_SLOPE_TABLES = 1
+USE_UNROLLED_LOOP = 1
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
@@ -333,7 +333,8 @@ reset:
     
     jsr copy_palette_from_index_16
 
-    .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+    ; FIXME: this was wrong, correct? .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+    .if (USE_WRITE_CACHE)
 ; FIXME: this should be adapted for 4bit clearing
         jsr generate_clear_column_code
         jsr clear_screen_fast_4_bytes
