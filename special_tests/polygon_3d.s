@@ -9,13 +9,13 @@ SLOW_DOWN = 0
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 1
 USE_UNROLLED_LOOP = 1
-USE_JUMP_TABLE = 1
+USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
 TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
 USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
-USE_180_DEGREES_SLOPE_TABLE = 1  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
+USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 
 USE_Y_TO_ADDRESS_TABLE = 1
 
@@ -314,7 +314,8 @@ reset:
     jsr init_cursor
     jsr init_timer
     
-    .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+    ; FIXME: OLD: .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+    .if (USE_WRITE_CACHE)
         jsr generate_clear_column_code
         jsr clear_screen_fast_4_bytes
     .else
@@ -441,7 +442,8 @@ test_speed_of_simple_3d_polygon_scene:
     
 keep_running:
     
-    .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+    ; FIXME: OLD: .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+    .if (USE_WRITE_CACHE)
         jsr clear_screen_fast_4_bytes
     .else
         jsr clear_screen_slow

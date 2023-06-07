@@ -333,7 +333,7 @@ reset:
     
     jsr copy_palette_from_index_16
 
-    ; FIXME: this was wrong, correct? .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+    ; FIXME: OLD: .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
     .if (USE_WRITE_CACHE)
 ; FIXME: this should be adapted for 4bit clearing
         jsr generate_clear_column_code
