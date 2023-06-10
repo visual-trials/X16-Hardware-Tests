@@ -1,14 +1,14 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 1
-DO_4BIT = 0
+DO_SPEED_TEST = 0
+DO_4BIT = 1
 DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 1
+USE_SLOPE_TABLES = 0
+USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
@@ -1465,21 +1465,17 @@ test_polygon_fill_triangle_done:
 clear_screen_slow:
   
 vera_wr_start:
-    .if(DO_4BIT)
-        .if(DO_2BIT)
-            ldx #80     ; We only do 80*4 2-bit columns
-        .else
-            ldx #160     ; We only do 160*2 4-bit columns
-        .endif
-    .else
-        ldx #0     ; We first do 256 8-bit columns, later we do the extra 64 columns
-    .endif
+    ldx #0
 vera_wr_fill_bitmap_once:
 
     .if(DO_4BIT)
-        lda #%11010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 160px (=14=%1101)
+        .if(DO_2BIT)
+            lda #%11000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 80 bytes (=12=%1100)
+        .else
+            lda #%11010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 160 bytes (=13=%1101)
+        .endif
     .else
-        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320px (=14=%1110)
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
     .endif
     sta VERA_ADDR_BANK
     lda #$00
@@ -1496,7 +1492,16 @@ vera_wr_fill_bitmap_col_once:
     sta VERA_DATA0           ; store pixel
     dey
     bne vera_wr_fill_bitmap_col_once
-    dex
+    inx
+    .if(DO_4BIT)
+        .if(DO_2BIT)
+            cpx #80     ; We only do 80*4 2-bit columns
+        .else
+            cpx #160     ; We only do 160*2 4-bit columns
+        .endif
+    .else
+        cpx #0     ; We first do 256 8-bit columns, later we do the extra 64 columns
+    .endif
     bne vera_wr_fill_bitmap_once
 
     .if(DO_4BIT)
