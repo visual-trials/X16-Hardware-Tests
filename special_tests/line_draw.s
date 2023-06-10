@@ -1,12 +1,16 @@
 
-DO_SPEED_TEST = 1
+DO_SPEED_TEST = 0
 USE_LINE_DRAW_HELPER = 1
-DO_4BIT = 0
+DO_4BIT = 1
 
 CLEAR_SCREEN_FAST = 0
 
     .if (USE_LINE_DRAW_HELPER)
+        .if(DO_4BIT)
+BACKGROUND_COLOR = $00  ; FIXME: nicer color!
+        .else
 BACKGROUND_COLOR = 251  ; Nice purple
+        .endif
     .else
 BACKGROUND_COLOR = 06  ; Blue 
     .endif
@@ -105,9 +109,9 @@ reset:
       jsr test_speed_of_drawing_lines
     .else
     
-      lda #$10                 ; 8:1 scale (320 x 240 pixels on screen)
-      sta VERA_DC_HSCALE
-      sta VERA_DC_VSCALE
+      ;lda #$10                 ; 8:1 scale (320 x 240 pixels on screen)
+      ;sta VERA_DC_HSCALE
+      ;sta VERA_DC_VSCALE
 ;FIXME: is this name correct?
       jsr test_sub_pixel_increments
     .endif
@@ -131,8 +135,8 @@ test_sub_pixel_increments:
     sta VERA_CTRL
     
     .if(DO_4BIT)
-;        lda #%11010000           ; Setting auto-increment value to 160 byte increment (=%1101)
-        lda #%11011000           ; Setting auto-increment value to 160 byte decrement (=%11011)
+        lda #%11010000           ; Setting auto-increment value to 160 byte increment (=%1101)
+;        lda #%11011000           ; Setting auto-increment value to 160 byte decrement (=%11011)
     .else
         lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
     .endif
@@ -150,19 +154,19 @@ test_sub_pixel_increments:
     sta VERA_CTRL
     
     .if(DO_4BIT)
-;        lda #%00000100           ; Setting auto-increment value to 0.5 byte increment
-       lda #%00001100           ; Setting auto-increment value to 0.5 byte decrement
+        lda #%00000100           ; Setting auto-increment value to 0.5 byte increment
+;       lda #%00001100           ; Setting auto-increment value to 0.5 byte decrement
     .else
         lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
 ;       lda #%00011000           ; Setting auto-increment value to 1 byte decrement (=%00011)
     .endif
     sta VERA_ADDR_BANK
-;    lda #0
-    lda #30
+    lda #0
+;    lda #30
 ;    lda #1
     sta VERA_ADDR_HIGH       ; Setting $00000
-;    lda #0
-    lda #128
+    lda #0
+;    lda #128
     sta VERA_ADDR_LOW        ; Setting $00000
     
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
@@ -189,6 +193,10 @@ draw_line_next_pixel:
     dex
     bne draw_line_next_pixel
     .endif
+    
+    
+tmp_loop:
+    jmp tmp_loop
 
     .if(0)
 draw_dotted_line_next_pixel:
