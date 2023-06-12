@@ -309,18 +309,23 @@ reset:
     txs
     
     jsr setup_vera_for_bitmap_and_tile_map
+    .if(USE_DOUBLE_BUFFER)
+        lda #%00000001           ; Disable Layer 0 and 1, Enable VGA
+        sta VERA_DC_VIDEO
+    .endif
     jsr copy_petscii_charset
     jsr clear_tilemap_screen
     jsr init_cursor
     jsr init_timer
     
-    ; FIXME: OLD: .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+
     .if (USE_WRITE_CACHE)
         jsr generate_clear_column_code
         jsr clear_screen_fast_4_bytes
     .else
         jsr clear_screen_slow
     .endif
+    
     
     .if(USE_UNROLLED_LOOP)
         jsr generate_draw_row_64_code
@@ -348,11 +353,28 @@ reset:
        
         lda #BACKGROUND_COLOR
 ;        sta VERA_DC_BORDER
-    
+
         .if(USE_DOUBLE_BUFFER)
-            lda #%00010001           ; Enable Layer 0, Enable VGA
+            lda #1
+            sta FRAME_BUFFER_INDEX
+            
+            .if (USE_WRITE_CACHE)
+                jsr clear_screen_fast_4_bytes
+            .else
+                jsr clear_screen_slow
+            .endif
+            
+            jsr switch_frame_buffer   ; This will switch to filling buffer 0, but *showing* buffer 1
+            
+        .endif
+
+        .if(USE_DOUBLE_BUFFER)
+            lda #%00000000  ; DCSEL=0
+            sta VERA_CTRL
+            lda #%00010001           ; Only enable Layer 0, Enable VGA
             sta VERA_DC_VIDEO
         .endif
+    
     
         lda #%00000010  ; DCSEL=1
         sta VERA_CTRL
@@ -362,12 +384,6 @@ reset:
         lda #SCREEN_HEIGHT+20-1
         sta VERA_DC_VSTOP
     
-        .if(USE_DOUBLE_BUFFER)
-            lda #1
-            sta FRAME_BUFFER_INDEX
-            jsr switch_frame_buffer   ; This will switch to filling buffer 0, but *showing* buffer 1
-        .endif
-        
         jsr test_speed_of_simple_3d_polygon_scene
     .else
         lda #%00000000           ; DCSEL=0, ADDRSEL=0
@@ -442,7 +458,6 @@ test_speed_of_simple_3d_polygon_scene:
     
 keep_running:
     
-    ; FIXME: OLD: .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
     .if (USE_WRITE_CACHE)
         jsr clear_screen_fast_4_bytes
     .else
@@ -450,8 +465,6 @@ keep_running:
     .endif
     
     jsr calculate_projection_of_3d_onto_2d_screen
-; FIXME!    
-;    stp
     
     jsr draw_all_triangles
     
