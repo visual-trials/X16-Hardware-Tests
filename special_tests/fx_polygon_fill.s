@@ -692,6 +692,13 @@ generate_four_times_jump_table_16:
 
     
 generate_jump_table_16:
+
+    ; We backup the address of the *end* of the the series of 80 'stz'-calls
+    lda LOAD_ADDRESS
+    sta TMP1
+    lda LOAD_ADDRESS+1
+    sta TMP2
+
     ldy #0
 generate_next_jump_table_16_entry:
 
@@ -720,6 +727,30 @@ generate_next_jump_table_16_entry:
     
     cpy #80+4                ; We need 20 entries of 16 pixels (=320 pixels) *plus* an entry for 0 pixels. Each entry is 4 bytes (two addresses_, so we stop at 4*21=84 bytes.
     bne generate_next_jump_table_16_entry
+
+
+    ; --- fill length > 768 (or in our case >320) ---
+
+    ; If the length of the fill line >768 (or in our case even >320) we should not draw the fill line
+    ; TODO: For now we keep on iteratin, but we *might* want to do an rts here instead 
+
+    ; We restore the address of the *end* of the the series of 80 'stz'-calls
+    lda TMP1
+    sta LOAD_ADDRESS
+    lda TMP2
+    sta LOAD_ADDRESS+1
+    
+generate_next_jump_table_16_entry_overflow:
+
+    lda LOAD_ADDRESS
+    sta (STORE_ADDRESS), y
+    iny
+    lda LOAD_ADDRESS+1
+    sta (STORE_ADDRESS), y
+    iny
+    
+    cpy #0                ; We fill in the whole table
+    bne generate_next_jump_table_16_entry_overflow
     
     rts
 
