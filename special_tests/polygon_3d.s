@@ -2,13 +2,14 @@
 ; FIXME: we add nops after switching RAM_BANK. This is needed for the Breadboard of JeffreyH but not on stock hardware! Maybe add a setting to turn this on/off.
 
 DO_SPEED_TEST = 1
-KEEP_RUNNING = 0
-USE_DOUBLE_BUFFER = 0  ; IMPORTANT: we cant show text AND do double buffering!
+KEEP_RUNNING = 1
+USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
 
 ; WEIRD BUG: when using JUMP_TABLES, the triangles look very 'edgy'!! --> it is 'SOLVED' by putting the jump FILL_LINE_CODE_x-block aligned to 256 bytes!?!?
 
 USE_POLYGON_FILLER = 1
+USE_FX_MULTIPLIER = 1
 USE_SLOPE_TABLES = 1
 USE_DIV_TABLES = 1
 USE_UNROLLED_LOOP = 1
@@ -299,7 +300,9 @@ DRAW_ROW_64_CODE         = $B500   ; When USE_POLYGON_FILLER is 0: A000-B4FF are
 
 ; ------------- VRAM addresses -------------
 
-COLOR_PIXELS_ADDRESS     = $0FF00  ; The place where all color pixels are stored (the cache is filled with these colors) -> After the first frame buffer, just before the second frame buffer.
+MATH_RESULTS_ADDRESS     = $0FF00  ; The place where all math results are stored -> After the first frame buffer, just before the second frame buffer.
+
+
 
   .org $C000
 
@@ -475,6 +478,23 @@ keep_running:
     
     jsr calculate_projection_of_3d_onto_2d_screen
     
+    .if(0)
+        .if(USE_POLYGON_FILLER)
+            ; Turning off polygon filler mode and blit writes
+            lda #%00000100           ; DCSEL=2, ADDRSEL=0
+            sta VERA_CTRL
+
+            lda #%00000000           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
+            sta $9F29
+        .endif
+        
+        lda #%00000000           ; DCSEL=0, ADDRSEL=0
+        sta VERA_CTRL
+        
+    .endif
+    
+    
+; FIXME!
     jsr draw_all_triangles
     
     .if(KEEP_RUNNING)
@@ -495,7 +515,7 @@ keep_running:
     
     lda #2
     sta CURSOR_X
-    lda #0
+    lda #1
     sta CURSOR_Y
 
     lda #<simple_3d_polygon_scene_message
@@ -696,7 +716,7 @@ keep_running:
     
     lda #8
     sta CURSOR_X
-    lda #24
+    lda #23
     sta CURSOR_Y
     
     jsr print_time_elapsed
@@ -748,14 +768,14 @@ switch_to_filling_high_vram_buffer:
     
     
 init_world:    
-    lda #8
+    lda #48
 ; FIXME!
 ;    lda #0
     sta ANGLE_Z
     lda #0
     sta ANGLE_Z+1
 
-    lda #4
+    lda #44
 ; FIXME!
 ;    lda #0
     sta ANGLE_X
@@ -879,24 +899,50 @@ MACRO_rotate_cos_minus_sin .macro INPUT_ANGLE, TRIANGLES_3D_POINT_A, TRIANGLES_3
     
     jsr get_cosine_for_angle ; Note: this *destroys* ANGLE!
     
-    lda COSINE_OUTPUT
-    sta MULTIPLIER
-    lda COSINE_OUTPUT+1
-    sta MULTIPLIER+1
-
-    lda \TRIANGLES_3D_POINT_A, x
-    sta MULTIPLICAND
-    lda \TRIANGLES_3D_POINT_A+MAX_NR_OF_TRIANGLES, x
-    sta MULTIPLICAND+1
-
-    jsr multply_16bits_signed
+    .if(USE_FX_MULTIPLIER)
+        lda COSINE_OUTPUT
+        sta $9F29
+        lda COSINE_OUTPUT+1
+        sta $9F2A
     
-    ; TODO: rename this temp variable
-    lda PRODUCT+1
-    sta TMP_POINT_X
-    lda PRODUCT+2
-    sta TMP_POINT_X+1
-    
+        lda \TRIANGLES_3D_POINT_A, x
+        sta $9F2B
+        lda \TRIANGLES_3D_POINT_A+MAX_NR_OF_TRIANGLES, x
+        sta $9F2C
+        
+        ; We write the multiplication result to VRAM
+        stz VERA_DATA0
+        
+; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
+        lda #>MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_HIGH
+        
+        ; We read (with 16-bit hop) the middle two bytes of the result from VRAM
+        ; TODO: rename this temp variable
+        lda VERA_DATA1
+        sta TMP_POINT_X
+        lda VERA_DATA1
+        sta TMP_POINT_X+1
+    .else 
+        lda COSINE_OUTPUT
+        sta MULTIPLIER
+        lda COSINE_OUTPUT+1
+        sta MULTIPLIER+1
+
+        lda \TRIANGLES_3D_POINT_A, x
+        sta MULTIPLICAND
+        lda \TRIANGLES_3D_POINT_A+MAX_NR_OF_TRIANGLES, x
+        sta MULTIPLICAND+1
+
+        jsr multply_16bits_signed
+        
+        ; TODO: rename this temp variable
+        lda PRODUCT+1
+        sta TMP_POINT_X
+        lda PRODUCT+2
+        sta TMP_POINT_X+1
+    .endif
+        
     ; - b*sin -
     
     lda \INPUT_ANGLE
@@ -905,27 +951,56 @@ MACRO_rotate_cos_minus_sin .macro INPUT_ANGLE, TRIANGLES_3D_POINT_A, TRIANGLES_3
     sta ANGLE+1
     
     jsr get_sine_for_angle ; Note: this *destroys* ANGLE!
-    
-    lda SINE_OUTPUT
-    sta MULTIPLIER
-    lda SINE_OUTPUT+1
-    sta MULTIPLIER+1
+        
+    .if(USE_FX_MULTIPLIER)
+        lda SINE_OUTPUT
+        sta $9F29
+        lda SINE_OUTPUT+1
+        sta $9F2A
+        
+        lda \TRIANGLES_3D_POINT_B, x
+        sta $9F2B
+        lda \TRIANGLES_3D_POINT_B+MAX_NR_OF_TRIANGLES, x
+        sta $9F2C
+        
+        ; We write the multiplication result to VRAM
+        stz VERA_DATA0
 
-    lda \TRIANGLES_3D_POINT_B, x
-    sta MULTIPLICAND
-    lda \TRIANGLES_3D_POINT_B+MAX_NR_OF_TRIANGLES, x
-    sta MULTIPLICAND+1
+; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
+        lda #>MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_HIGH
+        
+        ; We read (with 16-bit hop) the middle two bytes of the result from VRAM
+        ; TODO: rename this temp variable
+        sec
+        lda TMP_POINT_X
+        sbc VERA_DATA1
+        sta \TRIANGLES_3D_POINT_OUTPUT, x
+        lda TMP_POINT_X+1
+        sbc VERA_DATA1
+        sta \TRIANGLES_3D_POINT_OUTPUT+MAX_NR_OF_TRIANGLES, x
+    .else
+        lda SINE_OUTPUT
+        sta MULTIPLIER
+        lda SINE_OUTPUT+1
+        sta MULTIPLIER+1
 
-    jsr multply_16bits_signed
-    
-    ; TODO: rename this temp variable
-    sec
-    lda TMP_POINT_X
-    sbc PRODUCT+1
-    sta \TRIANGLES_3D_POINT_OUTPUT, x
-    lda TMP_POINT_X+1
-    sbc PRODUCT+2
-    sta \TRIANGLES_3D_POINT_OUTPUT+MAX_NR_OF_TRIANGLES, x
+        lda \TRIANGLES_3D_POINT_B, x
+        sta MULTIPLICAND
+        lda \TRIANGLES_3D_POINT_B+MAX_NR_OF_TRIANGLES, x
+        sta MULTIPLICAND+1
+
+        jsr multply_16bits_signed
+        
+        ; TODO: rename this temp variable
+        sec
+        lda TMP_POINT_X
+        sbc PRODUCT+1
+        sta \TRIANGLES_3D_POINT_OUTPUT, x
+        lda TMP_POINT_X+1
+        sbc PRODUCT+2
+        sta \TRIANGLES_3D_POINT_OUTPUT+MAX_NR_OF_TRIANGLES, x
+    .endif
 
 .endmacro
 
@@ -943,23 +1018,49 @@ MACRO_rotate_sin_plus_cos .macro INPUT_ANGLE, TRIANGLES_3D_POINT_A, TRIANGLES_3D
     
     jsr get_sine_for_angle ; Note: this *destroys* ANGLE!
     
-    lda SINE_OUTPUT
-    sta MULTIPLIER
-    lda SINE_OUTPUT+1
-    sta MULTIPLIER+1
-
-    lda \TRIANGLES_3D_POINT_A, x
-    sta MULTIPLICAND
-    lda \TRIANGLES_3D_POINT_A+MAX_NR_OF_TRIANGLES, x
-    sta MULTIPLICAND+1
-
-    jsr multply_16bits_signed
+    .if(USE_FX_MULTIPLIER)
+        lda SINE_OUTPUT
+        sta $9F29
+        lda SINE_OUTPUT+1
+        sta $9F2A
     
-    ; TODO: rename this temp variable
-    lda PRODUCT+1
-    sta TMP_POINT_Y
-    lda PRODUCT+2
-    sta TMP_POINT_Y+1
+        lda \TRIANGLES_3D_POINT_A, x
+        sta $9F2B
+        lda \TRIANGLES_3D_POINT_A+MAX_NR_OF_TRIANGLES, x
+        sta $9F2C
+        
+        ; We write the multiplication result to VRAM
+        stz VERA_DATA0
+        
+; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
+        lda #>MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_HIGH
+        
+        ; We read (with 16-bit hop) the middle two bytes of the result from VRAM
+        ; TODO: rename this temp variable
+        lda VERA_DATA1
+        sta TMP_POINT_Y
+        lda VERA_DATA1
+        sta TMP_POINT_Y+1
+    .else 
+        lda SINE_OUTPUT
+        sta MULTIPLIER
+        lda SINE_OUTPUT+1
+        sta MULTIPLIER+1
+
+        lda \TRIANGLES_3D_POINT_A, x
+        sta MULTIPLICAND
+        lda \TRIANGLES_3D_POINT_A+MAX_NR_OF_TRIANGLES, x
+        sta MULTIPLICAND+1
+
+        jsr multply_16bits_signed
+        
+        ; TODO: rename this temp variable
+        lda PRODUCT+1
+        sta TMP_POINT_Y
+        lda PRODUCT+2
+        sta TMP_POINT_Y+1
+    .endif
     
     ; - b*cos -
     
@@ -970,26 +1071,55 @@ MACRO_rotate_sin_plus_cos .macro INPUT_ANGLE, TRIANGLES_3D_POINT_A, TRIANGLES_3D
     
     jsr get_cosine_for_angle ; Note: this *destroys* ANGLE!
     
-    lda COSINE_OUTPUT
-    sta MULTIPLIER
-    lda COSINE_OUTPUT+1
-    sta MULTIPLIER+1
+    .if(USE_FX_MULTIPLIER)
+        lda COSINE_OUTPUT
+        sta $9F29
+        lda COSINE_OUTPUT+1
+        sta $9F2A
+        
+        lda \TRIANGLES_3D_POINT_B, x
+        sta $9F2B
+        lda \TRIANGLES_3D_POINT_B+MAX_NR_OF_TRIANGLES, x
+        sta $9F2C
+        
+        ; We write the multiplication result to VRAM
+        stz VERA_DATA0
 
-    lda \TRIANGLES_3D_POINT_B, x
-    sta MULTIPLICAND
-    lda \TRIANGLES_3D_POINT_B+MAX_NR_OF_TRIANGLES, x
-    sta MULTIPLICAND+1
+; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
+        lda #>MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_HIGH
+        
+        ; We read (with 16-bit hop) the middle two bytes of the result from VRAM
+        ; TODO: rename this temp variable
+        clc
+        lda TMP_POINT_Y
+        adc VERA_DATA1
+        sta \TRIANGLES_3D_POINT_OUTPUT, x
+        lda TMP_POINT_Y+1
+        adc VERA_DATA1
+        sta \TRIANGLES_3D_POINT_OUTPUT+MAX_NR_OF_TRIANGLES, x
+    .else
+        lda COSINE_OUTPUT
+        sta MULTIPLIER
+        lda COSINE_OUTPUT+1
+        sta MULTIPLIER+1
 
-    jsr multply_16bits_signed
-    
-    ; TODO: rename this temp variable
-    clc
-    lda TMP_POINT_Y
-    adc PRODUCT+1
-    sta \TRIANGLES_3D_POINT_OUTPUT, x
-    lda TMP_POINT_Y+1
-    adc PRODUCT+2
-    sta \TRIANGLES_3D_POINT_OUTPUT+MAX_NR_OF_TRIANGLES, x
+        lda \TRIANGLES_3D_POINT_B, x
+        sta MULTIPLICAND
+        lda \TRIANGLES_3D_POINT_B+MAX_NR_OF_TRIANGLES, x
+        sta MULTIPLICAND+1
+
+        jsr multply_16bits_signed
+        
+        ; TODO: rename this temp variable
+        clc
+        lda TMP_POINT_Y
+        adc PRODUCT+1
+        sta \TRIANGLES_3D_POINT_OUTPUT, x
+        lda TMP_POINT_Y+1
+        adc PRODUCT+2
+        sta \TRIANGLES_3D_POINT_OUTPUT+MAX_NR_OF_TRIANGLES, x
+    .endif
 
 .endmacro
 
@@ -1055,28 +1185,60 @@ MACRO_divide_by_z .macro TRIANGLES_3D_POINT_X_OR_Y, TRIANGLES_3D_POINT_Z, OUTPUT
         ora #>($B000)
         sta LOAD_ADDRESS+1
 
-        ; We load the INVERSE_Z_LOW
-        lda (LOAD_ADDRESS), y
-        sta MULTIPLICAND
-        
-        ; We load the INVERSE_Z_HIGH
-        inc LOAD_ADDRESS+1
-        lda (LOAD_ADDRESS), y
-        sta MULTIPLICAND+1
+        .if(USE_FX_MULTIPLIER)
+            ; We load the INVERSE_Z_LOW
+            lda (LOAD_ADDRESS), y
+            sta $9F29
+            
+            ; We load the INVERSE_Z_HIGH
+            inc LOAD_ADDRESS+1
+            lda (LOAD_ADDRESS), y
+            sta $9F2A
 
-        lda \TRIANGLES_3D_POINT_X_OR_Y,x
-        sta MULTIPLIER
-        lda \TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
-        sta MULTIPLIER+1
+            lda \TRIANGLES_3D_POINT_X_OR_Y,x
+            sta $9F2B
+            lda \TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
+            sta $9F2C
 
-        ; -- X (or Y) * 1 / Z
+            ; -- X (or Y) * 1 / Z
+            
+            ; We write the multiplication result to VRAM
+            stz VERA_DATA0
         
-        jsr multply_16bits_signed
-        
-        lda PRODUCT+2
-        sta \OUTPUT_TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
-        lda PRODUCT+1
-        sta \OUTPUT_TRIANGLES_3D_POINT_X_OR_Y,x
+; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
+            lda #>MATH_RESULTS_ADDRESS
+            sta VERA_ADDR_HIGH
+            
+            ; We read (with 16-bit hop) the middle two bytes of the result from VRAM
+            
+            lda VERA_DATA1
+           sta \OUTPUT_TRIANGLES_3D_POINT_X_OR_Y,x
+            lda VERA_DATA1
+           sta \OUTPUT_TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
+        .else
+            ; We load the INVERSE_Z_LOW
+            lda (LOAD_ADDRESS), y
+            sta MULTIPLICAND
+            
+            ; We load the INVERSE_Z_HIGH
+            inc LOAD_ADDRESS+1
+            lda (LOAD_ADDRESS), y
+            sta MULTIPLICAND+1
+
+            lda \TRIANGLES_3D_POINT_X_OR_Y,x
+            sta MULTIPLIER
+            lda \TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
+            sta MULTIPLIER+1
+
+            ; -- X (or Y) * 1 / Z
+            
+            jsr multply_16bits_signed
+            
+            lda PRODUCT+2
+            sta \OUTPUT_TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
+            lda PRODUCT+1
+            sta \OUTPUT_TRIANGLES_3D_POINT_X_OR_Y,x
+        .endif
         
     .else
         ; We do the divide: TRIANGLES_3D_POINT_X_OR_Y * 256 / TRIANGLES_3D_POINT_Z
@@ -1152,69 +1314,157 @@ MACRO_calculate_dot_product .macro TRIANGLES_3D_POINTA_X, TRIANGLES_3D_POINTA_Y,
     
     ; -- A.x * N.x
     
-    lda \TRIANGLES_3D_POINTA_X,x
-    sta MULTIPLIER
-    lda \TRIANGLES_3D_POINTA_X+MAX_NR_OF_TRIANGLES,x
-    sta MULTIPLIER+1
+    .if(USE_FX_MULTIPLIER)
+    
+        lda \TRIANGLES_3D_POINTA_X,x
+        sta $9F29
+        lda \TRIANGLES_3D_POINTA_X+MAX_NR_OF_TRIANGLES,x
+        sta $9F2A
 
-    lda \TRIANGLES_3D_POINTN_X, x
-    sta MULTIPLICAND
-    lda \TRIANGLES_3D_POINTN_X+MAX_NR_OF_TRIANGLES, x
-    sta MULTIPLICAND+1
+        lda \TRIANGLES_3D_POINTN_X, x
+        sta $9F2B
+        lda \TRIANGLES_3D_POINTN_X+MAX_NR_OF_TRIANGLES, x
+        sta $9F2C
 
-    jsr multply_16bits_signed
+        ; We write the multiplication result to VRAM
+        stz VERA_DATA0
+        
+; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
+        lda #>MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_HIGH
 
-    clc
-    lda DOT_PRODUCT
-    adc PRODUCT+1
-    sta DOT_PRODUCT
-    lda DOT_PRODUCT+1
-    adc PRODUCT+2
-    sta DOT_PRODUCT+1
+        clc
+        lda DOT_PRODUCT
+        adc VERA_DATA1
+        sta DOT_PRODUCT
+        lda DOT_PRODUCT+1
+        adc VERA_DATA1
+        sta DOT_PRODUCT+1
+    
+    .else
+        lda \TRIANGLES_3D_POINTA_X,x
+        sta MULTIPLIER
+        lda \TRIANGLES_3D_POINTA_X+MAX_NR_OF_TRIANGLES,x
+        sta MULTIPLIER+1
+
+        lda \TRIANGLES_3D_POINTN_X, x
+        sta MULTIPLICAND
+        lda \TRIANGLES_3D_POINTN_X+MAX_NR_OF_TRIANGLES, x
+        sta MULTIPLICAND+1
+
+        jsr multply_16bits_signed
+
+        clc
+        lda DOT_PRODUCT
+        adc PRODUCT+1
+        sta DOT_PRODUCT
+        lda DOT_PRODUCT+1
+        adc PRODUCT+2
+        sta DOT_PRODUCT+1
+    .endif
     
     ; -- A.y * N.y
     
-    lda \TRIANGLES_3D_POINTA_Y,x
-    sta MULTIPLIER
-    lda \TRIANGLES_3D_POINTA_Y+MAX_NR_OF_TRIANGLES,x
-    sta MULTIPLIER+1
+    .if(USE_FX_MULTIPLIER)
+    
+        lda \TRIANGLES_3D_POINTA_Y,x
+        sta $9F29
+        lda \TRIANGLES_3D_POINTA_Y+MAX_NR_OF_TRIANGLES,x
+        sta $9F2A
 
-    lda \TRIANGLES_3D_POINTN_Y, x
-    sta MULTIPLICAND
-    lda \TRIANGLES_3D_POINTN_Y+MAX_NR_OF_TRIANGLES, x
-    sta MULTIPLICAND+1
+        lda \TRIANGLES_3D_POINTN_Y, x
+        sta $9F2B
+        lda \TRIANGLES_3D_POINTN_Y+MAX_NR_OF_TRIANGLES, x
+        sta $9F2C
 
-    jsr multply_16bits_signed
+        ; We write the multiplication result to VRAM
+        stz VERA_DATA0
+        
+; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
+        lda #>MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_HIGH
 
-    clc
-    lda DOT_PRODUCT
-    adc PRODUCT+1
-    sta DOT_PRODUCT
-    lda DOT_PRODUCT+1
-    adc PRODUCT+2
-    sta DOT_PRODUCT+1
+        clc
+        lda DOT_PRODUCT
+        adc VERA_DATA1
+        sta DOT_PRODUCT
+        lda DOT_PRODUCT+1
+        adc VERA_DATA1
+        sta DOT_PRODUCT+1
+        
+    .else
+    
+        lda \TRIANGLES_3D_POINTA_Y,x
+        sta MULTIPLIER
+        lda \TRIANGLES_3D_POINTA_Y+MAX_NR_OF_TRIANGLES,x
+        sta MULTIPLIER+1
+
+        lda \TRIANGLES_3D_POINTN_Y, x
+        sta MULTIPLICAND
+        lda \TRIANGLES_3D_POINTN_Y+MAX_NR_OF_TRIANGLES, x
+        sta MULTIPLICAND+1
+
+        jsr multply_16bits_signed
+
+        clc
+        lda DOT_PRODUCT
+        adc PRODUCT+1
+        sta DOT_PRODUCT
+        lda DOT_PRODUCT+1
+        adc PRODUCT+2
+        sta DOT_PRODUCT+1
+    .endif
 
     ; -- A.z * N.z
     
-    lda \TRIANGLES_3D_POINTA_Z,x
-    sta MULTIPLIER
-    lda \TRIANGLES_3D_POINTA_Z+MAX_NR_OF_TRIANGLES,x
-    sta MULTIPLIER+1
+    .if(USE_FX_MULTIPLIER)
+    
+        lda \TRIANGLES_3D_POINTA_Z,x
+        sta $9F29
+        lda \TRIANGLES_3D_POINTA_Z+MAX_NR_OF_TRIANGLES,x
+        sta $9F2A
 
-    lda \TRIANGLES_3D_POINTN_Z, x
-    sta MULTIPLICAND
-    lda \TRIANGLES_3D_POINTN_Z+MAX_NR_OF_TRIANGLES, x
-    sta MULTIPLICAND+1
+        lda \TRIANGLES_3D_POINTN_Z, x
+        sta $9F2B
+        lda \TRIANGLES_3D_POINTN_Z+MAX_NR_OF_TRIANGLES, x
+        sta $9F2C
 
-    jsr multply_16bits_signed
+        ; We write the multiplication result to VRAM
+        stz VERA_DATA0
+        
+; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
+        lda #>MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_HIGH
 
-    clc
-    lda DOT_PRODUCT
-    adc PRODUCT+1
-    sta DOT_PRODUCT
-    lda DOT_PRODUCT+1
-    adc PRODUCT+2
-    sta DOT_PRODUCT+1
+        clc
+        lda DOT_PRODUCT
+        adc VERA_DATA1
+        sta DOT_PRODUCT
+        lda DOT_PRODUCT+1
+        adc VERA_DATA1
+        sta DOT_PRODUCT+1
+        
+    .else
+        lda \TRIANGLES_3D_POINTA_Z,x
+        sta MULTIPLIER
+        lda \TRIANGLES_3D_POINTA_Z+MAX_NR_OF_TRIANGLES,x
+        sta MULTIPLIER+1
+
+        lda \TRIANGLES_3D_POINTN_Z, x
+        sta MULTIPLICAND
+        lda \TRIANGLES_3D_POINTN_Z+MAX_NR_OF_TRIANGLES, x
+        sta MULTIPLICAND+1
+
+        jsr multply_16bits_signed
+
+        clc
+        lda DOT_PRODUCT
+        adc PRODUCT+1
+        sta DOT_PRODUCT
+        lda DOT_PRODUCT+1
+        adc PRODUCT+2
+        sta DOT_PRODUCT+1
+    .endif
 
 .endmacro
 
@@ -1250,10 +1500,63 @@ MACRO_calculate_sum_of_z .macro TRIANGLES_3D_POINT1_Z, TRIANGLES_3D_POINT2_Z, TR
 calculate_projection_of_3d_onto_2d_screen:
 
 
+    
+    .if(USE_FX_MULTIPLIER)
+        lda #%00000100           ; DCSEL=2, ADDRSEL=0
+        sta VERA_CTRL
+        
+        lda #%01001000           ; cache write enabled = 1, 16bit hop = 1, addr1-mode = normal
+        sta $9F29
+        
+        ; Setting ADDR0 + increment
+        lda #%00110000           ; +4 increment
+        ora #MATH_RESULTS_ADDRESS>>16
+        sta VERA_ADDR_BANK
+        lda #>MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_HIGH
+; FIXME: this is done later as well!
+        lda #<MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_LOW
+        
+        lda #%00000101           ; DCSEL=2, ADDRSEL=1
+        sta VERA_CTRL
+        
+        ; Setting ADDR1 + increment
+        lda #%00110000           ; +4 increment (16bit hopped)
+        ora #MATH_RESULTS_ADDRESS>>16
+        sta VERA_ADDR_BANK
+        lda #>MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_HIGH
+; FIXME: this is done later as well!
+        lda #<(MATH_RESULTS_ADDRESS+1)  ; We offset by 1 so we read the 2 middle 2 bytes of the 32-bit result
+        sta VERA_ADDR_LOW
+        
+        lda #%10010000           ; reset accumulator = 1, add/sub = 0 (add), multiplier enabled = 1, cache index  = 0
+        sta $9F2C
+    .endif
+
+
     ldx #0
 rotate_in_z_next_triangle:
 
     .if(1)
+        ; FIXME: put this in a MACRO!
+        .if(USE_FX_MULTIPLIER)
+            ; We reset both ADDR0 and ADDR1 to the MATH_RESULTS_ADDRESS
+        
+            lda #<(MATH_RESULTS_ADDRESS+1)  ; We offset by 1 so we read the 2 middle 2 bytes of the 32-bit result
+            sta VERA_ADDR_LOW        ; Reset ADDR1_LOW
+            
+            lda #%00001100           ; DCSEL=6, ADDRSEL=0
+            sta VERA_CTRL
+        
+            lda #<MATH_RESULTS_ADDRESS
+            sta VERA_ADDR_LOW        ; Reset ADDR0_LOW 
+            
+            lda #%00001101           ; DCSEL=6, ADDRSEL=1
+            sta VERA_CTRL
+        .endif
+    
         ; -- Point 1 --
         MACRO_rotate_cos_minus_sin ANGLE_Z, TRIANGLES_3D_POINT1_X, TRIANGLES_3D_POINT1_Y, TRIANGLES2_3D_POINT1_X
         MACRO_rotate_sin_plus_cos  ANGLE_Z, TRIANGLES_3D_POINT1_X, TRIANGLES_3D_POINT1_Y, TRIANGLES2_3D_POINT1_Y
@@ -1306,6 +1609,23 @@ rotate_in_z_done:
 rotate_in_x_next_triangle:
     
     .if(1)
+        ; FIXME: put this in a MACRO!
+        .if(USE_FX_MULTIPLIER)
+            ; We reset both ADDR0 and ADDR1 to the MATH_RESULTS_ADDRESS
+        
+            lda #<(MATH_RESULTS_ADDRESS+1)  ; We offset by 1 so we read the 2 middle 2 bytes of the 32-bit result
+            sta VERA_ADDR_LOW        ; Reset ADDR1_LOW
+            
+            lda #%00001100           ; DCSEL=6, ADDRSEL=0
+            sta VERA_CTRL
+        
+            lda #<MATH_RESULTS_ADDRESS
+            sta VERA_ADDR_LOW        ; Reset ADDR0_LOW 
+            
+            lda #%00001101           ; DCSEL=6, ADDRSEL=1
+            sta VERA_CTRL
+        .endif
+    
         ; -- Point 1 --
         MACRO_rotate_cos_minus_sin ANGLE_X, TRIANGLES2_3D_POINT1_Y, TRIANGLES2_3D_POINT1_Z, TRIANGLES3_3D_POINT1_Y
         MACRO_rotate_sin_plus_cos  ANGLE_X, TRIANGLES2_3D_POINT1_Y, TRIANGLES2_3D_POINT1_Z, TRIANGLES3_3D_POINT1_Z
@@ -1374,6 +1694,26 @@ back_face_cull_next_triangle:
     MACRO_calculate_sum_of_z TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINT2_Z, TRIANGLES3_3D_POINT3_Z, TRIANGLES3_3D_SUM_Z
 
     ; --  We check whether the triangle should be visible.
+
+; FIXME: maybe we can skip this here? We do it only once per triangle!    
+    ; FIXME: put this in a MACRO!
+    .if(USE_FX_MULTIPLIER)
+        ; We reset both ADDR0 and ADDR1 to the MATH_RESULTS_ADDRESS
+    
+        lda #<(MATH_RESULTS_ADDRESS+1)  ; We offset by 1 so we read the 2 middle 2 bytes of the 32-bit result
+        sta VERA_ADDR_LOW        ; Reset ADDR1_LOW
+        
+        lda #%00001100           ; DCSEL=6, ADDRSEL=0
+        sta VERA_CTRL
+    
+        lda #<MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_LOW        ; Reset ADDR0_LOW 
+        
+        lda #%00001101           ; DCSEL=6, ADDRSEL=1
+        sta VERA_CTRL
+    .endif
+
+    
     ; We calculate the dot-product between point1 and pointN (the normal of the triange)
     MACRO_calculate_dot_product TRIANGLES3_3D_POINT1_X, TRIANGLES3_3D_POINT1_Y, TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINTN_X, TRIANGLES3_3D_POINTN_Y, TRIANGLES3_3D_POINTN_Z
     lda DOT_PRODUCT+1
@@ -1422,6 +1762,23 @@ scale_and_position_keep_going:
 
     ; -- Project triangle from 3D world onto 2D screen --
 
+    ; FIXME: put this in a MACRO!
+    .if(USE_FX_MULTIPLIER)
+        ; We reset both ADDR0 and ADDR1 to the MATH_RESULTS_ADDRESS
+    
+        lda #<(MATH_RESULTS_ADDRESS+1)  ; We offset by 1 so we read the 2 middle 2 bytes of the 32-bit result
+        sta VERA_ADDR_LOW        ; Reset ADDR1_LOW
+        
+        lda #%00001100           ; DCSEL=6, ADDRSEL=0
+        sta VERA_CTRL
+    
+        lda #<MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_LOW        ; Reset ADDR0_LOW 
+        
+        lda #%00001101           ; DCSEL=6, ADDRSEL=1
+        sta VERA_CTRL
+    .endif
+
     phy
     
     ; - Point 1 -
@@ -1451,6 +1808,11 @@ scale_and_position_keep_going:
     jmp scale_and_position_next_triangle
 scale_and_position_done:
 
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    sta VERA_CTRL
+        
+    lda #%00000000           ; multiplier enabled = 0
+    sta $9F2C
 
     rts
     
