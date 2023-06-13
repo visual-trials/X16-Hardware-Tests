@@ -1,13 +1,16 @@
 
+; FIXME: we add nops after switching RAM_BANK. This is needed for the Breadboard of JeffreyH but not on stock hardware! Maybe add a setting to turn this on/off.
+
 DO_SPEED_TEST = 1
-KEEP_RUNNING = 1
-USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
+KEEP_RUNNING = 0
+USE_DOUBLE_BUFFER = 0  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
 
 ; WEIRD BUG: when using JUMP_TABLES, the triangles look very 'edgy'!! --> it is 'SOLVED' by putting the jump FILL_LINE_CODE_x-block aligned to 256 bytes!?!?
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 1
+USE_DIV_TABLES = 1
 USE_UNROLLED_LOOP = 1
 USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
@@ -285,7 +288,8 @@ Y_TO_ADDRESS_HIGH        = $8500
 Y_TO_ADDRESS_BANK        = $8600
 Y_TO_ADDRESS_BANK2       = $8700   ; Only use when double buffering
 
-COPY_SLOPE_TABLES_TO_BANKED_RAM   = $8800
+COPY_SLOPE_TABLES_TO_BANKED_RAM = $8800  ; TODO: is this smaller than 256 bytes?
+COPY_DIV_TABLES_TO_BANKED_RAM   = $8900
 
     .if(USE_POLYGON_FILLER)
 DRAW_ROW_64_CODE         = $AA00   ; When USE_POLYGON_FILLER is 1: A000-A9FF and B600-BFFF are occucpied by the slope tables! (the latter by the 90-180 degrees slope tables)
@@ -344,6 +348,11 @@ reset:
     .if(USE_SLOPE_TABLES)
         jsr copy_slope_table_copier_to_ram
         jsr COPY_SLOPE_TABLES_TO_BANKED_RAM
+    .endif
+    
+    .if(USE_DIV_TABLES)
+        jsr copy_div_table_copier_to_ram
+        jsr COPY_DIV_TABLES_TO_BANKED_RAM
     .endif
     
     .if(DO_SPEED_TEST)
@@ -1005,69 +1014,130 @@ MACRO_translate_z .macro TRIANGLES_3D_POINT_Z, TRANSLATE_Z
 .endmacro
 
 
+; NOTE: this affects register y when USE_DIV_TABLES is 1!
+; FIXME: its dangerous to mask TMP2 here!
 DIVIDEND_IS_NEGATED=TMP2
 MACRO_divide_by_z .macro TRIANGLES_3D_POINT_X_OR_Y, TRIANGLES_3D_POINT_Z, OUTPUT_TRIANGLES_3D_POINT_X_OR_Y
 
-    ; We do the divide: TRIANGLES_3D_POINT_X_OR_Y * 256 / TRIANGLES_3D_POINT_Z
+
+    .if(USE_DIV_TABLES)
     
-    lda \TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
-    sta DIVIDEND+2
-    lda \TRIANGLES_3D_POINT_X_OR_Y,x
-    sta DIVIDEND+1
-    lda #0
-    sta DIVIDEND
+        ; We do the multiply: TRIANGLES_3D_POINT_X_OR_Y * 1 / TRIANGLES_3D_POINT_Z
+        
+        ; First we get the 1/Z from the div table. We need:
+        ;   y = Z_LOW
+        ;   RAM_BANK = Z_HIGH[5:0]
+        ;   LOAD_ADDR_HIGH[1] = Z_HIGH[6]
+            
+        ldy \TRIANGLES_3D_POINT_Z,x
+        
+        lda \TRIANGLES_3D_POINT_Z+MAX_NR_OF_TRIANGLES,x
+
+        and #%00111111
+        sta RAM_BANK
+; FIXME: remove nop!
+        nop
     
-    stz DIVIDEND_IS_NEGATED
-    lda DIVIDEND+2
-    bpl \@dividend_is_positive
-    
-    sec
-    lda #0
-    sbc DIVIDEND
-    sta DIVIDEND
-    lda #0
-    sbc DIVIDEND+1
-    sta DIVIDEND+1
-    lda #0
-    sbc DIVIDEND+2
-    sta DIVIDEND+2
-    
-    lda #1
-    sta DIVIDEND_IS_NEGATED
+        ; TODO: we have limited Z to a *positive* (15-bit: 7.8 fixed point) number, we might not want that!
+        lda \TRIANGLES_3D_POINT_Z+MAX_NR_OF_TRIANGLES,x
+        asl a     ; shifts Z_HIGH[7] into carry (ignored)
+        stz TMP3
+        asl a     ; shifts Z_HIGH[6] into carry
+        rol TMP3  ; 0000000, Z_HIGH[6]
+        asl TMP3  ; 000000, Z_HIGH[6], 0
+        lda TMP3
+        
+        ; SPEED: we can put this OUTSIDE of this macro!
+        ; Our base address is $B000
+        stz LOAD_ADDRESS
+        
+        ; We combine bit 1 with B0
+        ora #>($B000)
+        sta LOAD_ADDRESS+1
+
+        ; We load the INVERSE_Z_LOW
+        lda (LOAD_ADDRESS), y
+        sta MULTIPLICAND
+        
+        ; We load the INVERSE_Z_HIGH
+        inc LOAD_ADDRESS+1
+        lda (LOAD_ADDRESS), y
+        sta MULTIPLICAND+1
+
+        lda \TRIANGLES_3D_POINT_X_OR_Y,x
+        sta MULTIPLIER
+        lda \TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
+        sta MULTIPLIER+1
+
+        ; -- X (or Y) * 1 / Z
+        
+        jsr multply_16bits_signed
+        
+        lda PRODUCT+2
+        sta \OUTPUT_TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
+        lda PRODUCT+1
+        sta \OUTPUT_TRIANGLES_3D_POINT_X_OR_Y,x
+        
+    .else
+        ; We do the divide: TRIANGLES_3D_POINT_X_OR_Y * 256 / TRIANGLES_3D_POINT_Z
+        
+        lda \TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
+        sta DIVIDEND+2
+        lda \TRIANGLES_3D_POINT_X_OR_Y,x
+        sta DIVIDEND+1
+        lda #0
+        sta DIVIDEND
+        
+        stz DIVIDEND_IS_NEGATED
+        lda DIVIDEND+2
+        bpl \@dividend_is_positive
+        
+        sec
+        lda #0
+        sbc DIVIDEND
+        sta DIVIDEND
+        lda #0
+        sbc DIVIDEND+1
+        sta DIVIDEND+1
+        lda #0
+        sbc DIVIDEND+2
+        sta DIVIDEND+2
+        
+        lda #1
+        sta DIVIDEND_IS_NEGATED
 \@dividend_is_positive:
 
-    lda #0
-    sta DIVISOR+2
-    lda \TRIANGLES_3D_POINT_Z+MAX_NR_OF_TRIANGLES,x
-    sta DIVISOR+1
-    lda \TRIANGLES_3D_POINT_Z,x
-    sta DIVISOR
+        lda #0
+        sta DIVISOR+2
+        lda \TRIANGLES_3D_POINT_Z+MAX_NR_OF_TRIANGLES,x
+        sta DIVISOR+1
+        lda \TRIANGLES_3D_POINT_Z,x
+        sta DIVISOR
 
-    jsr divide_24bits
+        jsr divide_24bits
 
-    lda DIVIDEND_IS_NEGATED
-    beq \@divide_output_is_valid
-    
-    sec
-    lda #0
-    sbc DIVIDEND
-    sta DIVIDEND
-    lda #0
-    sbc DIVIDEND+1
-    sta DIVIDEND+1
-    lda #0
-    sbc DIVIDEND+2
-    sta DIVIDEND+2
+        lda DIVIDEND_IS_NEGATED
+        beq \@divide_output_is_valid
+        
+        sec
+        lda #0
+        sbc DIVIDEND
+        sta DIVIDEND
+        lda #0
+        sbc DIVIDEND+1
+        sta DIVIDEND+1
+        lda #0
+        sbc DIVIDEND+2
+        sta DIVIDEND+2
     
 \@divide_output_is_valid:
 
-    ; We ignore the higher byte
-    ;lda DIVIDEND+2
-    ;sta \SLOPE+2
-    lda DIVIDEND+1
-    sta \OUTPUT_TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
-    lda DIVIDEND
-    sta \OUTPUT_TRIANGLES_3D_POINT_X_OR_Y,x
+        ; We ignore the higher byte
+        lda DIVIDEND+1
+        sta \OUTPUT_TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
+        lda DIVIDEND
+        sta \OUTPUT_TRIANGLES_3D_POINT_X_OR_Y,x
+    .endif
     
 .endmacro
 
@@ -1352,6 +1422,8 @@ scale_and_position_keep_going:
 
     ; -- Project triangle from 3D world onto 2D screen --
 
+    phy
+    
     ; - Point 1 -
     MACRO_divide_by_z TRIANGLES3_3D_POINT1_X, TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINT1_X
     MACRO_divide_by_z TRIANGLES3_3D_POINT1_Y, TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINT1_Y
@@ -1363,6 +1435,8 @@ scale_and_position_keep_going:
     ; - Point 3 -
     MACRO_divide_by_z TRIANGLES3_3D_POINT3_X, TRIANGLES3_3D_POINT3_Z, TRIANGLES3_3D_POINT3_X
     MACRO_divide_by_z TRIANGLES3_3D_POINT3_Y, TRIANGLES3_3D_POINT3_Z, TRIANGLES3_3D_POINT3_Y
+    
+    ply
     
     ; These macro will use register x as 3D triangle index, whicle using register y as 2D triangle index
     MACRO_scale_and_position_on_screen_x TRIANGLES3_3D_POINT1_X, TRIANGLES_POINT1_X
@@ -1923,20 +1997,10 @@ triangle_3d_data:
    .word       0, $100, $100,    $100,    0, $100,       0,    0, $100,       0,    0,-$100,     3
 
    ; EAST                                                      
-; This ALSO FLASHES!
-;   .word    $100, $100,    0,    $100,    0,    0,    $100,    0, $100,   -$100,    0,    0,     2
-;   .word    $100, $100, $100,    $100, $100,    0,    $100,    0, $100,   -$100,    0,    0,     2
-   
    .word    $100, $100,    0,    $100,    0,    0,    $100, $100, $100,   -$100,    0,    0,     2
-; FIXME: THIS CAUSES A RED *FLASH*!!!
-; FIXME: THIS CAUSES A RED *FLASH*!!!
-; FIXME: THIS CAUSES A RED *FLASH*!!!
    .word    $100, $100, $100,    $100,    0,    0,    $100,    0, $100,   -$100,    0,    0,     2
 
    ; WEST                                                      
-; FIXME: THESE DO NOT WORK AT ALL!!!
-; FIXME: THESE DO NOT WORK AT ALL!!!
-; FIXME: THESE DO NOT WORK AT ALL!!!
    .word       0, $100, $100,       0,    0, $100,       0, $100,    0,     $100,    0,    0,     4
    .word       0, $100,    0,       0,    0, $100,       0,    0,    0,    $100,    0,    0,     4
 
@@ -2051,6 +2115,14 @@ irq:
             .binary "special_tests/tables/slopes_column_4_high.bin"
             .binary "special_tests/tables/slopes_column_4_vhigh.bin"
             .binary "special_tests/tables/slopes_column_4_vhigh.bin"
+            .if(USE_DIV_TABLES)
+                FIXME: no support for DIV tables when USE_SLOPE_TABLES is turned off!
+            .endif
         .endif
-        
+    .endif
+    .if(USE_DIV_TABLES)
+        .binary "special_tests/tables/div_pos_0_low.bin"
+        .binary "special_tests/tables/div_pos_0_high.bin"
+        .binary "special_tests/tables/div_pos_1_low.bin"
+        .binary "special_tests/tables/div_pos_1_high.bin"
     .endif

@@ -5,6 +5,7 @@
 
 ; USE_POLYGON_FILLER = 0 or 1  ; This turns on the use of the 'polygon filler' addr1-mode in the FX Updated VERA
 ; USE_SLOPE_TABLES = 0 or 1    ; This turns on the use of slope tables: given x and y distance -> how many subpixels do we move in x for every y?
+; USE_DIV_TABLES = 0 or 1      ; This turns on the use of division tables: Z -> 1 / Z 
 ; USE_UNROLLED_LOOP = 0 or 1   ; This turns on the use on unrolled loops (only used when jump tables are not used)
 ; USE_JUMP_TABLE = 0 or 1      ; This turns on the use of jump tables and uses part of the 'polygon filler' addr1-mode in the FX Updated VERA
 ; USE_WRITE_CACHE = USE_JUMP_TABLE ; This turns on the use of the cache32 which is part the FX Updated VERA
@@ -151,11 +152,12 @@
 ; Y_TO_ADDRESS_BANK (256 bytes)
 
 ; COPY_SLOPE_TABLES_TO_BANKED_RAM (less than 256 bytes)
+; COPY_DIV_TABLES_TO_BANKED_RAM (less than 256 bytes)
 
 ; -- This is used for unrolled code, not used when jump tables are used --
 ; This should be an address inside Banked RAM (in 64 banks: 3 (stz) * 64 + rts) -> so $100 of space is safe
 ; Example addresses:
-;   DRAW_ROW_64_CODE         = $AA00   ; When USE_POLYGON_FILLER is 1: A000-A9FF and B0600-BFFF are occucpied by the slope tables! (the latter by the 90-180 degrees slope tables)
+;   DRAW_ROW_64_CODE         = $AA00   ; When USE_POLYGON_FILLER is 1: A000-A9FF and B600-BFFF are occucpied by the slope tables! (the latter by the 90-180 degrees slope tables)
 ;   DRAW_ROW_64_CODE         = $B500   ; When USE_POLYGON_FILLER is 0: A000-B4FF are occucpied by the slope tables!
     
 generate_fill_line_codes_and_table:
@@ -2829,6 +2831,119 @@ generate_next_y_to_address_entry:
 
     rts
     
+    
+    
+copy_div_table_copier_to_ram:
+
+    ; Copying copy_div_tables_to_banked_ram -> COPY_DIV_TABLES_TO_BANKED_RAM
+    
+    ldy #0
+copy_div_tables_to_banked_ram_byte:
+    lda copy_div_tables_to_banked_ram, y
+    sta COPY_DIV_TABLES_TO_BANKED_RAM, y
+    iny 
+    cpy #(end_of_copy_div_tables_to_banked_ram-copy_div_tables_to_banked_ram)
+    bne copy_div_tables_to_banked_ram_byte
+
+    rts
+    
+copy_div_tables_to_banked_ram:
+
+    .if(USE_SLOPE_TABLES)
+        .if(USE_180_DEGREES_SLOPE_TABLE)
+            lda #21               ; Our first tables starts at ROM Bank 21
+        .else
+            lda #11               ; Our first tables starts at ROM Bank 11
+        .endif
+    .else
+        lda #1                    ; Our first tables starts at ROM Bank 1
+    .endif
+    sta TABLE_ROM_BANK
+    
+next_div_table_to_copy:    
+
+    lda #<($C000)        ; Our source table starts at C000
+    sta LOAD_ADDRESS
+    lda #>($C000)
+    sta LOAD_ADDRESS+1
+
+    lda #<($B000)        ; We store at Bx00
+    sta STORE_ADDRESS
+    
+    clc
+    lda #>($B000)        ; We put the 16KB tables (LOW/HIGH/LOW/HIGH) at B0/B1/B2/B3
+    adc TABLE_ROM_BANK
+    sec
+    .if(USE_SLOPE_TABLES)
+        .if(USE_180_DEGREES_SLOPE_TABLE)
+            sbc #21               ; since the TABLE_ROM_BANK starts at 21, we substract one from it
+        .else
+            sbc #11               ; since the TABLE_ROM_BANK starts at 11, we substract one from it
+        .endif
+    .else
+        sbc #1                    ; since the TABLE_ROM_BANK starts at 1, we substract one from it
+    .endif
+    sta STORE_ADDRESS+1
+
+    ; Switching ROM BANK
+    lda TABLE_ROM_BANK
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+
+
+        ldx #0                             ; x = n[13:8]
+next_div_bank_to_copy_to_banked_ram:
+        ; Switching to RAM BANK x
+        stx RAM_BANK
+    ; FIXME: remove nop!
+        nop
+        
+        ldy #0                             ; y = n[7:0]
+next_div_byte_to_copy_to_banked_ram:
+        lda (LOAD_ADDRESS), y
+        sta (STORE_ADDRESS), y
+        iny
+        cpy #0
+        bne next_div_byte_to_copy_to_banked_ram
+        
+        ; We increment LOAD_ADDRESS by 256 bytes to move to the next bank
+        clc
+        lda LOAD_ADDRESS
+        adc #<256
+        sta LOAD_ADDRESS
+        lda LOAD_ADDRESS+1
+        adc #>256
+        sta LOAD_ADDRESS+1
+        
+        inx
+        cpx #64
+        bne next_div_bank_to_copy_to_banked_ram
+
+    inc TABLE_ROM_BANK
+    lda TABLE_ROM_BANK
+    .if(USE_SLOPE_TABLES)
+        .if(USE_180_DEGREES_SLOPE_TABLE)
+            cmp #25               ; we go from 21-24 so we need to stop at 25
+        .else
+            cmp #15               ; we go from 11-14 so we need to stop at 15
+        .endif
+    .else
+        cmp #5                    ; we go from 1-4 so we need to stop at 5
+    .endif
+    bne next_div_table_to_copy
+
+
+    ; Switching back to ROM bank 0
+    lda #$00
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+
+    rts
+end_of_copy_div_tables_to_banked_ram:
+
+
     
 ; NOTE: we are now using ROM banks to contain tables. We need to copy those tables to Banked RAM, but have to run that copy-code in Fixed RAM.
     
