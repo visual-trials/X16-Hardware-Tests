@@ -70,17 +70,22 @@ print(palette_string)
 tile_index = 0
 unique_tiles = {}
 tile_map = []
+tiles_pixel_data = []
 
 # WORKAROUND: making sure tile 0 is a grass tile! (we use tile 0,127 for this)
 tile_pixels_as_string = ""
 tile_x = 0
 tile_y = 127
+tile_pixel_data = []
 for y_in_tile in range(8):
     for x_in_tile in range(8):
-        tile_pixels_as_string += str(px[tile_x*8+x_in_tile, tile_y*8+y_in_tile])
-unique_tiles[tile_pixels_as_string] = 0
+        new_pixel_color = old_color_index_to_new_color_index[px[tile_x*8+x_in_tile, tile_y*8+y_in_tile]]
+        tile_pixels_as_string += str(new_pixel_color)
+        tile_pixel_data.append(new_pixel_color)
+unique_tiles[tile_pixels_as_string] = tile_index
+tiles_pixel_data.append(tile_pixel_data)
+tile_index += 1
 
-tiles_pixel_data = []
 for tile_y in range(128):
     tile_map.append([])
     for tile_x in range(128):

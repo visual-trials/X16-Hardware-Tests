@@ -7,8 +7,8 @@ USE_TABLE_FILES = 1
 ; FIXME: there is no more non-tile-lookup mode!
 DO_NO_TILE_LOOKUP = 0
 USE_MARIO_MAP_AND_TILES = 1
-DO_CLIP = 0
-DRAW_TILED_PERSPECTIVE = 0  ; Otherwise FLAT tiles
+DO_CLIP = 1
+DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 1
 TURN_AROUND = 0
 MOVE_SLOWLY = 0
