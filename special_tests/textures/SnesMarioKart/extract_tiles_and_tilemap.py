@@ -102,24 +102,40 @@ for tile_y in range(128):
 
 # Printing out asm for tilemap:
 tilemap_asm_string = ""
+mario_tile_map = []
 for tile_y in range(128):
     tilemap_asm_string += "  .byte "
     for tile_x in range(128):
         tile_index = tile_map[tile_y][tile_x]
+        mario_tile_map.append(tile_index)
         tilemap_asm_string += "$" + format(tile_index,"02x") + ", "
     tilemap_asm_string += "\n"
 
-print(tilemap_asm_string)
+# print(tilemap_asm_string)
+
+tableFile = open("mario_tile_map.bin", "wb")
+tableFile.write(bytearray(mario_tile_map))
+tableFile.close()
+print("tile map written to file")
 
 # Printing out tile data:
 
 tiles_pixel_asm_string = ""
+mario_tile_pixel_data = []
 for tile_pixel_data in tiles_pixel_data:
     tiles_pixel_asm_string += "  .byte "
     for tile_pixel in tile_pixel_data:
+        mario_tile_pixel_data.append(tile_pixel)
         tiles_pixel_asm_string += "$" + format(tile_pixel,"02x") + ", "
     tiles_pixel_asm_string += "\n"
 
-print(tiles_pixel_asm_string)
+#print(tiles_pixel_asm_string)
+
+# FIXME: we might want to PAD this file until its 16kB long!
+tableFile = open("mario_tile_pixel_data.bin", "wb")
+tableFile.write(bytearray(mario_tile_pixel_data))
+tableFile.close()
+
+print("tile data written to file")
 
 print("nr of unique tiles: " + str(len(unique_tiles.keys())))
