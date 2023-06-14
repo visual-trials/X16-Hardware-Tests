@@ -1,5 +1,7 @@
 ; IMPORTANT NOTE: This i2c source code is from the x16-rom repository (and is slightly adapted to make it work in the HW tester using vasm):
 ;   https://github.com/commanderx16/x16-rom
+; More info here about the new (compact) keycodes (and the translations between others)
+;   https://github.com/X16Community/x16-rom/blob/master/keymap/keycode_table.txt
 
 ;----------------------------------------------------------------------
 ; I2C Driver
