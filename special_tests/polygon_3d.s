@@ -3,6 +3,7 @@
 
 DO_SPEED_TEST = 1
 KEEP_RUNNING = 1
+USE_KEYBOARD_INPUT = 1
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
 
@@ -198,8 +199,14 @@ CURRENT_LINKED_LIST_ENTRY  = $BB
 PREVIOUS_LINKED_LIST_ENTRY = $BC
 LINKED_LIST_NEW_ENTRY      = $BD
 
+DELTA_ANGLE_X              = $C0 ; C1
+DELTA_ANGLE_Y              = $C2 ; C3
+DELTA_ANGLE_Z              = $C4 ; C5
 
-DEBUG_VALUE              = $C7
+NR_OF_KBD_KEY_CODE_BYTES   = $C6     ; Required by keyboard.s
+
+
+DEBUG_VALUE                = $CA
 
 
 
@@ -208,7 +215,9 @@ FILL_LENGTH_HIGH_SOFT    = $2801
 
 ; RAM addresses
 
+KEYBOARD_STATE           = $2A80   ; 128 bytes (state for each key of the keyboard)
 CLEAR_COLUMN_CODE        = $2B00   ; takes up to 02D0
+KEYBOARD_KEY_CODE_BUFFER = $2DE0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
 
 FILL_LINE_JUMP_TABLE     = $2E00
 FILL_LINE_BELOW_16_CODE  = $2F00   ; 128 different (below 16 pixel) fill line code patterns -> safe: takes $0D00 bytes
@@ -323,8 +332,8 @@ reset:
     jsr copy_petscii_charset
     jsr clear_tilemap_screen
     jsr init_cursor
+    jsr init_keyboard
     jsr init_timer
-    
 
     .if (USE_WRITE_CACHE)
         jsr generate_clear_column_code
@@ -504,6 +513,7 @@ keep_running:
         .if(SLOW_DOWN)
             jsr wait_for_a_while
         .endif
+        jsr get_user_input
         jsr update_world
         bra keep_running
     .endif
@@ -782,7 +792,7 @@ init_world:
     lda #0
     sta ANGLE_X+1
     
-    lda #$B8
+    lda #$D8
     sta TRANSLATE_Z
     lda #$02
     sta TRANSLATE_Z+1
@@ -791,41 +801,122 @@ init_world:
     
 update_world:
 
-    .if(1)
+    stz DELTA_ANGLE_X
+    stz DELTA_ANGLE_X+1
+    stz DELTA_ANGLE_Y
+    stz DELTA_ANGLE_Y+1
+    stz DELTA_ANGLE_Z
+    stz DELTA_ANGLE_Z+1
+    
+    .if(USE_KEYBOARD_INPUT)
+
+; FIXME: what we really should do is determine which part of x,y,z has to be adjusted due to a left array key press (= dependent on the ship orientation)
+
+        ; -- Left arrow key --
+        ldx #KEY_CODE_LEFT_ARROW
+        lda KEYBOARD_STATE, x
+        beq left_arrow_key_down_handled
+        
+        lda #<(2)
+        sta DELTA_ANGLE_Z
+        lda #>(2)
+        sta DELTA_ANGLE_Z+1
+left_arrow_key_down_handled:
+
+        ; -- Right arrow key --
+        ldx #KEY_CODE_RIGHT_ARROW
+        lda KEYBOARD_STATE, x
+        beq right_arrow_key_down_handled
+        
+        lda #<(-2)
+        sta DELTA_ANGLE_Z
+        lda #>(-2)
+        sta DELTA_ANGLE_Z+1
+right_arrow_key_down_handled:
+
+        ; -- Up arrow key --
+        ldx #KEY_CODE_UP_ARROW
+        lda KEYBOARD_STATE, x
+        beq up_arrow_key_down_handled
+        
+        lda #<(2)
+        sta DELTA_ANGLE_X
+        lda #>(2)
+        sta DELTA_ANGLE_X+1
+up_arrow_key_down_handled:
+
+        ; -- Down arrow key --
+        ldx #KEY_CODE_DOWN_ARROW
+        lda KEYBOARD_STATE, x
+        beq down_arrow_key_down_handled
+        
+        lda #<(-2)
+        sta DELTA_ANGLE_X
+        lda #>(-2)
+        sta DELTA_ANGLE_X+1
+down_arrow_key_down_handled:
+
+    .else
+        lda #2
+        sta DELTA_ANGLE_Z
+        lda #1
+        sta DELTA_ANGLE_X
+    .endif
+    
+    
+    ; -- Update ANGLE_Z --
     clc
     lda ANGLE_Z
-    adc #2
+    adc DELTA_ANGLE_Z
     sta ANGLE_Z
     lda ANGLE_Z+1
-    adc #0
+    adc DELTA_ANGLE_Z+1
     sta ANGLE_Z+1
 
-    cmp #2                ; we should never reach $200, we reset to 0 then
+    bpl angle_z_is_positive
+    clc
+    adc #$2               ; We have a negative angle, so we have to add $200
+    sta ANGLE_Z+1
+    bra angle_z_updated
+angle_z_is_positive:
+    cmp #2                ; we should never reach $200, we are >= $200
     bne angle_z_updated
-    stz ANGLE_Z
-    stz ANGLE_Z+1
+    sec
+    sbc #$2               ; We have a angle >= $200, so we have to subtract $200
+    sta ANGLE_Z+1
 angle_z_updated:
-    .endif
 
-    .if(1)
+    ; -- Update ANGLE_X --
     clc
     lda ANGLE_X
-    adc #1
+    adc DELTA_ANGLE_X
     sta ANGLE_X
     lda ANGLE_X+1
-    adc #0
+    adc DELTA_ANGLE_X+1
     sta ANGLE_X+1
 
-    cmp #2                ; we should never reach $200, we reset to 0 then
+    bpl angle_x_is_positive
+    clc
+    adc #$2               ; We have a negative angle, so we have to add $200
+    sta ANGLE_X+1
+    bra angle_x_updated
+angle_x_is_positive:
+    cmp #2                ; we should never reach $200, we are >= $200
     bne angle_x_updated
-    stz ANGLE_X
-    stz ANGLE_X+1
+    sec
+    sbc #$2               ; We have a angle >= $200, so we have to subtract $200
+    sta ANGLE_X+1
 angle_x_updated:
-    .endif
 
     rts
     
 
+get_user_input:
+
+    jsr retrieve_keyboard_key_codes
+    jsr update_keyboard_state
+
+    rts
     
     
 MACRO_scale_and_position_on_screen_x .macro TRIANGLES_3D_POINT_X, TRIANGLES_POINT_X
@@ -2385,6 +2476,8 @@ end_of_palette_data:
     
     .include utils/x16.s
     .include utils/utils.s
+    .include utils/i2c.s
+    .include utils/keyboard.s
     .include utils/timing.s
     .include utils/setup_vera_for_bitmap_and_tilemap.s
     .include special_tests/fx_polygon_fill.s
