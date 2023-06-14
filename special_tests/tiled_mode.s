@@ -39,18 +39,16 @@ BACKGROUND_COLOR = 2;   ; Black in this palette
 COLOR_TEXT  = $06       ; Background color = 0 (transparent), foreground color ??
 MAP_WIDTH = 128
 MAP_HEIGHT = 128
-; FIXME!
-TEXTURE_WIDTH = 8
-; FIXME!
-TEXTURE_HEIGHT = 128
+TEXTURE_WIDTH = 64      ; FIXME: this actually the number of bytes in a tile! (we should use TILE_WIDTH/TILE_HEIGHT)
+TEXTURE_HEIGHT = 171    ; FIXME: We have 171 unique tiles, we should name the variable/constant that way!
             .else
 BACKGROUND_COLOR = 255  ; 255 = Purple in this palette
 COLOR_TEXT  = $06       ; Background color = 0 (transparent), foreground color 6 (grey in this palette)
 MAP_WIDTH = 32
 MAP_HEIGHT = 32
-; This is used in copy_pixels_to_high_vram
-TEXTURE_WIDTH = 8
-TEXTURE_HEIGHT = 128
+; This is used in copy_tiledata_to_high_vram
+TEXTURE_WIDTH = 64      ; FIXME: this actually the number of bytes in a tile! (we should use TILE_WIDTH/TILE_HEIGHT)
+TEXTURE_HEIGHT = 16     ; FIXME: We have 16 unique tiles, we should name the variable/constant that way!
             .endif
         .endif
     .endif
@@ -74,8 +72,13 @@ TOP_MARGIN = 12
 LEFT_MARGIN = 16
 VSPACING = 10
 
+    .if(USE_MARIO_MAP_AND_TILES && !DO_4BIT)
+MAPDATA_VRAM_ADDRESS = $13000   ; should be aligned to 1kB
+TILEDATA_VRAM_ADDRESS = $17000  ; should be aligned to 1kB
+    .else
 MAPDATA_VRAM_ADDRESS = $17000   ; should be aligned to 1kB
 TILEDATA_VRAM_ADDRESS = $18000  ; should be aligned to 1kB
+    .endif
 
 DESTINATION_PICTURE_POS_X = 64
 DESTINATION_PICTURE_POS_Y = 65
@@ -148,6 +151,9 @@ AFFINE_SETTINGS           = $60
 ; RAM addresses
 COPY_ROW_CODE               = $7800
 COPY_TABLES_TO_BANKED_RAM   = $8000
+COPY_TILEMAP_TO_HIGH_VRAM   = $8100  ; TODO: this can probably re-use the other copier memory
+COPY_TILEDATA_TO_HIGH_VRAM  = $8200  ; TODO: this can probably re-use the other copier memory
+
 
 
 X_SUBPIXEL_POSITIONS_IN_MAP_LOW        = $A000
@@ -220,8 +226,17 @@ reset:
     .if(DO_NO_TILE_LOOKUP)
         jsr copy_texture_pixels_as_tile_pixels_to_high_vram
     .else
-        jsr copy_pixels_to_high_vram
-        jsr copy_tilemap_to_high_vram
+        .if(USE_MARIO_MAP_AND_TILES)
+            ; We are copying a large tilemap and tiledata here, so we have to use a ROM bank
+            jsr copy_tiledata_copier_to_ram
+            jsr COPY_TILEDATA_TO_HIGH_VRAM
+        
+            jsr copy_tilemap_copier_to_ram
+            jsr COPY_TILEMAP_TO_HIGH_VRAM
+        .else
+            jsr copy_tiledata_to_high_vram
+            jsr copy_tilemap_to_high_vram
+        .endif
     .endif
     
     lda #6
@@ -1179,7 +1194,86 @@ next_packed_color2:
 
     rts
 
-copy_pixels_to_high_vram:  
+    
+    .if(USE_MARIO_MAP_AND_TILES && !DO_4BIT)
+    
+copy_tiledata_copier_to_ram:
+
+    ; Copying copy_tiledata_to_high_vram -> COPY_TILEDATA_TO_HIGH_VRAM
+    
+    ldy #0
+copy_tiledata_to_high_vram_byte:
+    lda copy_tiledata_to_high_vram, y
+    sta COPY_TILEDATA_TO_HIGH_VRAM, y
+    iny 
+    cpy #(end_of_copy_tiledata_to_high_vram-copy_tiledata_to_high_vram)
+    bne copy_tiledata_to_high_vram_byte
+
+    rts
+
+copy_tiledata_to_high_vram:    
+    
+    ; Switching ROM BANK
+    lda #14               ; Our tiledata starts at ROM Bank 14
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+    
+    lda #<($C000)        ; Our source table starts at C000
+    sta LOAD_ADDRESS
+    lda #>($C000)
+    sta LOAD_ADDRESS+1
+
+    ; For now copying to TILEDATA_VRAM_ADDRESS
+    ; TODO: we are ASSUMING here that TEXTURE_VRAM_ADDRESS has its bit16 set to 1!!
+    lda #%00010001      ; setting bit 16 of vram address to the highest bit in the tilebase (=1), setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+    lda #<(TILEDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_LOW
+    lda #>(TILEDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_HIGH
+    
+    ldx #0
+next_pixel_row_high_vram:  
+
+    ldy #0
+next_horizontal_pixel_high_vram:
+    lda (LOAD_ADDRESS),y
+
+; FIXME!
+;    lda #2
+    sta VERA_DATA0
+
+    iny
+    cpy #TEXTURE_WIDTH
+    bne next_horizontal_pixel_high_vram
+    inx
+    
+    ; Adding TEXTURE_WIDTH to the previous data address
+    clc
+    lda LOAD_ADDRESS
+    adc #TEXTURE_WIDTH
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    adc #0
+    sta LOAD_ADDRESS+1
+
+    cpx #TEXTURE_HEIGHT
+    bne next_pixel_row_high_vram
+    
+    ; Switching back to ROM bank 0
+    lda #$00
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+    
+    rts
+end_of_copy_tiledata_to_high_vram:
+
+    .else
+    
+    
+copy_tiledata_to_high_vram:  
 
     lda #<PIXELS
     sta DATA_PTR_ZP
@@ -1222,6 +1316,10 @@ next_horizontal_pixel_high_vram:
     bne next_pixel_row_high_vram
     
     rts
+    
+    .endif
+    
+    
     
     .if(DO_NO_TILE_LOOKUP)
 copy_texture_pixels_as_tile_pixels_to_high_vram:  
@@ -1309,6 +1407,88 @@ next_horizontal_tile_pixel_high_vram:
     rts
     .endif
     
+    
+    .if(USE_MARIO_MAP_AND_TILES && !DO_4BIT)
+    
+copy_tilemap_copier_to_ram:
+
+    ; Copying copy_tilemap_to_high_vram -> COPY_TILEMAP_TO_HIGH_VRAM
+    
+    ldy #0
+copy_tilemap_to_high_vram_byte:
+    lda copy_tilemap_to_high_vram, y
+    sta COPY_TILEMAP_TO_HIGH_VRAM, y
+    iny 
+    cpy #(end_of_copy_tilemap_to_high_vram-copy_tilemap_to_high_vram)
+    bne copy_tilemap_to_high_vram_byte
+
+    rts
+
+copy_tilemap_to_high_vram:    
+    
+    ; We copy a 128x128 tilemap to high VRAM
+
+    ; Switching ROM BANK
+    lda #13               ; Our tilemap starts at ROM Bank 13
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+    
+    lda #<($C000)        ; Our source table starts at C000
+    sta LOAD_ADDRESS
+    lda #>($C000)
+    sta LOAD_ADDRESS+1
+
+    
+    ; For now copying to MAPDATA_VRAM_ADDRESS
+    ; TODO: we are ASSUMING here that MAPDATA_VRAM_ADDRESS has its bit16 set to 1!!
+    lda #%00010001      ; setting bit 16 of vram address to the highest bit in the tilebase (=1), setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+    lda #<(MAPDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_LOW
+    lda #>(MAPDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_HIGH
+    
+    ldx #0
+next_tile_row_high_vram:  
+
+    ldy #0
+next_horizontal_tile_high_vram:
+    lda (LOAD_ADDRESS),y
+
+; FIXME!
+;    lda #3
+    sta VERA_DATA0
+
+    iny
+    cpy #MAP_WIDTH
+    bne next_horizontal_tile_high_vram
+    inx
+    
+    ; Adding MAP_WIDTH to the previous data address
+    clc
+    lda LOAD_ADDRESS
+    adc #MAP_WIDTH
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    adc #0
+    sta LOAD_ADDRESS+1
+
+    cpx #MAP_HEIGHT
+    bne next_tile_row_high_vram
+    
+    
+    ; Switching back to ROM bank 0
+    lda #$00
+    sta ROM_BANK
+; FIXME: remove nop!
+    nop
+    
+    rts
+end_of_copy_tilemap_to_high_vram:
+    
+    .else
+    
 copy_tilemap_to_high_vram:
 
     lda #<TILEMAP
@@ -1339,7 +1519,7 @@ next_horizontal_tile_high_vram:
     bne next_horizontal_tile_high_vram
     inx
     
-    ; Adding TILE_WIDTH to the previous data address
+    ; Adding MAP_WIDTH to the previous data address
     clc
     lda DATA_PTR_ZP
     adc #MAP_WIDTH
@@ -1353,11 +1533,11 @@ next_horizontal_tile_high_vram:
     
     rts
     
+    .endif
     
     
     
 ; NOTE: we are now using ROM banks to contain tables. We need to copy those textures to Banked RAM, but have to run that copy-code in Fixed RAM.
-    
 copy_table_copier_to_ram:
 
     ; Copying copy_tables_to_banked_ram -> COPY_TABLES_TO_BANKED_RAM
@@ -1374,7 +1554,6 @@ copy_tables_to_banked_ram_byte:
     
 ; FIXME: this is UGLY!
 copy_tables_to_banked_ram:
-
 
     ; We copy 14 tables to banked RAM, but we pack them so they are easily accessible
 
@@ -2437,7 +2616,7 @@ irq:
     .binary "special_tests/tables/y_sub_pixel_steps_low.bin"
     .binary "special_tests/tables/y_sub_pixel_steps_high.bin"
     .endif
-    .if(!DO_NO_TILE_LOOKUP && USE_MARIO_MAP_AND_TILES)
+    .if(!DO_NO_TILE_LOOKUP && USE_MARIO_MAP_AND_TILES && !DO_4BIT)
         .binary "special_tests/textures/SnesMarioKart/mario_tile_map.bin"
         .binary "special_tests/textures/SnesMarioKart/mario_tile_pixel_data.bin"  ; WARNING!! ONLY 11kB!!
     .endif
