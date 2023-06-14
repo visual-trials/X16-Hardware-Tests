@@ -75,8 +75,8 @@ tile_map = []
 tile_pixels_as_string = ""
 tile_x = 0
 tile_y = 127
-for x_in_tile in range(8):
-    for y_in_tile in range(8):
+for y_in_tile in range(8):
+    for x_in_tile in range(8):
         tile_pixels_as_string += str(px[tile_x*8+x_in_tile, tile_y*8+y_in_tile])
 unique_tiles[tile_pixels_as_string] = 0
 
@@ -87,8 +87,8 @@ for tile_y in range(128):
         tile_map[tile_y].append([])
         tile_pixels_as_string = ""
         tile_pixel_data = []
-        for x_in_tile in range(8):
-            for y_in_tile in range(8):
+        for y_in_tile in range(8):
+            for x_in_tile in range(8):
                 new_pixel_color = old_color_index_to_new_color_index[px[tile_x*8+x_in_tile, tile_y*8+y_in_tile]]
                 tile_pixels_as_string += str(new_pixel_color)
                 tile_pixel_data.append(new_pixel_color)
