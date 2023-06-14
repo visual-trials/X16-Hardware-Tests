@@ -122,3 +122,4 @@ for tile_pixel_data in tiles_pixel_data:
 
 print(tiles_pixel_asm_string)
 
+print("nr of unique tiles: " + str(len(unique_tiles.keys())))
