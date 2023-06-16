@@ -3,7 +3,8 @@
 
 DO_SPEED_TEST = 1
 KEEP_RUNNING = 1
-USE_KEYBOARD_INPUT = 1
+USE_LIGHT = 1
+USE_KEYBOARD_INPUT = 0
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
 
@@ -205,8 +206,12 @@ DELTA_ANGLE_Z              = $C4 ; C5
 
 NR_OF_KBD_KEY_CODE_BYTES   = $C6     ; Required by keyboard.s
 
+LIGHT_DIRECTION_3D_X       = $C7 ; C8
+LIGHT_DIRECTION_3D_Y       = $C9 ; CA
+LIGHT_DIRECTION_3D_Z       = $CB ; CC
 
-DEBUG_VALUE                = $CA
+
+DEBUG_VALUE                = $D0
 
 
 
@@ -796,6 +801,21 @@ init_world:
     sta TRANSLATE_Z
     lda #$02
     sta TRANSLATE_Z+1
+    
+    
+    ; Light direction
+    lda #0
+    sta LIGHT_DIRECTION_3D_X
+    sta LIGHT_DIRECTION_3D_X+1
+    sta LIGHT_DIRECTION_3D_Y
+    sta LIGHT_DIRECTION_3D_Y+1
+    
+    lda #0
+    sta LIGHT_DIRECTION_3D_Z
+    lda #1
+    sta LIGHT_DIRECTION_3D_Z+1
+    
+    
     
     rts
     
@@ -1560,6 +1580,171 @@ MACRO_calculate_dot_product .macro TRIANGLES_3D_POINTA_X, TRIANGLES_3D_POINTA_Y,
 .endmacro
 
 
+MACRO_calculate_dot_product_for_light .macro TRIANGLES_3D_POINTN_X, TRIANGLES_3D_POINTN_Y, TRIANGLES_3D_POINTN_Z
+
+    ; To do the dot-product we have to do:
+    ; L.x * N.x + L.y * N.y + L.z + N.z
+    
+    stz DOT_PRODUCT
+    stz DOT_PRODUCT+1
+    
+    ; -- L.x * N.x
+    
+    .if(USE_FX_MULTIPLIER)
+    
+        lda LIGHT_DIRECTION_3D_X
+        sta $9F29
+        lda LIGHT_DIRECTION_3D_X+1
+        sta $9F2A
+
+        lda \TRIANGLES_3D_POINTN_X, x
+        sta $9F2B
+        lda \TRIANGLES_3D_POINTN_X+MAX_NR_OF_TRIANGLES, x
+        sta $9F2C
+
+        ; We write the multiplication result to VRAM
+        stz VERA_DATA0
+        
+; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
+        lda #>MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_HIGH
+
+        clc
+        lda DOT_PRODUCT
+        adc VERA_DATA1
+        sta DOT_PRODUCT
+        lda DOT_PRODUCT+1
+        adc VERA_DATA1
+        sta DOT_PRODUCT+1
+    
+    .else
+        lda LIGHT_DIRECTION_3D_X
+        sta MULTIPLIER
+        lda LIGHT_DIRECTION_3D_X+1
+        sta MULTIPLIER+1
+
+        lda \TRIANGLES_3D_POINTN_X, x
+        sta MULTIPLICAND
+        lda \TRIANGLES_3D_POINTN_X+MAX_NR_OF_TRIANGLES, x
+        sta MULTIPLICAND+1
+
+        jsr multply_16bits_signed
+
+        clc
+        lda DOT_PRODUCT
+        adc PRODUCT+1
+        sta DOT_PRODUCT
+        lda DOT_PRODUCT+1
+        adc PRODUCT+2
+        sta DOT_PRODUCT+1
+    .endif
+    
+    ; -- L.y * N.y
+    
+    .if(USE_FX_MULTIPLIER)
+    
+        lda LIGHT_DIRECTION_3D_Y
+        sta $9F29
+        lda LIGHT_DIRECTION_3D_Y+1
+        sta $9F2A
+
+        lda \TRIANGLES_3D_POINTN_Y, x
+        sta $9F2B
+        lda \TRIANGLES_3D_POINTN_Y+MAX_NR_OF_TRIANGLES, x
+        sta $9F2C
+
+        ; We write the multiplication result to VRAM
+        stz VERA_DATA0
+        
+; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
+        lda #>MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_HIGH
+
+        clc
+        lda DOT_PRODUCT
+        adc VERA_DATA1
+        sta DOT_PRODUCT
+        lda DOT_PRODUCT+1
+        adc VERA_DATA1
+        sta DOT_PRODUCT+1
+        
+    .else
+    
+        lda LIGHT_DIRECTION_3D_Y
+        sta MULTIPLIER
+        lda LIGHT_DIRECTION_3D_Y+1
+        sta MULTIPLIER+1
+
+        lda \TRIANGLES_3D_POINTN_Y, x
+        sta MULTIPLICAND
+        lda \TRIANGLES_3D_POINTN_Y+MAX_NR_OF_TRIANGLES, x
+        sta MULTIPLICAND+1
+
+        jsr multply_16bits_signed
+
+        clc
+        lda DOT_PRODUCT
+        adc PRODUCT+1
+        sta DOT_PRODUCT
+        lda DOT_PRODUCT+1
+        adc PRODUCT+2
+        sta DOT_PRODUCT+1
+    .endif
+
+    ; -- L.z * N.z
+    
+    .if(USE_FX_MULTIPLIER)
+    
+        lda LIGHT_DIRECTION_3D_Z
+        sta $9F29
+        lda LIGHT_DIRECTION_3D_Z+1
+        sta $9F2A
+
+        lda \TRIANGLES_3D_POINTN_Z, x
+        sta $9F2B
+        lda \TRIANGLES_3D_POINTN_Z+MAX_NR_OF_TRIANGLES, x
+        sta $9F2C
+
+        ; We write the multiplication result to VRAM
+        stz VERA_DATA0
+        
+; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
+        lda #>MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_HIGH
+
+        clc
+        lda DOT_PRODUCT
+        adc VERA_DATA1
+        sta DOT_PRODUCT
+        lda DOT_PRODUCT+1
+        adc VERA_DATA1
+        sta DOT_PRODUCT+1
+        
+    .else
+        lda LIGHT_DIRECTION_3D_Z
+        sta MULTIPLIER
+        lda LIGHT_DIRECTION_3D_Z+1
+        sta MULTIPLIER+1
+
+        lda \TRIANGLES_3D_POINTN_Z, x
+        sta MULTIPLICAND
+        lda \TRIANGLES_3D_POINTN_Z+MAX_NR_OF_TRIANGLES, x
+        sta MULTIPLICAND+1
+
+        jsr multply_16bits_signed
+
+        clc
+        lda DOT_PRODUCT
+        adc PRODUCT+1
+        sta DOT_PRODUCT
+        lda DOT_PRODUCT+1
+        adc PRODUCT+2
+        sta DOT_PRODUCT+1
+    .endif
+
+.endmacro
+
+
 
 MACRO_calculate_sum_of_z .macro TRIANGLES_3D_POINT1_Z, TRIANGLES_3D_POINT2_Z, TRIANGLES_3D_POINT3_Z, TRIANGLES_3D_SUM_Z
 
@@ -1586,12 +1771,7 @@ MACRO_calculate_sum_of_z .macro TRIANGLES_3D_POINT1_Z, TRIANGLES_3D_POINT2_Z, TR
 
 .endmacro
 
-
-
-calculate_projection_of_3d_onto_2d_screen:
-
-
-    
+MACRO_prepare_fx_multiplier .macro
     .if(USE_FX_MULTIPLIER)
         lda #%00000100           ; DCSEL=2, ADDRSEL=0
         sta VERA_CTRL
@@ -1625,28 +1805,38 @@ calculate_projection_of_3d_onto_2d_screen:
         lda #%10010000           ; reset accumulator = 1, add/sub = 0 (add), multiplier enabled = 1, cache index  = 0
         sta $9F2C
     .endif
+.endmacro
 
+MACRO_reset_fx_multiplier .macro
+    ; This sets ADDR0_LOW to $00 and ADDR1_LOW to $01 (assuming MATH_RESULTS_ADDRESS_LOW = $00)
+    
+    .if(USE_FX_MULTIPLIER)
+        ; We reset both ADDR0 and ADDR1 to the MATH_RESULTS_ADDRESS
+    
+        lda #<(MATH_RESULTS_ADDRESS+1)  ; We offset by 1 so we read the 2 middle 2 bytes of the 32-bit result
+        sta VERA_ADDR_LOW        ; Reset ADDR1_LOW
+        
+        lda #%00001100           ; DCSEL=6, ADDRSEL=0
+        sta VERA_CTRL
+    
+        lda #<MATH_RESULTS_ADDRESS
+        sta VERA_ADDR_LOW        ; Reset ADDR0_LOW 
+        
+        lda #%00001101           ; DCSEL=6, ADDRSEL=1
+        sta VERA_CTRL
+    .endif
+.endmacro
+
+
+calculate_projection_of_3d_onto_2d_screen:
+
+    MACRO_prepare_fx_multiplier
 
     ldx #0
 rotate_in_z_next_triangle:
 
     .if(1)
-        ; FIXME: put this in a MACRO!
-        .if(USE_FX_MULTIPLIER)
-            ; We reset both ADDR0 and ADDR1 to the MATH_RESULTS_ADDRESS
-        
-            lda #<(MATH_RESULTS_ADDRESS+1)  ; We offset by 1 so we read the 2 middle 2 bytes of the 32-bit result
-            sta VERA_ADDR_LOW        ; Reset ADDR1_LOW
-            
-            lda #%00001100           ; DCSEL=6, ADDRSEL=0
-            sta VERA_CTRL
-        
-            lda #<MATH_RESULTS_ADDRESS
-            sta VERA_ADDR_LOW        ; Reset ADDR0_LOW 
-            
-            lda #%00001101           ; DCSEL=6, ADDRSEL=1
-            sta VERA_CTRL
-        .endif
+        MACRO_reset_fx_multiplier
     
         ; -- Point 1 --
         MACRO_rotate_cos_minus_sin ANGLE_Z, TRIANGLES_3D_POINT1_X, TRIANGLES_3D_POINT1_Y, TRIANGLES2_3D_POINT1_X
@@ -1700,22 +1890,7 @@ rotate_in_z_done:
 rotate_in_x_next_triangle:
     
     .if(1)
-        ; FIXME: put this in a MACRO!
-        .if(USE_FX_MULTIPLIER)
-            ; We reset both ADDR0 and ADDR1 to the MATH_RESULTS_ADDRESS
-        
-            lda #<(MATH_RESULTS_ADDRESS+1)  ; We offset by 1 so we read the 2 middle 2 bytes of the 32-bit result
-            sta VERA_ADDR_LOW        ; Reset ADDR1_LOW
-            
-            lda #%00001100           ; DCSEL=6, ADDRSEL=0
-            sta VERA_CTRL
-        
-            lda #<MATH_RESULTS_ADDRESS
-            sta VERA_ADDR_LOW        ; Reset ADDR0_LOW 
-            
-            lda #%00001101           ; DCSEL=6, ADDRSEL=1
-            sta VERA_CTRL
-        .endif
+        MACRO_reset_fx_multiplier
     
         ; -- Point 1 --
         MACRO_rotate_cos_minus_sin ANGLE_X, TRIANGLES2_3D_POINT1_Y, TRIANGLES2_3D_POINT1_Z, TRIANGLES3_3D_POINT1_Y
@@ -1787,23 +1962,7 @@ back_face_cull_next_triangle:
     ; --  We check whether the triangle should be visible.
 
 ; FIXME: maybe we can skip this here? We do it only once per triangle!    
-    ; FIXME: put this in a MACRO!
-    .if(USE_FX_MULTIPLIER)
-        ; We reset both ADDR0 and ADDR1 to the MATH_RESULTS_ADDRESS
-    
-        lda #<(MATH_RESULTS_ADDRESS+1)  ; We offset by 1 so we read the 2 middle 2 bytes of the 32-bit result
-        sta VERA_ADDR_LOW        ; Reset ADDR1_LOW
-        
-        lda #%00001100           ; DCSEL=6, ADDRSEL=0
-        sta VERA_CTRL
-    
-        lda #<MATH_RESULTS_ADDRESS
-        sta VERA_ADDR_LOW        ; Reset ADDR0_LOW 
-        
-        lda #%00001101           ; DCSEL=6, ADDRSEL=1
-        sta VERA_CTRL
-    .endif
-
+    MACRO_reset_fx_multiplier
     
     ; We calculate the dot-product between point1 and pointN (the normal of the triange)
     MACRO_calculate_dot_product TRIANGLES3_3D_POINT1_X, TRIANGLES3_3D_POINT1_Y, TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINTN_X, TRIANGLES3_3D_POINTN_Y, TRIANGLES3_3D_POINTN_Z
@@ -1842,33 +2001,33 @@ scale_and_position_keep_going:
     ldx TRIANGLES_LINKED_LIST_INDEX, y  ; We put the (3D) triangle index into register x
     ldy TRIANGLE_COUNT                  ; We put the 2D triangle index into register y
     
-; FIXME: do the LIGHTING here!
-; FIXME: do the LIGHTING here!
-; FIXME: do the LIGHTING here!
 
     ; -- Copy color of triangle --
     
-    lda TRIANGLES_ORG_COLOR,x
-    sta TRIANGLES_COLOR,y
+    .if(USE_LIGHT)
+        MACRO_calculate_dot_product_for_light TRIANGLES3_3D_POINTN_X, TRIANGLES3_3D_POINTN_Y, TRIANGLES3_3D_POINTN_Z
+        lda DOT_PRODUCT+1
+        beq map_light_to_color
+        ; When DOT_PRODUCT = 01.00 we want FULL light color!
+        lda #$1F  ; white
+        bra color_calculated
+map_light_to_color:
+        lda DOT_PRODUCT
+        lsr
+        lsr
+        lsr
+        lsr
+        ora #$10   ; starting with black
+color_calculated:
+        sta TRIANGLES_COLOR,y
+    .else
+        lda TRIANGLES_ORG_COLOR,x
+        sta TRIANGLES_COLOR,y
+    .endif
 
     ; -- Project triangle from 3D world onto 2D screen --
 
-    ; FIXME: put this in a MACRO!
-    .if(USE_FX_MULTIPLIER)
-        ; We reset both ADDR0 and ADDR1 to the MATH_RESULTS_ADDRESS
-    
-        lda #<(MATH_RESULTS_ADDRESS+1)  ; We offset by 1 so we read the 2 middle 2 bytes of the 32-bit result
-        sta VERA_ADDR_LOW        ; Reset ADDR1_LOW
-        
-        lda #%00001100           ; DCSEL=6, ADDRSEL=0
-        sta VERA_CTRL
-    
-        lda #<MATH_RESULTS_ADDRESS
-        sta VERA_ADDR_LOW        ; Reset ADDR0_LOW 
-        
-        lda #%00001101           ; DCSEL=6, ADDRSEL=1
-        sta VERA_CTRL
-    .endif
+    MACRO_reset_fx_multiplier
 
     phy
     
