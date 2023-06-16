@@ -804,14 +804,21 @@ init_world:
     
     
     ; Light direction
+;    lda #153
     lda #0
     sta LIGHT_DIRECTION_3D_X
+    lda #0
     sta LIGHT_DIRECTION_3D_X+1
-    sta LIGHT_DIRECTION_3D_Y
-    sta LIGHT_DIRECTION_3D_Y+1
     
     lda #0
+    sta LIGHT_DIRECTION_3D_Y
+    lda #0
+    sta LIGHT_DIRECTION_3D_Y+1
+    
+;    lda #204
+    lda #0
     sta LIGHT_DIRECTION_3D_Z
+;    lda #0
     lda #1
     sta LIGHT_DIRECTION_3D_Z+1
     
@@ -2006,12 +2013,23 @@ scale_and_position_keep_going:
     
     .if(USE_LIGHT)
         MACRO_calculate_dot_product_for_light TRIANGLES3_3D_POINTN_X, TRIANGLES3_3D_POINTN_Y, TRIANGLES3_3D_POINTN_Z
+
+; FIXME: we should take into account that DOT_PRODUCT ranges from -1.0 to +1.0 and therefore color accordingly (now only 0.0 -> 1.0)
+        ; -- Take care of < 0.0 cases --
+        lda DOT_PRODUCT+1
+        bpl check_if_full_light
+        ; When DOT_PRODUCT < 00.00 we want dark light color!
+        lda #$10    ; Black for now
+        bra color_calculated
+check_if_full_light:
+        ; -- Take care of +1.0 case --
         lda DOT_PRODUCT+1
         beq map_light_to_color
         ; When DOT_PRODUCT = 01.00 we want FULL light color!
         lda #$1F  ; white
         bra color_calculated
 map_light_to_color:
+        ; -- Take care < +1.0 cases --
         lda DOT_PRODUCT
         lsr
         lsr
