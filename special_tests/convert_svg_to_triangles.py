@@ -17,7 +17,7 @@ screen_height = 240*2
 
 pygame.init()
 
-pygame.display.set_caption('X16 slope table generator')
+pygame.display.set_caption('X16 svg to triangles converter')
 screen = pygame.display.set_mode((screen_width, screen_height))
 clock = pygame.time.Clock()
 
