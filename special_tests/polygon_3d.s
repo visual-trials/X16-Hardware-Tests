@@ -187,7 +187,8 @@ ANGLE                    = $AB ; AC
 SINE_OUTPUT              = $AD ; AE
 MINUS_SINE_OUTPUT        = $AF ; B0
 COSINE_OUTPUT            = $B1 ; B2
-; Room here!
+; FIXME: not used atm!
+MINUS_COSINE_OUTPUT      = $B3 ; B4
 
 TRANSLATE_Z              = $B5 ; B6
 
@@ -1024,17 +1025,6 @@ MACRO_load_sine .macro INPUT_ANGLE
     ; Note: this outputs into SINE_OUTPUT
 .endmacro
 
-MACRO_load_minus_sine .macro INPUT_ANGLE
-    lda \INPUT_ANGLE
-    sta ANGLE
-    lda \INPUT_ANGLE+1
-    sta ANGLE+1
-    
-    jsr get_minus_sine_for_angle ; Note: this *destroys* ANGLE!
-    
-    ; Note: this outputs into MINUS_SINE_OUTPUT
-.endmacro
-
 MACRO_load_cosine .macro INPUT_ANGLE
     lda \INPUT_ANGLE
     sta ANGLE
@@ -1782,7 +1772,6 @@ calculate_projection_of_3d_onto_2d_screen:
     MACRO_prepare_fx_multiplier
 
     MACRO_load_sine ANGLE_Z
-    MACRO_load_minus_sine ANGLE_Z
     MACRO_load_cosine ANGLE_Z
     
     ldx #0
@@ -1839,7 +1828,6 @@ rotate_in_z_next_triangle:
 rotate_in_z_done:
 
     MACRO_load_sine ANGLE_X
-    MACRO_load_minus_sine ANGLE_Z
     MACRO_load_cosine ANGLE_X
 
     ldx #0
@@ -2531,36 +2519,15 @@ get_sine_for_angle:
     lda (LOAD_ADDRESS), y
     sta SINE_OUTPUT+1
     
-    rts
-
-get_minus_sine_for_angle:
-
-    ; We multiply the angle by 2 (shift left)
-    asl ANGLE
-    rol ANGLE+1
-    
-    ; We add the angle to the table base address
-    clc
-    lda #<sine_words
-    adc ANGLE
-    sta LOAD_ADDRESS
-    lda #>sine_words
-    adc ANGLE+1
-    sta LOAD_ADDRESS+1
-    
-    ldy #0
-    
     sec
     lda #0
-    sbc (LOAD_ADDRESS), y
+    sbc SINE_OUTPUT
     sta MINUS_SINE_OUTPUT
-    iny
     lda #0
-    sbc (LOAD_ADDRESS), y
+    sbc SINE_OUTPUT+1
     sta MINUS_SINE_OUTPUT+1
     
     rts
-    
     
 get_cosine_for_angle:
 
@@ -2584,6 +2551,14 @@ get_cosine_for_angle:
     iny
     lda (LOAD_ADDRESS), y
     sta COSINE_OUTPUT+1
+    
+    sec
+    lda #0
+    sbc COSINE_OUTPUT
+    sta MINUS_COSINE_OUTPUT
+    lda #0
+    sbc COSINE_OUTPUT+1
+    sta MINUS_COSINE_OUTPUT+1
     
     rts
     
