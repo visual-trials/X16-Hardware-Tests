@@ -539,8 +539,18 @@ x1_times_c_plus_y1_times_s:
     
     lda #%00010000           ; multiplier enabled = 1, cache index  = 0
     sta MULTIPLIER_STATE
-    ora #%01000000           ; accumulate = 1
+; We are testing whether we can accumulate by doing a read from cache32[15:8] instead
+;    ora #%01000000           ; accumulate = 1
     sta $9F2C
+    
+    lda #%00001100           ; DCSEL=6, ADDRSEL=0
+    sta VERA_CTRL
+
+    lda $9F2A                ; reading from cache32[15:8] will accumulate
+
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_Y1>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -592,8 +602,17 @@ x2_times_s_minus_y2_times_c:
     
     lda #%00010000           ; multiplier enabled = 1, cache index  = 0
     sta MULTIPLIER_STATE
-    ora #%10000000           ; reset accumulator = 1
+; We are testing whether we can reset the accumulator by doing a read from cache32[7:0] instead
+;    ora #%10000000           ; reset accumulator = 1
     sta $9F2C
+
+    lda #%00001100           ; DCSEL=6, ADDRSEL=0
+    sta VERA_CTRL
+
+    lda $9F29                ; reading from cache32[7:0] will reset the accumulator
+
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X2>>16)
     sta VERA_ADDR_LOW_OPERAND+2
