@@ -1962,10 +1962,6 @@ back_face_cull_next_triangle:
     MACRO_translate_z TRIANGLES3_3D_POINT2_Z, TRANSLATE_Z
     MACRO_translate_z TRIANGLES3_3D_POINT3_Z, TRANSLATE_Z
     
-    ; -- We calculate the average Z (or actually: the *sum* of Z) for all 3 points --
-    
-    MACRO_calculate_sum_of_z TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINT2_Z, TRIANGLES3_3D_POINT3_Z, TRIANGLES3_3D_SUM_Z
-
     ; --  We check whether the triangle should be visible.
 
 ; FIXME: maybe we can skip this here? We do it only once per triangle!    
@@ -1978,6 +1974,11 @@ back_face_cull_next_triangle:
     bmi triangle_is_not_facing_camera
     
     ; The triangle is visible (that is: facing our side) and should be added to the linked list of triangles
+    
+    ; -- We calculate the average Z (or actually: the *sum* of Z) for all 3 points --
+    
+    MACRO_calculate_sum_of_z TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINT2_Z, TRIANGLES3_3D_POINT3_Z, TRIANGLES3_3D_SUM_Z
+    
 ; FIXME!
     jsr insert_sort_triangle_using_sum_of_z
 ;    jsr insert_triangle_without_sorting
