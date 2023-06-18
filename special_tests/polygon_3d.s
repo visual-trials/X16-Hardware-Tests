@@ -1419,12 +1419,16 @@ MACRO_calculate_dot_product .macro TRIANGLES_3D_POINTA_X, TRIANGLES_3D_POINTA_Y,
     ; To do the dot-product we have to do:
     ; A.x * N.x + A.y * N.y + A.z + N.z
     
-    stz DOT_PRODUCT
-    stz DOT_PRODUCT+1
+    .if(!USE_FX_MULTIPLIER)
+        stz DOT_PRODUCT
+        stz DOT_PRODUCT+1
+    .endif
     
     ; -- A.x * N.x
     
     .if(USE_FX_MULTIPLIER)
+    
+        lda $9F29           ; reset accumulator
     
         lda \TRIANGLES_3D_POINTA_X,x
         sta $9F29
@@ -1436,21 +1440,8 @@ MACRO_calculate_dot_product .macro TRIANGLES_3D_POINTA_X, TRIANGLES_3D_POINTA_Y,
         lda \TRIANGLES_3D_POINTN_X+MAX_NR_OF_TRIANGLES, x
         sta $9F2C
 
-        ; We write the multiplication result to VRAM
-        stz VERA_DATA0
+        lda $9F2A           ; accumulate
         
-; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
-        lda #>MATH_RESULTS_ADDRESS
-        sta VERA_ADDR_HIGH
-
-        clc
-        lda DOT_PRODUCT
-        adc VERA_DATA1
-        sta DOT_PRODUCT
-        lda DOT_PRODUCT+1
-        adc VERA_DATA1
-        sta DOT_PRODUCT+1
-    
     .else
         lda \TRIANGLES_3D_POINTA_X,x
         sta MULTIPLIER
@@ -1487,20 +1478,7 @@ MACRO_calculate_dot_product .macro TRIANGLES_3D_POINTA_X, TRIANGLES_3D_POINTA_Y,
         lda \TRIANGLES_3D_POINTN_Y+MAX_NR_OF_TRIANGLES, x
         sta $9F2C
 
-        ; We write the multiplication result to VRAM
-        stz VERA_DATA0
-        
-; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
-        lda #>MATH_RESULTS_ADDRESS
-        sta VERA_ADDR_HIGH
-
-        clc
-        lda DOT_PRODUCT
-        adc VERA_DATA1
-        sta DOT_PRODUCT
-        lda DOT_PRODUCT+1
-        adc VERA_DATA1
-        sta DOT_PRODUCT+1
+        lda $9F2A           ; accumulate
         
     .else
     
@@ -1546,12 +1524,9 @@ MACRO_calculate_dot_product .macro TRIANGLES_3D_POINTA_X, TRIANGLES_3D_POINTA_Y,
         lda #>MATH_RESULTS_ADDRESS
         sta VERA_ADDR_HIGH
 
-        clc
-        lda DOT_PRODUCT
-        adc VERA_DATA1
+        lda VERA_DATA1
         sta DOT_PRODUCT
-        lda DOT_PRODUCT+1
-        adc VERA_DATA1
+        lda VERA_DATA1
         sta DOT_PRODUCT+1
         
     .else
@@ -1584,13 +1559,17 @@ MACRO_calculate_dot_product_for_light .macro TRIANGLES_3D_POINTN_X, TRIANGLES_3D
     ; To do the dot-product we have to do:
     ; L.x * N.x + L.y * N.y + L.z + N.z
     
-    stz DOT_PRODUCT
-    stz DOT_PRODUCT+1
+    .if(!USE_FX_MULTIPLIER)
+        stz DOT_PRODUCT
+        stz DOT_PRODUCT+1
+    .endif
     
     ; -- L.x * N.x
     
     .if(USE_FX_MULTIPLIER)
     
+        lda $9F29           ; reset accumulator
+        
         lda LIGHT_DIRECTION_3D_X
         sta $9F29
         lda LIGHT_DIRECTION_3D_X+1
@@ -1601,20 +1580,22 @@ MACRO_calculate_dot_product_for_light .macro TRIANGLES_3D_POINTN_X, TRIANGLES_3D
         lda \TRIANGLES_3D_POINTN_X+MAX_NR_OF_TRIANGLES, x
         sta $9F2C
 
+        lda $9F2A           ; accumulate
+        
         ; We write the multiplication result to VRAM
-        stz VERA_DATA0
+;        stz VERA_DATA0
         
 ; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
-        lda #>MATH_RESULTS_ADDRESS
-        sta VERA_ADDR_HIGH
+;        lda #>MATH_RESULTS_ADDRESS
+;        sta VERA_ADDR_HIGH
 
-        clc
-        lda DOT_PRODUCT
-        adc VERA_DATA1
-        sta DOT_PRODUCT
-        lda DOT_PRODUCT+1
-        adc VERA_DATA1
-        sta DOT_PRODUCT+1
+;        clc
+;        lda DOT_PRODUCT
+;        adc VERA_DATA1
+;        sta DOT_PRODUCT
+;        lda DOT_PRODUCT+1
+;        adc VERA_DATA1
+;        sta DOT_PRODUCT+1
     
     .else
         lda LIGHT_DIRECTION_3D_X
@@ -1652,20 +1633,22 @@ MACRO_calculate_dot_product_for_light .macro TRIANGLES_3D_POINTN_X, TRIANGLES_3D
         lda \TRIANGLES_3D_POINTN_Y+MAX_NR_OF_TRIANGLES, x
         sta $9F2C
 
+        lda $9F2A           ; accumulate
+        
         ; We write the multiplication result to VRAM
-        stz VERA_DATA0
+;        stz VERA_DATA0
         
 ; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
-        lda #>MATH_RESULTS_ADDRESS
-        sta VERA_ADDR_HIGH
+;        lda #>MATH_RESULTS_ADDRESS
+;        sta VERA_ADDR_HIGH
 
-        clc
-        lda DOT_PRODUCT
-        adc VERA_DATA1
-        sta DOT_PRODUCT
-        lda DOT_PRODUCT+1
-        adc VERA_DATA1
-        sta DOT_PRODUCT+1
+;        clc
+;        lda DOT_PRODUCT
+;        adc VERA_DATA1
+;        sta DOT_PRODUCT
+;        lda DOT_PRODUCT+1
+;        adc VERA_DATA1
+;        sta DOT_PRODUCT+1
         
     .else
     
@@ -1711,13 +1694,18 @@ MACRO_calculate_dot_product_for_light .macro TRIANGLES_3D_POINTN_X, TRIANGLES_3D
         lda #>MATH_RESULTS_ADDRESS
         sta VERA_ADDR_HIGH
 
-        clc
-        lda DOT_PRODUCT
-        adc VERA_DATA1
+        lda VERA_DATA1
         sta DOT_PRODUCT
-        lda DOT_PRODUCT+1
-        adc VERA_DATA1
+        lda VERA_DATA1
         sta DOT_PRODUCT+1
+        
+;        clc
+;        lda DOT_PRODUCT
+;        adc VERA_DATA1
+;        sta DOT_PRODUCT
+;        lda DOT_PRODUCT+1
+;        adc VERA_DATA1
+;        sta DOT_PRODUCT+1
         
     .else
         lda LIGHT_DIRECTION_3D_Z
