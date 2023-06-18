@@ -185,20 +185,20 @@ ANGLE_Z                  = $A9 ; AA  ; number between 0 and 511
 
 ANGLE                    = $AB ; AC
 SINE_OUTPUT              = $AD ; AE
-COSINE_OUTPUT            = $AF ; B0
+MINUS_SINE_OUTPUT        = $AF ; B0
+COSINE_OUTPUT            = $B1 ; B2
+; Room here!
 
-TRANSLATE_Z              = $B1 ; B2
+TRANSLATE_Z              = $B5 ; B6
 
-; TODO: room here!
+DOT_PRODUCT              = $B7 ; B8
+CURRENT_SUM_Z            = $B9 ; BA
 
-DOT_PRODUCT              = $B4 ; B5
-CURRENT_SUM_Z            = $B6 ; B7
+FRAME_BUFFER_INDEX       = $BB     ; 0 or 1: indicating which frame buffer is to be filled (for double buffering)
 
-FRAME_BUFFER_INDEX       = $B8     ; 0 or 1: indicating which frame buffer is to be filled (for double buffering)
-
-CURRENT_LINKED_LIST_ENTRY  = $BB
-PREVIOUS_LINKED_LIST_ENTRY = $BC
-LINKED_LIST_NEW_ENTRY      = $BD
+CURRENT_LINKED_LIST_ENTRY  = $BC
+PREVIOUS_LINKED_LIST_ENTRY = $BD
+LINKED_LIST_NEW_ENTRY      = $BE
 
 DELTA_ANGLE_X              = $C0 ; C1
 DELTA_ANGLE_Y              = $C2 ; C3
@@ -1024,6 +1024,17 @@ MACRO_load_sine .macro INPUT_ANGLE
     ; Note: this outputs into SINE_OUTPUT
 .endmacro
 
+MACRO_load_minus_sine .macro INPUT_ANGLE
+    lda \INPUT_ANGLE
+    sta ANGLE
+    lda \INPUT_ANGLE+1
+    sta ANGLE+1
+    
+    jsr get_minus_sine_for_angle ; Note: this *destroys* ANGLE!
+    
+    ; Note: this outputs into MINUS_SINE_OUTPUT
+.endmacro
+
 MACRO_load_cosine .macro INPUT_ANGLE
     lda \INPUT_ANGLE
     sta ANGLE
@@ -1042,6 +1053,9 @@ MACRO_rotate_cos_minus_sin .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TR
     ; - a*cos -
     
     .if(USE_FX_MULTIPLIER)
+    
+        lda $9F29           ; reset accumulator
+    
         lda COSINE_OUTPUT
         sta $9F29
         lda COSINE_OUTPUT+1
@@ -1052,19 +1066,7 @@ MACRO_rotate_cos_minus_sin .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TR
         lda \TRIANGLES_3D_POINT_A+MAX_NR_OF_TRIANGLES, x
         sta $9F2C
         
-        ; We write the multiplication result to VRAM
-        stz VERA_DATA0
-        
-; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
-        lda #>MATH_RESULTS_ADDRESS
-        sta VERA_ADDR_HIGH
-        
-        ; We read (with 16-bit hop) the middle two bytes of the result from VRAM
-        ; TODO: rename this temp variable
-        lda VERA_DATA1
-        sta TMP_POINT_X
-        lda VERA_DATA1
-        sta TMP_POINT_X+1
+        lda $9F2A           ; accumulate
     .else 
         lda COSINE_OUTPUT
         sta MULTIPLIER
@@ -1088,9 +1090,10 @@ MACRO_rotate_cos_minus_sin .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TR
     ; - b*sin -
     
     .if(USE_FX_MULTIPLIER)
-        lda SINE_OUTPUT
+        ; Note: we are using MINUS sine here, since we want to subtract! (but we are in add-mode)
+        lda MINUS_SINE_OUTPUT
         sta $9F29
-        lda SINE_OUTPUT+1
+        lda MINUS_SINE_OUTPUT+1
         sta $9F2A
         
         lda \TRIANGLES_3D_POINT_B, x
@@ -1107,12 +1110,9 @@ MACRO_rotate_cos_minus_sin .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TR
         
         ; We read (with 16-bit hop) the middle two bytes of the result from VRAM
         ; TODO: rename this temp variable
-        sec
-        lda TMP_POINT_X
-        sbc VERA_DATA1
+        lda VERA_DATA1
         sta \TRIANGLES_3D_POINT_OUTPUT, x
-        lda TMP_POINT_X+1
-        sbc VERA_DATA1
+        lda VERA_DATA1
         sta \TRIANGLES_3D_POINT_OUTPUT+MAX_NR_OF_TRIANGLES, x
     .else
         lda SINE_OUTPUT
@@ -1147,6 +1147,9 @@ MACRO_rotate_sin_plus_cos .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TRI
     ; - a*sin -
     
     .if(USE_FX_MULTIPLIER)
+    
+        lda $9F29           ; reset accumulator
+    
         lda SINE_OUTPUT
         sta $9F29
         lda SINE_OUTPUT+1
@@ -1157,19 +1160,7 @@ MACRO_rotate_sin_plus_cos .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TRI
         lda \TRIANGLES_3D_POINT_A+MAX_NR_OF_TRIANGLES, x
         sta $9F2C
         
-        ; We write the multiplication result to VRAM
-        stz VERA_DATA0
-        
-; FIXME: WORKAROUND! We need to make sure DATA1 is re-read after storing to the same address!
-        lda #>MATH_RESULTS_ADDRESS
-        sta VERA_ADDR_HIGH
-        
-        ; We read (with 16-bit hop) the middle two bytes of the result from VRAM
-        ; TODO: rename this temp variable
-        lda VERA_DATA1
-        sta TMP_POINT_Y
-        lda VERA_DATA1
-        sta TMP_POINT_Y+1
+        lda $9F2A           ; accumulate
     .else 
         lda SINE_OUTPUT
         sta MULTIPLIER
@@ -1212,13 +1203,11 @@ MACRO_rotate_sin_plus_cos .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TRI
         
         ; We read (with 16-bit hop) the middle two bytes of the result from VRAM
         ; TODO: rename this temp variable
-        clc
-        lda TMP_POINT_Y
-        adc VERA_DATA1
+        lda VERA_DATA1
         sta \TRIANGLES_3D_POINT_OUTPUT, x
-        lda TMP_POINT_Y+1
-        adc VERA_DATA1
+        lda VERA_DATA1
         sta \TRIANGLES_3D_POINT_OUTPUT+MAX_NR_OF_TRIANGLES, x
+        
     .else
         lda COSINE_OUTPUT
         sta MULTIPLIER
@@ -1843,6 +1832,7 @@ calculate_projection_of_3d_onto_2d_screen:
     MACRO_prepare_fx_multiplier
 
     MACRO_load_sine ANGLE_Z
+    MACRO_load_minus_sine ANGLE_Z
     MACRO_load_cosine ANGLE_Z
     
     ldx #0
@@ -1899,6 +1889,7 @@ rotate_in_z_next_triangle:
 rotate_in_z_done:
 
     MACRO_load_sine ANGLE_X
+    MACRO_load_minus_sine ANGLE_Z
     MACRO_load_cosine ANGLE_X
 
     ldx #0
@@ -2590,6 +2581,35 @@ get_sine_for_angle:
     sta SINE_OUTPUT+1
     
     rts
+
+get_minus_sine_for_angle:
+
+    ; We multiply the angle by 2 (shift left)
+    asl ANGLE
+    rol ANGLE+1
+    
+    ; We add the angle to the table base address
+    clc
+    lda #<sine_words
+    adc ANGLE
+    sta LOAD_ADDRESS
+    lda #>sine_words
+    adc ANGLE+1
+    sta LOAD_ADDRESS+1
+    
+    ldy #0
+    
+    sec
+    lda #0
+    sbc (LOAD_ADDRESS), y
+    sta MINUS_SINE_OUTPUT
+    iny
+    lda #0
+    sbc (LOAD_ADDRESS), y
+    sta MINUS_SINE_OUTPUT+1
+    
+    rts
+    
     
 get_cosine_for_angle:
 
