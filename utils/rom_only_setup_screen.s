@@ -48,7 +48,7 @@ title_char_convert_done:
     jmp print_title_message
     
 title_message:
-    .asciiz "*** X16 Hardware Tester v0.5.3 ***"
+    .asciiz "*** X16 Hardware Tester v0.5.4 ***"
 
 done_print_title_message:
     

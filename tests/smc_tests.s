@@ -2,7 +2,7 @@
 
 SMC_I2C_ADDR  = $42
 
-KEYBOARD_SCANCODE_REGISTER = $07
+KEYBOARD_KEYCODE_REGISTER = $07
 ECHO_REGISTER = $08
 
 smc_header: 
@@ -13,15 +13,15 @@ error_while_writing_to_smc_message:
     .asciiz "error while writing to SMC"
 error_while_reading_from_smc_message: 
     .asciiz "error while reading from SMC"
-testing_smc_receiving_keyboard_scancode_message:
-    .asciiz "Testing receiving keyboard scancodes ($07) ... "
-warning_no_scancode_received_message:
-    .asciiz "No scancode received"
+testing_smc_receiving_keyboard_keycode_message:
+    .asciiz "Testing receiving keyboard keycodes ($07) ... "
+warning_no_keycode_received_message:
+    .asciiz "No keycode received"
 please_press_spacebar_message:
     .asciiz "please press SPACEBAR!"
 please_press_spacebar_clear_message:
     .asciiz "                      "
-error_unexpected_scancode_message:
+error_unexpected_keycode_message:
     .asciiz "Unexpected keycode ($"
 
 
@@ -158,7 +158,7 @@ done_echoing_towards_smc:
     rts
 
     
-test_receiving_keyboard_scancode_smc:
+test_receiving_keyboard_keycode_smc:
 
     ; FIXME: try to read more that ONE keycode and check for keyUp keycodes as well!
 
@@ -167,9 +167,9 @@ test_receiving_keyboard_scancode_smc:
     lda #COLOR_NORMAL
     sta TEXT_COLOR
     
-    lda #<testing_smc_receiving_keyboard_scancode_message
+    lda #<testing_smc_receiving_keyboard_keycode_message
     sta TEXT_TO_PRINT
-    lda #>testing_smc_receiving_keyboard_scancode_message
+    lda #>testing_smc_receiving_keyboard_keycode_message
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
@@ -190,10 +190,10 @@ test_receiving_keyboard_scancode_smc:
 
 ; FIXME: this can *HANG* if there is no SMC available!?
     ldx #SMC_I2C_ADDR
-    ldy #KEYBOARD_SCANCODE_REGISTER
+    ldy #KEYBOARD_KEYCODE_REGISTER
 
-    ; See: https://techdocs.altium.com/display/FPGA/PS2+Keyboard+Scan+Codes
-    lda #$29  ; = scan code for space bar
+    ; See: https://github.com/X16Community/x16-rom/blob/master/keymap/keycode_table.txt
+    lda #$3D  ; = keycode for space bar
     sta TMP1   ; we store the expected value in TMP1
     
 ; FIXME: we need to test this on real hardware: how much iterations do we need here? Maybe pause a bit in between i2c read bytes?
@@ -202,26 +202,26 @@ test_receiving_keyboard_scancode_smc:
     sta TMP2 ; we use TMP2 as a simple counter (low byte)
     lda #30
     sta TMP3 ; we use TMP3 as a simple counter (high byte)
-scancode_next_try:
+keycode_next_try:
     lda #0
     jsr i2c_read_byte
     
-    bcs scancode_read_error
-    bne scancode_non_zero
+    bcs keycode_read_error
+    bne keycode_non_zero
     
     inc TMP2
-    bne scancode_next_try
+    bne keycode_next_try
     
     dec TMP3
-    bne scancode_next_try
+    bne keycode_next_try
     
-    bra scancode_nothing_received
+    bra keycode_nothing_received
     
-scancode_non_zero:
+keycode_non_zero:
     sta BYTE_TO_PRINT
 
     cmp TMP1   ; Check if its the same number
-    bne scancode_not_the_space_bar_value
+    bne keycode_not_the_space_bar_value
     
     jsr clear_spacebar_message
     
@@ -235,35 +235,35 @@ scancode_non_zero:
     
     jsr print_text_zero
     
-    bra done_receiving_keyboard_scancode_smc
+    bra done_receiving_keyboard_keycode_smc
 
 
-scancode_nothing_received:
+keycode_nothing_received:
     jsr clear_spacebar_message
 
-    ; Give a warning if no scancodes were received (maybe the user didnt press a key)
+    ; Give a warning if no keycodes were received (maybe the user didnt press a key)
     
     lda #COLOR_WARNING
     sta TEXT_COLOR
 
-    lda #<warning_no_scancode_received_message
+    lda #<warning_no_keycode_received_message
     sta TEXT_TO_PRINT
-    lda #>warning_no_scancode_received_message
+    lda #>warning_no_keycode_received_message
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
     
-    bra done_receiving_keyboard_scancode_smc
+    bra done_receiving_keyboard_keycode_smc
     
-scancode_not_the_space_bar_value:
+keycode_not_the_space_bar_value:
     jsr clear_spacebar_message
 
     lda #COLOR_ERROR
     sta TEXT_COLOR
 
-    lda #<error_unexpected_scancode_message
+    lda #<error_unexpected_keycode_message
     sta TEXT_TO_PRINT
-    lda #>error_unexpected_scancode_message
+    lda #>error_unexpected_keycode_message
     sta TEXT_TO_PRINT + 1
     
     jsr print_text_zero
@@ -276,9 +276,9 @@ scancode_not_the_space_bar_value:
     sta VERA_DATA0           
     inc CURSOR_X
 
-    bra done_receiving_keyboard_scancode_smc
+    bra done_receiving_keyboard_keycode_smc
     
-scancode_read_error:
+keycode_read_error:
     jsr clear_spacebar_message
 
     lda #COLOR_ERROR
@@ -292,7 +292,7 @@ scancode_read_error:
     jsr print_text_zero
 
 
-done_receiving_keyboard_scancode_smc:
+done_receiving_keyboard_keycode_smc:
     jsr move_cursor_to_next_line
     
     rts

@@ -2,10 +2,10 @@
 ; FIXME: we add nops after switching RAM_BANK. This is needed for the Breadboard of JeffreyH but not on stock hardware! Maybe add a setting to turn this on/off.
 
 DO_SPEED_TEST = 1
-KEEP_RUNNING = 0
+KEEP_RUNNING = 1
 USE_LIGHT = 1
-USE_KEYBOARD_INPUT = 0
-USE_DOUBLE_BUFFER = 0  ; IMPORTANT: we cant show text AND do double buffering!
+USE_KEYBOARD_INPUT = 1
+USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
 
 ; WEIRD BUG: when using JUMP_TABLES, the triangles look very 'edgy'!! --> it is 'SOLVED' by putting the jump FILL_LINE_CODE_x-block aligned to 256 bytes!?!?
