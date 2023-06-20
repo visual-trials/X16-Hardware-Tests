@@ -1,14 +1,14 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 1
-DO_4BIT = 0
+DO_SPEED_TEST = 0
+DO_4BIT = 1
 DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 1
+USE_SLOPE_TABLES = 0
+USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
@@ -372,15 +372,15 @@ reset:
       lda #%00000000           ; DCSEL=0, ADDRSEL=0
       sta VERA_CTRL
         
-      ;lda #$10                 ; 8:1 scale
-      ;sta VERA_DC_HSCALE
-      ;sta VERA_DC_VSCALE      
+      lda #$10                 ; 8:1 scale
+      sta VERA_DC_HSCALE
+      sta VERA_DC_VSCALE      
     
       jsr start_timer
 
-      jsr test_simple_polygon_filler
+      ; jsr test_simple_polygon_filler
       ; jsr test_fill_length_jump_table
-      ; jsr TMP_test_4bit_hello_world
+      jsr TMP_test_4bit_hello_world
       ; jsr TMP_test_16bit_hop_mode
       
       jsr stop_timer
@@ -511,6 +511,31 @@ TMP_test_4bit_hello_world:
     lda #(4+2)
     sta VERA_L0_CONFIG
 
+    ; --- first try 8-bit mode on 4-bit screen ---
+    
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000000           ; normal addr1 mode, 8-bit mode 
+    sta $9F29
+    
+    lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte
+    sta VERA_ADDR_BANK
+    stz VERA_ADDR_HIGH
+    stz VERA_ADDR_LOW
+
+    ; --- draw two pixels with one write ---
+    
+    lda #$26        ; red and blue (both will be written)
+    sta VERA_DATA0
+    lda #$FC        ; light grey and dark grey (both will be written)
+    sta VERA_DATA0
+;    sta VERA_DATA0
+;    sta VERA_DATA0
+;    sta VERA_DATA0
+;    sta VERA_DATA0
+
+    ; --- Switching to 4-bit mode --- 
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
@@ -549,13 +574,13 @@ TMP_test_4bit_hello_world:
     lda #3                   ; 6 pixels from the left
     sta VERA_ADDR_LOW
 
-    lda #$26        ; red and blue
+    lda #$26        ; red and blue (red will be written)
     sta VERA_DATA0
     
-    lda #$35        ; cyan and green
+    lda #$35        ; cyan and green (green will be written)
     sta VERA_DATA0
 
-    lda #$47        ; purple and yellow
+    lda #$E7        ; light blue and yellow (light blue will be written)
     sta VERA_DATA0
     
     ; --- loading into cache ---
@@ -573,6 +598,7 @@ TMP_test_4bit_hello_world:
     lda VERA_DATA0
     lda VERA_DATA0
     lda VERA_DATA0
+;    lda VERA_DATA0
     
     
     lda #%00000100           ; cache fill enabled = 0, 4-bit mode, normal addr1 mode
@@ -584,7 +610,8 @@ TMP_test_4bit_hello_world:
     lda #14                   ; 28 pixels from the left
     sta VERA_ADDR_LOW
     
-    lda #%01000100           ; blit write enabled = 1, 4-bit mode, normal addr1 mode
+    lda #%11000100           ; transp. writes = 1, blit write enabled = 1, 4-bit mode, normal addr1 mode
+;    lda #%01000100           ; blit write enabled = 1, 4-bit mode, normal addr1 mode
     sta $9F29
     
     ; Write the full cache to VRAM
