@@ -382,7 +382,8 @@ reset:
       ; jsr test_fill_length_jump_table
       ; jsr TMP_test_4bit_hello_world
       ; jsr TMP_test_16bit_hop_mode
-      jsr TMP_test_one_byte_caching_stuff
+      ; jsr TMP_test_one_byte_caching_stuff
+      jsr TMP_test_alt_cache_increments
       
       jsr stop_timer
       
@@ -503,6 +504,77 @@ TMP_test_16bit_hop_mode:
     
     lda #%00000000              ; normal addr1 mode, 8-bit mode 
     sta $9F29
+    
+    rts
+    
+    
+TMP_test_alt_cache_increments:
+
+    ; VERA.layer0.config = (4 + 2) ; enable bitmap mode and color depth = 4bpp on layer 0
+    lda #(4+2)
+    sta VERA_L0_CONFIG
+    
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000000           ; normal addr1 mode, 8-bit mode 
+    sta $9F29
+
+    lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte
+    sta VERA_ADDR_BANK
+    stz VERA_ADDR_HIGH
+    stz VERA_ADDR_LOW
+
+    lda #$01
+    sta VERA_DATA0
+    lda #$02
+    sta VERA_DATA0
+    lda #$03
+    sta VERA_DATA0
+    lda #$04
+    sta VERA_DATA0
+    
+    lda #$05
+    sta VERA_DATA0
+    lda #$06
+    sta VERA_DATA0
+    lda #$07
+    sta VERA_DATA0
+    lda #$08
+    sta VERA_DATA0
+    
+    
+    lda #%00100000           ; cache fill enabled = 1, 8-bit mode, normal addr1 mode
+    ora #%01000000           ; cache write enabled = 1
+    sta $9F29
+
+    lda #%00001001           ; cache increment mode = 1, cache index = ..
+    sta $9F2C
+    
+    ; Filling cache (from address 0)
+    stz VERA_ADDR_LOW
+    lda VERA_DATA0
+    lda VERA_DATA0
+
+    ; Write the whole cache to pixel 40 (2*20)
+    lda #20
+    sta VERA_ADDR_LOW
+    stz VERA_DATA0
+
+    ; Filling cache (from address 2)
+    lda #2
+    sta VERA_ADDR_LOW
+    lda VERA_DATA0
+    lda VERA_DATA0
+    
+    ; Write the whole cache to pixel 48 (2*24)
+    lda #24
+    sta VERA_ADDR_LOW
+    stz VERA_DATA0
+    
+    
+tmp_loop4:
+    jmp tmp_loop4
     
     rts
     
