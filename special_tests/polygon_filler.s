@@ -380,8 +380,9 @@ reset:
 
       ; jsr test_simple_polygon_filler
       ; jsr test_fill_length_jump_table
-      jsr TMP_test_4bit_hello_world
+      ; jsr TMP_test_4bit_hello_world
       ; jsr TMP_test_16bit_hop_mode
+      jsr TMP_test_one_byte_caching_stuff
       
       jsr stop_timer
       
@@ -504,6 +505,58 @@ TMP_test_16bit_hop_mode:
     sta $9F29
     
     rts
+    
+TMP_test_one_byte_caching_stuff:
+
+    ; VERA.layer0.config = (4 + 2) ; enable bitmap mode and color depth = 4bpp on layer 0
+    lda #(4+2)
+    sta VERA_L0_CONFIG
+
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00000000           ; normal addr1 mode, 8-bit mode 
+    sta $9F29
+    
+    lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte
+    sta VERA_ADDR_BANK
+    stz VERA_ADDR_HIGH
+    stz VERA_ADDR_LOW
+
+    
+    lda #%00001100           ; DCSEL=6, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; store in first cache byte
+;    lda #$23                 ; red and cyan (in 4bit pixels)
+    lda #$20                 ; red and black/transparent (in 4bit pixels)
+;    lda #$02                 ; black/transparent and red (in 4bit pixels)
+    sta $9F29
+
+
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00010000           ; one byte cache cycling = 1, normal addr1 mode
+    ora #%00000100           ; 4-bit mode 
+;    ora #%01000000           ; blit write = 1
+    ora #%10000000           ; transp. writes = 1
+    sta $9F29
+    
+    .if(0)
+        ; write from cache
+        stz VERA_DATA0
+    .else
+        ; write without cache
+        lda #$FD             ; when one byte cache cycling = 1, this value *should* be ignored!
+        sta VERA_DATA0
+    .endif
+    
+tmp_loop3:
+    jmp tmp_loop3
+    
+    
+    rts
   
 TMP_test_4bit_hello_world:
 
@@ -523,7 +576,7 @@ TMP_test_4bit_hello_world:
     sta VERA_ADDR_BANK
     stz VERA_ADDR_HIGH
     stz VERA_ADDR_LOW
-
+    
     ; --- draw two pixels with one write ---
     
     lda #$26        ; red and blue (both will be written)
