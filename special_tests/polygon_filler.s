@@ -1,14 +1,14 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 0
+DO_SPEED_TEST = 1
 DO_4BIT = 1
 DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 0
-USE_UNROLLED_LOOP = 0
+USE_SLOPE_TABLES = 1
+USE_UNROLLED_LOOP = 1
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
@@ -334,18 +334,14 @@ reset:
     
     jsr copy_palette_from_index_16
 
-    ; FIXME: OLD: .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
     .if (USE_WRITE_CACHE)
-; FIXME: this should be adapted for 4bit clearing
         jsr generate_clear_column_code
         jsr clear_screen_fast_4_bytes
     .else
-; FIXME: this should be adapter for 4bit clearing
         jsr clear_screen_slow
     .endif
     
     .if(USE_UNROLLED_LOOP)
-; FIXME: this should be adapted for 4bit drawing
         jsr generate_draw_row_64_code
     .endif
     
@@ -357,7 +353,6 @@ reset:
     .endif
     
     .if(USE_Y_TO_ADDRESS_TABLE)
-; FIXME: this should be adapter for 4bit addresses
         jsr generate_y_to_address_table
     .endif
     
@@ -422,7 +417,7 @@ reset:
       
     .endif
     
-  
+       
 loop:
   jmp loop
 
@@ -439,6 +434,10 @@ filling_a_rectangle_with_triangles_message2:
     
 rectangle_280x120_8bpp_message: 
     .asciiz "Size: 280x120 (8bpp) "
+rectangle_280x120_4bpp_message: 
+    .asciiz "Size: 280x120 (4bpp) "
+rectangle_280x120_2bpp_message: 
+    .asciiz "Size: 280x120 (2bpp) "
     
 polygon_filler_message: 
     .asciiz " Polygon filler "
@@ -757,7 +756,7 @@ test_speed_of_filling_triangle:
     sta TRIANGLE_COUNT
     
     jsr draw_all_triangles
-
+    
     jsr stop_timer
 
     lda #COLOR_TRANSPARANT
@@ -792,11 +791,24 @@ test_speed_of_filling_triangle:
     lda #4
     sta CURSOR_Y
     
-    lda #<rectangle_280x120_8bpp_message
-    sta TEXT_TO_PRINT
-    lda #>rectangle_280x120_8bpp_message
-    sta TEXT_TO_PRINT + 1
-    
+    .if(DO_4BIT)
+        .if(DO_2BIT)
+            lda #<rectangle_280x120_2bpp_message
+            sta TEXT_TO_PRINT
+            lda #>rectangle_280x120_2bpp_message
+            sta TEXT_TO_PRINT + 1
+        .else
+            lda #<rectangle_280x120_4bpp_message
+            sta TEXT_TO_PRINT
+            lda #>rectangle_280x120_4bpp_message
+            sta TEXT_TO_PRINT + 1
+        .endif
+    .else
+        lda #<rectangle_280x120_8bpp_message
+        sta TEXT_TO_PRINT
+        lda #>rectangle_280x120_8bpp_message
+        sta TEXT_TO_PRINT + 1
+    .endif
     jsr print_text_zero
 
 
@@ -968,7 +980,6 @@ test_speed_of_filling_triangle:
     jsr print_text_zero
     
 
-    
     lda #COLOR_TRANSPARANT
     sta TEXT_COLOR
     
@@ -1717,9 +1728,16 @@ clear_screen_fast_4_bytes:
     ; Left part of the screen (256 columns)
     
     ldx #0
-    
 clear_next_column_left_4_bytes:
-    lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    .if(DO_4BIT)
+        .if(DO_2BIT)
+            lda #%11000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 80 bytes (=12=%1100)
+        .else
+            lda #%11010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 160 bytes (=13=%1101)
+        .endif
+    .else
+        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    .endif
     sta VERA_ADDR_BANK
     lda #$00
     sta VERA_ADDR_HIGH
@@ -1733,7 +1751,22 @@ clear_next_column_left_4_bytes:
     inx
     inx
     inx
+    .if(DO_4BIT)
+        .if(DO_2BIT)
+            cpx #80     ; We only do 80*4 2-bit columns
+        .else
+            cpx #160     ; We only do 160*2 4-bit columns
+        .endif
+    .else
+        cpx #0     ; We first do 256 8-bit columns, later we do the extra 64 columns
+    .endif
     bne clear_next_column_left_4_bytes
+    
+    .if(DO_4BIT)
+        ; In 4-bit mode we are done after clearing 160*2 4-bit columns
+        ; In 2-bit mode we are done after clearing 80*4 2-bit columns
+        rts
+    .endif
     
     ; Right part of the screen (64 columns)
 

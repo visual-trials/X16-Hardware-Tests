@@ -17,6 +17,10 @@
 
 ; USE_Y_TO_ADDRESS_TABLE = 1   ; This turns on the use of the Y to address table
 
+; NR_OF_BYTES_PER_LINE = 320 / 160 / 80
+; DO_4BIT = 1 or 0
+; DO_2BIT = 1 or 0 (DO_4BIT has to be 1 for this to take effect)
+
 ; === Required ZP addresses: (one byte each, unless mentioned otherwise) ===
 
 ; RAM_BANK (=$00)
@@ -976,17 +980,30 @@ start_drawing_triangles:
     .if(USE_POLYGON_FILLER)
         ; Entering *polygon fill mode*: from now on every read from DATA1 will increment x1 and x2, and ADDR1 will be filled with ADDR0 + x1
         lda #%00000010
+        ; FIXME/SPEED: we can combine these ora instructions! (AND the lda as well)
         .if(USE_WRITE_CACHE)
             ora #%01000000           ; blit write enabled = 1
         .endif
+        .if(DO_4BIT)
+            ora #%00000100           ; 4-bit mode = 1
+        .endif
         sta $9F29
+    .else
+        .if(DO_4BIT)
+            lda #%00000100           ; 4-bit mode = 1
+            sta $9F29
+        .endif
     .endif
     
     .if(USE_JUMP_TABLE)
         lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011)
         sta VERA_ADDR_BANK
     .else
-        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+        .if(DO_4BIT)
+            lda #%00000100           ; Setting auto-increment value to 1 nibble (0.5 byte) increment (=%0000 + nibble increment = 1)
+        .else
+            lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001)
+        .endif
         sta VERA_ADDR_BANK
     .endif
     
@@ -1252,6 +1269,15 @@ done_drawing_all_triangles:
 
         lda #%00000000           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
         sta $9F29
+    .else
+        .if(DO_4BIT)
+            ; If we are in 4-bit mode (but we are not using the polygon filler) we should disable 4-bit mode
+            lda #%00000100           ; DCSEL=2, ADDRSEL=0
+            sta VERA_CTRL
+            
+            lda #%00000000           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
+            sta $9F29
+        .endif
     .endif
     
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
@@ -1617,7 +1643,7 @@ MACRO_set_address_using_y2address_table .macro POINT_Y
     sta VERA_ADDR_LOW
     lda Y_TO_ADDRESS_HIGH, x
     sta VERA_ADDR_HIGH
-    lda Y_TO_ADDRESS_BANK, x     ; This will include the auto-increment of 320 byte
+    lda Y_TO_ADDRESS_BANK, x     ; This will include the auto-increment of 320/160/80 byte
     sta VERA_ADDR_BANK
     
 .endmacro
@@ -1631,7 +1657,7 @@ MACRO_set_address_using_y2address_table2 .macro POINT_Y
     sta VERA_ADDR_LOW
     lda Y_TO_ADDRESS_HIGH, x
     sta VERA_ADDR_HIGH
-    lda Y_TO_ADDRESS_BANK2, x     ; This will include the auto-increment of 320 byte
+    lda Y_TO_ADDRESS_BANK2, x     ; This will include the auto-increment of 320/160/80 byte
     sta VERA_ADDR_BANK
     
 .endmacro
@@ -1642,15 +1668,40 @@ MACRO_set_address_using_y2address_table_and_point_x .macro POINT_Y, POINT_X
     ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
     ldx \POINT_Y
     
-    clc
-    lda Y_TO_ADDRESS_LOW, x
-    adc \POINT_X
-    sta VERA_ADDR_LOW
-    lda Y_TO_ADDRESS_HIGH, x
-    adc \POINT_X+1
-    sta VERA_ADDR_HIGH
-    lda Y_TO_ADDRESS_BANK, x     ; This will include the auto-increment of 1 byte
-    adc #0
+    .if(DO_4BIT)
+        ; We divide the X position by 2 (since we are dealing with nibbles, not bytes) and store the result in TMP3 and TMP4
+        lda \POINT_X+1
+        lsr
+        sta TMP4
+        lda \POINT_X
+        ror
+        sta TMP3
+        ; The CARRY will contain the nibble bit, so we need to preserve it (we use TMP1 here)
+        stz TMP1
+        rol TMP1
+        asl TMP1 ; we shift the nibble bit one to the left (since it should be put into bit1)
+    
+        clc
+        lda Y_TO_ADDRESS_LOW, x
+        adc TMP3
+        sta VERA_ADDR_LOW
+        lda Y_TO_ADDRESS_HIGH, x
+        adc TMP4
+        sta VERA_ADDR_HIGH
+        lda Y_TO_ADDRESS_BANK, x     ; This will include the auto-increment of 0.5 or 1 byte
+        adc #0
+        ora TMP1                     ; We add the nibble bit
+    .else
+        clc
+        lda Y_TO_ADDRESS_LOW, x
+        adc \POINT_X
+        sta VERA_ADDR_LOW
+        lda Y_TO_ADDRESS_HIGH, x
+        adc \POINT_X+1
+        sta VERA_ADDR_HIGH
+        lda Y_TO_ADDRESS_BANK, x     ; This will include the auto-increment of 0.5 or 1 byte
+        adc #0
+    .endif
     .if(USE_DOUBLE_BUFFER)
         ora FRAME_BUFFER_INDEX   ; contains 0 or 1
     .endif
@@ -1661,22 +1712,30 @@ MACRO_set_address_using_y2address_table_and_point_x .macro POINT_Y, POINT_X
 MACRO_set_address_using_multiplication .macro POINT_Y
 
     ; SPEED: we should do this *much* earlier and not for every triangle!
-    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    .if(DO_4BIT)
+        .if(DO_2BIT)
+            lda #%11000000           ; Setting auto-increment value to 80 byte increment (=%1100)
+        .else
+            lda #%11010000           ; Setting auto-increment value to 160 byte increment (=%1101)
+        .endif
+    .else
+        lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    .endif
     .if(USE_DOUBLE_BUFFER)
         ora FRAME_BUFFER_INDEX   ; contains 0 or 1
     .endif
     sta VERA_ADDR_BANK
     
     ; -- THIS IS SLOW! --
-    ; We need to multiply the Y-coordinate with 320
+    ; We need to multiply the Y-coordinate with NR_OF_BYTES_PER_LINE
     lda \POINT_Y
     sta MULTIPLICAND
     lda \POINT_Y+1
     sta MULTIPLICAND+1
     
-    lda #<320
+    lda #<NR_OF_BYTES_PER_LINE
     sta MULTIPLIER
-    lda #>320
+    lda #>NR_OF_BYTES_PER_LINE
     sta MULTIPLIER+1
     
     jsr multply_16bits
@@ -2801,12 +2860,12 @@ generate_y_to_address_table:
 generate_next_y_to_address_entry:
     clc
     lda VRAM_ADDRESS
-    adc #<320
+    adc #<NR_OF_BYTES_PER_LINE
     sta VRAM_ADDRESS
     sta Y_TO_ADDRESS_LOW, y
     
     lda VRAM_ADDRESS+1
-    adc #>320
+    adc #>NR_OF_BYTES_PER_LINE
     sta VRAM_ADDRESS+1
     sta Y_TO_ADDRESS_HIGH, y
     
@@ -2814,9 +2873,22 @@ generate_next_y_to_address_entry:
     adc #0
     sta VRAM_ADDRESS+2
     .if(USE_POLYGON_FILLER)
-        ora #%11100000              ; For polygon filler helper: auto-increment = 320
+    
+        .if(DO_4BIT)
+            .if(DO_2BIT)
+                ora #%11000000           ; For polygon filler helper: 80 byte increment (=%1100)
+            .else
+                ora #%11010000           ; For polygon filler helper: 160 byte increment (=%1101)
+            .endif
+        .else
+            ora #%11100000           ; For polygon filler helper: 320 byte increment (=%1110)
+        .endif
     .else
-        ora #%00010000              ; Without polygon filler helper: auto-increment = 1
+        .if(DO_4BIT)
+            ora #%00000100           ; Without polygon filler helper: auto-increment = 1 nibble (0.5 byte) increment (=%0000 + nibble increment = 1)
+        .else
+            ora #%00010000           ; Without polygon filler helper: auto-increment = 1 byte increment (=%0001)
+        .endif
     .endif
     sta Y_TO_ADDRESS_BANK, y
     .if(USE_DOUBLE_BUFFER)
