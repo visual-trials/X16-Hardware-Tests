@@ -4,9 +4,9 @@
 ; TEST_JUMP_TABLE = 0 or 1     ; This turns off the iteration in-between the jump-table calls
 ; USE_SOFT_FILL_LEN = 0 or 1;  ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
-; NR_OF_BYTES_PER_LINE = 320 / 160 / 80
-; DO_4BIT = 1 or 0
-; DO_2BIT = 1 or 0 (DO_4BIT has to be 1 for this to take effect)
+; FIXME: are we going to use this? NR_OF_BYTES_PER_LINE = 320 / 160 / 80
+; FIXME: are we going to use this? DO_4BIT = 1 or 0
+; FIXME: are we going to use this? DO_2BIT = 1 or 0 (DO_4BIT has to be 1 for this to take effect)
 
 ; === Required ZP addresses: (one byte each, unless mentioned otherwise) ===
 
