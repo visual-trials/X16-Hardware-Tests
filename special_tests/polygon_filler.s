@@ -1,27 +1,27 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 1
-DO_4BIT = 1
+DO_SPEED_TEST = 0
+DO_4BIT = 0
 DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 1
-USE_JUMP_TABLE = 0
+USE_UNROLLED_LOOP = 0
+USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
-USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
+USE_180_DEGREES_SLOPE_TABLE = 1  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 
 USE_Y_TO_ADDRESS_TABLE = 1
 
 USE_DOUBLE_BUFFER = 0   ; Note: this is not setup in this program!
 
-TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
+TEST_JUMP_TABLE = 1 ; This turns off the iteration in-between the jump-table calls
 
 ; This setting is used in the routine test_fill_length_jump_table. -> turn this OFF when using the jump tables otherwise! (it changes the jump table code!)
-USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
+USE_SOFT_FILL_LEN = 1; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
     
 COLOR_CHECK        = $05 ; Background color = 0, foreground color 5 (green)
@@ -367,18 +367,18 @@ reset:
       lda #%00000000           ; DCSEL=0, ADDRSEL=0
       sta VERA_CTRL
         
-      lda #$10                 ; 8:1 scale
-      sta VERA_DC_HSCALE
-      sta VERA_DC_VSCALE      
+      ;lda #$10                 ; 8:1 scale
+      ;sta VERA_DC_HSCALE
+      ;sta VERA_DC_VSCALE      
     
       jsr start_timer
 
       ; jsr test_simple_polygon_filler
-      ; jsr test_fill_length_jump_table
+      jsr test_fill_length_jump_table
       ; jsr TMP_test_4bit_hello_world
       ; jsr TMP_test_16bit_hop_mode
       ; jsr TMP_test_one_byte_caching_stuff
-      jsr TMP_test_alt_cache_increments
+      ; jsr TMP_test_alt_cache_increments
       
       jsr stop_timer
       
@@ -1055,6 +1055,9 @@ TEST_pattern_column_next:
     lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
     sta TMP3
 TEST_pattern_next:
+    ; Since we are not using ADDR0, we want ADDR1 to be set here instead, so we set ADDRSEL to 1
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    sta VERA_CTRL
     jsr TEST_set_address_using_y2address_table_and_point_x
     
     lda #<TEST_FILL_LINE_CODE
@@ -1063,8 +1066,6 @@ TEST_pattern_next:
     sta CODE_ADDRESS+1
     
     ldy #0                 ; generated code byte counter
-    
-    ; stp
     
     lda LEFT_POINT_X
     asl
@@ -1112,7 +1113,7 @@ fill_len_not_higher_than_or_equal_to_16:
     .else
         ldx FILL_LENGTH_LOW_SOFT
         
-        ;stp 
+        ; stp 
         
         ; IMPORTANT NOTE: this *requires* USE_JUMP_TABLE to be 1!
         jsr do_the_jump_to_the_table
