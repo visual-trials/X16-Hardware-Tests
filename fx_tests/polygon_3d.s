@@ -2737,6 +2737,7 @@ end_of_palette_data:
     .include utils/timing.s
     .include utils/setup_vera_for_bitmap_and_tilemap.s
     .include fx_tests/fx_polygon_fill.s
+    .include fx_tests/fx_polygon_fill_jump_tables.s
 
     
     ; === Cosine and sine tables ===

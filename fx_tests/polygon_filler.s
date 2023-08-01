@@ -1037,6 +1037,27 @@ set_cache32_with_color_slow:
 
     rts
   
+TEST_set_address_using_y2address_table_and_point_x:
+    
+    ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
+    ldx LEFT_POINT_Y
+    
+    clc
+    lda Y_TO_ADDRESS_LOW, x
+    adc LEFT_POINT_X
+    sta VERA_ADDR_LOW
+    lda Y_TO_ADDRESS_HIGH, x
+    adc LEFT_POINT_X+1
+    sta VERA_ADDR_HIGH
+    lda Y_TO_ADDRESS_BANK, x     ; This will include some kind of auto-increment value
+    adc #0
+; FIXME: ULGY way of forcing the auto-increment to be what we want
+    and #%00001111
+    ora #%00110000   ; Forcing auto-increment of 4
+    sta VERA_ADDR_BANK
+    
+    rts
+  
 test_fill_length_jump_table:
 
     jsr set_cache32_with_color_slow
@@ -2384,6 +2405,7 @@ triangle_data:
     .include utils/timing.s
     .include utils/setup_vera_for_bitmap_and_tilemap.s
     .include fx_tests/fx_polygon_fill.s
+    .include fx_tests/fx_polygon_fill_jump_tables.s
 
     ; ======== PETSCII CHARSET =======
 
