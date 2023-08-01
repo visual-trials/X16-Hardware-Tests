@@ -109,8 +109,7 @@
 ; -- Only used when USE_SOFT_FILL_LEN is 1 --
 ; FILL_LENGTH_HIGH_SOFT (1 byte)
 
-; FILL_LINE_JUMP_TABLE (256 bytes)
-; FILL_LINE_BELOW_16_CODE ; 128 different (below 16 pixel) fill line code patterns -> takes roughly $0C28 (3112) bytes -> so $0D00 is safe
+; FILL_LINE_START_JUMP (256 bytes)
 
 ; -- Triangle data is (easely) accessed through an single index (0-255) --
 ; MAX_NR_OF_TRIANGLES = 256  ; has to be set to the distance in memory of the tables below
@@ -1868,7 +1867,7 @@ soft_polygon_fill_triangle_done:
     
 ; FIXME: UGLY and SLOW! -> this ensures this works with TEST_JUMP_TABLE! (which contains an rts)
 do_the_jump_to_the_table:
-    jmp (FILL_LINE_JUMP_TABLE,x)
+    jmp (FILL_LINE_START_JUMP,x)
 
 draw_polygon_part_using_polygon_filler_naively:
 

@@ -2,7 +2,7 @@
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
 DO_SPEED_TEST = 0
-DO_4BIT = 1
+DO_4BIT = 0
 DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
@@ -141,8 +141,8 @@ DIVISOR                   = $23 ; 24 ; 25  ; the thing you divide by (e.g. / 10)
 REMAINDER                 = $26 ; 27 ; 28
 
 ; For geneating code
-JUMP16_ADDRESS            = $2B ; 2C
-JUMP_ADDRESS              = $2D ; 2E
+END_JUMP_ADDRESS          = $2B ; 2C
+START_JUMP_ADDRESS        = $2D ; 2E
 CODE_ADDRESS              = $2F ; 30
 LOAD_ADDRESS              = $31 ; 32
 STORE_ADDRESS             = $33 ; 34
@@ -237,22 +237,22 @@ DEBUG_VALUE              = $C7
 FILL_LENGTH_LOW_SOFT     = $2800
 FILL_LENGTH_HIGH_SOFT    = $2801
 
-FILL_LINE_JUMP_TABLE     = $2F00
-FILL_LINE_BELOW_16_CODE  = $3000   ; 128 different (below 16 pixel) fill line code patterns -> safe: takes $0D00 bytes
+FILL_LINE_START_JUMP     = $2F00
+FILL_LINE_START_CODE     = $3000   ; 128 different (start of) fill line code patterns -> safe: takes $0D00 bytes
 
 
 ; FIXME: can we put these jump tables closer to each other? Do they need to be aligned to 256 bytes? (they are 80 bytes each)
-; FIXME: IMPORTANT: we set the two lower bits of this address in the code, using JUMP_TABLE_16_0 as base. So the distance between the 4 tables should stay $100! AND the two lower bits should stay 00b!
-JUMP_TABLE_16_0          = $6400   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_0)
-JUMP_TABLE_16_1          = $6500   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_1)
-JUMP_TABLE_16_2          = $6600   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_2)
-JUMP_TABLE_16_3          = $6700   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_3)
+; FIXME: IMPORTANT: we set the two lower bits of this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 4 tables should stay $100! AND the two lower bits should stay 00b!
+FILL_LINE_END_JUMP_0     = $6400   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0)
+FILL_LINE_END_JUMP_1     = $6500   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1)
+FILL_LINE_END_JUMP_2     = $6600   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2)
+FILL_LINE_END_JUMP_3     = $6700   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3)
 
 ; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> MORE than 256 bytes!!
-FILL_LINE_CODE_0         = $6800   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_CODE_1         = $6A00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_CODE_2         = $6C00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_CODE_3         = $6E00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_0     = $6800   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_1     = $6A00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_2     = $6C00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_3     = $6E00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 
 CLEAR_COLUMN_CODE        = $7000   ; up to 72D0
 TEST_FILL_LINE_CODE      = $7300
@@ -347,9 +347,9 @@ reset:
     
     .if(USE_JUMP_TABLE)
 ; FIXME: this should be adapted for 4bit jump tables
-        jsr generate_four_times_fill_line_code
-        jsr generate_four_times_jump_table_16
-        jsr generate_fill_line_codes_and_table
+        jsr generate_fill_line_end_code
+        jsr generate_fill_line_end_jump
+        jsr generate_fill_line_start_code_and_jump
     .endif
     
     .if(USE_Y_TO_ADDRESS_TABLE)

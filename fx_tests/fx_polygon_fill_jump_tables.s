@@ -13,8 +13,8 @@
 ; TMP1
 ; TMP2
 
-; JUMP16_ADDRESS (2 bytes)
-; JUMP_ADDRESS (2 bytes)
+; END_JUMP_ADDRESS (2 bytes)
+; START_JUMP_ADDRESS (2 bytes)
 
 ; CODE_ADDRESS (2 bytes)
 ; LOAD_ADDRESS (2 bytes)
@@ -24,6 +24,7 @@
 ; FILL_LENGTH_HIGH  ; FIXME: not actually used!
 
 
+; FIXME: PREFIX these too with GEN_ ?
 ; LEFT_OVER_PIXELS (2 bytes)
 ; NIBBLE_PATTERN
 ; NR_OF_4_PIXELS
@@ -42,27 +43,27 @@
 ; -- Only used when USE_SOFT_FILL_LEN is 1 --
 ; FILL_LENGTH_HIGH_SOFT (1 byte)
 
-; FILL_LINE_JUMP_TABLE (256 bytes)
-; FILL_LINE_BELOW_16_CODE ; 128 different (below 16 pixel) fill line code patterns -> takes roughly $0C28 (3112) bytes -> so $0D00 is safe
+; FILL_LINE_START_JUMP (256 bytes)
+; FILL_LINE_START_CODE ; 128 different (start of) fill line code patterns -> takes roughly $0C28 (3112) bytes -> so $0D00 is safe
 
-; -- IMPORTANT: we set the two lower bits of this address in the code, using JUMP_TABLE_16_0 as base. So the distance between the 4 tables should be $100! AND bits 8 and 9 should be 00b! (for JUMP_TABLE_16_0) --
-; JUMP_TABLE_16_0 ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_0
-; JUMP_TABLE_16_1 ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_1
-; JUMP_TABLE_16_2 ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_2
-; JUMP_TABLE_16_3 ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_3
+; -- IMPORTANT: we set the two lower bits of this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 4 tables should be $100! AND bits 8 and 9 should be 00b! (for FILL_LINE_END_JUMP_0) --
+; FILL_LINE_END_JUMP_0 ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0
+; FILL_LINE_END_JUMP_1 ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1
+; FILL_LINE_END_JUMP_2 ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2
+; FILL_LINE_END_JUMP_3 ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3
 
 ; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes?
-; FILL_LINE_CODE_0 ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-; FILL_LINE_CODE_1 ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-; FILL_LINE_CODE_2 ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-; FILL_LINE_CODE_3 ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+; FILL_LINE_END_CODE_0 ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+; FILL_LINE_END_CODE_1 ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+; FILL_LINE_END_CODE_2 ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+; FILL_LINE_END_CODE_3 ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 
     
-generate_fill_line_codes_and_table:
+generate_fill_line_start_code_and_jump:
 
-    lda #<FILL_LINE_BELOW_16_CODE
+    lda #<FILL_LINE_START_CODE
     sta CODE_ADDRESS
-    lda #>FILL_LINE_BELOW_16_CODE
+    lda #>FILL_LINE_START_CODE
     sta CODE_ADDRESS+1
     
     ldy #0                 ; generated code byte counter
@@ -73,9 +74,9 @@ gen_next_fill_line_code:
     clc
     tya
     adc CODE_ADDRESS           ; TODO: CODE_ADDRESS will always stay 0, so this doesnt do anything really
-    sta JUMP_ADDRESS       
+    sta START_JUMP_ADDRESS       
     lda CODE_ADDRESS+1
-    sta JUMP_ADDRESS+1
+    sta START_JUMP_ADDRESS+1
 
     lda GEN_FILL_LINE_CODE_INDEX
     sta FILL_LENGTH_LOW
@@ -83,11 +84,11 @@ gen_next_fill_line_code:
     
     ; Storing jump address in jump table
     ldx GEN_FILL_LINE_CODE_INDEX
-    lda JUMP_ADDRESS
-    sta FILL_LINE_JUMP_TABLE, x
+    lda START_JUMP_ADDRESS
+    sta FILL_LINE_START_JUMP, x
     inx
-    lda JUMP_ADDRESS+1
-    sta FILL_LINE_JUMP_TABLE, x
+    lda START_JUMP_ADDRESS+1
+    sta FILL_LINE_START_JUMP, x
     
     inc GEN_FILL_LINE_CODE_INDEX
     inc GEN_FILL_LINE_CODE_INDEX
@@ -296,11 +297,11 @@ gen_generate_jump_to_second_table:
 
     ;   Note: the table is reversed: since the higher y-number will the less pixels. (so the *beginning* of the table will point to the *end* of the code), when no stz-calls are made)
 
-    lda #<JUMP_TABLE_16_0
-    sta JUMP16_ADDRESS
-    lda #>JUMP_TABLE_16_0
+    lda #<FILL_LINE_END_JUMP_0
+    sta END_JUMP_ADDRESS
+    lda #>FILL_LINE_END_JUMP_0
     ora NR_OF_ENDING_PIXELS     ; We set the two lower bits of the HIGH byte of the JUMP TABLE address to indicate which jump table we want to jump to
-    sta JUMP16_ADDRESS+1
+    sta END_JUMP_ADDRESS+1
 
     lda GEN_LOANED_16_PIXELS
     beq jump_address_is_valid
@@ -308,12 +309,12 @@ gen_generate_jump_to_second_table:
     ; if GEN_LOANED_16_PIXELS == 1 we should jump as-if 16 pixels less have to be drawn -> so we subtract 4 bytes (2 jump addresses)
     
     sec
-    lda JUMP16_ADDRESS
+    lda END_JUMP_ADDRESS
     sbc #4
-    sta JUMP16_ADDRESS
-    lda JUMP16_ADDRESS+1
+    sta END_JUMP_ADDRESS
+    lda END_JUMP_ADDRESS+1
     sbc #0
-    sta JUMP16_ADDRESS+1
+    sta END_JUMP_ADDRESS+1
     
 ; FIXME: CHECK: if exactly 16-pixels have to be drawn due to the HIGH fill length, we should not draw any pixels!
     
@@ -341,10 +342,10 @@ jump_address_is_valid:
     lda #$7C               ; jmp (....,x)
     jsr add_code_byte
 
-    lda JUMP16_ADDRESS        ; low byte of jump base address
+    lda END_JUMP_ADDRESS        ; low byte of jump base address
     jsr add_code_byte
     
-    lda JUMP16_ADDRESS+1      ; high byte of jump base address
+    lda END_JUMP_ADDRESS+1      ; high byte of jump base address
     jsr add_code_byte
     
     rts
@@ -394,14 +395,14 @@ generate_fill_line_iterate_code:
     lda #$9F               ; $9F
     jsr add_code_byte
         
-    ; -- jmp (FILL_LINE_JUMP_TABLE,x)
+    ; -- jmp (FILL_LINE_START_JUMP,x)
     lda #$7C               ; jmp (....,x)
     jsr add_code_byte
 
-    lda #<FILL_LINE_JUMP_TABLE  ; low byte of jump table
+    lda #<FILL_LINE_START_JUMP  ; low byte of jump table
     jsr add_code_byte
     
-    lda #>FILL_LINE_JUMP_TABLE  ; high byte of jump table
+    lda #>FILL_LINE_START_JUMP  ; high byte of jump table
     jsr add_code_byte
     
     ; -- rts
@@ -412,18 +413,18 @@ generate_fill_line_iterate_code:
     
     
     
-generate_four_times_fill_line_code:
+generate_fill_line_end_code:
 
-    ; -------------- FILL_LINE_CODE_0 ---------------
+    ; -------------- FILL_LINE_END_CODE_0 ---------------
     
-    lda #<FILL_LINE_CODE_0
+    lda #<FILL_LINE_END_CODE_0
     sta CODE_ADDRESS
-    lda #>FILL_LINE_CODE_0
+    lda #>FILL_LINE_END_CODE_0
     sta CODE_ADDRESS+1
     
-    jsr generate_80_fill_line_codes
+    jsr generate_80_fill_line_end_codes
     
-    ; Note: for FILL_LINE_CODE_0 there is no additional (sub 4) pixel draw
+    ; Note: for FILL_LINE_END_CODE_0 there is no additional (sub 4) pixel draw
     
     .if(TEST_JUMP_TABLE)
         jsr generate_rts_code
@@ -431,14 +432,14 @@ generate_four_times_fill_line_code:
         jsr generate_fill_line_iterate_code
     .endif
 
-    ; -------------- FILL_LINE_CODE_1 ---------------
+    ; -------------- FILL_LINE_END_CODE_1 ---------------
 
-    lda #<FILL_LINE_CODE_1
+    lda #<FILL_LINE_END_CODE_1
     sta CODE_ADDRESS
-    lda #>FILL_LINE_CODE_1
+    lda #>FILL_LINE_END_CODE_1
     sta CODE_ADDRESS+1
     
-    jsr generate_80_fill_line_codes
+    jsr generate_80_fill_line_end_codes
     
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
@@ -463,14 +464,14 @@ generate_four_times_fill_line_code:
         jsr generate_fill_line_iterate_code
     .endif
     
-    ; -------------- FILL_LINE_CODE_2 ---------------
+    ; -------------- FILL_LINE_END_CODE_2 ---------------
 
-    lda #<FILL_LINE_CODE_2
+    lda #<FILL_LINE_END_CODE_2
     sta CODE_ADDRESS
-    lda #>FILL_LINE_CODE_2
+    lda #>FILL_LINE_END_CODE_2
     sta CODE_ADDRESS+1
     
-    jsr generate_80_fill_line_codes
+    jsr generate_80_fill_line_end_codes
     
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
@@ -495,14 +496,14 @@ generate_four_times_fill_line_code:
         jsr generate_fill_line_iterate_code
     .endif
     
-    ; -------------- FILL_LINE_CODE_3 ---------------
+    ; -------------- FILL_LINE_END_CODE_3 ---------------
 
-    lda #<FILL_LINE_CODE_3
+    lda #<FILL_LINE_END_CODE_3
     sta CODE_ADDRESS
-    lda #>FILL_LINE_CODE_3
+    lda #>FILL_LINE_END_CODE_3
     sta CODE_ADDRESS+1
     
-    jsr generate_80_fill_line_codes
+    jsr generate_80_fill_line_end_codes
     
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
@@ -530,59 +531,59 @@ generate_four_times_fill_line_code:
     rts
 
     
-generate_four_times_jump_table_16:
+generate_fill_line_end_jump:
 
-    lda #<JUMP_TABLE_16_0
+    lda #<FILL_LINE_END_JUMP_0
     sta STORE_ADDRESS
-    lda #>JUMP_TABLE_16_0
+    lda #>FILL_LINE_END_JUMP_0
     sta STORE_ADDRESS+1
     
     ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
-    lda #<(FILL_LINE_CODE_0+80*3)
+    lda #<(FILL_LINE_END_CODE_0+80*3)
     sta LOAD_ADDRESS
-    lda #>(FILL_LINE_CODE_0+80*3)
+    lda #>(FILL_LINE_END_CODE_0+80*3)
     sta LOAD_ADDRESS+1
     
     jsr generate_jump_table_16
 
     
-    lda #<JUMP_TABLE_16_1
+    lda #<FILL_LINE_END_JUMP_1
     sta STORE_ADDRESS
-    lda #>JUMP_TABLE_16_1
+    lda #>FILL_LINE_END_JUMP_1
     sta STORE_ADDRESS+1
     
     ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
-    lda #<(FILL_LINE_CODE_1+80*3)
+    lda #<(FILL_LINE_END_CODE_1+80*3)
     sta LOAD_ADDRESS
-    lda #>(FILL_LINE_CODE_1+80*3)
+    lda #>(FILL_LINE_END_CODE_1+80*3)
     sta LOAD_ADDRESS+1
     
     jsr generate_jump_table_16
     
     
-    lda #<JUMP_TABLE_16_2
+    lda #<FILL_LINE_END_JUMP_2
     sta STORE_ADDRESS
-    lda #>JUMP_TABLE_16_2
+    lda #>FILL_LINE_END_JUMP_2
     sta STORE_ADDRESS+1
     
     ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
-    lda #<(FILL_LINE_CODE_2+80*3)
+    lda #<(FILL_LINE_END_CODE_2+80*3)
     sta LOAD_ADDRESS
-    lda #>(FILL_LINE_CODE_2+80*3)
+    lda #>(FILL_LINE_END_CODE_2+80*3)
     sta LOAD_ADDRESS+1
     
     jsr generate_jump_table_16
     
     
-    lda #<JUMP_TABLE_16_3
+    lda #<FILL_LINE_END_JUMP_3
     sta STORE_ADDRESS
-    lda #>JUMP_TABLE_16_3
+    lda #>FILL_LINE_END_JUMP_3
     sta STORE_ADDRESS+1
     
     ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
-    lda #<(FILL_LINE_CODE_3+80*3)
+    lda #<(FILL_LINE_END_CODE_3+80*3)
     sta LOAD_ADDRESS
-    lda #>(FILL_LINE_CODE_3+80*3)
+    lda #>(FILL_LINE_END_CODE_3+80*3)
     sta LOAD_ADDRESS+1
     
     jsr generate_jump_table_16
@@ -657,7 +658,7 @@ generate_next_jump_table_16_entry_overflow:
 
     
     
-generate_80_fill_line_codes:
+generate_80_fill_line_end_codes:
     ldy #0                 ; generated code byte counter
     
     ldx #0                 ; counts nr of fill instructions

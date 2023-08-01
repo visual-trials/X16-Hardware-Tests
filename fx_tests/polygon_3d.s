@@ -2,13 +2,14 @@
 ; FIXME: we add nops after switching RAM_BANK. This is needed for the Breadboard of JeffreyH but not on stock hardware! Maybe add a setting to turn this on/off.
 
 DO_SPEED_TEST = 1
+DO_4BIT = 0
 KEEP_RUNNING = 1
 USE_LIGHT = 1
 USE_KEYBOARD_INPUT = 1
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
 
-; WEIRD BUG: when using JUMP_TABLES, the triangles look very 'edgy'!! --> it is 'SOLVED' by putting the jump FILL_LINE_CODE_x-block aligned to 256 bytes!?!?
+; WEIRD BUG: when using JUMP_TABLES, the triangles look very 'edgy'!! --> it is 'SOLVED' by putting the jump FILL_LINE_END_CODE_x-block aligned to 256 bytes!?!?
 
 USE_POLYGON_FILLER = 1
 USE_FX_MULTIPLIER = 1
@@ -30,6 +31,9 @@ BACKGROUND_COLOR = 251  ; Nice purple
     .else
 BACKGROUND_COLOR = 06  ; Blue 
     .endif
+
+; FIXME: make this dependent on the 2/4/8 bit mode!    
+NR_OF_BYTES_PER_LINE = 320
     
 COLOR_CHECK        = $05 ; Background color = 0, foreground color 5 (green)
 COLOR_CROSS        = $02 ; Background color = 0, foreground color 2 (red)
@@ -89,8 +93,8 @@ DIVISOR                   = $23 ; 24 ; 25  ; the thing you divide by (e.g. / 10)
 REMAINDER                 = $26 ; 27 ; 28
 
 ; For geneating code
-JUMP16_ADDRESS            = $2B ; 2C
-JUMP_ADDRESS              = $2D ; 2E
+END_JUMP_ADDRESS          = $2B ; 2C
+START_JUMP_ADDRESS        = $2D ; 2E
 CODE_ADDRESS              = $2F ; 30
 LOAD_ADDRESS              = $31 ; 32
 STORE_ADDRESS             = $33 ; 34
@@ -225,21 +229,21 @@ KEYBOARD_STATE           = $2A80   ; 128 bytes (state for each key of the keyboa
 CLEAR_COLUMN_CODE        = $2B00   ; takes up to 02D0
 KEYBOARD_KEY_CODE_BUFFER = $2DE0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
 
-FILL_LINE_JUMP_TABLE     = $2E00
-FILL_LINE_BELOW_16_CODE  = $2F00   ; 128 different (below 16 pixel) fill line code patterns -> safe: takes $0D00 bytes
+FILL_LINE_START_JUMP     = $2E00
+FILL_LINE_START_CODE     = $2F00   ; 128 different (start of) fill line code patterns -> safe: takes $0D00 bytes
 
 ; FIXME: can we put these jump tables closer to each other? Do they need to be aligned to 256 bytes? (they are 80 bytes each)
-; FIXME: IMPORTANT: we set the two lower bits of this address in the code, using JUMP_TABLE_16_0 as base. So the distance between the 4 tables should stay $100! AND the two lower bits should stay 00b!
-JUMP_TABLE_16_0          = $3C00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_0)
-JUMP_TABLE_16_1          = $3D00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_1)
-JUMP_TABLE_16_2          = $3E00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_2)
-JUMP_TABLE_16_3          = $3F00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_CODE_3)
+; FIXME: IMPORTANT: we set the two lower bits of this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 4 tables should stay $100! AND the two lower bits should stay 00b!
+FILL_LINE_END_JUMP_0     = $3C00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0)
+FILL_LINE_END_JUMP_1     = $3D00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1)
+FILL_LINE_END_JUMP_2     = $3E00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2)
+FILL_LINE_END_JUMP_3     = $3F00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3)
 
 ; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> MORE than 256 bytes!!
-FILL_LINE_CODE_0         = $4000   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_CODE_1         = $4200   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_CODE_2         = $4400   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_CODE_3         = $4600   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_0     = $4000   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_1     = $4200   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_2     = $4400   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_3     = $4600   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 
 ; Triangle data is (easely) accessed through an single index (0-127)
 ; == IMPORTANT: we assume a *clockwise* ordering of the 3 points of a triangle! ==
@@ -354,9 +358,9 @@ reset:
     .endif
     
     .if(USE_JUMP_TABLE)
-        jsr generate_four_times_fill_line_code
-        jsr generate_four_times_jump_table_16
-        jsr generate_fill_line_codes_and_table
+        jsr generate_fill_line_end_code
+        jsr generate_fill_line_end_jump
+        jsr generate_fill_line_start_code_and_jump
     .endif
     
     .if(USE_Y_TO_ADDRESS_TABLE)
