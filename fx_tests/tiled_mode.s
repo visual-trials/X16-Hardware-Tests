@@ -2603,21 +2603,21 @@ irq:
     .word irq
     
     .if(USE_TABLE_FILES)
-    .binary "special_tests/tables/x_subpixel_positions_in_map_low.bin"
-    .binary "special_tests/tables/x_subpixel_positions_in_map_high.bin"
-    .binary "special_tests/tables/y_subpixel_positions_in_map_low.bin"
-    .binary "special_tests/tables/y_subpixel_positions_in_map_high.bin"
-    .binary "special_tests/tables/x_pixel_positions_in_map_low.bin"
-    .binary "special_tests/tables/x_pixel_positions_in_map_high.bin"
-    .binary "special_tests/tables/y_pixel_positions_in_map_low.bin"
-    .binary "special_tests/tables/y_pixel_positions_in_map_high.bin"
-    .binary "special_tests/tables/x_sub_pixel_steps_low.bin"
-    .binary "special_tests/tables/x_sub_pixel_steps_high.bin"
-    .binary "special_tests/tables/y_sub_pixel_steps_low.bin"
-    .binary "special_tests/tables/y_sub_pixel_steps_high.bin"
+    .binary "fx_tests/tables/x_subpixel_positions_in_map_low.bin"
+    .binary "fx_tests/tables/x_subpixel_positions_in_map_high.bin"
+    .binary "fx_tests/tables/y_subpixel_positions_in_map_low.bin"
+    .binary "fx_tests/tables/y_subpixel_positions_in_map_high.bin"
+    .binary "fx_tests/tables/x_pixel_positions_in_map_low.bin"
+    .binary "fx_tests/tables/x_pixel_positions_in_map_high.bin"
+    .binary "fx_tests/tables/y_pixel_positions_in_map_low.bin"
+    .binary "fx_tests/tables/y_pixel_positions_in_map_high.bin"
+    .binary "fx_tests/tables/x_sub_pixel_steps_low.bin"
+    .binary "fx_tests/tables/x_sub_pixel_steps_high.bin"
+    .binary "fx_tests/tables/y_sub_pixel_steps_low.bin"
+    .binary "fx_tests/tables/y_sub_pixel_steps_high.bin"
     .endif
     .if(!DO_NO_TILE_LOOKUP && USE_MARIO_MAP_AND_TILES && !DO_4BIT)
-        .binary "special_tests/textures/SnesMarioKart/mario_tile_map.bin"
-        .binary "special_tests/textures/SnesMarioKart/mario_tile_pixel_data.bin"  ; WARNING!! ONLY 11kB!!
+        .binary "fx_tests/textures/SnesMarioKart/mario_tile_map.bin"
+        .binary "fx_tests/textures/SnesMarioKart/mario_tile_pixel_data.bin"  ; WARNING!! ONLY 11kB!!
     .endif
     

@@ -72,17 +72,17 @@ def run():
     
     if(True):
     
-        tableFile = open("special_tests/tables/div_pos_0_low.bin", "wb")
+        tableFile = open("fx_tests/tables/div_pos_0_low.bin", "wb")
         tableFile.write(bytearray(div_pos_0_low))
         tableFile.close()
-        tableFile = open("special_tests/tables/div_pos_0_high.bin", "wb")
+        tableFile = open("fx_tests/tables/div_pos_0_high.bin", "wb")
         tableFile.write(bytearray(div_pos_0_high))
         tableFile.close()
         
-        tableFile = open("special_tests/tables/div_pos_1_low.bin", "wb")
+        tableFile = open("fx_tests/tables/div_pos_1_low.bin", "wb")
         tableFile.write(bytearray(div_pos_1_low))
         tableFile.close()
-        tableFile = open("special_tests/tables/div_pos_1_high.bin", "wb")
+        tableFile = open("fx_tests/tables/div_pos_1_high.bin", "wb")
         tableFile.write(bytearray(div_pos_1_high))
         tableFile.close()
         

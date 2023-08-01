@@ -27,7 +27,7 @@ def run():
     screen.fill(background_color)
 
     # Using readlines()
-    file1 = open('special_tests/textures/spaceship.obj', 'r')
+    file1 = open('fx_tests/textures/spaceship.obj', 'r')
     lines = file1.readlines()
     
     triangles_raw = []

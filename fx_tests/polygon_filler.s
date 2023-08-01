@@ -2,7 +2,7 @@
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
 DO_SPEED_TEST = 0
-DO_4BIT = 0
+DO_4BIT = 1
 DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
@@ -2383,7 +2383,7 @@ triangle_data:
     .include utils/utils.s
     .include utils/timing.s
     .include utils/setup_vera_for_bitmap_and_tilemap.s
-    .include special_tests/fx_polygon_fill.s
+    .include fx_tests/fx_polygon_fill.s
 
     ; ======== PETSCII CHARSET =======
 
@@ -2409,50 +2409,50 @@ irq:
     
     .if(USE_SLOPE_TABLES)
         .if(USE_POLYGON_FILLER)
-            .binary "special_tests/tables/slopes_packed_column_0_low.bin"
-            .binary "special_tests/tables/slopes_packed_column_0_high.bin"
-            .binary "special_tests/tables/slopes_packed_column_1_low.bin"
-            .binary "special_tests/tables/slopes_packed_column_1_high.bin"
-            .binary "special_tests/tables/slopes_packed_column_2_low.bin"
-            .binary "special_tests/tables/slopes_packed_column_2_high.bin"
-            .binary "special_tests/tables/slopes_packed_column_3_low.bin"
-            .binary "special_tests/tables/slopes_packed_column_3_high.bin"
-            .binary "special_tests/tables/slopes_packed_column_4_low.bin"
-            .binary "special_tests/tables/slopes_packed_column_4_high.bin"
+            .binary "fx_tests/tables/slopes_packed_column_0_low.bin"
+            .binary "fx_tests/tables/slopes_packed_column_0_high.bin"
+            .binary "fx_tests/tables/slopes_packed_column_1_low.bin"
+            .binary "fx_tests/tables/slopes_packed_column_1_high.bin"
+            .binary "fx_tests/tables/slopes_packed_column_2_low.bin"
+            .binary "fx_tests/tables/slopes_packed_column_2_high.bin"
+            .binary "fx_tests/tables/slopes_packed_column_3_low.bin"
+            .binary "fx_tests/tables/slopes_packed_column_3_high.bin"
+            .binary "fx_tests/tables/slopes_packed_column_4_low.bin"
+            .binary "fx_tests/tables/slopes_packed_column_4_high.bin"
             .if(USE_180_DEGREES_SLOPE_TABLE)
-                .binary "special_tests/tables/slopes_negative_packed_column_0_low.bin"
-                .binary "special_tests/tables/slopes_negative_packed_column_0_high.bin"
-                .binary "special_tests/tables/slopes_negative_packed_column_1_low.bin"
-                .binary "special_tests/tables/slopes_negative_packed_column_1_high.bin"
-                .binary "special_tests/tables/slopes_negative_packed_column_2_low.bin"
-                .binary "special_tests/tables/slopes_negative_packed_column_2_high.bin"
-                .binary "special_tests/tables/slopes_negative_packed_column_3_low.bin"
-                .binary "special_tests/tables/slopes_negative_packed_column_3_high.bin"
-                .binary "special_tests/tables/slopes_negative_packed_column_4_low.bin"
-                .binary "special_tests/tables/slopes_negative_packed_column_4_high.bin"
+                .binary "fx_tests/tables/slopes_negative_packed_column_0_low.bin"
+                .binary "fx_tests/tables/slopes_negative_packed_column_0_high.bin"
+                .binary "fx_tests/tables/slopes_negative_packed_column_1_low.bin"
+                .binary "fx_tests/tables/slopes_negative_packed_column_1_high.bin"
+                .binary "fx_tests/tables/slopes_negative_packed_column_2_low.bin"
+                .binary "fx_tests/tables/slopes_negative_packed_column_2_high.bin"
+                .binary "fx_tests/tables/slopes_negative_packed_column_3_low.bin"
+                .binary "fx_tests/tables/slopes_negative_packed_column_3_high.bin"
+                .binary "fx_tests/tables/slopes_negative_packed_column_4_low.bin"
+                .binary "fx_tests/tables/slopes_negative_packed_column_4_high.bin"
             .endif
         .else
             ; FIXME: right now we include vhigh tables *TWICE*! The second time is a dummy include! (since we want all _low tables to be aligned with ROM_BANK % 4 == 1)
-            .binary "special_tests/tables/slopes_column_0_low.bin"
-            .binary "special_tests/tables/slopes_column_0_high.bin"
-            .binary "special_tests/tables/slopes_column_0_vhigh.bin"
-            .binary "special_tests/tables/slopes_column_0_vhigh.bin"
-            .binary "special_tests/tables/slopes_column_1_low.bin"
-            .binary "special_tests/tables/slopes_column_1_high.bin"
-            .binary "special_tests/tables/slopes_column_1_vhigh.bin"
-            .binary "special_tests/tables/slopes_column_1_vhigh.bin"
-            .binary "special_tests/tables/slopes_column_2_low.bin"
-            .binary "special_tests/tables/slopes_column_2_high.bin"
-            .binary "special_tests/tables/slopes_column_2_vhigh.bin"
-            .binary "special_tests/tables/slopes_column_2_vhigh.bin"
-            .binary "special_tests/tables/slopes_column_3_low.bin"
-            .binary "special_tests/tables/slopes_column_3_high.bin"
-            .binary "special_tests/tables/slopes_column_3_vhigh.bin"
-            .binary "special_tests/tables/slopes_column_3_vhigh.bin"
-            .binary "special_tests/tables/slopes_column_4_low.bin"
-            .binary "special_tests/tables/slopes_column_4_high.bin"
-            .binary "special_tests/tables/slopes_column_4_vhigh.bin"
-            .binary "special_tests/tables/slopes_column_4_vhigh.bin"
+            .binary "fx_tests/tables/slopes_column_0_low.bin"
+            .binary "fx_tests/tables/slopes_column_0_high.bin"
+            .binary "fx_tests/tables/slopes_column_0_vhigh.bin"
+            .binary "fx_tests/tables/slopes_column_0_vhigh.bin"
+            .binary "fx_tests/tables/slopes_column_1_low.bin"
+            .binary "fx_tests/tables/slopes_column_1_high.bin"
+            .binary "fx_tests/tables/slopes_column_1_vhigh.bin"
+            .binary "fx_tests/tables/slopes_column_1_vhigh.bin"
+            .binary "fx_tests/tables/slopes_column_2_low.bin"
+            .binary "fx_tests/tables/slopes_column_2_high.bin"
+            .binary "fx_tests/tables/slopes_column_2_vhigh.bin"
+            .binary "fx_tests/tables/slopes_column_2_vhigh.bin"
+            .binary "fx_tests/tables/slopes_column_3_low.bin"
+            .binary "fx_tests/tables/slopes_column_3_high.bin"
+            .binary "fx_tests/tables/slopes_column_3_vhigh.bin"
+            .binary "fx_tests/tables/slopes_column_3_vhigh.bin"
+            .binary "fx_tests/tables/slopes_column_4_low.bin"
+            .binary "fx_tests/tables/slopes_column_4_high.bin"
+            .binary "fx_tests/tables/slopes_column_4_vhigh.bin"
+            .binary "fx_tests/tables/slopes_column_4_vhigh.bin"
         .endif
         
     .endif
