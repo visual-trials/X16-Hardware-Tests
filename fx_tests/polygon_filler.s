@@ -2,7 +2,7 @@
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
 DO_SPEED_TEST = 0
-DO_4BIT = 0
+DO_4BIT = 1
 DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
@@ -216,7 +216,7 @@ VRAM_ADDRESS             = $90 ; 91 ; 92
 
 LEFT_OVER_PIXELS         = $96 ; 97
 NIBBLE_PATTERN           = $98
-NR_OF_4_PIXELS           = $99
+NR_OF_FULL_CACHE_WRITES  = $99
 NR_OF_STARTING_PIXELS    = $9A
 NR_OF_ENDING_PIXELS      = $9B
 
@@ -224,7 +224,9 @@ NR_OF_ENDING_PIXELS      = $9B
 GEN_START_X              = $9C
 GEN_FILL_LENGTH_LOW      = $9D
 GEN_FILL_LENGTH_IS_16_OR_MORE = $9E
+GEN_FILL_LENGTH_IS_8_OR_MORE = GEN_FILL_LENGTH_IS_16_OR_MORE
 GEN_LOANED_16_PIXELS     = $9F
+GEN_LOANED_8_PIXELS = GEN_LOANED_16_PIXELS
 GEN_FILL_LINE_CODE_INDEX = $A0
 
 TEST_POKE_BYTE           = $A1
@@ -248,7 +250,7 @@ FILL_LINE_END_JUMP_1     = $6500   ; 20 entries (* 4 bytes) of jumps into FILL_L
 FILL_LINE_END_JUMP_2     = $6600   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2)
 FILL_LINE_END_JUMP_3     = $6700   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3)
 
-; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> MORE than 256 bytes!!
+; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> NO, MORE than 256 bytes!!
 FILL_LINE_END_CODE_0     = $6800   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_END_CODE_1     = $6A00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_END_CODE_2     = $6C00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
@@ -1070,6 +1072,9 @@ test_fill_length_jump_table:
     lda #0
     sta LEFT_POINT_X+1
 
+; FIXME! when in 4-bit mode we should test 8 columns!
+; FIXME! when in 4-bit mode we should test 8 columns!
+; FIXME! when in 4-bit mode we should test 8 columns!
     lda #4
     sta TMP1               ; Column number (4 -> 1)
 TEST_pattern_column_next:
@@ -1131,6 +1136,10 @@ fill_len_not_higher_than_or_equal_to_16:
         jsr generate_single_fill_line_code
         ; stp
         jsr TEST_FILL_LINE_CODE
+; FIXME!
+tmp_loop:
+    jmp tmp_loop
+        
     .else
         ldx FILL_LENGTH_LOW_SOFT
         

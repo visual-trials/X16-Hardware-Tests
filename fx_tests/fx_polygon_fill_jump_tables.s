@@ -5,8 +5,8 @@
 ; USE_SOFT_FILL_LEN = 0 or 1;  ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
 ; FIXME: are we going to use this? NR_OF_BYTES_PER_LINE = 320 / 160 / 80
-; FIXME: are we going to use this? DO_4BIT = 1 or 0
-; FIXME: are we going to use this? DO_2BIT = 1 or 0 (DO_4BIT has to be 1 for this to take effect)
+; DO_4BIT = 1 or 0
+; DO_2BIT = 1 or 0 (DO_4BIT has to be 1 for this to take effect)
 
 ; === Required ZP addresses: (one byte each, unless mentioned otherwise) ===
 
@@ -27,15 +27,15 @@
 ; FIXME: PREFIX these too with GEN_ ?
 ; LEFT_OVER_PIXELS (2 bytes)
 ; NIBBLE_PATTERN
-; NR_OF_4_PIXELS
+; NR_OF_FULL_CACHE_WRITES
 ; NR_OF_STARTING_PIXELS
 ; NR_OF_ENDING_PIXELS
 
 ; -- Used to generate jump tables --
 ; GEN_START_X
 ; GEN_FILL_LENGTH_LOW
-; GEN_FILL_LENGTH_IS_16_OR_MORE
-; GEN_LOANED_16_PIXELS
+; GEN_FILL_LENGTH_IS_16_OR_MORE (8-bit) / GEN_FILL_LENGTH_IS_8_OR_MORE (4-bit)
+; GEN_LOANED_16_PIXELS (8-bit) / GEN_LOANED_8_PIXELS (4-bit)
 ; GEN_FILL_LINE_CODE_INDEX
 
 ; == Required RAM Addresses ==
@@ -46,18 +46,41 @@
 ; FILL_LINE_START_JUMP (256 bytes)
 ; FILL_LINE_START_CODE ; 128 different (start of) fill line code patterns -> takes roughly $0C28 (3112) bytes -> so $0D00 is safe
 
-; -- IMPORTANT: we set the two lower bits of this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 4 tables should be $100! AND bits 8 and 9 should be 00b! (for FILL_LINE_END_JUMP_0) --
+; 8-bit:
+; -- IMPORTANT: we set the *two* lower bits of (the HIGH byte of) this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 4 tables should be $100! AND bits 8 and 9 should be 00b! (for FILL_LINE_END_JUMP_0) --
 ; FILL_LINE_END_JUMP_0 ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0
 ; FILL_LINE_END_JUMP_1 ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1
 ; FILL_LINE_END_JUMP_2 ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2
 ; FILL_LINE_END_JUMP_3 ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3
 
-; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes?
+; 4-bit:
+; -- IMPORTANT: we set the *three* lower bits of (the HIGH byte of) this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 8 tables should be $100! AND bits 8, 9 and 10 should be 000b! (for FILL_LINE_END_JUMP_0) --
+; FILL_LINE_END_JUMP_0 ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0
+; FILL_LINE_END_JUMP_1 ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1
+; FILL_LINE_END_JUMP_2 ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2
+; FILL_LINE_END_JUMP_3 ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3
+; FILL_LINE_END_JUMP_4 ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_4
+; FILL_LINE_END_JUMP_5 ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_5
+; FILL_LINE_END_JUMP_6 ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_6
+; FILL_LINE_END_JUMP_7 ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_7
+
+; 8-bit:
+; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> NO, MORE than 256 bytes!!
 ; FILL_LINE_END_CODE_0 ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 ; FILL_LINE_END_CODE_1 ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 ; FILL_LINE_END_CODE_2 ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 ; FILL_LINE_END_CODE_3 ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 
+; 4-bit:
+; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> YES??!
+; FILL_LINE_END_CODE_0 ; 3 (stz) * 40 (=320/8) = 120                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+; FILL_LINE_END_CODE_1 ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+; FILL_LINE_END_CODE_2 ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+; FILL_LINE_END_CODE_3 ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+; FILL_LINE_END_CODE_4 ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+; FILL_LINE_END_CODE_5 ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+; FILL_LINE_END_CODE_6 ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+; FILL_LINE_END_CODE_7 ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
     
 generate_fill_line_start_code_and_jump:
 
@@ -97,19 +120,18 @@ gen_next_fill_line_code:
     rts
 
     
-; This routines expects:
-;    FILL_LENGTH_LOW    : FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
 
+    .if(!DO_4BIT)
 generate_single_fill_line_code:
 
-    ; == We first extract this info ==
+    ; This routines expects this:
+    ;    FILL_LENGTH_LOW (8-bit)   : FILL_LENGTH >= 16, X1[1:0],        FILL_LENGTH[3:0], 0
+    
+    ; == We first extract this info (8-bit) ==
     ;
     ;   GEN_START_X[1:0]
     ;   GEN_FILL_LENGTH_LOW = [3:0]
     ;   GEN_FILL_LENGTH_IS_16_OR_MORE
-    ;
-    
-    ; stp
     
     lda FILL_LENGTH_LOW
     asl                   ; We remove the bit for FILL_LENGTH >= 16
@@ -208,9 +230,9 @@ gen_generate_middle_pixels:
     ror LEFT_OVER_PIXELS
     
     lda LEFT_OVER_PIXELS            ; Note: the result should always fit into one byte
-    sta NR_OF_4_PIXELS
+    sta NR_OF_FULL_CACHE_WRITES
     beq middle_pixels_generated     ; We should not draw any middle pixels
-    jsr generate_draw_4_pixels_code
+    jsr generate_draw_middle_pixels_code
 middle_pixels_generated:
     
     
@@ -228,6 +250,163 @@ gen_ending_pixels_are_generated:
     .endif
     
     rts
+    
+    .endif
+
+    
+    .if(DO_4BIT && !DO_2BIT)
+    
+generate_single_fill_line_code:
+    
+    ; This routines expects this:
+    ;    FILL_LENGTH_LOW (4-bit)   : FILL_LENGTH >= 8,  X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+
+    ; == We first extract this info (4-bit) ==
+    ;
+    ;   GEN_START_X[2:0]
+    ;   GEN_FILL_LENGTH_LOW = [2:0]
+    ;   GEN_FILL_LENGTH_IS_8_OR_MORE
+    
+    lda FILL_LENGTH_LOW
+    asl                   ; We remove the bit for FILL_LENGTH >= 8
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr                   ; We keep the X1[1:0] part
+    sta GEN_START_X
+    
+    lda FILL_LENGTH_LOW
+    and #%00010000        ; X1[2], 0000b
+    lsr
+    lsr                   ; X1[2], 00b
+    ora GEN_START_X       ; OR with X1[1:0]
+    sta GEN_START_X       ; X1[2:0]
+    
+    lda FILL_LENGTH_LOW
+    lsr
+    and #%00000111
+    sta GEN_FILL_LENGTH_LOW ; FILL_LENGTH[2:0]
+    
+    lda FILL_LENGTH_LOW
+    and #%10000000
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    sta GEN_FILL_LENGTH_IS_8_OR_MORE
+    
+    stz GEN_LOANED_8_PIXELS
+    
+    ; ================================  
+
+    
+    ; -- NR_OF_STARTING_PIXELS = 8 - GEN_START_X --
+    sec
+    lda #8
+    sbc GEN_START_X
+    sta NR_OF_STARTING_PIXELS
+
+    ; -- NR_OF_ENDING_PIXELS = (GEN_START_X + GEN_FILL_LENGTH_LOW) % 8 --
+    clc
+    lda GEN_START_X
+    adc GEN_FILL_LENGTH_LOW
+    and #%00000111
+    sta NR_OF_ENDING_PIXELS               ; the lower 3 bits contain the nr of ending pixels
+    
+    ; -- we start with LEFT_OVER_PIXELS = GEN_FILL_LENGTH_LOW --
+    stz LEFT_OVER_PIXELS+1
+    lda GEN_FILL_LENGTH_LOW
+    sta LEFT_OVER_PIXELS
+    
+    ; -- check if more than or equal to 8 extra pixels have to be drawn
+    lda GEN_FILL_LENGTH_IS_8_OR_MORE
+    bne gen_more_or_equal_to_8_pixels
+    
+gen_less_than_8_pixels:
+
+    ; If we have less than 8 pixels AND fill length low == 0, we have nothing to do, so we go to the end
+    lda GEN_FILL_LENGTH_LOW
+    beq gen_ending_pixels_are_generated
+
+    ; ===== We need to check if the starting and ending pixels are in the same 8-pixel colum ====
+    ; check if GEN_START_X + GEN_FILL_LENGTH_LOW >= 8
+    clc
+    lda GEN_START_X
+    adc GEN_FILL_LENGTH_LOW
+    cmp #8
+    bcc gen_start_and_end_in_same_column  ; we end in the same 8-pixel column as where we start
+    beq gen_start_and_end_in_same_column
+    
+    ; ============= generate starting pixels code (>=8 pixels) ===============
+
+    ; if NR_OF_STARTING_PIXELS == 8 (meaning GEN_START_X == 0) we add 8 to the total left-over pixel count and NOT generate starting pixels!
+    lda NR_OF_STARTING_PIXELS
+    cmp #8
+    beq gen_generate_middle_pixels
+    
+gen_generate_starting_pixels:
+    
+    ; -- we subtract the starting pixels from LEFT_OVER_PIXELS --
+    sec
+    lda LEFT_OVER_PIXELS
+    sbc NR_OF_STARTING_PIXELS
+    sta LEFT_OVER_PIXELS
+    lda LEFT_OVER_PIXELS+1
+    sbc #0
+    sta LEFT_OVER_PIXELS+1
+    
+    jsr generate_draw_starting_pixels_code
+    
+gen_generate_middle_pixels:
+
+    ; We divide LEFT_OVER_PIXELS by 8 by shifting it 3 bit positions to the right
+    lsr LEFT_OVER_PIXELS+1
+    ror LEFT_OVER_PIXELS
+    lsr LEFT_OVER_PIXELS+1
+    ror LEFT_OVER_PIXELS
+    lsr LEFT_OVER_PIXELS+1
+    ror LEFT_OVER_PIXELS
+    
+    lda LEFT_OVER_PIXELS            ; Note: the result should always fit into one byte
+    sta NR_OF_FULL_CACHE_WRITES
+    beq middle_pixels_generated     ; We should not draw any middle pixels
+    jsr generate_draw_middle_pixels_code
+middle_pixels_generated:
+    
+    
+gen_generate_ending_pixels:
+    lda NR_OF_ENDING_PIXELS
+    beq gen_ending_pixels_are_generated    ; If there should be no ending pixels generated, we skip generating them
+
+    jsr generate_draw_ending_pixels_code
+    
+gen_ending_pixels_are_generated:
+    .if(TEST_JUMP_TABLE)
+        jsr generate_rts_code
+    .else
+        jsr generate_fill_line_iterate_code
+    .endif
+    
+    rts
+    
+    .endif
+    
+    .if(DO_4BIT && DO_2BIT)
+        
+generate_single_fill_line_code:
+    
+    ; This routines expects this:
+    ;    FILL_LENGTH_LOW (2-bit)   : X2[-1],            X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
+            
+    ; FIXME: 2-bit is NOT IMPLEMENTED!
+            
+    .endif
+    
 
     
 gen_start_and_end_in_same_column:
@@ -241,7 +420,8 @@ gen_start_and_end_in_same_column:
     .endif
     
     rts
-
+    
+    .if(!DO_4BIT)
     
 gen_more_or_equal_to_16_pixels:
 
@@ -288,9 +468,9 @@ gen_generate_middle_pixels_16:
     ror LEFT_OVER_PIXELS
     
     lda LEFT_OVER_PIXELS               ; Note: the result should always fit into one byte
-    sta NR_OF_4_PIXELS
+    sta NR_OF_FULL_CACHE_WRITES
     beq middle_pixels_generated_16     ; We should not draw any middle pixels
-    jsr generate_draw_4_pixels_code
+    jsr generate_draw_middle_pixels_code
 middle_pixels_generated_16:
     
 gen_generate_jump_to_second_table:
@@ -300,7 +480,7 @@ gen_generate_jump_to_second_table:
     lda #<FILL_LINE_END_JUMP_0
     sta END_JUMP_ADDRESS
     lda #>FILL_LINE_END_JUMP_0
-    ora NR_OF_ENDING_PIXELS     ; We set the two lower bits of the HIGH byte of the JUMP TABLE address to indicate which jump table we want to jump to
+    ora NR_OF_ENDING_PIXELS     ; We set the *two* lower bits of the HIGH byte of the JUMP TABLE address to indicate which jump table we want to jump to
     sta END_JUMP_ADDRESS+1
 
     lda GEN_LOANED_16_PIXELS
@@ -319,7 +499,110 @@ gen_generate_jump_to_second_table:
 ; FIXME: CHECK: if exactly 16-pixels have to be drawn due to the HIGH fill length, we should not draw any pixels!
     
 jump_address_is_valid:
+
+    jsr generate_table_jump
     
+    rts
+    
+    .endif
+    
+    
+    .if(DO_4BIT && !DO_2BIT)
+    
+gen_more_or_equal_to_8_pixels:
+
+    ; ============= generate starting pixels code (>=8 pixels) ===============
+
+    ; if NR_OF_STARTING_PIXELS == 8 (meaning GEN_START_X == 0) we add 8 to the total left-over pixel count and NOT generate starting pixels!
+    lda NR_OF_STARTING_PIXELS
+    cmp #8
+    beq gen_generate_middle_pixels_8
+    
+gen_generate_starting_pixels_8:
+
+    ; -- we subtract the starting pixels from LEFT_OVER_PIXELS --
+    sec
+    lda LEFT_OVER_PIXELS
+    sbc NR_OF_STARTING_PIXELS
+    sta LEFT_OVER_PIXELS
+    lda LEFT_OVER_PIXELS+1
+    sbc #0
+    sta LEFT_OVER_PIXELS+1
+    
+    ; if NR_OF_STARTING_PIXELS > LEFT_OVER_PIXELS (which is possible since LEFT_OVER_PIXELS == GEN_FILL_LENGTH_LOW and >8 fill length)
+    ; we should *LOAN* 8 pixels. So we add 8 pixels here, and subtract it by jumping 2*stz later in the code fill code.
+    
+    clc
+    lda LEFT_OVER_PIXELS
+    adc #8
+    sta LEFT_OVER_PIXELS
+    lda LEFT_OVER_PIXELS+1
+    adc #0
+    sta LEFT_OVER_PIXELS+1
+    
+    lda #1
+    sta GEN_LOANED_8_PIXELS
+
+    jsr generate_draw_starting_pixels_code
+
+gen_generate_middle_pixels_8:
+
+    ; We divide LEFT_OVER_PIXELS by 8 by shifting it 3 bit positions to the right
+    lsr LEFT_OVER_PIXELS+1
+    ror LEFT_OVER_PIXELS
+    lsr LEFT_OVER_PIXELS+1
+    ror LEFT_OVER_PIXELS
+    lsr LEFT_OVER_PIXELS+1
+    ror LEFT_OVER_PIXELS
+    
+    lda LEFT_OVER_PIXELS               ; Note: the result should always fit into one byte
+    sta NR_OF_FULL_CACHE_WRITES
+    beq middle_pixels_generated_8      ; We should not draw any middle pixels
+    jsr generate_draw_middle_pixels_code
+middle_pixels_generated_8:
+    
+gen_generate_jump_to_second_table:
+
+    ;   Note: the table is reversed: since the higher y-number will the less pixels. (so the *beginning* of the table will point to the *end* of the code), when no stz-calls are made)
+
+    lda #<FILL_LINE_END_JUMP_0
+    sta END_JUMP_ADDRESS
+    lda #>FILL_LINE_END_JUMP_0
+    ora NR_OF_ENDING_PIXELS     ; We set the *three* lower bits of the HIGH byte of the JUMP TABLE address to indicate which jump table we want to jump to
+    sta END_JUMP_ADDRESS+1
+
+    lda GEN_LOANED_8_PIXELS
+    beq jump_address_is_valid
+    
+    ; if GEN_LOANED_8_PIXELS == 1 we should jump as-if 8 pixels less have to be drawn -> so we subtract 2 bytes (1 jump address)
+    
+    sec
+    lda END_JUMP_ADDRESS
+    sbc #2
+    sta END_JUMP_ADDRESS
+    lda END_JUMP_ADDRESS+1
+    sbc #0
+    sta END_JUMP_ADDRESS+1
+    
+; FIXME: CHECK: if exactly 8-pixels have to be drawn due to the HIGH fill length, we should not draw any pixels!
+    
+jump_address_is_valid:
+
+    jsr generate_table_jump
+    
+    rts
+    
+    .endif
+    
+    .if(DO_4BIT && !DO_2BIT)
+    
+        ; FIXME! NOT IMPLEMENTED!
+        
+    .endif
+    
+    
+generate_table_jump:
+
     ; -- ldx $9F2C (= FILL_LENGTH_HIGH from VERA)
     lda #$AE               ; ldx ....
     jsr add_code_byte
@@ -680,7 +963,7 @@ next_fill_instruction:
     
     rts
 
-    
+    .if(!DO_4BIT)
 nr_of_starting_pixels_to_nibble_pattern:
     .byte %00000000     ; 4 pixels         ; only used in combination with ending pixels
     .byte %00111111     ; 1 pixel
@@ -692,12 +975,40 @@ nr_of_ending_pixels_to_nibble_pattern:
     .byte %11111100     ; 1 pixel
     .byte %11110000     ; 2 pixels
     .byte %11000000     ; 3 pixels
+    .endif
+    
+    .if(DO_4BIT && !DO_2BIT)
+nr_of_starting_pixels_to_nibble_pattern:
+    .byte %00000000     ; 8 pixels         ; only used in combination with ending pixels
+    .byte %01111111     ; 1 pixel
+    .byte %00111111     ; 2 pixels
+    .byte %00011111     ; 3 pixels
+    .byte %00001111     ; 4 pixels
+    .byte %00000111     ; 5 pixels
+    .byte %00000011     ; 6 pixels
+    .byte %00000001     ; 7 pixels
+    
+nr_of_ending_pixels_to_nibble_pattern:
+    .byte %00000000     ; 8 pixels         ; only used in combination with starting pixels
+    .byte %11111110     ; 1 pixel
+    .byte %11111100     ; 2 pixels
+    .byte %11111000     ; 3 pixels
+    .byte %11110000     ; 4 pixels
+    .byte %11100000     ; 5 pixels
+    .byte %11000000     ; 6 pixels
+    .byte %10000000     ; 7 pixels
+    .endif
 
-generate_draw_4_pixels_code:
+    .if(DO_4BIT && DO_2BIT)
+        ; FIXME! NOT IMPLEMENTED -> should we use the same patterns as 4-bit but divide x by 2?
+    .endif
+    
+    
+generate_draw_middle_pixels_code:
 
-    ldx #0                 ; counts nr of draw 4 pixels instructions
+    ldx #0                 ; counts nr of draw middle pixels instructions (four 8-bit pixels, eight 4-bit pixels)
 
-next_draw_4_pixels_instruction:
+next_draw_middle_pixels_instruction:
 
     ; -- stz VERA_DATA1 ($9F24)
     lda #$9C               ; stz ....
@@ -710,8 +1021,8 @@ next_draw_4_pixels_instruction:
     jsr add_code_byte
     
     inx
-    cpx NR_OF_4_PIXELS
-    bne next_draw_4_pixels_instruction
+    cpx NR_OF_FULL_CACHE_WRITES
+    bne next_draw_middle_pixels_instruction
 
     rts
 
