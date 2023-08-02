@@ -698,6 +698,8 @@ generate_fill_line_iterate_code:
     
 generate_fill_line_end_code:
 
+; FIXME! this needs to be extended to FILL_LINE_END_CODE_7 for 4-bit mode!
+
     ; -------------- FILL_LINE_END_CODE_0 ---------------
     
     lda #<FILL_LINE_END_CODE_0
@@ -816,6 +818,8 @@ generate_fill_line_end_code:
     
 generate_fill_line_end_jump:
 
+; FIXME! this needs to be extended to FILL_LINE_END_JUMP_7 for 4-bit mode!
+
     lda #<FILL_LINE_END_JUMP_0
     sta STORE_ADDRESS
     lda #>FILL_LINE_END_JUMP_0
@@ -876,6 +880,8 @@ generate_fill_line_end_jump:
 
     
 generate_jump_table_16:
+
+; FIXME! this has be different for 4-bit mode!
 
     ; We backup the address of the *end* of the the series of 80 'stz'-calls
     lda LOAD_ADDRESS
@@ -958,6 +964,7 @@ next_fill_instruction:
     jsr add_code_byte
     
     inx
+; FIXME! this has be different for 4-bit mode!
     cpx #80
     bne next_fill_instruction  ; 80 times a "fill 4-pixels" written to VERA
     
