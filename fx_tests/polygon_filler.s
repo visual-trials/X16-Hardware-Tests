@@ -1105,7 +1105,9 @@ test_fill_length_jump_table:
     lda #8
     sta LEFT_POINT_Y
     
-    lda #6
+; FIXME! 
+;    lda #6
+    lda #0
     sta LEFT_POINT_X
     lda #0
     sta LEFT_POINT_X+1
@@ -1116,7 +1118,9 @@ test_fill_length_jump_table:
     lda #4
     sta TMP1               ; Column number (4 -> 1)
 TEST_pattern_column_next:
-    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+; FIXME!
+;    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+    lda #07                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
     sta TMP3
 TEST_pattern_next:
     ; Since we are not using ADDR0, we want ADDR1 to be set here instead, so we set ADDRSEL to 1
@@ -1170,7 +1174,7 @@ fill_len_not_higher_than_or_equal_to_16:
         sta FILL_LENGTH_LOW_SOFT
     .endif
     
-    .if(1)
+    .if(0)
         jsr generate_single_fill_line_code
         ; stp
         jsr TEST_FILL_LINE_CODE

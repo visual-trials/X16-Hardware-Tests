@@ -733,7 +733,7 @@ generate_fill_line_end_code:
     .if(!DO_4BIT)
         lda #%11111100         ; NIBBLE_PATTERN = 1 pixel at the end
     .else
-        lda #%11111110         ; NIBBLE_PATTERN = 1 pixel at the end
+        lda #%11111101         ; NIBBLE_PATTERN = 1 pixel at the end
     .endif
     jsr add_code_byte
     
@@ -805,7 +805,7 @@ generate_fill_line_end_code:
     .if(!DO_4BIT)
         lda #%11000000         ; NIBBLE_PATTERN = 3 pixels at the end
     .else
-        lda #%11111000         ; NIBBLE_PATTERN = 3 pixels at the end
+        lda #%11110100         ; NIBBLE_PATTERN = 3 pixels at the end
     .endif
     jsr add_code_byte
     
@@ -873,7 +873,7 @@ generate_fill_line_end_code:
         lda #$A9               ; lda #....
         jsr add_code_byte
 
-        lda #%11100000         ; NIBBLE_PATTERN = 5 pixels at the end
+        lda #%11010000         ; NIBBLE_PATTERN = 5 pixels at the end
         jsr add_code_byte
         
         ; -- sta VERA_DATA1 ($9F24)
@@ -937,7 +937,7 @@ generate_fill_line_end_code:
         lda #$A9               ; lda #....
         jsr add_code_byte
 
-        lda #%10000000         ; NIBBLE_PATTERN = 7 pixels at the end
+        lda #%01000000         ; NIBBLE_PATTERN = 7 pixels at the end
         jsr add_code_byte
         
         ; -- sta VERA_DATA1 ($9F24)
@@ -1300,23 +1300,23 @@ nr_of_ending_pixels_to_nibble_pattern:
     .if(DO_4BIT && !DO_2BIT)
 nr_of_starting_pixels_to_nibble_pattern:
     .byte %00000000     ; 8 pixels         ; only used in combination with ending pixels
-    .byte %01111111     ; 1 pixel
+    .byte %10111111     ; 1 pixel
     .byte %00111111     ; 2 pixels
-    .byte %00011111     ; 3 pixels
+    .byte %00101111     ; 3 pixels
     .byte %00001111     ; 4 pixels
-    .byte %00000111     ; 5 pixels
+    .byte %00001011     ; 5 pixels
     .byte %00000011     ; 6 pixels
-    .byte %00000001     ; 7 pixels
+    .byte %00000010     ; 7 pixels
     
 nr_of_ending_pixels_to_nibble_pattern:
     .byte %00000000     ; 8 pixels         ; only used in combination with starting pixels
-    .byte %11111110     ; 1 pixel
+    .byte %11111101     ; 1 pixel
     .byte %11111100     ; 2 pixels
-    .byte %11111000     ; 3 pixels
+    .byte %11110100     ; 3 pixels
     .byte %11110000     ; 4 pixels
-    .byte %11100000     ; 5 pixels
+    .byte %11010000     ; 5 pixels
     .byte %11000000     ; 6 pixels
-    .byte %10000000     ; 7 pixels
+    .byte %01000000     ; 7 pixels
     .endif
 
     .if(DO_4BIT && DO_2BIT)
