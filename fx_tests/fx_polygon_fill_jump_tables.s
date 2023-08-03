@@ -707,9 +707,9 @@ generate_fill_line_end_code:
     lda #>FILL_LINE_END_CODE_0
     sta CODE_ADDRESS+1
     
-    jsr generate_80_fill_line_end_codes
+    jsr generate_40_or_80_fill_line_end_codes
     
-    ; Note: for FILL_LINE_END_CODE_0 there is no additional (sub 4) pixel draw
+    ; Note: for FILL_LINE_END_CODE_0 there is no additional (sub 4 byte) pixel draw
     
     .if(TEST_JUMP_TABLE)
         jsr generate_rts_code
@@ -724,13 +724,17 @@ generate_fill_line_end_code:
     lda #>FILL_LINE_END_CODE_1
     sta CODE_ADDRESS+1
     
-    jsr generate_80_fill_line_end_codes
+    jsr generate_40_or_80_fill_line_end_codes
     
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
     jsr add_code_byte
 
-    lda #%11111100         ; NIBBLE_PATTERN = 1 pixel at the end
+    .if(!DO_4BIT)
+        lda #%11111100         ; NIBBLE_PATTERN = 1 pixel at the end
+    .else
+        lda #%11111110         ; NIBBLE_PATTERN = 1 pixel at the end
+    .endif
     jsr add_code_byte
     
     ; -- sta VERA_DATA1 ($9F24)
@@ -756,13 +760,17 @@ generate_fill_line_end_code:
     lda #>FILL_LINE_END_CODE_2
     sta CODE_ADDRESS+1
     
-    jsr generate_80_fill_line_end_codes
+    jsr generate_40_or_80_fill_line_end_codes
     
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
     jsr add_code_byte
 
-    lda #%11110000         ; NIBBLE_PATTERN = 2 pixels at the end
+    .if(!DO_4BIT)
+        lda #%11110000         ; NIBBLE_PATTERN = 2 pixels at the end
+    .else
+        lda #%11111100         ; NIBBLE_PATTERN = 2 pixels at the end
+    .endif
     jsr add_code_byte
     
     ; -- sta VERA_DATA1 ($9F24)
@@ -788,13 +796,17 @@ generate_fill_line_end_code:
     lda #>FILL_LINE_END_CODE_3
     sta CODE_ADDRESS+1
     
-    jsr generate_80_fill_line_end_codes
+    jsr generate_40_or_80_fill_line_end_codes
     
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
     jsr add_code_byte
 
-    lda #%11000000         ; NIBBLE_PATTERN = 3 pixels at the end
+    .if(!DO_4BIT)
+        lda #%11000000         ; NIBBLE_PATTERN = 3 pixels at the end
+    .else
+        lda #%11111000         ; NIBBLE_PATTERN = 3 pixels at the end
+    .endif
     jsr add_code_byte
     
     ; -- sta VERA_DATA1 ($9F24)
@@ -813,75 +825,318 @@ generate_fill_line_end_code:
         jsr generate_fill_line_iterate_code
     .endif
 
+    
+    .if(DO_4BIT)
+    
+        ; -------------- FILL_LINE_END_CODE_4 ---------------
+
+        lda #<FILL_LINE_END_CODE_4
+        sta CODE_ADDRESS
+        lda #>FILL_LINE_END_CODE_4
+        sta CODE_ADDRESS+1
+        
+        jsr generate_40_or_80_fill_line_end_codes
+        
+        ; -- lda #{NIBBLE_PATTERN}
+        lda #$A9               ; lda #....
+        jsr add_code_byte
+
+        lda #%11110000         ; NIBBLE_PATTERN = 4 pixels at the end
+        jsr add_code_byte
+        
+        ; -- sta VERA_DATA1 ($9F24)
+        lda #$8D               ; sta ....
+        jsr add_code_byte
+
+        lda #$24               ; $24
+        jsr add_code_byte
+        
+        lda #$9F               ; $9F
+        jsr add_code_byte
+        
+        .if(TEST_JUMP_TABLE)
+            jsr generate_rts_code
+        .else
+            jsr generate_fill_line_iterate_code
+        .endif
+    
+        ; -------------- FILL_LINE_END_CODE_5 ---------------
+
+        lda #<FILL_LINE_END_CODE_5
+        sta CODE_ADDRESS
+        lda #>FILL_LINE_END_CODE_5
+        sta CODE_ADDRESS+1
+        
+        jsr generate_40_or_80_fill_line_end_codes
+        
+        ; -- lda #{NIBBLE_PATTERN}
+        lda #$A9               ; lda #....
+        jsr add_code_byte
+
+        lda #%11100000         ; NIBBLE_PATTERN = 5 pixels at the end
+        jsr add_code_byte
+        
+        ; -- sta VERA_DATA1 ($9F24)
+        lda #$8D               ; sta ....
+        jsr add_code_byte
+
+        lda #$24               ; $24
+        jsr add_code_byte
+        
+        lda #$9F               ; $9F
+        jsr add_code_byte
+        
+        .if(TEST_JUMP_TABLE)
+            jsr generate_rts_code
+        .else
+            jsr generate_fill_line_iterate_code
+        .endif
+    
+        ; -------------- FILL_LINE_END_CODE_6 ---------------
+
+        lda #<FILL_LINE_END_CODE_6
+        sta CODE_ADDRESS
+        lda #>FILL_LINE_END_CODE_6
+        sta CODE_ADDRESS+1
+        
+        jsr generate_40_or_80_fill_line_end_codes
+        
+        ; -- lda #{NIBBLE_PATTERN}
+        lda #$A9               ; lda #....
+        jsr add_code_byte
+
+        lda #%11000000         ; NIBBLE_PATTERN = 6 pixels at the end
+        jsr add_code_byte
+        
+        ; -- sta VERA_DATA1 ($9F24)
+        lda #$8D               ; sta ....
+        jsr add_code_byte
+
+        lda #$24               ; $24
+        jsr add_code_byte
+        
+        lda #$9F               ; $9F
+        jsr add_code_byte
+        
+        .if(TEST_JUMP_TABLE)
+            jsr generate_rts_code
+        .else
+            jsr generate_fill_line_iterate_code
+        .endif
+    
+        ; -------------- FILL_LINE_END_CODE_7 ---------------
+
+        lda #<FILL_LINE_END_CODE_7
+        sta CODE_ADDRESS
+        lda #>FILL_LINE_END_CODE_7
+        sta CODE_ADDRESS+1
+        
+        jsr generate_40_or_80_fill_line_end_codes
+        
+        ; -- lda #{NIBBLE_PATTERN}
+        lda #$A9               ; lda #....
+        jsr add_code_byte
+
+        lda #%10000000         ; NIBBLE_PATTERN = 7 pixels at the end
+        jsr add_code_byte
+        
+        ; -- sta VERA_DATA1 ($9F24)
+        lda #$8D               ; sta ....
+        jsr add_code_byte
+
+        lda #$24               ; $24
+        jsr add_code_byte
+        
+        lda #$9F               ; $9F
+        jsr add_code_byte
+        
+        .if(TEST_JUMP_TABLE)
+            jsr generate_rts_code
+        .else
+            jsr generate_fill_line_iterate_code
+        .endif
+    
+    .endif
+    
     rts
 
     
 generate_fill_line_end_jump:
 
-; FIXME! this needs to be extended to FILL_LINE_END_JUMP_7 for 4-bit mode!
+    .if(!DO_4BIT)
+        lda #<FILL_LINE_END_JUMP_0
+        sta STORE_ADDRESS
+        lda #>FILL_LINE_END_JUMP_0
+        sta STORE_ADDRESS+1
+        
+        ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
+        lda #<(FILL_LINE_END_CODE_0+80*3)
+        sta LOAD_ADDRESS
+        lda #>(FILL_LINE_END_CODE_0+80*3)
+        sta LOAD_ADDRESS+1
+        
+        jsr generate_jump_table_16
 
-    lda #<FILL_LINE_END_JUMP_0
-    sta STORE_ADDRESS
-    lda #>FILL_LINE_END_JUMP_0
-    sta STORE_ADDRESS+1
-    
-    ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
-    lda #<(FILL_LINE_END_CODE_0+80*3)
-    sta LOAD_ADDRESS
-    lda #>(FILL_LINE_END_CODE_0+80*3)
-    sta LOAD_ADDRESS+1
-    
-    jsr generate_jump_table_16
+        
+        lda #<FILL_LINE_END_JUMP_1
+        sta STORE_ADDRESS
+        lda #>FILL_LINE_END_JUMP_1
+        sta STORE_ADDRESS+1
+        
+        ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
+        lda #<(FILL_LINE_END_CODE_1+80*3)
+        sta LOAD_ADDRESS
+        lda #>(FILL_LINE_END_CODE_1+80*3)
+        sta LOAD_ADDRESS+1
+        
+        jsr generate_jump_table_16
+        
+        
+        lda #<FILL_LINE_END_JUMP_2
+        sta STORE_ADDRESS
+        lda #>FILL_LINE_END_JUMP_2
+        sta STORE_ADDRESS+1
+        
+        ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
+        lda #<(FILL_LINE_END_CODE_2+80*3)
+        sta LOAD_ADDRESS
+        lda #>(FILL_LINE_END_CODE_2+80*3)
+        sta LOAD_ADDRESS+1
+        
+        jsr generate_jump_table_16
+        
+        
+        lda #<FILL_LINE_END_JUMP_3
+        sta STORE_ADDRESS
+        lda #>FILL_LINE_END_JUMP_3
+        sta STORE_ADDRESS+1
+        
+        ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
+        lda #<(FILL_LINE_END_CODE_3+80*3)
+        sta LOAD_ADDRESS
+        lda #>(FILL_LINE_END_CODE_3+80*3)
+        sta LOAD_ADDRESS+1
+        
+        jsr generate_jump_table_16
+    .else
+        lda #<FILL_LINE_END_JUMP_0
+        sta STORE_ADDRESS
+        lda #>FILL_LINE_END_JUMP_0
+        sta STORE_ADDRESS+1
+        
+        ; We start at the end of the series of 40 'stz'-calls in the FILL_LINE_CODE  (40 * 8 pixels = 320 pixels)
+        lda #<(FILL_LINE_END_CODE_0+40*3)
+        sta LOAD_ADDRESS
+        lda #>(FILL_LINE_END_CODE_0+40*3)
+        sta LOAD_ADDRESS+1
+        
+        jsr generate_jump_table_8
 
+        
+        lda #<FILL_LINE_END_JUMP_1
+        sta STORE_ADDRESS
+        lda #>FILL_LINE_END_JUMP_1
+        sta STORE_ADDRESS+1
+        
+        ; We start at the end of the series of 40 'stz'-calls in the FILL_LINE_CODE  (40 * 8 pixels = 320 pixels)
+        lda #<(FILL_LINE_END_CODE_1+40*3)
+        sta LOAD_ADDRESS
+        lda #>(FILL_LINE_END_CODE_1+40*3)
+        sta LOAD_ADDRESS+1
+        
+        jsr generate_jump_table_8
+        
+        
+        lda #<FILL_LINE_END_JUMP_2
+        sta STORE_ADDRESS
+        lda #>FILL_LINE_END_JUMP_2
+        sta STORE_ADDRESS+1
+        
+        ; We start at the end of the series of 40 'stz'-calls in the FILL_LINE_CODE  (40 * 8 pixels = 320 pixels)
+        lda #<(FILL_LINE_END_CODE_2+40*3)
+        sta LOAD_ADDRESS
+        lda #>(FILL_LINE_END_CODE_2+40*3)
+        sta LOAD_ADDRESS+1
+        
+        jsr generate_jump_table_8
+        
+        
+        lda #<FILL_LINE_END_JUMP_3
+        sta STORE_ADDRESS
+        lda #>FILL_LINE_END_JUMP_3
+        sta STORE_ADDRESS+1
+        
+        ; We start at the end of the series of 40 'stz'-calls in the FILL_LINE_CODE  (40 * 8 pixels = 320 pixels)
+        lda #<(FILL_LINE_END_CODE_3+40*3)
+        sta LOAD_ADDRESS
+        lda #>(FILL_LINE_END_CODE_3+40*3)
+        sta LOAD_ADDRESS+1
+        
+        jsr generate_jump_table_8
     
-    lda #<FILL_LINE_END_JUMP_1
-    sta STORE_ADDRESS
-    lda #>FILL_LINE_END_JUMP_1
-    sta STORE_ADDRESS+1
+        lda #<FILL_LINE_END_JUMP_4
+        sta STORE_ADDRESS
+        lda #>FILL_LINE_END_JUMP_4
+        sta STORE_ADDRESS+1
+        
+        ; We start at the end of the series of 40 'stz'-calls in the FILL_LINE_CODE  (40 * 8 pixels = 320 pixels)
+        lda #<(FILL_LINE_END_CODE_0+40*4)
+        sta LOAD_ADDRESS
+        lda #>(FILL_LINE_END_CODE_0+40*4)
+        sta LOAD_ADDRESS+1
+        
+        jsr generate_jump_table_8
+
+        
+        lda #<FILL_LINE_END_JUMP_5
+        sta STORE_ADDRESS
+        lda #>FILL_LINE_END_JUMP_5
+        sta STORE_ADDRESS+1
+        
+        ; We start at the end of the series of 40 'stz'-calls in the FILL_LINE_CODE  (40 * 8 pixels = 320 pixels)
+        lda #<(FILL_LINE_END_CODE_1+40*5)
+        sta LOAD_ADDRESS
+        lda #>(FILL_LINE_END_CODE_1+40*5)
+        sta LOAD_ADDRESS+1
+        
+        jsr generate_jump_table_8
+        
+        
+        lda #<FILL_LINE_END_JUMP_6
+        sta STORE_ADDRESS
+        lda #>FILL_LINE_END_JUMP_6
+        sta STORE_ADDRESS+1
+        
+        ; We start at the end of the series of 40 'stz'-calls in the FILL_LINE_CODE  (40 * 8 pixels = 320 pixels)
+        lda #<(FILL_LINE_END_CODE_2+40*6)
+        sta LOAD_ADDRESS
+        lda #>(FILL_LINE_END_CODE_2+40*6)
+        sta LOAD_ADDRESS+1
+        
+        jsr generate_jump_table_8
+        
+        
+        lda #<FILL_LINE_END_JUMP_7
+        sta STORE_ADDRESS
+        lda #>FILL_LINE_END_JUMP_7
+        sta STORE_ADDRESS+1
+        
+        ; We start at the end of the series of 40 'stz'-calls in the FILL_LINE_CODE  (40 * 8 pixels = 320 pixels)
+        lda #<(FILL_LINE_END_CODE_3+40*7)
+        sta LOAD_ADDRESS
+        lda #>(FILL_LINE_END_CODE_3+40*7)
+        sta LOAD_ADDRESS+1
+        
+        jsr generate_jump_table_8
     
-    ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
-    lda #<(FILL_LINE_END_CODE_1+80*3)
-    sta LOAD_ADDRESS
-    lda #>(FILL_LINE_END_CODE_1+80*3)
-    sta LOAD_ADDRESS+1
     
-    jsr generate_jump_table_16
-    
-    
-    lda #<FILL_LINE_END_JUMP_2
-    sta STORE_ADDRESS
-    lda #>FILL_LINE_END_JUMP_2
-    sta STORE_ADDRESS+1
-    
-    ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
-    lda #<(FILL_LINE_END_CODE_2+80*3)
-    sta LOAD_ADDRESS
-    lda #>(FILL_LINE_END_CODE_2+80*3)
-    sta LOAD_ADDRESS+1
-    
-    jsr generate_jump_table_16
-    
-    
-    lda #<FILL_LINE_END_JUMP_3
-    sta STORE_ADDRESS
-    lda #>FILL_LINE_END_JUMP_3
-    sta STORE_ADDRESS+1
-    
-    ; We start at the end of the series of 80 'stz'-calls in the FILL_LINE_CODE  (80 * 4 pixels = 320 pixels)
-    lda #<(FILL_LINE_END_CODE_3+80*3)
-    sta LOAD_ADDRESS
-    lda #>(FILL_LINE_END_CODE_3+80*3)
-    sta LOAD_ADDRESS+1
-    
-    jsr generate_jump_table_16
+    .endif
     
     
     rts
 
     
 generate_jump_table_16:
-
-; FIXME! this has be different for 4-bit mode!
 
     ; We backup the address of the *end* of the the series of 80 'stz'-calls
     lda LOAD_ADDRESS
@@ -909,20 +1164,20 @@ generate_next_jump_table_16_entry:
     
     sec
     lda LOAD_ADDRESS
-    sbc #4*3               ; we need to skip 16 pixels, so three times a stz, this is 4 * 3 bytes of code
+    sbc #4*3               ; we need to skip 16 pixels, so four times a stz, this is 4 * 3 bytes of code
     sta LOAD_ADDRESS
     lda LOAD_ADDRESS+1
     sbc #0
     sta LOAD_ADDRESS+1
     
-    cpy #80+4                ; We need 20 entries of 16 pixels (=320 pixels) *plus* an entry for 0 pixels. Each entry is 4 bytes (two addresses_, so we stop at 4*21=84 bytes.
+    cpy #80+4                ; We need 20 entries of 16 pixels (=320 pixels) *plus* an entry for 0 pixels. Each entry is 4 bytes (two addresses, so we stop at 4*21=84 bytes.
     bne generate_next_jump_table_16_entry
 
 
     ; --- fill length > 768 (or in our case >320) ---
 
     ; If the length of the fill line >768 (or in our case even >320) we should not draw the fill line
-    ; TODO: For now we keep on iteratin, but we *might* want to do an rts here instead 
+    ; TODO: For now we keep on iterating, but we *might* want to do an rts here instead 
 
     ; We restore the address of the *end* of the the series of 80 'stz'-calls
     lda TMP1
@@ -945,9 +1200,64 @@ generate_next_jump_table_16_entry_overflow:
     rts
 
 
+generate_jump_table_8:
+
+    ; We backup the address of the *end* of the the series of 40 'stz'-calls
+    lda LOAD_ADDRESS
+    sta TMP1
+    lda LOAD_ADDRESS+1
+    sta TMP2
+
+    ldy #0
+generate_next_jump_table_8_entry:
+
+    lda LOAD_ADDRESS
+    sta (STORE_ADDRESS), y
+    iny
+    lda LOAD_ADDRESS+1
+    sta (STORE_ADDRESS), y
+    iny
+
+    sec
+    lda LOAD_ADDRESS
+    sbc #3               ; we need to skip 8 pixels (4-bit), so one time a stz, this is 3 bytes of code
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    sbc #0
+    sta LOAD_ADDRESS+1
+    
+    cpy #80+2                ; We need 40 entries of 8 pixels (=320 pixels) *plus* an entry for 0 pixels. Each entry is 2 bytes (one addresses, so we stop at 2*41=82 bytes.
+    bne generate_next_jump_table_8_entry
+
+
+    ; --- fill length > 768 (or in our case >320) ---
+
+    ; If the length of the fill line >768 (or in our case even >320) we should not draw the fill line
+    ; TODO: For now we keep on iterating, but we *might* want to do an rts here instead 
+
+    ; We restore the address of the *end* of the the series of 80 'stz'-calls
+    lda TMP1
+    sta LOAD_ADDRESS
+    lda TMP2
+    sta LOAD_ADDRESS+1
+    
+generate_next_jump_table_8_entry_overflow:
+
+    lda LOAD_ADDRESS
+    sta (STORE_ADDRESS), y
+    iny
+    lda LOAD_ADDRESS+1
+    sta (STORE_ADDRESS), y
+    iny
+    
+    cpy #0                ; We fill in the whole table
+    bne generate_next_jump_table_8_entry_overflow
+    
+    rts
     
     
-generate_80_fill_line_end_codes:
+    
+generate_40_or_80_fill_line_end_codes:
     ldy #0                 ; generated code byte counter
     
     ldx #0                 ; counts nr of fill instructions
@@ -964,9 +1274,12 @@ next_fill_instruction:
     jsr add_code_byte
     
     inx
-; FIXME! this has be different for 4-bit mode!
-    cpx #80
-    bne next_fill_instruction  ; 80 times a "fill 4-pixels" written to VERA
+    .if(!DO_4BIT)
+        cpx #80
+    .else
+        cpx #40
+    .endif
+    bne next_fill_instruction  ; 80 (or 40) times a "fill 4-bytes" written to VERA
     
     rts
 

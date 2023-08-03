@@ -243,18 +243,57 @@ FILL_LINE_START_JUMP     = $2F00
 FILL_LINE_START_CODE     = $3000   ; 128 different (start of) fill line code patterns -> safe: takes $0D00 bytes
 
 
-; FIXME: can we put these jump tables closer to each other? Do they need to be aligned to 256 bytes? (they are 80 bytes each)
-; FIXME: IMPORTANT: we set the two lower bits of this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 4 tables should stay $100! AND the two lower bits should stay 00b!
-FILL_LINE_END_JUMP_0     = $6400   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0)
-FILL_LINE_END_JUMP_1     = $6500   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1)
-FILL_LINE_END_JUMP_2     = $6600   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2)
-FILL_LINE_END_JUMP_3     = $6700   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3)
+    .if(!DO_4BIT)
+; 8-bit:
+; -- IMPORTANT: we set the *two* lower bits of (the HIGH byte of) this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 4 tables should be $100! AND bits 8 and 9 should be 00b! (for FILL_LINE_END_JUMP_0) --
+FILL_LINE_END_JUMP_0     = $6400   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0
+FILL_LINE_END_JUMP_1     = $6500   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1
+FILL_LINE_END_JUMP_2     = $6600   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2
+FILL_LINE_END_JUMP_3     = $6700   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3
+    .endif
+    .if(DO_4BIT && !DO_2BIT)
+; 4-bit:
+; -- IMPORTANT: we set the *three* lower bits of (the HIGH byte of) this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 8 tables should be $100! AND bits 8, 9 and 10 should be 000b! (for FILL_LINE_END_JUMP_0) --
+FILL_LINE_END_JUMP_0     = $6000   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0
+FILL_LINE_END_JUMP_1     = $6100   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1
+FILL_LINE_END_JUMP_2     = $6200   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2
+FILL_LINE_END_JUMP_3     = $6300   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3
+FILL_LINE_END_JUMP_4     = $6400   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_4
+FILL_LINE_END_JUMP_5     = $6500   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_5
+FILL_LINE_END_JUMP_6     = $6600   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_6
+FILL_LINE_END_JUMP_7     = $6700   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_7
+    .endif
+    .if(DO_4BIT && DO_2BIT)
+    
+    ; FIXME! NOT IMPLEMENTED!
+    
+    .endif
 
+    .if(!DO_4BIT)
+; 8-bit:
 ; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> NO, MORE than 256 bytes!!
 FILL_LINE_END_CODE_0     = $6800   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_END_CODE_1     = $6A00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_END_CODE_2     = $6C00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_END_CODE_3     = $6E00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+    .endif
+    .if(DO_4BIT && !DO_2BIT)
+; 4-bit:
+; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> YES??!
+FILL_LINE_END_CODE_0     = $6800   ; 3 (stz) * 40 (=320/8) = 120                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_1     = $6900   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_2     = $6A00   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_3     = $6B00   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_4     = $6C00   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_5     = $6D00   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_6     = $6E00   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_7     = $6F00   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+    .endif
+    .if(DO_4BIT && DO_2BIT)
+    
+    ; FIXME! NOT IMPLEMENTED!
+    
+    .endif
 
 CLEAR_COLUMN_CODE        = $7000   ; up to 72D0
 TEST_FILL_LINE_CODE      = $7300
@@ -348,7 +387,6 @@ reset:
     .endif
     
     .if(USE_JUMP_TABLE)
-; FIXME: this should be adapted for 4bit jump tables
         jsr generate_fill_line_end_code
         jsr generate_fill_line_end_jump
         jsr generate_fill_line_start_code_and_jump
@@ -1132,7 +1170,7 @@ fill_len_not_higher_than_or_equal_to_16:
         sta FILL_LENGTH_LOW_SOFT
     .endif
     
-    .if(0)
+    .if(1)
         jsr generate_single_fill_line_code
         ; stp
         jsr TEST_FILL_LINE_CODE
