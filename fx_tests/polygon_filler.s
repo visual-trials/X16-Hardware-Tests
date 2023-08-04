@@ -1120,7 +1120,7 @@ test_fill_length_jump_table:
 TEST_pattern_column_next:
 ; FIXME!
 ;    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
-    lda #07                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+    lda #12                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
     sta TMP3
 TEST_pattern_next:
     ; Since we are not using ADDR0, we want ADDR1 to be set here instead, so we set ADDRSEL to 1
@@ -1135,43 +1135,95 @@ TEST_pattern_next:
     
     ldy #0                 ; generated code byte counter
     
-    lda LEFT_POINT_X
-    asl
-    asl
-    asl
-    asl
-    asl
-    asl                  ; X1[0:1], 000000
-    lsr                  ; 0, X1[0:1], 00000
-    sta TMP4             ; 0, X1[0:1], 00000
-    
-    lda TMP3             ; FILL_LEN[9:0]
-    asl
-    and #%00011110       ; 000, FILL_LEN[3:0], 0
-    ora TMP4             ; 0, X1[0:1], FILL_LEN[3:0], 0
-    sta FILL_LENGTH_LOW
-    
-; FIXME: we are missing the 2 highest bits here!
-    lda TMP3             ; FILL_LEN[9:0]
-    lsr
-    lsr
-    lsr                  ; FILL_LEN[9:3]
-    asl                  ; FILL_LEN[9:3], 0
-    sta FILL_LENGTH_HIGH
-    .if(USE_SOFT_FILL_LEN)
-        sta FILL_LENGTH_HIGH_SOFT
-    .endif
-    
-    and #%11111100        ; We check if FILL_LENGTH[9:4] is 0
-    beq fill_len_not_higher_than_or_equal_to_16
-    
-    lda FILL_LENGTH_LOW
-    ora #%10000000
-    sta FILL_LENGTH_LOW  ; FILL_LEN >= 16, X1[0:1], FILL_LEN[3:0], 0
-fill_len_not_higher_than_or_equal_to_16:
-    .if(USE_SOFT_FILL_LEN)
+    .if(!DO_4BIT)
+        lda LEFT_POINT_X
+        asl
+        asl
+        asl
+        asl
+        asl
+        asl                  ; X1[0:1], 000000
+        lsr                  ; 0, X1[0:1], 00000
+        sta TMP4             ; 0, X1[0:1], 00000
+        
+        lda TMP3             ; FILL_LEN[9:0]
+        asl
+        and #%00011110       ; 000, FILL_LEN[3:0], 0
+        ora TMP4             ; 0, X1[0:1], FILL_LEN[3:0], 0
+        sta FILL_LENGTH_LOW
+        
+    ; FIXME: we are missing the 2 highest bits here!
+        lda TMP3             ; FILL_LEN[9:0]
+        lsr
+        lsr
+        lsr                  ; FILL_LEN[9:3]
+        asl                  ; FILL_LEN[9:3], 0
+        sta FILL_LENGTH_HIGH
+        .if(USE_SOFT_FILL_LEN)
+            sta FILL_LENGTH_HIGH_SOFT
+        .endif
+        
+        and #%11111100        ; We check if FILL_LENGTH[9:4] is 0
+        beq fill_len_not_higher_than_or_equal_to_16
+        
         lda FILL_LENGTH_LOW
-        sta FILL_LENGTH_LOW_SOFT
+        ora #%10000000
+        sta FILL_LENGTH_LOW  ; FILL_LEN >= 16, X1[0:1], FILL_LEN[3:0], 0
+fill_len_not_higher_than_or_equal_to_16:
+        .if(USE_SOFT_FILL_LEN)
+            lda FILL_LENGTH_LOW
+            sta FILL_LENGTH_LOW_SOFT
+        .endif
+    .endif
+    .if(DO_4BIT && !DO_2BIT)
+        lda LEFT_POINT_X
+        asl
+        asl
+        asl
+        asl
+        asl
+        asl                  ; X1[0:1], 000000
+        lsr                  ; 0, X1[0:1], 00000
+        sta TMP4             ; 0, X1[0:1], 00000
+        
+        lda TMP3             ; FILL_LEN[9:0]
+        asl
+        and #%00001110       ; 000, FILL_LEN[2:0], 0
+        ora TMP4             ; 0, X1[0:1], 0, FILL_LEN[2:0], 0
+        sta FILL_LENGTH_LOW
+
+        lda LEFT_POINT_X
+        and #%00000100       ; 00000, X1[2], 00
+        asl
+        asl                  ; 000, X1[2], 0000
+        ora FILL_LENGTH_LOW  ; 0, X1[0:1], X1[2], FILL_LEN[2:0], 0
+        sta FILL_LENGTH_LOW
+        
+    ; FIXME: we are missing the 2 highest bits here!
+        lda TMP3             ; FILL_LEN[9:0]
+        lsr
+        lsr
+        lsr                  ; FILL_LEN[9:3]
+        asl                  ; FILL_LEN[9:3], 0
+        sta FILL_LENGTH_HIGH
+        .if(USE_SOFT_FILL_LEN)
+            sta FILL_LENGTH_HIGH_SOFT
+        .endif
+        
+        and #%11111110        ; We check if FILL_LENGTH[9:3] is 0
+        beq fill_len_not_higher_than_or_equal_to_8
+        
+        lda FILL_LENGTH_LOW
+        ora #%10000000
+        sta FILL_LENGTH_LOW  ; FILL_LEN >= 8, X1[0:1], X1[2], FILL_LEN[2:0], 0
+fill_len_not_higher_than_or_equal_to_8:
+        .if(USE_SOFT_FILL_LEN)
+            lda FILL_LENGTH_LOW
+            sta FILL_LENGTH_LOW_SOFT
+        .endif
+    .endif
+    .if(DO_4BIT && DO_2BIT)
+        ; FIXME: NOT IMPLEMENTED!
     .endif
     
     .if(0)
@@ -1202,6 +1254,7 @@ tmp_loop:
     
     clc
     lda LEFT_POINT_X
+; FIXME! For 4-bit mode we need to add 17! 
     adc #33
     sta LEFT_POINT_X
     lda LEFT_POINT_X+1
