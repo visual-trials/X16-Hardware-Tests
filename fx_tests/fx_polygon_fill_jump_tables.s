@@ -698,8 +698,6 @@ generate_fill_line_iterate_code:
     
 generate_fill_line_end_code:
 
-; FIXME! this needs to be extended to FILL_LINE_END_CODE_7 for 4-bit mode!
-
     ; -------------- FILL_LINE_END_CODE_0 ---------------
     
     lda #<FILL_LINE_END_CODE_0
