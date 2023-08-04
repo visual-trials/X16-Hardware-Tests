@@ -3,7 +3,7 @@
 
 DO_SPEED_TEST = 0  ; ALSO change: TEST_JUMP_TABLE and USE_SOFT_FILL_LEN!
 DO_4BIT = 1
-DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
+DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
 USE_POLYGON_FILLER = 1
@@ -251,8 +251,8 @@ FILL_LINE_END_JUMP_1     = $6500   ; 20 entries (* 4 bytes) of jumps into FILL_L
 FILL_LINE_END_JUMP_2     = $6600   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2
 FILL_LINE_END_JUMP_3     = $6700   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3
     .endif
-    .if(DO_4BIT && !DO_2BIT)
-; 4-bit:
+    .if(DO_4BIT)
+; 4-bit (and 2-bit):
 ; -- IMPORTANT: we set the *three* lower bits of (the HIGH byte of) this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 8 tables should be $100! AND bits 8, 9 and 10 should be 000b! (for FILL_LINE_END_JUMP_0) --
 FILL_LINE_END_JUMP_0     = $6000   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0
 FILL_LINE_END_JUMP_1     = $6100   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1
@@ -263,11 +263,6 @@ FILL_LINE_END_JUMP_5     = $6500   ; 40 entries (* 4 bytes) of jumps into FILL_L
 FILL_LINE_END_JUMP_6     = $6600   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_6
 FILL_LINE_END_JUMP_7     = $6700   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_7
     .endif
-    .if(DO_4BIT && DO_2BIT)
-    
-    ; FIXME! NOT IMPLEMENTED!
-    
-    .endif
 
     .if(!DO_4BIT)
 ; 8-bit:
@@ -277,8 +272,8 @@ FILL_LINE_END_CODE_1     = $6A00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta 
 FILL_LINE_END_CODE_2     = $6C00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_END_CODE_3     = $6E00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
     .endif
-    .if(DO_4BIT && !DO_2BIT)
-; 4-bit:
+    .if(DO_4BIT)
+; 4-bit (and 2-bit):
 ; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> YES??!
 FILL_LINE_END_CODE_0     = $6800   ; 3 (stz) * 40 (=320/8) = 120                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_END_CODE_1     = $6900   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
@@ -288,11 +283,6 @@ FILL_LINE_END_CODE_4     = $6C00   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta 
 FILL_LINE_END_CODE_5     = $6D00   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_END_CODE_6     = $6E00   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_END_CODE_7     = $6F00   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-    .endif
-    .if(DO_4BIT && DO_2BIT)
-    
-    ; FIXME! NOT IMPLEMENTED!
-    
     .endif
 
 CLEAR_COLUMN_CODE        = $7000   ; up to 72D0
@@ -1120,7 +1110,9 @@ test_fill_length_jump_table:
     .endif
     sta TMP1               ; Column number (4 or 8 -> 1)
 TEST_pattern_column_next:
-    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+; FIXME!
+;    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+    lda #1                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
     sta TMP3
 TEST_pattern_next:
     ; Since we are not using ADDR0, we want ADDR1 to be set here instead, so we set ADDRSEL to 1
@@ -1226,7 +1218,7 @@ fill_len_not_higher_than_or_equal_to_8:
         ; FIXME: NOT IMPLEMENTED!
     .endif
     
-    .if(0)
+    .if(1)
         jsr generate_single_fill_line_code
         ;stp
         jsr TEST_FILL_LINE_CODE

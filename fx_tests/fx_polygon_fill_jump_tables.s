@@ -1295,7 +1295,8 @@ nr_of_ending_pixels_to_nibble_pattern:
     .byte %11000000     ; 3 pixels
     .endif
     
-    .if(DO_4BIT && !DO_2BIT)
+    .if(DO_4BIT)
+    ; Note: for 2-bit mode we divide the number of starting/ending pixels by 2 before using these patterns!
 nr_of_starting_pixels_to_nibble_pattern:
     .byte %00000000     ; 8 pixels         ; only used in combination with ending pixels
     .byte %10111111     ; 1 pixel
@@ -1317,10 +1318,6 @@ nr_of_ending_pixels_to_nibble_pattern:
     .byte %01000000     ; 7 pixels
     .endif
 
-    .if(DO_4BIT && DO_2BIT)
-        ; FIXME! NOT IMPLEMENTED -> should we use the same patterns as 4-bit but divide x by 2?
-    .endif
-    
     
 generate_draw_middle_pixels_code:
 
@@ -1346,11 +1343,29 @@ next_draw_middle_pixels_instruction:
 
 generate_draw_starting_and_ending_pixels_code:
 
-    ldx NR_OF_STARTING_PIXELS
+    .if(DO_4BIT && DO_2BIT)
+        lda NR_OF_STARTING_PIXELS
+        lsr
+        ; FIXME! we need to something with the CARRY!
+        ; FIXME! we need to something with the CARRY!
+        ; FIXME! we need to something with the CARRY!
+        tax
+    .else
+        ldx NR_OF_STARTING_PIXELS
+    .endif
     lda nr_of_starting_pixels_to_nibble_pattern, x
     sta TMP2
 
-    ldx NR_OF_ENDING_PIXELS
+    .if(DO_4BIT && DO_2BIT)
+        lda NR_OF_ENDING_PIXELS
+        lsr
+        ; FIXME! we need to something with the CARRY!
+        ; FIXME! we need to something with the CARRY!
+        ; FIXME! we need to something with the CARRY!
+        tax
+    .else
+        ldx NR_OF_ENDING_PIXELS
+    .endif
     lda nr_of_ending_pixels_to_nibble_pattern, x
     ora TMP2
     sta NIBBLE_PATTERN
@@ -1392,7 +1407,16 @@ generate_nibble_pattern_is_0:
     
 generate_draw_starting_pixels_code:
 
-    ldx NR_OF_STARTING_PIXELS
+    .if(DO_4BIT && DO_2BIT)
+        lda NR_OF_STARTING_PIXELS
+        lsr
+        ; FIXME! we need to something with the CARRY!
+        ; FIXME! we need to something with the CARRY!
+        ; FIXME! we need to something with the CARRY!
+        tax
+    .else
+        ldx NR_OF_STARTING_PIXELS
+    .endif
     lda nr_of_starting_pixels_to_nibble_pattern, x
     sta NIBBLE_PATTERN
     
@@ -1418,7 +1442,16 @@ generate_draw_starting_pixels_code:
 
 generate_draw_ending_pixels_code:
 
-    ldx NR_OF_ENDING_PIXELS
+    .if(DO_4BIT && DO_2BIT)
+        lda NR_OF_ENDING_PIXELS
+        lsr
+        ; FIXME! we need to something with the CARRY!
+        ; FIXME! we need to something with the CARRY!
+        ; FIXME! we need to something with the CARRY!
+        tax
+    .else
+        ldx NR_OF_ENDING_PIXELS
+    .endif
     lda nr_of_ending_pixels_to_nibble_pattern, x
     sta NIBBLE_PATTERN
     
