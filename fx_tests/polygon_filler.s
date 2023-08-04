@@ -1112,15 +1112,15 @@ test_fill_length_jump_table:
     lda #0
     sta LEFT_POINT_X+1
 
-; FIXME! when in 4-bit mode we should test 8 columns!
-; FIXME! when in 4-bit mode we should test 8 columns!
-; FIXME! when in 4-bit mode we should test 8 columns!
-    lda #4
-    sta TMP1               ; Column number (4 -> 1)
+    .if(!DO_4BIT)
+        lda #4
+    .else
+        ; For 4-bits, we have 8 possible starting x-positions we have to test
+        lda #8
+    .endif
+    sta TMP1               ; Column number (4 or 8 -> 1)
 TEST_pattern_column_next:
-; FIXME!
-;    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
-    lda #12                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
     sta TMP3
 TEST_pattern_next:
     ; Since we are not using ADDR0, we want ADDR1 to be set here instead, so we set ADDRSEL to 1
@@ -1228,7 +1228,7 @@ fill_len_not_higher_than_or_equal_to_8:
     
     .if(0)
         jsr generate_single_fill_line_code
-        ; stp
+        ;stp
         jsr TEST_FILL_LINE_CODE
 ; FIXME!
 tmp_loop:
@@ -1254,8 +1254,13 @@ tmp_loop:
     
     clc
     lda LEFT_POINT_X
-; FIXME! For 4-bit mode we need to add 17! 
-    adc #33
+    
+    .if(!DO_4BIT)
+        adc #33   ; we increment by 32+1, so we change the start-x position by 1 each column
+    .else
+        adc #17   ; we increment by 16+1, so we change the start-x position by 1 each column
+        ; For 4-bits, we have 8 possible starting x-positions we have to test
+    .endif
     sta LEFT_POINT_X
     lda LEFT_POINT_X+1
     lda #0

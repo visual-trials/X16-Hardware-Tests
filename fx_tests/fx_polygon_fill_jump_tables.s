@@ -1080,9 +1080,9 @@ generate_fill_line_end_jump:
         sta STORE_ADDRESS+1
         
         ; We start at the end of the series of 40 'stz'-calls in the FILL_LINE_CODE  (40 * 8 pixels = 320 pixels)
-        lda #<(FILL_LINE_END_CODE_0+40*4)
+        lda #<(FILL_LINE_END_CODE_4+40*3)
         sta LOAD_ADDRESS
-        lda #>(FILL_LINE_END_CODE_0+40*4)
+        lda #>(FILL_LINE_END_CODE_4+40*3)
         sta LOAD_ADDRESS+1
         
         jsr generate_jump_table_8
@@ -1094,9 +1094,9 @@ generate_fill_line_end_jump:
         sta STORE_ADDRESS+1
         
         ; We start at the end of the series of 40 'stz'-calls in the FILL_LINE_CODE  (40 * 8 pixels = 320 pixels)
-        lda #<(FILL_LINE_END_CODE_1+40*5)
+        lda #<(FILL_LINE_END_CODE_5+40*3)
         sta LOAD_ADDRESS
-        lda #>(FILL_LINE_END_CODE_1+40*5)
+        lda #>(FILL_LINE_END_CODE_5+40*3)
         sta LOAD_ADDRESS+1
         
         jsr generate_jump_table_8
@@ -1108,9 +1108,9 @@ generate_fill_line_end_jump:
         sta STORE_ADDRESS+1
         
         ; We start at the end of the series of 40 'stz'-calls in the FILL_LINE_CODE  (40 * 8 pixels = 320 pixels)
-        lda #<(FILL_LINE_END_CODE_2+40*6)
+        lda #<(FILL_LINE_END_CODE_6+40*3)
         sta LOAD_ADDRESS
-        lda #>(FILL_LINE_END_CODE_2+40*6)
+        lda #>(FILL_LINE_END_CODE_6+40*3)
         sta LOAD_ADDRESS+1
         
         jsr generate_jump_table_8
@@ -1122,9 +1122,9 @@ generate_fill_line_end_jump:
         sta STORE_ADDRESS+1
         
         ; We start at the end of the series of 40 'stz'-calls in the FILL_LINE_CODE  (40 * 8 pixels = 320 pixels)
-        lda #<(FILL_LINE_END_CODE_3+40*7)
+        lda #<(FILL_LINE_END_CODE_7+40*3)
         sta LOAD_ADDRESS
-        lda #>(FILL_LINE_END_CODE_3+40*7)
+        lda #>(FILL_LINE_END_CODE_7+40*3)
         sta LOAD_ADDRESS+1
         
         jsr generate_jump_table_8
