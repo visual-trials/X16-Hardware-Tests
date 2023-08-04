@@ -1,14 +1,14 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 0
+DO_SPEED_TEST = 1
 DO_4BIT = 1
 DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
 USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 0
+USE_UNROLLED_LOOP = 1
 USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
@@ -18,10 +18,10 @@ USE_Y_TO_ADDRESS_TABLE = 1
 
 USE_DOUBLE_BUFFER = 0   ; Note: this is not setup in this program!
 
-TEST_JUMP_TABLE = 1 ; This turns off the iteration in-between the jump-table calls
+TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
 
 ; This setting is used in the routine test_fill_length_jump_table. -> turn this OFF when using the jump tables otherwise! (it changes the jump table code!)
-USE_SOFT_FILL_LEN = 1; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
+USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
     
 COLOR_CHECK        = $05 ; Background color = 0, foreground color 5 (green)
