@@ -3,7 +3,10 @@
 generate_single_fill_line_code:
     
     ; This routines expects this:
-    ;    FILL_LENGTH_LOW (2-bit)   : X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
+    ;    FILL_LENGTH_LOW (2-bit)   : X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1], 0
+    ;
+    ; Note: X2[-1] is not mentioned here, since it is shifted-out and put in the CARRY instead (during code-run)
+    ;       So we are assuming all bits are already shifted to the left!
     ;
     ; Important: the 'fill length' from VERA is in 4-bit pixels! (not in 2-bit pixels). The X1 and X2 positions are in 4-bit positions!
 
@@ -13,46 +16,35 @@ generate_single_fill_line_code:
     ;   GEN_START_X_SUB = X1[-1]  -> indicates whether we should do a start-POKE
     ;   GEN_FILL_LENGTH_LOW = FILL_LENGTH[2:0]
     ;
-    ;   Note: X2[-1] is not extracted here, since it is shifted-out and put in the CARRY instead (during code-run)
-    
 
-; FIXME! We should ASSUME that all bits are shifted to the left!
-; FIXME! We should ASSUME that all bits are shifted to the left!
-; FIXME! We should ASSUME that all bits are shifted to the left!
-; HACK: for now we shift to the right!
-; HACK: for now we shift to the right!
-; HACK: for now we shift to the right!
     lda FILL_LENGTH_LOW
-    lsr a
-    sta FILL_LENGTH_LOW
-    
-    lda FILL_LENGTH_LOW
-    asl                   ; We remove the bit for FILL_LENGTH >= 8
+    and #%11000000        ; X1[1:0], 000000
     lsr
     lsr
     lsr
     lsr
     lsr
-    lsr                   ; We keep the X1[1:0] part
+    lsr                   ; 000000, X1[1:0]
     sta GEN_START_X
     
     lda FILL_LENGTH_LOW
-    and #%00010000        ; X1[2], 0000b
+    and #%00100000        ; 00, X1[2], 00000
     lsr
-    lsr                   ; X1[2], 00b
+    lsr
+    lsr                   ; 00000, X1[2], 00
     ora GEN_START_X       ; OR with X1[1:0]
-    sta GEN_START_X       ; X1[2:0]
+    sta GEN_START_X       ; 00000, X1[2:0]
     
     lda FILL_LENGTH_LOW
+    and #%00011100        ; 000, FILL_LENGTH[2:0], 00
     lsr
-    and #%00000111
-    sta GEN_FILL_LENGTH_LOW ; FILL_LENGTH[2:0]
-; FIXME! This bit is not present in FILL_LENGTH_LOW!
-; FIXME! This bit is not present in FILL_LENGTH_LOW!
-; FIXME! This bit is not present in FILL_LENGTH_LOW!
+    lsr
+    sta GEN_FILL_LENGTH_LOW ; 00000, FILL_LENGTH[2:0]
+    
     lda FILL_LENGTH_LOW
-    and #%00000001
-    sta GEN_START_X_SUB   ; X1[-1]
+    and #%00000010        ; 000000, X1[-1], 0
+    lsr
+    sta GEN_START_X_SUB   ; 0000000, X1[-1]
 
     stz GEN_LOANED_8_PIXELS  ; Meaning: EIGHT 4-bit pixels
     
