@@ -1,5 +1,7 @@
 2-bit mode:
 
+enable 2bit polygon-mode!
+
 generate_single_fill_line_code -> what is needed here?
 gen_more_or_equal_to_8_pixels -> not needed??
 generate_fill_line_end_code -> post-POKE?

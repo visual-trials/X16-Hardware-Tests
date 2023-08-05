@@ -7,12 +7,12 @@ DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
 USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 1
-USE_UNROLLED_LOOP = 1
+USE_SLOPE_TABLES = 0
+USE_UNROLLED_LOOP = 0
 USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
-USE_180_DEGREES_SLOPE_TABLE = 1  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
+USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 
 USE_Y_TO_ADDRESS_TABLE = 1
 
@@ -227,6 +227,7 @@ GEN_FILL_LENGTH_IS_16_OR_MORE = $9E
 GEN_FILL_LENGTH_IS_8_OR_MORE = GEN_FILL_LENGTH_IS_16_OR_MORE
 GEN_LOANED_16_PIXELS     = $9F
 GEN_LOANED_8_PIXELS = GEN_LOANED_16_PIXELS
+GEN_START_X_SUB = GEN_LOANED_16_PIXELS
 GEN_FILL_LINE_CODE_INDEX = $A0
 
 TEST_POKE_BYTE           = $A1
@@ -1215,12 +1216,76 @@ fill_len_not_higher_than_or_equal_to_8:
         .endif
     .endif
     .if(DO_4BIT && DO_2BIT)
-        ; FIXME: NOT IMPLEMENTED!
+; FIXME! We need to HALF the X and LEN!!
+; FIXME! We need to HALF the X and LEN!!
+; FIXME! We need to HALF the X and LEN!!
+        lda LEFT_POINT_X
+        asl
+        asl
+        asl
+        asl
+        asl
+        asl                  ; X1[0:1], 000000
+        lsr                  ; 0, X1[0:1], 00000
+        sta TMP4             ; 0, X1[0:1], 00000
+        
+        lda TMP3             ; FILL_LEN[9:0]
+        asl
+        and #%00001110       ; 000, FILL_LEN[2:0], 0
+        ora TMP4             ; 0, X1[0:1], 0, FILL_LEN[2:0], 0
+        sta FILL_LENGTH_LOW
+
+        lda LEFT_POINT_X
+        and #%00000100       ; 00000, X1[2], 00
+        asl
+        asl                  ; 000, X1[2], 0000
+        ora FILL_LENGTH_LOW  ; 0, X1[0:1], X1[2], FILL_LEN[2:0], 0
+        sta FILL_LENGTH_LOW
+        
+    ; FIXME: we are missing the 2 highest bits here!
+        lda TMP3             ; FILL_LEN[9:0]
+        lsr
+        lsr
+        lsr                  ; FILL_LEN[9:3]
+        asl                  ; FILL_LEN[9:3], 0
+        sta FILL_LENGTH_HIGH
+        .if(USE_SOFT_FILL_LEN)
+            sta FILL_LENGTH_HIGH_SOFT
+        .endif
+        
+; FIXME! this bit is not present in 2-bit mode!
+; FIXME! this bit is not present in 2-bit mode!
+; FIXME! this bit is not present in 2-bit mode!
+        and #%11111110        ; We check if FILL_LENGTH[9:3] is 0
+        beq fill_len_not_higher_than_or_equal_to_8
+        
+        lda FILL_LENGTH_LOW
+        ora #%10000000
+; FIXME! This is still wrong!
+; FIXME! This is still wrong!
+; FIXME! This is still wrong!
+        sta FILL_LENGTH_LOW  ; FILL_LEN >= 8, X1[0:1], X1[2], FILL_LEN[2:0], 0
+fill_len_not_higher_than_or_equal_to_8:
+
+; FIXME! We SOMEHOW have to shift to the left first!! -> also keep the CARRY!
+; FIXME! We SOMEHOW have to shift to the left first!! -> also keep the CARRY!
+; FIXME! We SOMEHOW have to shift to the left first!! -> also keep the CARRY!
+;        lda FILL_LENGTH_LOW
+;        asl a
+;        sta FILL_LENGTH_LOW
+        
+;        stp
+        
+        .if(USE_SOFT_FILL_LEN)
+            lda FILL_LENGTH_LOW
+            sta FILL_LENGTH_LOW_SOFT
+        .endif
+        
     .endif
     
     .if(1)
         jsr generate_single_fill_line_code
-        ;stp
+        ; stp
         jsr TEST_FILL_LINE_CODE
 ; FIXME!
 tmp_loop:
@@ -2507,6 +2572,15 @@ triangle_data:
     .include utils/setup_vera_for_bitmap_and_tilemap.s
     .include fx_tests/fx_polygon_fill.s
     .include fx_tests/fx_polygon_fill_jump_tables.s
+    .if(!DO_4BIT)
+        .include fx_tests/fx_polygon_fill_jump_tables_8bit.s
+    .else
+        .if(!DO_2BIT)
+            .include fx_tests/fx_polygon_fill_jump_tables_4bit.s
+        .else
+            .include fx_tests/fx_polygon_fill_jump_tables_2bit.s
+        .endif
+    .endif
 
     ; ======== PETSCII CHARSET =======
 
