@@ -8,7 +8,8 @@ generate_single_fill_line_code:
     ; Note: X2[-1] is not mentioned here, since it is shifted-out and put in the CARRY instead (during code-run)
     ;       So we are assuming all bits are already shifted to the left!
     ;
-    ; Important: the 'fill length' from VERA is in 4-bit pixels! (not in 2-bit pixels). The X1 and X2 positions are in 4-bit positions!
+    ; Important: the 'fill length' from VERA is in 4-bit pixels! (not in 2-bit pixels). 
+    ;            the X1 and X2 positions are in 4-bit positions! And X1/X2[-1] means: 'half a 4-bit pixel' (aka a 2-bit pixel)
 
     ; == We first extract this info (4-bit) ==
     ;
