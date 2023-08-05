@@ -1270,9 +1270,9 @@ fill_len_not_higher_than_or_equal_to_8:
 ; FIXME! We SOMEHOW have to shift to the left first!! -> also keep the CARRY!
 ; FIXME! We SOMEHOW have to shift to the left first!! -> also keep the CARRY!
 ; FIXME! We SOMEHOW have to shift to the left first!! -> also keep the CARRY!
-;        lda FILL_LENGTH_LOW
-;        asl a
-;        sta FILL_LENGTH_LOW
+        lda FILL_LENGTH_LOW
+        asl a
+        sta FILL_LENGTH_LOW
         
 ;        stp
         

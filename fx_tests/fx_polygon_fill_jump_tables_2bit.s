@@ -22,9 +22,9 @@ generate_single_fill_line_code:
 ; HACK: for now we shift to the right!
 ; HACK: for now we shift to the right!
 ; HACK: for now we shift to the right!
-;    lda FILL_LENGTH_LOW
-;    lsr a
-;    sta FILL_LENGTH_LOW
+    lda FILL_LENGTH_LOW
+    lsr a
+    sta FILL_LENGTH_LOW
     
     lda FILL_LENGTH_LOW
     asl                   ; We remove the bit for FILL_LENGTH >= 8
