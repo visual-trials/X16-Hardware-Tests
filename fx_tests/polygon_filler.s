@@ -1113,7 +1113,7 @@ test_fill_length_jump_table:
 TEST_pattern_column_next:
 ; FIXME!
 ;    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
-    lda #1                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+    lda #2                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
     sta TMP3
 TEST_pattern_next:
     ; Since we are not using ADDR0, we want ADDR1 to be set here instead, so we set ADDRSEL to 1
@@ -1219,8 +1219,8 @@ fill_len_not_higher_than_or_equal_to_8:
 ; FIXME! We need to HALF the X and LEN!!
 ; FIXME! We need to HALF the X and LEN!!
 ; FIXME! We need to HALF the X and LEN!!
-        lda LEFT_POINT_X
-        asl
+        lda LEFT_POINT_X     ; this is in 2-bit pixels!
+        and #%00000110       ; we keep only the 4-bit pixels
         asl
         asl
         asl
@@ -1229,21 +1229,20 @@ fill_len_not_higher_than_or_equal_to_8:
         lsr                  ; 0, X1[0:1], 00000
         sta TMP4             ; 0, X1[0:1], 00000
         
-        lda TMP3             ; FILL_LEN[9:0]
-        asl
+        lda TMP3             ; FILL_LEN[9:-1]
         and #%00001110       ; 000, FILL_LEN[2:0], 0
         ora TMP4             ; 0, X1[0:1], 0, FILL_LEN[2:0], 0
         sta FILL_LENGTH_LOW
 
-        lda LEFT_POINT_X
-        and #%00000100       ; 00000, X1[2], 00
-        asl
+        lda LEFT_POINT_X     ; this is in 2-bit pixels!
+        and #%00001000       ; 0000, X1[2], 000
         asl                  ; 000, X1[2], 0000
-        ora FILL_LENGTH_LOW  ; 0, X1[0:1], X1[2], FILL_LEN[2:0], 0
-        sta FILL_LENGTH_LOW
+        ora FILL_LENGTH_LOW  
+        sta FILL_LENGTH_LOW  ; 0, X1[0:1], X1[2], FILL_LEN[2:0], 0
         
-    ; FIXME: we are missing the 2 highest bits here!
-        lda TMP3             ; FILL_LEN[9:0]
+        ; FIXME: we are missing the 2 highest bits here!
+        lda TMP3             ; FILL_LEN[9:-1] ; this is in 2-bit pixels!
+        lsr
         lsr
         lsr
         lsr                  ; FILL_LEN[9:3]
@@ -1253,23 +1252,10 @@ fill_len_not_higher_than_or_equal_to_8:
             sta FILL_LENGTH_HIGH_SOFT
         .endif
         
-; FIXME! this bit is not present in 2-bit mode!
-; FIXME! this bit is not present in 2-bit mode!
-; FIXME! this bit is not present in 2-bit mode!
-        and #%11111110        ; We check if FILL_LENGTH[9:3] is 0
-        beq fill_len_not_higher_than_or_equal_to_8
+; FIXME! add X1[-1]
+; FIXME! add X2[-1] (= 2-bit start + 2-bit length % 1)
         
-        lda FILL_LENGTH_LOW
-        ora #%10000000
-; FIXME! This is still wrong!
-; FIXME! This is still wrong!
-; FIXME! This is still wrong!
-        sta FILL_LENGTH_LOW  ; FILL_LEN >= 8, X1[0:1], X1[2], FILL_LEN[2:0], 0
-fill_len_not_higher_than_or_equal_to_8:
-
-; FIXME! We SOMEHOW have to shift to the left first!! -> also keep the CARRY!
-; FIXME! We SOMEHOW have to shift to the left first!! -> also keep the CARRY!
-; FIXME! We SOMEHOW have to shift to the left first!! -> also keep the CARRY!
+        ; We have to shift to the left first! (for generating the code) BUT we also need to keep the CARRY! (for running the code)
         lda FILL_LENGTH_LOW
         asl a
         sta FILL_LENGTH_LOW
@@ -1284,6 +1270,7 @@ fill_len_not_higher_than_or_equal_to_8:
     .endif
     
     .if(1)
+; FIXME: is the CARRY preserved until we run?
         jsr generate_single_fill_line_code
         ; stp
         jsr TEST_FILL_LINE_CODE
