@@ -3,7 +3,7 @@
 
 DO_SPEED_TEST = 0  ; ALSO change: TEST_JUMP_TABLE and USE_SOFT_FILL_LEN!
 DO_4BIT = 1
-DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
+DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
 USE_POLYGON_FILLER = 1

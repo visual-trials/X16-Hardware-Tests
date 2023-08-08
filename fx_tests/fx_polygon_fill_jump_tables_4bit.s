@@ -86,16 +86,8 @@ gen_less_than_8_pixels:
     bcc gen_start_and_end_in_same_column  ; we end in the same 8-pixel column as where we start
     beq gen_start_and_end_in_same_column
     
-    ; ============= generate starting pixels code (>=8 pixels) ===============
+    ; ============= generate starting pixels code (< 8 pixels) ===============
 
-; FIXME! This cant happen in 4-bit or 2-bit mode since 8 pixels cannot bot in FILL_LENGTH[2:0]!
-; FIXME! This cant happen in 4-bit or 2-bit mode since 8 pixels cannot bot in FILL_LENGTH[2:0]!
-; FIXME! This cant happen in 4-bit or 2-bit mode since 8 pixels cannot bot in FILL_LENGTH[2:0]!
-;    ; if NR_OF_STARTING_PIXELS == 8 (meaning GEN_START_X == 0) we add 8 to the total left-over pixel count and NOT generate starting pixels!
-;    lda NR_OF_STARTING_PIXELS
-;    cmp #8
-;    beq gen_generate_middle_pixels
-    
 gen_generate_starting_pixels:
     
     ; -- we subtract the starting pixels from LEFT_OVER_PIXELS --
@@ -108,23 +100,6 @@ gen_generate_starting_pixels:
     sta LEFT_OVER_PIXELS+1
     
     jsr generate_draw_starting_pixels_code
-    
-;gen_generate_middle_pixels:
-;
-;    ; We divide LEFT_OVER_PIXELS by 8 by shifting it 3 bit positions to the right
-;    lsr LEFT_OVER_PIXELS+1
-;    ror LEFT_OVER_PIXELS
-;    lsr LEFT_OVER_PIXELS+1
-;    ror LEFT_OVER_PIXELS
-;    lsr LEFT_OVER_PIXELS+1
-;    ror LEFT_OVER_PIXELS
-    
-;    lda LEFT_OVER_PIXELS            ; Note: the result should always fit into one byte
-;    sta NR_OF_FULL_CACHE_WRITES
-;    beq middle_pixels_generated     ; We should not draw any middle pixels
-;    jsr generate_draw_middle_pixels_code
-;middle_pixels_generated:
-    
     
 gen_generate_ending_pixels:
     lda NR_OF_ENDING_PIXELS
