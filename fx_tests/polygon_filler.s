@@ -3,7 +3,7 @@
 
 DO_SPEED_TEST = 0  ; ALSO change: TEST_JUMP_TABLE and USE_SOFT_FILL_LEN!
 DO_4BIT = 1
-DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
+DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
 USE_POLYGON_FILLER = 1
@@ -1073,12 +1073,29 @@ TEST_set_address_using_y2address_table_and_point_x:
     ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
     ldx LEFT_POINT_Y
     
+    .if(DO_4BIT)
+        lda LEFT_POINT_X+1
+        lsr a
+        ; FIXME: we are destroying TOP_POINT_X here!
+        sta TOP_POINT_X+1
+    
+        lda LEFT_POINT_X
+        ror a
+        ; FIXME: we are destroying TOP_POINT_X here!
+        sta TOP_POINT_X
+        
+        .if(DO_2BIT)
+            lsr TOP_POINT_X+1
+            ror TOP_POINT_X
+        .endif
+    .endif
+    
     clc
     lda Y_TO_ADDRESS_LOW, x
-    adc LEFT_POINT_X
+    adc TOP_POINT_X
     sta VERA_ADDR_LOW
     lda Y_TO_ADDRESS_HIGH, x
-    adc LEFT_POINT_X+1
+    adc TOP_POINT_X+1
     sta VERA_ADDR_HIGH
     lda Y_TO_ADDRESS_BANK, x     ; This will include some kind of auto-increment value
     adc #0
@@ -1112,8 +1129,8 @@ test_fill_length_jump_table:
     sta TMP1               ; Column number (4 or 8 -> 1)
 TEST_pattern_column_next:
 ; FIXME!
-;    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
-    lda #2                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+;    lda #2                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
     sta TMP3
 TEST_pattern_next:
     ; Since we are not using ADDR0, we want ADDR1 to be set here instead, so we set ADDRSEL to 1
@@ -1170,13 +1187,12 @@ fill_len_not_higher_than_or_equal_to_16:
     .endif
     .if(DO_4BIT && !DO_2BIT)
         lda LEFT_POINT_X
+        and #%00000011       ; 000000, X1[1:0]
         asl
         asl
         asl
         asl
-        asl
-        asl                  ; X1[0:1], 000000
-        lsr                  ; 0, X1[0:1], 00000
+        asl                  ; 0, X1[0:1], 00000
         sta TMP4             ; 0, X1[0:1], 00000
         
         lda TMP3             ; FILL_LEN[9:0]
@@ -1269,7 +1285,7 @@ fill_len_not_higher_than_or_equal_to_8:
         
     .endif
     
-    .if(1)
+    .if(0)
 ; FIXME: is the CARRY preserved until we run?
         jsr generate_single_fill_line_code
         ; stp
@@ -1298,16 +1314,10 @@ tmp_loop:
     
     clc
     lda LEFT_POINT_X
-    
-    .if(!DO_4BIT)
-        adc #33   ; we increment by 32+1, so we change the start-x position by 1 each column
-    .else
-        adc #17   ; we increment by 16+1, so we change the start-x position by 1 each column
-        ; For 4-bits, we have 8 possible starting x-positions we have to test
-    .endif
+    adc #33   ; we increment by 32+1, so we change the start-x position by 1 each column
     sta LEFT_POINT_X
     lda LEFT_POINT_X+1
-    lda #0
+    adc #0
     sta LEFT_POINT_X+1
     
     dec TMP1
@@ -1890,7 +1900,9 @@ clear_screen_fast_4_bytes:
     sta $9F29                ; cache32[7:0]
     sta $9F2A                ; cache32[15:8]
     sta $9F2B                ; cache32[23:16]
-    sta $9F2C                ; cache32[31:24]
+; FIXME! Adding a TEST column here!
+;    sta $9F2C                ; cache32[31:24]
+    stz $9F2C                ; cache32[31:24]
 
     ; We setup blit writes
     
