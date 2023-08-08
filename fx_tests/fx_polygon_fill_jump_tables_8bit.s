@@ -167,6 +167,9 @@ gen_generate_starting_pixels_16:
     ; if NR_OF_STARTING_PIXELS > LEFT_OVER_PIXELS (which is possible since LEFT_OVER_PIXELS == GEN_FILL_LENGTH_LOW and >16 fill length)
     ; we should *LOAN* 16 pixels. So we add 16 pixels here, and subtract it by jumping 4*stz later in the code fill code.
     
+    ; FIXME: use bpl instead? 
+    ; bpl do_not_loan_pixels
+    
     clc
     lda LEFT_OVER_PIXELS
     adc #16
