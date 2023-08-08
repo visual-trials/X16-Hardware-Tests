@@ -1130,7 +1130,8 @@ test_fill_length_jump_table:
 TEST_pattern_column_next:
 ; FIXME!
 ;    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
-    lda #2                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+;    lda #2                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+    lda #18                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
     sta TMP3
 TEST_pattern_next:
     ; Since we are not using ADDR0, we want ADDR1 to be set here instead, so we set ADDRSEL to 1
@@ -1232,9 +1233,6 @@ fill_len_not_higher_than_or_equal_to_8:
         .endif
     .endif
     .if(DO_4BIT && DO_2BIT)
-; FIXME! We need to HALF the X and LEN!!
-; FIXME! We need to HALF the X and LEN!!
-; FIXME! We need to HALF the X and LEN!!
         lda LEFT_POINT_X     ; this is in 2-bit pixels!
         and #%00000110       ; we keep only the 4-bit pixels
         asl
