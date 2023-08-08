@@ -1129,8 +1129,8 @@ test_fill_length_jump_table:
     sta TMP1               ; Column number (4 or 8 -> 1)
 TEST_pattern_column_next:
 ; FIXME!
-    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
-;    lda #2                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+;    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+    lda #2                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
     sta TMP3
 TEST_pattern_next:
     ; Since we are not using ADDR0, we want ADDR1 to be set here instead, so we set ADDRSEL to 1
@@ -1285,7 +1285,7 @@ fill_len_not_higher_than_or_equal_to_8:
         
     .endif
     
-    .if(0)
+    .if(1)
 ; FIXME: is the CARRY preserved until we run?
         jsr generate_single_fill_line_code
         ; stp
@@ -1900,9 +1900,18 @@ clear_screen_fast_4_bytes:
     sta $9F29                ; cache32[7:0]
     sta $9F2A                ; cache32[15:8]
     sta $9F2B                ; cache32[23:16]
-; FIXME! Adding a TEST column here!
-;    sta $9F2C                ; cache32[31:24]
-    stz $9F2C                ; cache32[31:24]
+; FIXME! Adding a TEST column here! -> maybe make this conditional?
+    .if(!DO_4BIT)
+        and #%00000000       ; black 8-bit pixel
+    .else
+        .if(!DO_2BIT)
+            and #%00001111   ; black 4-bit pixel
+        .else
+            and #%00111111
+            ora #%10000000   ; red 2-bit pixel
+        .endif
+    .endif
+    sta $9F2C                ; cache32[31:24]
 
     ; We setup blit writes
     
