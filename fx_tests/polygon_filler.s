@@ -1131,13 +1131,14 @@ test_fill_length_jump_table:
     .else
         ; For 4-bits, we have 8 possible starting x-positions we have to test
         lda #8
+; FIXME: For 2-bit we need to test 16 possible starting x-positions!
     .endif
     sta TMP1               ; Column number (4 or 8 -> 1)
 TEST_pattern_column_next:
 ; FIXME!
-;    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
 ;    lda #2                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
-    lda #18                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+;    lda #18                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
     sta TMP3
 TEST_pattern_next:
     ; Since we are not using ADDR0, we want ADDR1 to be set here instead, so we set ADDRSEL to 1
@@ -1289,7 +1290,7 @@ fill_len_not_higher_than_or_equal_to_8:
         
     .endif
     
-    .if(1)
+    .if(0)
 ; FIXME: is the CARRY preserved until we run?
         jsr generate_single_fill_line_code
         ; stp

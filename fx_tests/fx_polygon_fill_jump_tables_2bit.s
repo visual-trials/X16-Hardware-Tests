@@ -69,18 +69,44 @@ generate_single_fill_line_code:
     stz LEFT_OVER_PIXELS+1
     lda GEN_FILL_LENGTH_LOW
     sta LEFT_OVER_PIXELS
-    
-; FIXME! THIS HAS TO BE DONE DURING *RUN*!
-; FIXME! THIS HAS TO BE DONE DURING *RUN*!
-; FIXME! THIS HAS TO BE DONE DURING *RUN*!
-    ; -- check if more than or equal to 8 extra pixels have to be drawn
-;    lda GEN_FILL_LENGTH_IS_8_OR_MORE
-;    bne gen_more_or_equal_to_8_pixels
 
-; FIXME!!!
-; FIXME!!!
-; FIXME!!!
-    bra gen_more_or_equal_to_8_pixels
+    ; We create a conditional branch to the code when FILL_LENGTH_HIGH (during run time) is zero -> towards the code 
+    jsr generate_load_fill_len_high  ; = ldx $9F2C
+    jsr generate_beq                 ; = beq ...
+    
+    ; Since we dont know yet how long the code (when FILL_LENGTH_HIGH is not zero) will be, we remember the place WHERE we have to PATCH the offset
+    sty STORE_ADDRESS
+    lda CODE_ADDRESS+1
+    sta STORE_ADDRESS+1
+    
+    jsr generate_dummy_offset        ; = dummy offset byte (PATCHED later on!)
+    
+    ; We first generate the code that deals with >= 8 pixels (4-bit)
+; FIXME! REMOVE THE ldx in here!!
+; FIXME! REMOVE THE ldx in here!!
+; FIXME! REMOVE THE ldx in here!!
+    jsr gen_more_or_equal_to_8_pixels
+    
+    ; We remember the address where the code (when FILL_LENGTH_HIGH is zero) will start
+    sty LOAD_ADDRESS
+    lda CODE_ADDRESS+1
+    sta LOAD_ADDRESS+1
+    
+    ; We calculate the branch-offset
+    sec
+    lda LOAD_ADDRESS
+    sbc STORE_ADDRESS
+    
+    ; We adjust it the branch-offset by 1
+    dec
+    
+    ; We PATCH the branch-offset (we overwrite the dummy offset value)
+    phy
+    ldy #0
+    sta (STORE_ADDRESS), y
+    ply
+    
+    ; We then generate the code that deals with < 8 pixels (4-bit)
     
 gen_less_than_8_pixels:
 
@@ -209,7 +235,8 @@ gen_generate_jump_to_second_table:
     
 jump_address_is_valid:
 
-    jsr generate_table_jump
+    ; Since (in 2-bit mode) we already loaded register x, we dont have to do it again here
+    jsr generate_table_jump_without_ldx
     
     rts
     

@@ -232,8 +232,58 @@ generate_draw_ending_pixels_code:
     
     rts
     
-    
+generate_load_fill_len_high:
 
+    ; -- ldx $9F2C (= FILL_LENGTH_HIGH from VERA)
+    lda #$AE               ; ldx ....
+    jsr add_code_byte
+
+    .if(USE_SOFT_FILL_LEN)
+        lda #<FILL_LENGTH_HIGH_SOFT
+        jsr add_code_byte
+        
+        lda #>FILL_LENGTH_HIGH_SOFT
+        jsr add_code_byte
+    .else
+        lda #$2C               ; $2C
+        jsr add_code_byte
+        
+        lda #$9F               ; $9F
+        jsr add_code_byte
+    .endif
+    
+    rts
+    
+generate_beq:
+
+    ; -- beq ..
+    lda #$F0               ; beq ....
+    jsr add_code_byte
+
+    rts
+    
+generate_dummy_offset:
+
+    lda #$00               ; $00 -> this is PATCHED later on!
+    jsr add_code_byte
+    
+    rts
+    
+generate_table_jump_without_ldx:
+
+    ; -- jmp ($....,x)
+    lda #$7C               ; jmp (....,x)
+    jsr add_code_byte
+
+    lda END_JUMP_ADDRESS        ; low byte of jump base address
+    jsr add_code_byte
+    
+    lda END_JUMP_ADDRESS+1      ; high byte of jump base address
+    jsr add_code_byte
+    
+    rts
+
+; FIXME: maybe split this function into ldx ... and jmp(...,x) -> see generate_table_jump_without_ldx above!
 generate_table_jump:
 
     ; -- ldx $9F2C (= FILL_LENGTH_HIGH from VERA)
