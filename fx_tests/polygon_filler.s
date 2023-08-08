@@ -1,9 +1,9 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 0  ; ALSO change: TEST_JUMP_TABLE and USE_SOFT_FILL_LEN!
+DO_SPEED_TEST = 1  ; ALSO change: TEST_JUMP_TABLE and USE_SOFT_FILL_LEN!
 DO_4BIT = 1
-DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
+DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
 USE_POLYGON_FILLER = 1
@@ -18,10 +18,10 @@ USE_Y_TO_ADDRESS_TABLE = 1
 
 USE_DOUBLE_BUFFER = 0   ; Note: this is not setup in this program!
 
-TEST_JUMP_TABLE = 1 ; This turns off the iteration in-between the jump-table calls
+TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
 
 ; This setting is used in the routine test_fill_length_jump_table. -> turn this OFF when using the jump tables otherwise! (it changes the jump table code!)
-USE_SOFT_FILL_LEN = 1; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
+USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
     
 COLOR_CHECK        = $05 ; Background color = 0, foreground color 5 (green)
@@ -378,6 +378,12 @@ reset:
     .endif
     
     .if(USE_JUMP_TABLE)
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
         jsr generate_fill_line_end_code
         jsr generate_fill_line_end_jump
         jsr generate_fill_line_start_code_and_jump
@@ -1903,10 +1909,10 @@ clear_screen_fast_4_bytes:
         and #%00000000       ; black 8-bit pixel
     .else
         .if(!DO_2BIT)
-            and #%00001111   ; black 4-bit pixel
+            and #%11110000   ; black 4-bit pixel
         .else
-            and #%00111111
-            ora #%10000000   ; red 2-bit pixel
+            and #%11111100
+            ora #%00000010   ; red 2-bit pixel
         .endif
     .endif
     sta $9F2C                ; cache32[31:24]

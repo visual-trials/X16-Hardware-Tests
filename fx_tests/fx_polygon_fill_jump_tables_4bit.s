@@ -134,10 +134,11 @@ gen_more_or_equal_to_8_pixels:
 
     ; ============= generate starting pixels code (>=8 pixels) ===============
 
-    ; if NR_OF_STARTING_PIXELS == 8 (meaning GEN_START_X == 0) we add 8 to the total left-over pixel count and NOT generate starting pixels!
+    ; if NR_OF_STARTING_PIXELS == 8 (meaning GEN_START_X == 0) we do not subtract 8 of the total left-over pixel count and we do NOT generate starting pixels!
     lda NR_OF_STARTING_PIXELS
     cmp #8
-    beq gen_generate_middle_pixels_8
+    beq gen_generate_jump_to_second_table
+; FIXME: remove!    beq gen_generate_middle_pixels_8
     
 gen_generate_starting_pixels_8:
 
@@ -152,6 +153,7 @@ gen_generate_starting_pixels_8:
     
     ; if NR_OF_STARTING_PIXELS > LEFT_OVER_PIXELS (which is possible since LEFT_OVER_PIXELS == GEN_FILL_LENGTH_LOW and >8 fill length)
     ; we should *LOAN* 8 pixels. So we add 8 pixels here, and subtract it by jumping 2*stz later in the code fill code.
+    bpl do_not_loan_pixels
     
     clc
     lda LEFT_OVER_PIXELS
@@ -163,24 +165,25 @@ gen_generate_starting_pixels_8:
     
     lda #1
     sta GEN_LOANED_8_PIXELS
-
+    
+do_not_loan_pixels:
     jsr generate_draw_starting_pixels_code
 
-gen_generate_middle_pixels_8:
-
-    ; We divide LEFT_OVER_PIXELS by 8 by shifting it 3 bit positions to the right
-    lsr LEFT_OVER_PIXELS+1
-    ror LEFT_OVER_PIXELS
-    lsr LEFT_OVER_PIXELS+1
-    ror LEFT_OVER_PIXELS
-    lsr LEFT_OVER_PIXELS+1
-    ror LEFT_OVER_PIXELS
-    
-    lda LEFT_OVER_PIXELS               ; Note: the result should always fit into one byte
-    sta NR_OF_FULL_CACHE_WRITES
-    beq middle_pixels_generated_8      ; We should not draw any middle pixels
-    jsr generate_draw_middle_pixels_code
-middle_pixels_generated_8:
+;gen_generate_middle_pixels_8:
+;
+;    ; We divide LEFT_OVER_PIXELS by 8 by shifting it 3 bit positions to the right
+;    lsr LEFT_OVER_PIXELS+1
+;    ror LEFT_OVER_PIXELS
+;    lsr LEFT_OVER_PIXELS+1
+;    ror LEFT_OVER_PIXELS
+;    lsr LEFT_OVER_PIXELS+1
+;    ror LEFT_OVER_PIXELS
+;    
+;    lda LEFT_OVER_PIXELS               ; Note: the result should always fit into one byte
+;    sta NR_OF_FULL_CACHE_WRITES
+;    beq middle_pixels_generated_8      ; We should not draw any middle pixels
+;    jsr generate_draw_middle_pixels_code
+;middle_pixels_generated_8:
     
 gen_generate_jump_to_second_table:
 
