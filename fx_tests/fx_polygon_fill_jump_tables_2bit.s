@@ -152,7 +152,6 @@ gen_more_or_equal_to_8_pixels:
     lda NR_OF_STARTING_PIXELS
     cmp #8
     beq gen_generate_jump_to_second_table
-; FIXME: remove!    beq gen_generate_middle_pixels_8
     
 gen_generate_starting_pixels_8:
 
@@ -183,22 +182,6 @@ gen_generate_starting_pixels_8:
 do_not_loan_pixels:
     jsr generate_draw_starting_pixels_code
 
-;gen_generate_middle_pixels_8:
-
-;    ; We divide LEFT_OVER_PIXELS by 8 by shifting it 3 bit positions to the right
-;    lsr LEFT_OVER_PIXELS+1
-;    ror LEFT_OVER_PIXELS
-;    lsr LEFT_OVER_PIXELS+1
-;    ror LEFT_OVER_PIXELS
-;    lsr LEFT_OVER_PIXELS+1
-;    ror LEFT_OVER_PIXELS
-    
-;    lda LEFT_OVER_PIXELS               ; Note: the result should always fit into one byte
-;    sta NR_OF_FULL_CACHE_WRITES
-;    beq middle_pixels_generated_8      ; We should not draw any middle pixels
-;    jsr generate_draw_middle_pixels_code
-;middle_pixels_generated_8:
-    
 gen_generate_jump_to_second_table:
 
     ;   Note: the table is reversed: since the higher y-number will the less pixels. (so the *beginning* of the table will point to the *end* of the code), when no stz-calls are made)
