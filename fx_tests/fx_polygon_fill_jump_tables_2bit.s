@@ -3,7 +3,7 @@
 generate_single_fill_line_code:
     
     ; This routines expects this:
-    ;    FILL_LENGTH_LOW (2-bit)   : X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1], 0
+    ;    FILL_LENGTH_LOW (shifted left) (2-bit)   : X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1], 0
     ;
     ; Note: X2[-1] is not mentioned here, since it is shifted-out and put in the CARRY instead (during code-run)
     ;       So we are assuming all bits are already shifted to the left!
@@ -82,9 +82,6 @@ generate_single_fill_line_code:
     jsr generate_dummy_offset        ; = dummy offset byte (PATCHED later on!)
     
     ; We first generate the code that deals with >= 8 pixels (4-bit)
-; FIXME! REMOVE THE ldx in here!!
-; FIXME! REMOVE THE ldx in here!!
-; FIXME! REMOVE THE ldx in here!!
     jsr gen_more_or_equal_to_8_pixels
     
     ; We remember the address where the code (when FILL_LENGTH_HIGH is zero) will start
@@ -109,6 +106,10 @@ generate_single_fill_line_code:
     ; We then generate the code that deals with < 8 pixels (4-bit)
     
 gen_less_than_8_pixels:
+
+; FIXME: do START-POKE!
+; FIXME: do END-POKE!
+
 
     ; If we have less than 8 pixels AND fill length low == 0, we have nothing to do, so we go to the end
     lda GEN_FILL_LENGTH_LOW
@@ -241,8 +242,65 @@ jump_address_is_valid:
     rts
     
     
+generate_conditional_end_poke:
+
+    ; -- bcc ..
+    lda #$90               ; bcc ....
+    jsr add_code_byte
+
+    ; The opcoming POKE commands take 8 bytes of code (we want to skip that code if no END-POKE is needed)
+    lda #$08               ; branch-offset
+    jsr add_code_byte
+
+    ; -- lda #{END_POKE_BYTE}
+    lda #$A9               ; lda #....
+    jsr add_code_byte
+
+    ; Note: NR_OF_ENDING_PIXELS is in 4-bit pixels!
+    
+    lda NR_OF_ENDING_PIXELS  ; 00000, X2[2], X2[1], X2[0]
+    lsr a                    ; 000000, X2[2], X2[1]
+    sta GEN_POKE_BYTE
+    
+    lda NR_OF_ENDING_PIXELS  ; 00000, X2[2], X2[1], X2[0]
+    and #%00000001
+    lsr a                    ; 00000000 (X2[0] in CARRY)
+    ror a                    ; X2[0], 0000000
+    
+    ; Since this is an end-poke, X2 has to be *even* (so X2[-1] has to be 0)
+    ora #%00000000           ; X2[0], X2[-1], 000000  (since we are end-poking, X2[-1] has to be 0)
+    ora GEN_POKE_BYTE        ; X2[0], X2[-1], 0000, X2[2], X2[1]
+    jsr add_code_byte        ; #{END_POKE_BYTE}
+    
+    ; -- sta VERA_ADDR_LOW ($9F20)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$20               ; $20
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    ; -- sta VERA_DATA1 ($9F24)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+
+    rts
+
+
+    
     
 generate_fill_line_end_code:
+
+; FIXME: for 2-bit mode (and 320px wide screen) we only need to generate 40 cache writes! (but for 640px we need 40, so we might as well generate 40?)
 
     ; -------------- FILL_LINE_END_CODE_0 ---------------
     
@@ -252,6 +310,10 @@ generate_fill_line_end_code:
     sta CODE_ADDRESS+1
     
     jsr generate_40_fill_line_end_codes
+    
+    lda #0
+    sta NR_OF_ENDING_PIXELS
+    jsr generate_conditional_end_poke
     
     ; Note: for FILL_LINE_END_CODE_0 there is no additional (sub 4 byte) pixel draw
     
@@ -269,6 +331,10 @@ generate_fill_line_end_code:
     sta CODE_ADDRESS+1
     
     jsr generate_40_fill_line_end_codes
+    
+    lda #1
+    sta NR_OF_ENDING_PIXELS
+    jsr generate_conditional_end_poke
     
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
@@ -302,6 +368,10 @@ generate_fill_line_end_code:
     
     jsr generate_40_fill_line_end_codes
     
+    lda #2
+    sta NR_OF_ENDING_PIXELS
+    jsr generate_conditional_end_poke
+    
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
     jsr add_code_byte
@@ -333,6 +403,10 @@ generate_fill_line_end_code:
     sta CODE_ADDRESS+1
     
     jsr generate_40_fill_line_end_codes
+    
+    lda #3
+    sta NR_OF_ENDING_PIXELS
+    jsr generate_conditional_end_poke
     
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
@@ -367,6 +441,10 @@ generate_fill_line_end_code:
     
     jsr generate_40_fill_line_end_codes
     
+    lda #4
+    sta NR_OF_ENDING_PIXELS
+    jsr generate_conditional_end_poke
+    
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
     jsr add_code_byte
@@ -398,6 +476,10 @@ generate_fill_line_end_code:
     sta CODE_ADDRESS+1
     
     jsr generate_40_fill_line_end_codes
+    
+    lda #5
+    sta NR_OF_ENDING_PIXELS
+    jsr generate_conditional_end_poke
     
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
@@ -431,6 +513,10 @@ generate_fill_line_end_code:
     
     jsr generate_40_fill_line_end_codes
     
+    lda #6
+    sta NR_OF_ENDING_PIXELS
+    jsr generate_conditional_end_poke
+    
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
     jsr add_code_byte
@@ -462,6 +548,10 @@ generate_fill_line_end_code:
     sta CODE_ADDRESS+1
     
     jsr generate_40_fill_line_end_codes
+    
+    lda #7
+    sta NR_OF_ENDING_PIXELS
+    jsr generate_conditional_end_poke
     
     ; -- lda #{NIBBLE_PATTERN}
     lda #$A9               ; lda #....
@@ -680,7 +770,7 @@ next_fill_instruction:
     
     inx
     cpx #40
-    bne next_fill_instruction  ; 80 (or 40) times a "fill 4-bytes" written to VERA
+    bne next_fill_instruction  ; 40 times a "fill 4-bytes" written to VERA
     
     rts
 

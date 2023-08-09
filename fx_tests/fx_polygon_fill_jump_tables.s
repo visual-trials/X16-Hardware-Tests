@@ -282,7 +282,7 @@ generate_table_jump_without_ldx:
     jsr add_code_byte
     
     rts
-
+    
 ; FIXME: maybe split this function into ldx ... and jmp(...,x) -> see generate_table_jump_without_ldx above!
 generate_table_jump:
 
@@ -361,7 +361,11 @@ generate_fill_line_iterate_code:
     jsr add_code_byte
         
     ; IMPORTANT: if you change any of the below code byte make sure you change this number accordingly!
-    lda #$09               ; ... fill_done -> branches to the rts opcode below!
+    .if(DO_4BIT && DO_2BIT)
+        lda #$0B               ; ... fill_done -> branches to the rts opcode below!
+    .else
+        lda #$09               ; ... fill_done -> branches to the rts opcode below!
+    .endif
     jsr add_code_byte
         
     ; -- lda VERA_DATA1 ($9F24)

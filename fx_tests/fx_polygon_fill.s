@@ -174,6 +174,11 @@ start_drawing_triangles:
             ora #%00000100           ; 4-bit mode = 1
         .endif
         sta VERA_FX_CTRL
+        
+        .if(DO_4BIT && DO_2BIT)
+            lda #%00000001           ; 2-bit polygon mode = 1
+            sta VERA_FX_TILEBASE
+        .endif
     .else
         .if(DO_4BIT)
             lda #%00000100           ; 4-bit mode = 1
@@ -455,6 +460,11 @@ done_drawing_all_triangles:
 
         lda #%00000000           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
         sta VERA_FX_CTRL
+        
+        .if(DO_4BIT && DO_2BIT)
+            lda #%00000000           ; 2-bit polygon mode = 0
+            sta VERA_FX_TILEBASE
+        .endif
     .else
         .if(DO_4BIT)
             ; If we are in 4-bit mode (but we are not using the polygon filler) we should disable 4-bit mode
@@ -1223,28 +1233,42 @@ first_left_point_is_lower_in_y:
         
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
             ldy Y_DISTANCE_LEFT_TOP
-            
-            lda #%00001010           ; DCSEL=5, ADDRSEL=0
-            sta VERA_CTRL
-
+ 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
 
             .if(!DO_4BIT)
                 ; 8-bit mode
+                lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                sta VERA_CTRL
                 ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+                
+                jsr do_the_jump_to_the_table
             .else
                 .if(!DO_2BIT)
                     ; 4-bit mode
+                    lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                    sta VERA_CTRL
                     ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 8,  X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+                    
+                    jsr do_the_jump_to_the_table
                 .else
                     ; 2-bit mode
+                    ; Because we have to POKE, we need ADDR1 to be selected in 2-bit mode
+                    lda #%00001011           ; DCSEL=5, ADDRSEL=1
+                    sta VERA_CTRL
+                    
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
                     asl
                     tax
+                    
+                    jsr do_the_jump_to_the_table
+                    
+                    ; Afterwards we select ADDR0 again
+                    lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                    sta VERA_CTRL
                 .endif
             .endif
-            jsr do_the_jump_to_the_table
         .else
             lda Y_DISTANCE_LEFT_TOP
             sta NUMBER_OF_ROWS
@@ -1275,27 +1299,42 @@ first_left_point_is_lower_in_y:
         sta VERA_FX_X_INCR_H
 
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
-            lda #%00001010           ; DCSEL=5, ADDRSEL=0
-            sta VERA_CTRL
 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
             .if(!DO_4BIT)
                 ; 8-bit mode
+                lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                sta VERA_CTRL
                 ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+                
+                jsr do_the_jump_to_the_table
             .else
                 .if(!DO_2BIT)
                     ; 4-bit mode
+                    lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                    sta VERA_CTRL
                     ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 8,  X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+                    
+                    jsr do_the_jump_to_the_table
                 .else
                     ; 2-bit mode
+                    ; Because we have to POKE, we need ADDR1 to be selected in 2-bit mode
+                    lda #%00001011           ; DCSEL=5, ADDRSEL=1
+                    sta VERA_CTRL
+                    
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
                     asl
                     tax
+                    
+                    jsr do_the_jump_to_the_table
+                    
+                    ; Afterwards we select ADDR0 again
+                    lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                    sta VERA_CTRL
                 .endif
             .endif
-            jsr do_the_jump_to_the_table
         .else
             ; -- We draw the second part of the triangle --
             jsr draw_polygon_part_using_polygon_filler_naively
@@ -1306,27 +1345,41 @@ first_right_point_is_lower_in_y:
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
             ldy Y_DISTANCE_RIGHT_TOP
             
-            lda #%00001010           ; DCSEL=5, ADDRSEL=0
-            sta VERA_CTRL
-
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
             .if(!DO_4BIT)
                 ; 8-bit mode
+                lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                sta VERA_CTRL
                 ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+                
+                jsr do_the_jump_to_the_table
             .else
                 .if(!DO_2BIT)
                     ; 4-bit mode
+                    lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                    sta VERA_CTRL
                     ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 8,  X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+                    
+                    jsr do_the_jump_to_the_table
                 .else
                     ; 2-bit mode
+                    ; Because we have to POKE, we need ADDR1 to be selected in 2-bit mode
+                    lda #%00001011           ; DCSEL=5, ADDRSEL=1
+                    sta VERA_CTRL
+                    
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
                     asl
                     tax
+                    
+                    jsr do_the_jump_to_the_table
+                    
+                    ; Afterwards we select ADDR0 again
+                    lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                    sta VERA_CTRL
                 .endif
             .endif
-            jsr do_the_jump_to_the_table
         .else
             lda Y_DISTANCE_RIGHT_TOP
             sta NUMBER_OF_ROWS
@@ -1356,27 +1409,42 @@ first_right_point_is_lower_in_y:
         sta VERA_FX_Y_INCR_H
         
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
-            lda #%00001010           ; DCSEL=5, ADDRSEL=0
-            sta VERA_CTRL
 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
             .if(!DO_4BIT)
                 ; 8-bit mode
+                lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                sta VERA_CTRL
                 ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+                
+                jsr do_the_jump_to_the_table
             .else
                 .if(!DO_2BIT)
                     ; 4-bit mode
+                    lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                    sta VERA_CTRL
                     ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 8,  X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+                    
+                    jsr do_the_jump_to_the_table
                 .else
                     ; 2-bit mode
+                    ; Because we have to POKE, we need ADDR1 to be selected in 2-bit mode
+                    lda #%00001011           ; DCSEL=5, ADDRSEL=1
+                    sta VERA_CTRL
+                    
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
                     asl
                     tax
+                    
+                    jsr do_the_jump_to_the_table
+                    
+                    ; Afterwards we select ADDR0 again
+                    lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                    sta VERA_CTRL
                 .endif
             .endif
-            jsr do_the_jump_to_the_table
         .else
             ; -- We draw the second part of the triangle --
             jsr draw_polygon_part_using_polygon_filler_naively
@@ -1670,27 +1738,41 @@ y2address_is_setup_double_top:
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
             ldy Y_DISTANCE_LEFT_TOP
             
-            lda #%00001010           ; DCSEL=5, ADDRSEL=0
-            sta VERA_CTRL
-
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
             .if(!DO_4BIT)
                 ; 8-bit mode
+                lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                sta VERA_CTRL
                 ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+                
+                jsr do_the_jump_to_the_table
             .else
                 .if(!DO_2BIT)
                     ; 4-bit mode
+                    lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                    sta VERA_CTRL
                     ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 8,  X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+                    
+                    jsr do_the_jump_to_the_table
                 .else
                     ; 2-bit mode
+                    ; Because we have to POKE, we need ADDR1 to be selected in 2-bit mode
+                    lda #%00001011           ; DCSEL=5, ADDRSEL=1
+                    sta VERA_CTRL
+                    
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
                     asl
                     tax
+                    
+                    jsr do_the_jump_to_the_table
+                    
+                    ; Afterwards we select ADDR0 again
+                    lda #%00001010           ; DCSEL=5, ADDRSEL=0
+                    sta VERA_CTRL
                 .endif
             .endif
-            jsr do_the_jump_to_the_table
         .else
             lda Y_DISTANCE_LEFT_TOP
             sta NUMBER_OF_ROWS

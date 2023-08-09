@@ -231,6 +231,7 @@ GEN_START_X_SUB = GEN_LOANED_16_PIXELS
 GEN_FILL_LINE_CODE_INDEX = $A0
 
 TEST_POKE_BYTE           = $A1
+GEN_POKE_BYTE = TEST_POKE_BYTE
 
 TEST_COLUMN_NUMBER       = $A2
 TEST_FILL_LEN            = $A3
@@ -278,6 +279,7 @@ FILL_LINE_END_CODE_3     = $6E00   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta 
     .endif
     .if(DO_4BIT)
 ; 4-bit (and 2-bit):
+; FIXME: this now also contains END-POKE code! (which is not counted atm)
 ; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> YES??!
 FILL_LINE_END_CODE_0     = $6800   ; 3 (stz) * 40 (=320/8) = 120                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_END_CODE_1     = $6900   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
@@ -1138,8 +1140,8 @@ test_fill_length_jump_table:
     stz TEST_COLUMN_NUMBER  ; Column number (0 -> 3 or 0 -> 8 or 0 -> 15)
 TEST_pattern_column_next:
 ; FIXME!
-    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
-;    lda #2                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+;    lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
+    lda #17                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
 ;    lda #18                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
     sta TEST_FILL_LEN
 TEST_pattern_next:
@@ -1263,6 +1265,32 @@ fill_len_not_higher_than_or_equal_to_8:
         ora FILL_LENGTH_LOW  
         sta FILL_LENGTH_LOW  ; 0, X1[0:1], X1[2], FILL_LEN[2:0], 0
         
+        .if(0)
+            ; FIXME: we cant test this, since we are not in polygon mode! (and not in 2-bit polygon mode)
+            ; if we were to add X1[-1] or X2[-1] it would generate weird results, since ADDR_LOW is being written to
+            ; which has strange effects when not in polygon mode.
+        
+            lda LEFT_POINT_X     ; this is in 2-bit pixels!
+            and #%00000001       ; 0000000, X1[-1]
+            ora FILL_LENGTH_LOW
+            sta FILL_LENGTH_LOW  ; 0, X1[0:1], X1[2], FILL_LEN[2:0], X1[-1]
+            
+            ; We calculate X2[-1] = 2-bit start-x + 2-bit length % 1
+            clc
+            lda LEFT_POINT_X
+            adc TEST_FILL_LEN
+            and #%00000001       ; 0000000, X2[-1]
+            asl
+            asl
+            asl
+            asl
+            asl
+            asl
+            asl                  ; X2[-1], 0000000
+            ora FILL_LENGTH_LOW  
+            sta FILL_LENGTH_LOW  ; X2[-1], X1[0:1], X1[2], FILL_LEN[2:0], X1[-1]
+        .endif
+
         ; FIXME: we are missing the 2 highest bits here!
         lda TEST_FILL_LEN    ; FILL_LEN[9:-1] ; this is in 2-bit pixels!
         lsr
@@ -1274,10 +1302,7 @@ fill_len_not_higher_than_or_equal_to_8:
         .if(USE_SOFT_FILL_LEN)
             sta FILL_LENGTH_HIGH_SOFT
         .endif
-        
-; FIXME! add X1[-1]
-; FIXME! add X2[-1] (= 2-bit start + 2-bit length % 1)
-        
+       
         ; We have to shift to the left first! (for generating the code) BUT we also need to keep the CARRY! (for running the code)
         lda FILL_LENGTH_LOW
         asl a
@@ -1292,7 +1317,7 @@ fill_len_not_higher_than_or_equal_to_8:
         
     .endif
     
-    .if(0)
+    .if(1)
 ; FIXME: is the CARRY preserved until we run?
         jsr generate_single_fill_line_code
         ; stp
@@ -1414,7 +1439,7 @@ test_simple_polygon_filler:
     sta VERA_FX_CTRL
     
     .if(DO_2BIT)
-        lda #%00000001           ; 2bit polygon mode = 1
+        lda #%00000001           ; 2-bit polygon mode = 1
         sta VERA_FX_TILEBASE
     .endif
         
@@ -1663,14 +1688,14 @@ test_polygon_fill_triangle_row_next:
             lda #%00000101           ; DCSEL=2, ADDRSEL=1
             sta VERA_CTRL
         
-            lda #%00000000           ; 2bit polygon mode = 0
+            lda #%00000000           ; 2-bit polygon mode = 0
             sta VERA_FX_TILEBASE
             
             pla
         .endif
         sta VERA_ADDR_LOW  ; We store this back into the register
         .if(DO_2BIT)
-            lda #%00000001           ; 2bit polygon mode = 1
+            lda #%00000001           ; 2-bit polygon mode = 1
             sta VERA_FX_TILEBASE
 
             lda #%00001011           ; DCSEL=5, ADDRSEL=1
@@ -2187,10 +2212,12 @@ load_next_triangle:
     
     .if(1)
 ; FIXME!
-NR_OF_TRIANGLES = 12
+NR_OF_TRIANGLES = 1
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
-   .word   0,   0,   100,  70,    0,  50,    4       ; all positive slopes
+; FIXME!
+;   .word   0,   0,   100,  70,    0,  50,    4       ; all positive slopes
+   .word   0,   0,   100,  70,    0,  50,    255       ; all positive slopes
    .word   0,   0,   200,   1,  100,  70,    5
    .word   0,   0,   280,   0,  200,   1,    3
    .word 200,   1,   279,   0,  280,   120,  7
