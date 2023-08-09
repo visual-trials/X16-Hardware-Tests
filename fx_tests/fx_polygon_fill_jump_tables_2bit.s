@@ -173,15 +173,21 @@ gen_start_and_end_in_same_column:
     
 gen_more_or_equal_to_8_pixels:
 
-; FIXME: do START-POKE!
-    
+    .if(1)
     lda GEN_START_X_SUB
     beq starting_pixels_can_be_generated
     
     jsr generate_start_poke
     
     ; When doing a starting POKE, we *skip* the first 4-bit pixel, so we remove it here
-    dec LEFT_OVER_PIXELS
+    sec
+    lda LEFT_OVER_PIXELS
+    sbc #1
+    sta LEFT_OVER_PIXELS
+    lda LEFT_OVER_PIXELS+1
+    sbc #0
+    sta LEFT_OVER_PIXELS+1
+    
     dec NR_OF_STARTING_PIXELS
     ; Note: we are not incrementing GEN_START_X, since the variable is not used after this
     bne starting_pixels_can_be_generated
@@ -194,13 +200,11 @@ gen_more_or_equal_to_8_pixels:
     bra gen_generate_jump_to_second_table
     
 starting_pixels_can_be_generated:
+    .endif
     
     ; ============= generate starting pixels code (>= 8 (4-bit) pixels) ===============
 
     ; if NR_OF_STARTING_PIXELS == 8 (meaning GEN_START_X == 0) we do not subtract 8 of the total left-over pixel count and we do NOT generate starting pixels!
-; FIXME! This is UNTRUE if START-POKING needs to be done! One pixel should then be SUBTRACTED!
-; FIXME! This is UNTRUE if START-POKING needs to be done! One pixel should then be SUBTRACTED!
-; FIXME! This is UNTRUE if START-POKING needs to be done! One pixel should then be SUBTRACTED!
     lda NR_OF_STARTING_PIXELS
     cmp #8
     beq gen_generate_jump_to_second_table

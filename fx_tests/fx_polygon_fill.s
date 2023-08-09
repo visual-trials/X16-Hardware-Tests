@@ -1267,6 +1267,7 @@ first_left_point_is_lower_in_y:
                     ; Afterwards we select ADDR0 again
                     lda #%00001010           ; DCSEL=5, ADDRSEL=0
                     sta VERA_CTRL
+                    
                 .endif
             .endif
         .else
