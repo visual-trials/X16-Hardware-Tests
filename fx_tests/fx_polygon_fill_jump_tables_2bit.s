@@ -71,7 +71,7 @@ generate_single_fill_line_code:
     sta LEFT_OVER_PIXELS
 
     ; We create a conditional branch to the code when FILL_LENGTH_HIGH (during run time) is zero -> towards the code 
-    jsr generate_load_fill_len_high  ; = ldx $9F2C
+    jsr generate_load_fill_len_high  ; = ldx VERA_FX_POLY_FILL_H
     jsr generate_beq                 ; = beq ...
     
     ; Since we dont know yet how long the code (when FILL_LENGTH_HIGH is not zero) will be, we remember the place WHERE we have to PATCH the offset

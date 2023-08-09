@@ -234,7 +234,7 @@ generate_draw_ending_pixels_code:
     
 generate_load_fill_len_high:
 
-    ; -- ldx $9F2C (= FILL_LENGTH_HIGH from VERA)
+    ; -- ldx $9F2C (= VERA_FX_POLY_FILL_H)
     lda #$AE               ; ldx ....
     jsr add_code_byte
 
@@ -286,7 +286,7 @@ generate_table_jump_without_ldx:
 ; FIXME: maybe split this function into ldx ... and jmp(...,x) -> see generate_table_jump_without_ldx above!
 generate_table_jump:
 
-    ; -- ldx $9F2C (= FILL_LENGTH_HIGH from VERA)
+    ; -- ldx $9F2C (= VERA_FX_POLY_FILL_H)
     lda #$AE               ; ldx ....
     jsr add_code_byte
 

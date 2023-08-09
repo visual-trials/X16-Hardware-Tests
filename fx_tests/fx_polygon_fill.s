@@ -173,11 +173,11 @@ start_drawing_triangles:
         .if(DO_4BIT)
             ora #%00000100           ; 4-bit mode = 1
         .endif
-        sta $9F29
+        sta VERA_FX_CTRL
     .else
         .if(DO_4BIT)
             lda #%00000100           ; 4-bit mode = 1
-            sta $9F29
+            sta VERA_FX_CTRL
         .endif
     .endif
     
@@ -223,10 +223,10 @@ draw_next_triangle:
 
         ; SPEED: we can skip this load if we use register y for setting up DCSEL=6
         lda TRIANGLE_COLOR
-        sta $9F29                ; cache32[7:0]
-        sta $9F2A                ; cache32[15:8]
-        sta $9F2B                ; cache32[23:16]
-        sta $9F2C                ; cache32[31:24]
+        sta VERA_FX_CACHE_L      ; cache32[7:0]
+        sta VERA_FX_CACHE_M      ; cache32[15:8]
+        sta VERA_FX_CACHE_H      ; cache32[23:16]
+        sta VERA_FX_CACHE_U      ; cache32[31:24]
 
         ; FIXME: do we *need* to set this to DCSEL=2 here?
         lda #%00000100           ; DCSEL=2, ADDRSEL=0
@@ -454,7 +454,7 @@ done_drawing_all_triangles:
         sta VERA_CTRL
 
         lda #%00000000           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
-        sta $9F29
+        sta VERA_FX_CTRL
     .else
         .if(DO_4BIT)
             ; If we are in 4-bit mode (but we are not using the polygon filler) we should disable 4-bit mode
@@ -462,7 +462,7 @@ done_drawing_all_triangles:
             sta VERA_CTRL
             
             lda #%00000000           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
-            sta $9F29
+            sta VERA_FX_CTRL
         .endif
     .endif
     
@@ -1148,14 +1148,14 @@ y2address_is_setup_single_top:
         sta VERA_CTRL
         
         lda TOP_POINT_X
-        sta $9F29                ; X (=X1) pixel position low [7:0]
-        sta $9F2B                ; Y (=X2) pixel position low [7:0]
+        sta VERA_FX_X_POS_L      ; X (=X1) pixel position low [7:0]
+        sta VERA_FX_Y_POS_L      ; Y (=X2) pixel position low [7:0]
         
         ; NOTE: we are also *setting* the subpixel position (bit0) here! Even though we just resetted it! 
         ;       but its ok, since its reset to half a pixel (see above), meaning bit0 is 0 anyway
         lda TOP_POINT_X+1
-        sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
-        sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
+        sta VERA_FX_X_POS_H      ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
+        sta VERA_FX_Y_POS_H      ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
         
@@ -1207,14 +1207,14 @@ y2address_is_setup_single_top:
 
         ; NOTE that these increments are *HALF* steps!!
         lda SLOPE_TOP_LEFT       ; X1 increment low (signed)
-        sta $9F29
+        sta VERA_FX_X_INCR_L
         lda SLOPE_TOP_LEFT+1     ; X1 increment high (signed)
-        sta $9F2A
+        sta VERA_FX_X_INCR_H
 
         lda SLOPE_TOP_RIGHT      ; X2 increment low (signed)
-        sta $9F2B                
+        sta VERA_FX_Y_INCR_L
         lda SLOPE_TOP_RIGHT+1    ; X2 increment high (signed)
-        sta $9F2C    
+        sta VERA_FX_Y_INCR_H
     
         ; We determine which of LEFT or RIGHT is lower in y and chose number of rows to that point
         lda Y_DISTANCE_IS_NEGATED
@@ -1228,9 +1228,22 @@ first_left_point_is_lower_in_y:
             sta VERA_CTRL
 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
-    
-            ldx $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
-            
+
+            .if(!DO_4BIT)
+                ; 8-bit mode
+                ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+            .else
+                .if(!DO_2BIT)
+                    ; 4-bit mode
+                    ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 8,  X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+                .else
+                    ; 2-bit mode
+                    lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
+                    ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
+                    asl
+                    tax
+                .endif
+            .endif
             jsr do_the_jump_to_the_table
         .else
             lda Y_DISTANCE_LEFT_TOP
@@ -1257,9 +1270,9 @@ first_left_point_is_lower_in_y:
     
         ; NOTE that these increments are *HALF* steps!!
         lda SLOPE_RIGHT_LEFT     ; X1 increment low
-        sta $9F29
+        sta VERA_FX_X_INCR_L
         lda SLOPE_RIGHT_LEFT+1   ; X1 increment high
-        sta $9F2A
+        sta VERA_FX_X_INCR_H
 
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
             lda #%00001010           ; DCSEL=5, ADDRSEL=0
@@ -1267,8 +1280,21 @@ first_left_point_is_lower_in_y:
 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
-            ldx $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
-            
+            .if(!DO_4BIT)
+                ; 8-bit mode
+                ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+            .else
+                .if(!DO_2BIT)
+                    ; 4-bit mode
+                    ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 8,  X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+                .else
+                    ; 2-bit mode
+                    lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
+                    ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
+                    asl
+                    tax
+                .endif
+            .endif
             jsr do_the_jump_to_the_table
         .else
             ; -- We draw the second part of the triangle --
@@ -1285,8 +1311,21 @@ first_right_point_is_lower_in_y:
 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
-            ldx $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
-            
+            .if(!DO_4BIT)
+                ; 8-bit mode
+                ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+            .else
+                .if(!DO_2BIT)
+                    ; 4-bit mode
+                    ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 8,  X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+                .else
+                    ; 2-bit mode
+                    lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
+                    ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
+                    asl
+                    tax
+                .endif
+            .endif
             jsr do_the_jump_to_the_table
         .else
             lda Y_DISTANCE_RIGHT_TOP
@@ -1312,9 +1351,9 @@ first_right_point_is_lower_in_y:
     
         ; NOTE that these increments are *HALF* steps!!
         lda SLOPE_RIGHT_LEFT     ; X2 increment low
-        sta $9F2B                
+        sta VERA_FX_Y_INCR_L
         lda SLOPE_RIGHT_LEFT+1   ; X2 increment high
-        sta $9F2C
+        sta VERA_FX_Y_INCR_H
         
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
             lda #%00001010           ; DCSEL=5, ADDRSEL=0
@@ -1322,8 +1361,21 @@ first_right_point_is_lower_in_y:
 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
-            ldx $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
-            
+            .if(!DO_4BIT)
+                ; 8-bit mode
+                ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+            .else
+                .if(!DO_2BIT)
+                    ; 4-bit mode
+                    ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 8,  X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+                .else
+                    ; 2-bit mode
+                    lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
+                    ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
+                    asl
+                    tax
+                .endif
+            .endif
             jsr do_the_jump_to_the_table
         .else
             ; -- We draw the second part of the triangle --
@@ -1543,16 +1595,16 @@ y2address_is_setup_double_top:
         sta VERA_CTRL
         
         lda LEFT_POINT_X
-        sta $9F29                ; X (=X1) pixel position low [7:0]
+        sta VERA_FX_X_POS_L      ; X (=X1) pixel position low [7:0]
         lda RIGHT_POINT_X
-        sta $9F2B                ; Y (=X2) pixel position low [7:0]
+        sta VERA_FX_Y_POS_L      ; Y (=X2) pixel position low [7:0]
         
         ; NOTE: we are also *setting* the subpixel position (bit0) here! Even though we just resetted it! 
         ;       but its ok, since its reset to half a pixel (see above), meaning bit0 is 0 anyway
         lda LEFT_POINT_X+1
-        sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
+        sta VERA_FX_X_POS_H                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
         lda RIGHT_POINT_X+1
-        sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
+        sta VERA_FX_Y_POS_H      ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
 
         ; Note: when setting the x and y pixel positions, ADDR1 will be set as well: ADDR1 = ADDR0 + x1. So there is no need to set ADDR1 explicitly here.
     
@@ -1606,14 +1658,14 @@ y2address_is_setup_double_top:
 
         ; NOTE that these increments are *HALF* steps!!
         lda SLOPE_LEFT_BOTTOM    ; X1 increment low (signed)
-        sta $9F29
+        sta VERA_FX_X_INCR_L
         lda SLOPE_LEFT_BOTTOM+1  ; X1 increment high (signed)
-        sta $9F2A
+        sta VERA_FX_X_INCR_H
 
         lda SLOPE_RIGHT_BOTTOM   ; X2 increment low (signed)
-        sta $9F2B                
+        sta VERA_FX_Y_INCR_L
         lda SLOPE_RIGHT_BOTTOM+1 ; X2 increment high (signed)
-        sta $9F2C    
+        sta VERA_FX_Y_INCR_H
     
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
             ldy Y_DISTANCE_LEFT_TOP
@@ -1623,8 +1675,21 @@ y2address_is_setup_double_top:
 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
     
-            ldx $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
-            
+            .if(!DO_4BIT)
+                ; 8-bit mode
+                ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+            .else
+                .if(!DO_2BIT)
+                    ; 4-bit mode
+                    ldx VERA_FX_POLY_FILL_L  ; This contains: FILL_LENGTH >= 8,  X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+                .else
+                    ; 2-bit mode
+                    lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
+                    ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
+                    asl
+                    tax
+                .endif
+            .endif
             jsr do_the_jump_to_the_table
         .else
             lda Y_DISTANCE_LEFT_TOP
@@ -1882,7 +1947,8 @@ draw_polygon_part_using_polygon_filler_naively:
 polygon_fill_triangle_row_next:
 
     .if(USE_JUMP_TABLE)
-        ldx $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+        ldx VERA_FX_POLY_FILL_L   ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+; FIXME! This value has to be shifted to the left for 2-bit mode!
         
 
 ; FIXME! WORKAROUND/TESTING!
@@ -1890,7 +1956,7 @@ polygon_fill_triangle_row_next:
 ; FIXME! WORKAROUND/TESTING!
         cpx #%10000000
         bne tmp_keep_moving_on
-        lda $9F2C
+        lda VERA_FX_POLY_FILL_H
         ; Safety feature: when fill length is negative, we are done
         ; FIXME: we should actually check bits 8 *and* 9 to see if they are 1 (>=768 fill length)
         bmi polygon_fill_triangle_done
@@ -1929,12 +1995,12 @@ polygon_fill_triangle_done_table:
     
     stz FILL_LENGTH_HIGH
     
-    lda $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+    lda VERA_FX_POLY_FILL_L ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
     lsr
     and #%00000111          ; we keep the 3 lower bits (bit 4 is ALSO in the HIGH byte, so we discard it here)
     sta FILL_LENGTH_LOW
 
-    lda $9F2C               ; This contains FILL_LENGTH[9:3], 0
+    lda VERA_FX_POLY_FILL_H ; This contains FILL_LENGTH[9:3], 0
 ; FIXME! THIS DOESNT SEEM TO WORK!
     ; Safety feature: when fill length is negative, we are done
     ; FIXME: we should actually check bits 8 *and* 9 to see if they are 1 (>=768 fill length)

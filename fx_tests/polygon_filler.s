@@ -21,7 +21,7 @@ USE_DOUBLE_BUFFER = 0   ; Note: this is not setup in this program!
 TEST_JUMP_TABLE = 1 ; This turns off the iteration in-between the jump-table calls
 
 ; This setting is used in the routine test_fill_length_jump_table. -> turn this OFF when using the jump tables otherwise! (it changes the jump table code!)
-USE_SOFT_FILL_LEN = 1; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
+USE_SOFT_FILL_LEN = 1 ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
     
 COLOR_CHECK        = $05 ; Background color = 0, foreground color 5 (green)
@@ -429,21 +429,21 @@ reset:
         
       jsr print_time_elapsed
 
-      ; This is for testing if *reading* from $9F29 works
+      ; This is for testing if *reading* from VERA_FX_CTRL works
       .if(0)
         
         lda #%00000100           ; DCSEL=2, ADDRSEL=0
         sta VERA_CTRL
         
         lda #%01010101           ; random setting
-        sta $9F29
+        sta VERA_FX_CTRL
         lda #0
         
-        ldx $9F29
+        ldx VERA_FX_CTRL
         stx BYTE_TO_PRINT
         
         lda #%00000000
-        sta $9F29
+        sta VERA_FX_CTRL
         
         lda #%00000000           ; DCSEL=0, ADDRSEL=0
         sta VERA_CTRL
@@ -501,7 +501,7 @@ TMP_test_16bit_hop_mode:
 
 ; FIXME: 16bit hop mode!
     lda #%00001000           ; 16bit hopping, normal addr1 mode, 8-bit mode 
-    sta $9F29
+    sta VERA_FX_CTRL
 
     lda #%00110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 4 bytes
     sta VERA_ADDR_BANK
@@ -539,7 +539,7 @@ TMP_test_16bit_hop_mode:
     
     
     lda #%00000000              ; normal addr1 mode, 8-bit mode 
-    sta $9F29
+    sta VERA_FX_CTRL
     
     rts
     
@@ -554,7 +554,7 @@ TMP_test_alt_cache_increments:
     sta VERA_CTRL
     
     lda #%00000000           ; normal addr1 mode, 8-bit mode 
-    sta $9F29
+    sta VERA_FX_CTRL
 
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte
     sta VERA_ADDR_BANK
@@ -582,10 +582,10 @@ TMP_test_alt_cache_increments:
     
     lda #%00100000           ; cache fill enabled = 1, 8-bit mode, normal addr1 mode
     ora #%01000000           ; cache write enabled = 1
-    sta $9F29
+    sta VERA_FX_CTRL
 
     lda #%00001001           ; cache increment mode = 1, cache index = ..
-    sta $9F2C
+    sta VERA_FX_MULT
     
     ; Filling cache (from address 0)
     stz VERA_ADDR_LOW
@@ -624,7 +624,7 @@ TMP_test_one_byte_caching_stuff:
     sta VERA_CTRL
     
     lda #%00000000           ; normal addr1 mode, 8-bit mode 
-    sta $9F29
+    sta VERA_FX_CTRL
     
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte
     sta VERA_ADDR_BANK
@@ -639,7 +639,7 @@ TMP_test_one_byte_caching_stuff:
 ;    lda #$23                 ; red and cyan (in 4bit pixels)
     lda #$20                 ; red and black/transparent (in 4bit pixels)
 ;    lda #$02                 ; black/transparent and red (in 4bit pixels)
-    sta $9F29
+    sta VERA_FX_CACHE_L
 
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
@@ -649,7 +649,7 @@ TMP_test_one_byte_caching_stuff:
     ora #%00000100           ; 4-bit mode 
 ;    ora #%01000000           ; blit write = 1
     ora #%10000000           ; transp. writes = 1
-    sta $9F29
+    sta VERA_FX_CTRL
     
     .if(0)
         ; write from cache
@@ -678,7 +678,7 @@ TMP_test_4bit_hello_world:
     sta VERA_CTRL
     
     lda #%00000000           ; normal addr1 mode, 8-bit mode 
-    sta $9F29
+    sta VERA_FX_CTRL
     
     lda #%00010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 1 byte
     sta VERA_ADDR_BANK
@@ -702,7 +702,7 @@ TMP_test_4bit_hello_world:
     sta VERA_CTRL
     
     lda #%00000100           ; normal addr1 mode, 4-bit mode 
-    sta $9F29
+    sta VERA_FX_CTRL
 
     lda #%00000100           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 0.5 bytes
     sta VERA_ADDR_BANK
@@ -750,7 +750,7 @@ TMP_test_4bit_hello_world:
     sta VERA_ADDR_LOW
     
     lda #%00100100           ; cache fill enabled = 1, 4-bit mode, normal addr1 mode
-    sta $9F29
+    sta VERA_FX_CTRL
     
     
 ; FIXME: maybe cache reset?
@@ -763,7 +763,7 @@ TMP_test_4bit_hello_world:
     
     
     lda #%00000100           ; cache fill enabled = 0, 4-bit mode, normal addr1 mode
-    sta $9F29
+    sta VERA_FX_CTRL
     
     
     ; --- writing cache to VRAM ---
@@ -773,13 +773,13 @@ TMP_test_4bit_hello_world:
     
     lda #%11000100           ; transp. writes = 1, blit write enabled = 1, 4-bit mode, normal addr1 mode
 ;    lda #%01000100           ; blit write enabled = 1, 4-bit mode, normal addr1 mode
-    sta $9F29
+    sta VERA_FX_CTRL
     
     ; Write the full cache to VRAM
     stz VERA_DATA0
     
     lda #%00000100           ; blit write enabled = 0, 4-bit mode, normal addr1 mode
-    sta $9F29
+    sta VERA_FX_CTRL
     
     rts
   
@@ -1049,19 +1049,19 @@ set_cache32_with_color_slow:
     .if(USE_DITHERING)
         ; TODO: right now we assume that dithering is only used for 2bit mode, but we might use it for 4bit mode as well
         lda #TEST_FILL_COLOR_0
-        sta $9F29                ; cache32[7:0]
+        sta VERA_FX_CACHE_L      ; cache32[7:0]
         lda #TEST_FILL_COLOR_1
-        sta $9F2A                ; cache32[15:8]
+        sta VERA_FX_CACHE_M      ; cache32[15:8]
         lda #TEST_FILL_COLOR_2
-        sta $9F2B                ; cache32[23:16]
+        sta VERA_FX_CACHE_H      ; cache32[23:16]
         lda #TEST_FILL_COLOR_3
-        sta $9F2C                ; cache32[31:24]
+        sta VERA_FX_CACHE_U      ; cache32[31:24]
     .else
         lda #TEST_FILL_COLOR
-        sta $9F29                ; cache32[7:0]
-        sta $9F2A                ; cache32[15:8]
-        sta $9F2B                ; cache32[23:16]
-        sta $9F2C                ; cache32[31:24]
+        sta VERA_FX_CACHE_L      ; cache32[7:0]
+        sta VERA_FX_CACHE_M      ; cache32[15:8]
+        sta VERA_FX_CACHE_H      ; cache32[23:16]
+        sta VERA_FX_CACHE_U      ; cache32[31:24]
     .endif
 
     ; We setup blit writes
@@ -1070,7 +1070,7 @@ set_cache32_with_color_slow:
     sta VERA_CTRL
 
     lda #%01000000           ; transparent writes = 0, blit write = 1, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
-    sta $9F29
+    sta VERA_FX_CTRL
 
     rts
   
@@ -1378,11 +1378,11 @@ test_simple_polygon_filler:
     .else
         lda #%00000010           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, polygon filler mode 
     .endif
-    sta $9F29
+    sta VERA_FX_CTRL
     
     .if(DO_2BIT)
         lda #%00000001           ; 2bit polygon mode = 1
-        sta $9F2A
+        sta VERA_FX_TILEBASE
     .endif
         
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
@@ -1391,27 +1391,27 @@ test_simple_polygon_filler:
     .if(DO_2BIT)
         ; NOTE that these increments are *HALF* steps!!
         lda #<(-110/2)             ; X1 increment low (signed)
-        sta $9F29
+        sta VERA_FX_X_INCR_L
         lda #>(-110/2)             ; X1 increment high (signed)
         and #%01111111           ; increment is only 15-bits long
-        sta $9F2A
+        sta VERA_FX_X_INCR_H
         lda #<(380/2)              ; X2 increment low (signed)
-        sta $9F2B                
+        sta VERA_FX_Y_INCR_L
         lda #>(380/2)              ; X2 increment high (signed)
         and #%01111111           ; increment is only 15-bits long
-        sta $9F2C       
+        sta VERA_FX_Y_INCR_H
     .else
         ; NOTE that these increments are *HALF* steps!!
         lda #<(-110)             ; X1 increment low (signed)
-        sta $9F29
+        sta VERA_FX_X_INCR_L
         lda #>(-110)             ; X1 increment high (signed)
         and #%01111111           ; increment is only 15-bits long
-        sta $9F2A
+        sta VERA_FX_X_INCR_H
         lda #<(380)              ; X2 increment low (signed)
-        sta $9F2B                
+        sta VERA_FX_Y_INCR_L
         lda #>(380)              ; X2 increment high (signed)
         and #%01111111           ; increment is only 15-bits long
-        sta $9F2C       
+        sta VERA_FX_Y_INCR_H
     .endif
     
     ; Setting x1 and x2 pixel position
@@ -1421,18 +1421,18 @@ test_simple_polygon_filler:
     
     .if(DO_2BIT)
         lda #<(TEST_TRIANGLE_TOP_POINT_X/2)
-        sta $9F29                ; X (=X1) pixel position low [7:0]
-        sta $9F2B                ; Y (=X2) pixel position low [7:0]
+        sta VERA_FX_X_POS_L      ; X (=X1) pixel position low [7:0]
+        sta VERA_FX_Y_POS_L      ; Y (=X2) pixel position low [7:0]
         lda #>(TEST_TRIANGLE_TOP_POINT_X/2)
-        sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
-        sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
+        sta VERA_FX_X_POS_H      ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
+        sta VERA_FX_Y_POS_H      ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
     .else
         lda #<TEST_TRIANGLE_TOP_POINT_X
-        sta $9F29                ; X (=X1) pixel position low [7:0]
-        sta $9F2B                ; Y (=X2) pixel position low [7:0]
+        sta VERA_FX_X_POS_L      ; X (=X1) pixel position low [7:0]
+        sta VERA_FX_Y_POS_L      ; Y (=X2) pixel position low [7:0]
         lda #>TEST_TRIANGLE_TOP_POINT_X
-        sta $9F2A                ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
-        sta $9F2C                ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
+        sta VERA_FX_X_POS_H      ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
+        sta VERA_FX_Y_POS_H      ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
     .endif
 
 
@@ -1469,17 +1469,17 @@ test_simple_polygon_filler:
     .if(DO_2BIT)
         ; NOTE that these increments are *HALF* steps!!
         lda #<(-1590/2)             ; X2 increment low
-        sta $9F2B                
+        sta VERA_FX_Y_INCR_L
         lda #>(-1590/2)             ; X2 increment high
         and #%01111111            ; increment is only 15-bits long
-        sta $9F2C
+        sta VERA_FX_Y_INCR_H
     .else
         ; NOTE that these increments are *HALF* steps!!
         lda #<(-1590)             ; X2 increment low
-        sta $9F2B                
+        sta VERA_FX_Y_INCR_L
         lda #>(-1590)             ; X2 increment high
         and #%01111111            ; increment is only 15-bits long
-        sta $9F2C
+        sta VERA_FX_Y_INCR_H
     .endif
 
     ; -------- Drawing BOTTOM part ----------
@@ -1497,10 +1497,11 @@ test_simple_polygon_filler:
     
     ; Normal addr1 mode
     lda #%00000000
-    sta $9F29
+    sta VERA_FX_CTRL
     
-    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
-    sta $9F2B     
+; FIXME: why are we doing this here?
+    lda #%00000000           ; map base addr = 0, map size = 2x2
+    sta VERA_FX_MAPBASE
     
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
@@ -1525,7 +1526,7 @@ test_polygon_fill_triangle_row_next:
     ; What we do below is SLOW: we are not using all the information we get here and are *only* reconstructing the 10-bit value.
     
     .if(DO_4BIT)
-        lda $9F2B               ; This contains: FILL_LENGTH >= 8, X1[1:0], X1[2], FILL_LENGTH[2:0], 0
+        lda VERA_FX_POLY_FILL_L ; This contains: FILL_LENGTH >= 8, X1[1:0], X1[2], FILL_LENGTH[2:0], 0
         sta TMP2
     
         ; --- TESTING HW ---
@@ -1630,14 +1631,14 @@ test_polygon_fill_triangle_row_next:
             sta VERA_CTRL
         
             lda #%00000000           ; 2bit polygon mode = 0
-            sta $9F2A
+            sta VERA_FX_TILEBASE
             
             pla
         .endif
         sta VERA_ADDR_LOW  ; We store this back into the register
         .if(DO_2BIT)
             lda #%00000001           ; 2bit polygon mode = 1
-            sta $9F2A
+            sta VERA_FX_TILEBASE
 
             lda #%00001011           ; DCSEL=5, ADDRSEL=1
             sta VERA_CTRL
@@ -1659,7 +1660,7 @@ test_polygon_fill_triangle_row_next:
             bpl test_skip_reading_fill_len_high   ; bit7 is the overflow bit, so if the number is positive (bit7=0) then we dont have to read the high bigts
         .endif
         
-        lda $9F2C               ; This contains: FILL_LENGTH[9:3], 0
+        lda VERA_FX_POLY_FILL_H ; This contains: FILL_LENGTH[9:3], 0
         asl
         rol FILL_LENGTH_HIGH
         asl
@@ -1670,14 +1671,14 @@ test_skip_reading_fill_len_high:
         
         lda FILL_LENGTH_LOW
     .else
-        lda $9F2B               ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
+        lda VERA_FX_POLY_FILL_L ; This contains: FILL_LENGTH >= 16, X1[1:0], FILL_LENGTH[3:0], 0
         
         lsr
         and #%00000111          ; We keep the 3 lower bits (note that bit 3 is ALSO in the HIGH byte, so we discard it here)
         sta FILL_LENGTH_LOW     ; We now have 3 bits in FILL_LENGTH_LOW
 
         stz FILL_LENGTH_HIGH
-        lda $9F2C               ; This contains: FILL_LENGTH[9:3], 0
+        lda VERA_FX_POLY_FILL_H ; This contains: FILL_LENGTH[9:3], 0
         asl
         rol FILL_LENGTH_HIGH
         asl
@@ -1705,16 +1706,16 @@ test_skip_reading_fill_len_high:
             lda #%00000101           ; DCSEL=2, ADDRSEL=1
             sta VERA_CTRL
         
-            lda $9F29
+            lda VERA_FX_CTRL
             eor #%00000010           ; turn off polygon mode
-            sta $9F29
+            sta VERA_FX_CTRL
             
             lda VERA_DATA1
             dex                      ; one less nibble length to draw (so 2 pixels less)
             
-            lda $9F29
+            lda VERA_FX_CTRL
             eor #%00000010           ; turn on polygon mode
-            sta $9F29
+            sta VERA_FX_CTRL
 
             lda #%00001011           ; DCSEL=5, ADDRSEL=1
             sta VERA_CTRL
@@ -1902,9 +1903,9 @@ clear_screen_fast_4_bytes:
 
     ; TODO: we *could* use 'one byte cache cycling' so we have to set only *one* byte of the cache here
     lda #BACKGROUND_COLOR
-    sta $9F29                ; cache32[7:0]
-    sta $9F2A                ; cache32[15:8]
-    sta $9F2B                ; cache32[23:16]
+    sta VERA_FX_CACHE_L      ; cache32[7:0]
+    sta VERA_FX_CACHE_M      ; cache32[15:8]
+    sta VERA_FX_CACHE_H      ; cache32[23:16]
 ; FIXME! Adding a TEST column here! -> maybe make this conditional?
     .if(!DO_4BIT)
         and #%00000000       ; black 8-bit pixel
@@ -1916,7 +1917,7 @@ clear_screen_fast_4_bytes:
             ora #%00000010   ; red 2-bit pixel
         .endif
     .endif
-    sta $9F2C                ; cache32[31:24]
+    sta VERA_FX_CACHE_U      ; cache32[31:24]
 
     ; We setup blit writes
     
@@ -1924,7 +1925,7 @@ clear_screen_fast_4_bytes:
     sta VERA_CTRL
 
     lda #%01000000           ; transparent writes = 0, blit write = 1, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
-    sta $9F29
+    sta VERA_FX_CTRL
     
     ; Left part of the screen (256 columns)
     
@@ -1992,7 +1993,7 @@ clear_next_column_right_4_bytes:
     bne clear_next_column_right_4_bytes
 
     lda #%00000000           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
-    sta $9F29
+    sta VERA_FX_CTRL
     
     rts
     
@@ -2152,7 +2153,8 @@ load_next_triangle:
     
     
     .if(1)
-NR_OF_TRIANGLES = 12
+; FIXME!
+NR_OF_TRIANGLES = 1
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
    .word   0,   0,   100,  70,    0,  50,    4       ; all positive slopes
