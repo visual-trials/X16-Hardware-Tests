@@ -173,9 +173,27 @@ gen_start_and_end_in_same_column:
     
 gen_more_or_equal_to_8_pixels:
 
+; FIXME: do START-POKE!
+    
+    lda GEN_START_X_SUB
+    beq no_start_poke_needed
+    
+    jsr generate_start_poke
+    
+    ; When doing a starting POKE, we *skip* the first 4-bit pixel, so we remove it here
+    dec NR_OF_STARTING_PIXELS
+    dec LEFT_OVER_PIXELS
+; FIXME: should we start one pixel later?
+; inc GEN_START_X ; we start 1 pixel later -> variable not used after this?
+    
+no_start_poke_needed:
+
     ; ============= generate starting pixels code (>= 8 (4-bit) pixels) ===============
 
     ; if NR_OF_STARTING_PIXELS == 8 (meaning GEN_START_X == 0) we do not subtract 8 of the total left-over pixel count and we do NOT generate starting pixels!
+; FIXME! This is UNTRUE if START-POKING needs to be done! One pixel should then be SUBTRACTED!
+; FIXME! This is UNTRUE if START-POKING needs to be done! One pixel should then be SUBTRACTED!
+; FIXME! This is UNTRUE if START-POKING needs to be done! One pixel should then be SUBTRACTED!
     lda NR_OF_STARTING_PIXELS
     cmp #8
     beq gen_generate_jump_to_second_table
@@ -242,6 +260,52 @@ jump_address_is_valid:
     rts
     
     
+    
+generate_start_poke:
+
+    ; -- lda #{START_POKE_BYTE}
+    lda #$A9               ; lda #....
+    jsr add_code_byte
+
+    ; Note: GEN_START_X is in 4-bit pixels!
+    
+    lda GEN_START_X          ; 00000, X1[2], X1[1], X1[0]
+    lsr a                    ; 000000, X1[2], X1[1]
+    sta GEN_POKE_BYTE
+    
+    lda GEN_START_X          ; 00000, X1[2], X1[1], X1[0]
+    and #%00000001
+    lsr a                    ; 00000000 (X1[0] in CARRY)
+    ror a                    ; X1[0], 0000000
+    
+    ; Since this is a start-poke, X1 has to be *odd* (so X1[-1] has to be 1)
+    ora #%01000000           ; X1[0], X1[-1], 000000  (since we are start-poking, X1[-1] has to be 1)
+    ora GEN_POKE_BYTE        ; X1[0], X1[-1], 0000, X1[2], X1[1]
+    jsr add_code_byte        ; #{START_POKE_BYTE}
+    
+    ; -- sta VERA_ADDR_LOW ($9F20)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$20               ; $20
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+    
+    ; -- sta VERA_DATA1 ($9F24)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+
+    rts
+
+    
 generate_conditional_end_poke:
 
     ; -- bcc ..
@@ -291,11 +355,8 @@ generate_conditional_end_poke:
     
     lda #$9F               ; $9F
     jsr add_code_byte
-    
 
     rts
-
-
     
     
 generate_fill_line_end_code:
