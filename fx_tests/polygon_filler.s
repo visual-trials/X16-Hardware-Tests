@@ -232,6 +232,9 @@ GEN_FILL_LINE_CODE_INDEX = $A0
 
 TEST_POKE_BYTE           = $A1
 
+TEST_COLUMN_NUMBER       = $A2
+TEST_FILL_LEN            = $A3
+
 DEBUG_VALUE              = $C7
 
 
@@ -1079,7 +1082,15 @@ TEST_set_address_using_y2address_table_and_point_x:
     ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
     ldx LEFT_POINT_Y
     
-    .if(DO_4BIT)
+    .if(!DO_4BIT)
+        lda LEFT_POINT_X+1
+        ; FIXME: we are destroying TOP_POINT_X here!
+        sta TOP_POINT_X+1
+    
+        lda LEFT_POINT_X
+        ; FIXME: we are destroying TOP_POINT_X here!
+        sta TOP_POINT_X
+    .else
         lda LEFT_POINT_X+1
         lsr a
         ; FIXME: we are destroying TOP_POINT_X here!
@@ -1119,27 +1130,18 @@ test_fill_length_jump_table:
     lda #8
     sta LEFT_POINT_Y
     
-; FIXME! 
-;    lda #6
-    lda #0
+    lda #16
     sta LEFT_POINT_X
     lda #0
     sta LEFT_POINT_X+1
 
-    .if(!DO_4BIT)
-        lda #4
-    .else
-        ; For 4-bits, we have 8 possible starting x-positions we have to test
-        lda #8
-; FIXME: For 2-bit we need to test 16 possible starting x-positions!
-    .endif
-    sta TMP1               ; Column number (4 or 8 -> 1)
+    stz TEST_COLUMN_NUMBER  ; Column number (0 -> 3 or 0 -> 8 or 0 -> 15)
 TEST_pattern_column_next:
 ; FIXME!
     lda #33                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
 ;    lda #2                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
 ;    lda #18                ; FILL LENGTH[9:0] -> FIXME: this does not allow > 256 pixel atm!
-    sta TMP3
+    sta TEST_FILL_LEN
 TEST_pattern_next:
     ; Since we are not using ADDR0, we want ADDR1 to be set here instead, so we set ADDRSEL to 1
     lda #%00000101           ; DCSEL=2, ADDRSEL=1
@@ -1164,14 +1166,14 @@ TEST_pattern_next:
         lsr                  ; 0, X1[0:1], 00000
         sta TMP4             ; 0, X1[0:1], 00000
         
-        lda TMP3             ; FILL_LEN[9:0]
+        lda TEST_FILL_LEN    ; FILL_LEN[9:0]
         asl
         and #%00011110       ; 000, FILL_LEN[3:0], 0
         ora TMP4             ; 0, X1[0:1], FILL_LEN[3:0], 0
         sta FILL_LENGTH_LOW
         
     ; FIXME: we are missing the 2 highest bits here!
-        lda TMP3             ; FILL_LEN[9:0]
+        lda TEST_FILL_LEN    ; FILL_LEN[9:0]
         lsr
         lsr
         lsr                  ; FILL_LEN[9:3]
@@ -1203,7 +1205,7 @@ fill_len_not_higher_than_or_equal_to_16:
         asl                  ; 0, X1[0:1], 00000
         sta TMP4             ; 0, X1[0:1], 00000
         
-        lda TMP3             ; FILL_LEN[9:0]
+        lda TEST_FILL_LEN    ; FILL_LEN[9:0]
         asl
         and #%00001110       ; 000, FILL_LEN[2:0], 0
         ora TMP4             ; 0, X1[0:1], 0, FILL_LEN[2:0], 0
@@ -1217,7 +1219,7 @@ fill_len_not_higher_than_or_equal_to_16:
         sta FILL_LENGTH_LOW
         
     ; FIXME: we are missing the 2 highest bits here!
-        lda TMP3             ; FILL_LEN[9:0]
+        lda TEST_FILL_LEN    ; FILL_LEN[9:0]
         lsr
         lsr
         lsr                  ; FILL_LEN[9:3]
@@ -1250,7 +1252,7 @@ fill_len_not_higher_than_or_equal_to_8:
         lsr                  ; 0, X1[0:1], 00000
         sta TMP4             ; 0, X1[0:1], 00000
         
-        lda TMP3             ; FILL_LEN[9:-1]
+        lda TEST_FILL_LEN    ; FILL_LEN[9:-1]
         and #%00001110       ; 000, FILL_LEN[2:0], 0
         ora TMP4             ; 0, X1[0:1], 0, FILL_LEN[2:0], 0
         sta FILL_LENGTH_LOW
@@ -1262,7 +1264,7 @@ fill_len_not_higher_than_or_equal_to_8:
         sta FILL_LENGTH_LOW  ; 0, X1[0:1], X1[2], FILL_LEN[2:0], 0
         
         ; FIXME: we are missing the 2 highest bits here!
-        lda TMP3             ; FILL_LEN[9:-1] ; this is in 2-bit pixels!
+        lda TEST_FILL_LEN    ; FILL_LEN[9:-1] ; this is in 2-bit pixels!
         lsr
         lsr
         lsr
@@ -1311,12 +1313,9 @@ tmp_loop:
     inc LEFT_POINT_Y
     inc LEFT_POINT_Y
 
-    dec TMP3
+    dec TEST_FILL_LEN
     bne TEST_pattern_next
 
-    lda #8
-    sta LEFT_POINT_Y
-    
     clc
     lda LEFT_POINT_X
     adc #33   ; we increment by 32+1, so we change the start-x position by 1 each column
@@ -1325,9 +1324,43 @@ tmp_loop:
     adc #0
     sta LEFT_POINT_X+1
     
-    dec TMP1
-    bne TEST_pattern_column_next
+    lda #8
+    sta LEFT_POINT_Y
+    .if(DO_4BIT && DO_2BIT)
+        lda TEST_COLUMN_NUMBER
+        cmp #7
+        bcc y_is_ok                    ; HACK: if we reach column >= 8, we move down in Y
+        lda #70
+        sta LEFT_POINT_Y
+y_is_ok:
+
+        lda TEST_COLUMN_NUMBER
+        cmp #7
+        bne x_is_ok
+        
+        ; We add 8 since we have done 0-7
+        lda #16+8              ; FIXME! DUPLICATED! (see above)
+        sta LEFT_POINT_X
+        stz LEFT_POINT_X+1
+x_is_ok:
+    .endif
     
+    inc TEST_COLUMN_NUMBER
+    lda TEST_COLUMN_NUMBER
+    .if(!DO_4BIT)
+        cmp #4
+    .else
+        .if(!DO_2BIT)
+            ; For 4-bits, we have 8 possible starting x-positions we have to test
+            cmp #8
+        .else
+            ; For 2-bits, we have 16 possible starting x-positions we have to test
+            cmp #16
+        .endif
+    .endif
+    beq TEST_pattern_columns_done
+    jmp TEST_pattern_column_next
+TEST_pattern_columns_done
 
     rts
     
