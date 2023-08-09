@@ -283,6 +283,28 @@ generate_table_jump_without_ldx:
     
     rts
     
+    
+generate_empty_cache_write:
+
+    ; -- lda #$FF
+    lda #$A9               ; lda #....
+    jsr add_code_byte
+
+    lda #$FF               ; $FF
+    jsr add_code_byte
+    
+    ; -- sta VERA_DATA1 ($9F24)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$24               ; $24
+    jsr add_code_byte
+    
+    lda #$9F               ; $9F
+    jsr add_code_byte
+
+    rts
+    
 ; FIXME: maybe split this function into ldx ... and jmp(...,x) -> see generate_table_jump_without_ldx above!
 generate_table_jump:
 

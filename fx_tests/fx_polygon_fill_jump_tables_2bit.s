@@ -176,18 +176,25 @@ gen_more_or_equal_to_8_pixels:
 ; FIXME: do START-POKE!
     
     lda GEN_START_X_SUB
-    beq no_start_poke_needed
+    beq starting_pixels_can_be_generated
     
     jsr generate_start_poke
     
     ; When doing a starting POKE, we *skip* the first 4-bit pixel, so we remove it here
-    dec NR_OF_STARTING_PIXELS
     dec LEFT_OVER_PIXELS
-; FIXME: should we start one pixel later?
-; inc GEN_START_X ; we start 1 pixel later -> variable not used after this?
+    dec NR_OF_STARTING_PIXELS
+    ; Note: we are not incrementing GEN_START_X, since the variable is not used after this
+    bne starting_pixels_can_be_generated
     
-no_start_poke_needed:
-
+    ; When NR_OF_STARTING_PIXELS is decremented to 0 we should not draw any starting 4-bit pixels,
+    ; BUT we have to proceeed to the next 4-byte column! So we have to write $FF to DATA1
+    jsr generate_empty_cache_write
+    
+    ; Since we dont want to generate any starting pixels, we can proceed to jumping to the second table
+    bra gen_generate_jump_to_second_table
+    
+starting_pixels_can_be_generated:
+    
     ; ============= generate starting pixels code (>= 8 (4-bit) pixels) ===============
 
     ; if NR_OF_STARTING_PIXELS == 8 (meaning GEN_START_X == 0) we do not subtract 8 of the total left-over pixel count and we do NOT generate starting pixels!
