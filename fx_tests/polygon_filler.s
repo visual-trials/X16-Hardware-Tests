@@ -1,7 +1,7 @@
 
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
-DO_SPEED_TEST = 0  ; ALSO change: TEST_JUMP_TABLE and USE_SOFT_FILL_LEN!
+DO_SPEED_TEST = 1  ; ALSO change: TEST_JUMP_TABLE and USE_SOFT_FILL_LEN!
 DO_4BIT = 1
 DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
@@ -18,10 +18,10 @@ USE_Y_TO_ADDRESS_TABLE = 1
 
 USE_DOUBLE_BUFFER = 0   ; Note: this is not setup in this program!
 
-TEST_JUMP_TABLE = 1 ; This turns off the iteration in-between the jump-table calls
+TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
 
 ; This setting is used in the routine test_fill_length_jump_table. -> turn this OFF when using the jump tables otherwise! (it changes the jump table code!)
-USE_SOFT_FILL_LEN = 1 ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
+USE_SOFT_FILL_LEN = 0 ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
     
 COLOR_CHECK        = $05 ; Background color = 0, foreground color 5 (green)
@@ -2187,7 +2187,7 @@ load_next_triangle:
     
     .if(1)
 ; FIXME!
-NR_OF_TRIANGLES = 1
+NR_OF_TRIANGLES = 12
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
    .word   0,   0,   100,  70,    0,  50,    4       ; all positive slopes

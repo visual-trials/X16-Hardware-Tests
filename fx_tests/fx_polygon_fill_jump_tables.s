@@ -374,15 +374,40 @@ generate_fill_line_iterate_code:
     lda #$9F               ; $9F
     jsr add_code_byte
         
-    ; -- ldx $9F2B (FILL_LENGTH_LOW)
-    lda #$AE               ; ldx ....
-    jsr add_code_byte
-
-    lda #$2B               ; $2B
-    jsr add_code_byte
+    .if(DO_4BIT && DO_2BIT)
     
-    lda #$9F               ; $9F
-    jsr add_code_byte
+        ; In 2-bit mode we have to shift the FILL_LENGTH_LOW-value one bit to the left (and keep the top bit in the CARRY)
+    
+        ; -- lda $9F2B (FILL_LENGTH_LOW)
+        lda #$AD               ; lda ....
+        jsr add_code_byte
+
+        lda #$2B               ; $2B
+        jsr add_code_byte
+        
+        lda #$9F               ; $9F
+        jsr add_code_byte
+    
+        ; -- asl
+        lda #$0A               ; asl
+        jsr add_code_byte
+    
+        ; -- tax
+        lda #$AA               ; tax
+        jsr add_code_byte
+    .else
+        ; In 4-bit and 8-bit mode we can use the FILL_LENGTH_LOW-value directly for the jump table
+    
+        ; -- ldx $9F2B (FILL_LENGTH_LOW)
+        lda #$AE               ; ldx ....
+        jsr add_code_byte
+
+        lda #$2B               ; $2B
+        jsr add_code_byte
+        
+        lda #$9F               ; $9F
+        jsr add_code_byte
+    .endif
         
     ; -- jmp (FILL_LINE_START_JUMP,x)
     lda #$7C               ; jmp (....,x)
