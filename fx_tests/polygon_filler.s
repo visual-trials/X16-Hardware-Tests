@@ -27,7 +27,11 @@ USE_SOFT_FILL_LEN = 0 ; This turns off reading from 9F2B and 9F2C (for fill leng
 COLOR_CHECK        = $05 ; Background color = 0, foreground color 5 (green)
 COLOR_CROSS        = $02 ; Background color = 0, foreground color 2 (red)
 
-BASE_X = 20
+; FIXME!
+; FIXME!
+; FIXME!
+BASE_X = 0
+;BASE_X = 20
 BASE_Y = 50
 BX = BASE_X
 BY = BASE_Y
@@ -190,6 +194,10 @@ RIGHT_POINT_Y            = $6A ; 6B
 BOTTOM_POINT_X           = TOP_POINT_X
 BOTTOM_POINT_Y           = TOP_POINT_Y
 TRIANGLE_COLOR           = $6C
+TOP_POINT_X_SUB          = $6D ; for 2-bit mode only
+LEFT_POINT_X_SUB         = $6E ; for 2-bit mode only
+RIGHT_POINT_X_SUB        = $6F ; for 2-bit mode only
+BOTTOM_POINT_X_SUB       = TOP_POINT_X_SUB  ; for 2-bit mode only
 
 ; Used for calculating the slope between two points
 X_DISTANCE               = $70 ; 71
@@ -2212,12 +2220,12 @@ load_next_triangle:
     
     .if(1)
 ; FIXME!
-NR_OF_TRIANGLES = 2
+NR_OF_TRIANGLES = 1
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
 ; FIXME!
 ;   .word   0,   0,   100,  70,    0,  50,    4       ; all positive slopes
-   .word   0,   0,   100,  70,    0,  50,    255       ; all positive slopes
+;   .word   0,   0,   100,  70,    0,  50,    255       ; all positive slopes
 ; FIXME!
 ;   .word   0,   0,   200,   1,  100,  70,    5
    .word   0,   0,   200,   1,  100,  70,    %10101010

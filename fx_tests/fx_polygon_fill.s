@@ -72,10 +72,13 @@
 ;   - a double top-point (two points are at the same top-y), which means top-left point and top-right point and a single bottom-point
 ;   TODO: we still need to deal with "triangles" that have three points with the same x or the same y coordinate (which is in fact a vertical or horizontal *line*, not a triangle).
 ; TOP_POINT_X (2 bytes)
+; TOP_POINT_X_SUB (1 byte) (only for 2-bit mode)
 ; TOP_POINT_Y (2 bytes)
 ; LEFT_POINT_X (2 bytes)
+; LEFT_POINT_X_SUB (1 byte) (only for 2-bit mode)
 ; LEFT_POINT_Y (2 bytes)
 ; RIGHT_POINT_X (2 bytes)
+; RIGHT_POINT_X_SUB (1 byte) (only for 2-bit mode)
 ; RIGHT_POINT_Y (2 bytes)
 ; BOTTOM_POINT_X = TOP_POINT_X
 ; BOTTOM_POINT_Y = TOP_POINT_Y
@@ -945,6 +948,11 @@ MACRO_set_address_using_multiplication .macro POINT_Y
 
 .endmacro
 
+
+; FIXME!
+; FIXME!
+; FIXME!
+TMP_DO_SUB_PIXEL = 0
     
 draw_triangle_with_single_top_point:
 
@@ -967,6 +975,35 @@ draw_triangle_with_single_top_point:
     ;  - slopes are packed into a signed 15 bit + 1 "times 32"-bit 
 
     ; SPEED: cant we and use only 1 byte for Y? (since Y < 240 pixels)
+    
+
+    ; FIXME: We are currently dividing all X-positions by 2 at the start. This will also adjust the SLOPES accordingly
+    ;        but it is BETTER/MORE PRECISE to determine the SLOPES based on the original X-positions and
+    ;        generate special 2-bit SLOPE-tables that give the SLOPE-values based on this original X-positions
+    .if(DO_4BIT && DO_2BIT)
+        stp
+        lda TOP_POINT_X
+        lda TOP_POINT_X+1
+        
+        lsr TOP_POINT_X+1
+        ror TOP_POINT_X
+        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
+        ror a            ; X[-1], 64
+        sta TOP_POINT_X_SUB
+        
+        lsr LEFT_POINT_X+1
+        ror LEFT_POINT_X
+        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
+        ror a            ; X[-1], 64
+        sta LEFT_POINT_X_SUB
+        
+        lsr RIGHT_POINT_X+1
+        ror RIGHT_POINT_X
+        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
+        ror a            ; X[-1], 64
+        sta RIGHT_POINT_X_SUB
+    .endif
+    
     
     ; ============== LEFT POINT vs TOP POINT ============
     
@@ -1256,6 +1293,14 @@ first_left_point_is_lower_in_y:
                     ; Because we have to POKE, we need ADDR1 to be selected in 2-bit mode
                     lda #%00001011           ; DCSEL=5, ADDRSEL=1
                     sta VERA_CTRL
+
+                    .if(TMP_DO_SUB_PIXEL)
+                    ; The sub pixel positions have just been set to half a *4-bit* pixel
+                    ; We now instead set to to half a *2-bit* and its highest bit is actually the lowest bit of the original TOP_POINT_X
+                    lda TOP_POINT_X_SUB      ; contains X1/X2[-1], 64  (quarter of a 4-bit pixel)
+                    sta VERA_FX_X_POS_S
+                    sta VERA_FX_Y_POS_S
+                    .endif
                     
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
@@ -1298,7 +1343,7 @@ first_left_point_is_lower_in_y:
         sta VERA_FX_X_INCR_L
         lda SLOPE_RIGHT_LEFT+1   ; X1 increment high
         sta VERA_FX_X_INCR_H
-
+               
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
 
             lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
@@ -1323,6 +1368,13 @@ first_left_point_is_lower_in_y:
                     ; Because we have to POKE, we need ADDR1 to be selected in 2-bit mode
                     lda #%00001011           ; DCSEL=5, ADDRSEL=1
                     sta VERA_CTRL
+                    
+                    .if(TMP_DO_SUB_PIXEL)
+                    ; The sub pixel positions have just been set to half a *4-bit* pixel
+                    ; We now instead set to to half a *2-bit* and its highest bit is actually the lowest bit of the original LEFT_POINT_X
+                    lda LEFT_POINT_X_SUB      ; contains X1[-1], 64  (quarter of a 4-bit pixel)
+                    sta VERA_FX_X_POS_S
+                    .endif
                     
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
@@ -1368,6 +1420,14 @@ first_right_point_is_lower_in_y:
                     ; Because we have to POKE, we need ADDR1 to be selected in 2-bit mode
                     lda #%00001011           ; DCSEL=5, ADDRSEL=1
                     sta VERA_CTRL
+                    
+                    .if(TMP_DO_SUB_PIXEL)
+                    ; The sub pixel positions have just been set to half a *4-bit* pixel
+                    ; We now instead set to to half a *2-bit* and its highest bit is actually the lowest bit of the original TOP_POINT_X
+                    lda TOP_POINT_X_SUB      ; contains X1/X2[-1], 64  (quarter of a 4-bit pixel)
+                    sta VERA_FX_X_POS_S
+                    sta VERA_FX_Y_POS_S
+                    .endif
                     
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
@@ -1433,6 +1493,13 @@ first_right_point_is_lower_in_y:
                     ; Because we have to POKE, we need ADDR1 to be selected in 2-bit mode
                     lda #%00001011           ; DCSEL=5, ADDRSEL=1
                     sta VERA_CTRL
+                    
+                    .if(TMP_DO_SUB_PIXEL)
+                    ; The sub pixel positions have just been set to half a *4-bit* pixel
+                    ; We now instead set to to half a *2-bit* and its highest bit is actually the lowest bit of the original RIGHT_POINT_X
+                    lda RIGHT_POINT_X_SUB      ; contains X2[-1], 64  (quarter of a 4-bit pixel)
+                    sta VERA_FX_X_POS_S
+                    .endif
                     
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
@@ -1550,6 +1617,34 @@ draw_triangle_with_double_top_points:
 
     ; SPEED: cant we and use only 1 byte for Y? (since Y < 240 pixels)
     
+    
+    ; FIXME: We are currently dividing all X-positions by 2 at the start. This will also adjust the SLOPES accordingly
+    ;        but it is BETTER/MORE PRECISE to determine the SLOPES based on the original X-positions and
+    ;        generate special 2-bit SLOPE-tables that give the SLOPE-values based on this original X-positions
+    .if(DO_4BIT && DO_2BIT)
+        lda BOTTOM_POINT_X
+        lda BOTTOM_POINT_X+1
+        
+        lsr BOTTOM_POINT_X+1
+        ror BOTTOM_POINT_X
+        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
+        ror a            ; X[-1], 64
+        sta BOTTOM_POINT_X_SUB
+        
+        lsr LEFT_POINT_X+1
+        ror LEFT_POINT_X
+        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
+        ror a            ; X[-1], 64
+        sta LEFT_POINT_X_SUB
+        
+        lsr RIGHT_POINT_X+1
+        ror RIGHT_POINT_X
+        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
+        ror a            ; X[-1], 64
+        sta RIGHT_POINT_X_SUB
+    .endif
+
+
     ; ============== BOTTOM POINT vs LEFT POINT ============
     
     .if(USE_POLYGON_FILLER && USE_SLOPE_TABLES && USE_180_DEGREES_SLOPE_TABLE)
@@ -1762,6 +1857,18 @@ y2address_is_setup_double_top:
                     lda #%00001011           ; DCSEL=5, ADDRSEL=1
                     sta VERA_CTRL
                     
+                    .if(TMP_DO_SUB_PIXEL)
+                    ; The sub pixel positions have just been set to half a *4-bit* pixel
+                    ; We now instead set to to half a *2-bit* and its highest bit is actually the lowest bit of the original LEFT_POINT_X
+                    lda LEFT_POINT_X_SUB      ; contains X1[-1], 64  (quarter of a 4-bit pixel)
+                    sta VERA_FX_X_POS_S
+                    
+                    ; The sub pixel positions have just been set to half a *4-bit* pixel
+                    ; We now instead set to to half a *2-bit* and its highest bit is actually the lowest bit of the original RIGHT_POINT_X
+                    lda RIGHT_POINT_X_SUB      ; contains X2[-1], 64  (quarter of a 4-bit pixel)
+                    sta VERA_FX_Y_POS_S
+                    .endif
+
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
                     asl
