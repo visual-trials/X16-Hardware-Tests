@@ -952,7 +952,7 @@ MACRO_set_address_using_multiplication .macro POINT_Y
 ; FIXME!
 ; FIXME!
 ; FIXME!
-TMP_DO_SUB_PIXEL = 0
+TMP_DO_SUB_PIXEL = 1
     
 draw_triangle_with_single_top_point:
 
@@ -981,7 +981,6 @@ draw_triangle_with_single_top_point:
     ;        but it is BETTER/MORE PRECISE to determine the SLOPES based on the original X-positions and
     ;        generate special 2-bit SLOPE-tables that give the SLOPE-values based on this original X-positions
     .if(DO_4BIT && DO_2BIT)
-        stp
         lda TOP_POINT_X
         lda TOP_POINT_X+1
         
@@ -1271,9 +1270,9 @@ first_left_point_is_lower_in_y:
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
             ldy Y_DISTANCE_LEFT_TOP
  
-            lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
-
             .if(!DO_4BIT)
+                lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+
                 ; 8-bit mode
                 lda #%00001010           ; DCSEL=5, ADDRSEL=0
                 sta VERA_CTRL
@@ -1282,6 +1281,8 @@ first_left_point_is_lower_in_y:
                 jsr do_the_jump_to_the_table
             .else
                 .if(!DO_2BIT)
+                    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+
                     ; 4-bit mode
                     lda #%00001010           ; DCSEL=5, ADDRSEL=0
                     sta VERA_CTRL
@@ -1302,6 +1303,8 @@ first_left_point_is_lower_in_y:
                     sta VERA_FX_Y_POS_S
                     .endif
                     
+                    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
                     asl
@@ -1346,9 +1349,9 @@ first_left_point_is_lower_in_y:
                
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
 
-            lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
-    
             .if(!DO_4BIT)
+                lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+        
                 ; 8-bit mode
                 lda #%00001010           ; DCSEL=5, ADDRSEL=0
                 sta VERA_CTRL
@@ -1357,6 +1360,8 @@ first_left_point_is_lower_in_y:
                 jsr do_the_jump_to_the_table
             .else
                 .if(!DO_2BIT)
+                    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+            
                     ; 4-bit mode
                     lda #%00001010           ; DCSEL=5, ADDRSEL=0
                     sta VERA_CTRL
@@ -1376,6 +1381,8 @@ first_left_point_is_lower_in_y:
                     sta VERA_FX_X_POS_S
                     .endif
                     
+                    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+            
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
                     asl
@@ -1398,9 +1405,9 @@ first_right_point_is_lower_in_y:
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
             ldy Y_DISTANCE_RIGHT_TOP
             
-            lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
-    
             .if(!DO_4BIT)
+                lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+        
                 ; 8-bit mode
                 lda #%00001010           ; DCSEL=5, ADDRSEL=0
                 sta VERA_CTRL
@@ -1409,6 +1416,8 @@ first_right_point_is_lower_in_y:
                 jsr do_the_jump_to_the_table
             .else
                 .if(!DO_2BIT)
+                    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+            
                     ; 4-bit mode
                     lda #%00001010           ; DCSEL=5, ADDRSEL=0
                     sta VERA_CTRL
@@ -1429,6 +1438,8 @@ first_right_point_is_lower_in_y:
                     sta VERA_FX_Y_POS_S
                     .endif
                     
+                    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+            
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
                     asl
@@ -1471,9 +1482,9 @@ first_right_point_is_lower_in_y:
         
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
 
-            lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
-    
             .if(!DO_4BIT)
+                lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+        
                 ; 8-bit mode
                 lda #%00001010           ; DCSEL=5, ADDRSEL=0
                 sta VERA_CTRL
@@ -1482,6 +1493,8 @@ first_right_point_is_lower_in_y:
                 jsr do_the_jump_to_the_table
             .else
                 .if(!DO_2BIT)
+                    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+            
                     ; 4-bit mode
                     lda #%00001010           ; DCSEL=5, ADDRSEL=0
                     sta VERA_CTRL
@@ -1498,9 +1511,11 @@ first_right_point_is_lower_in_y:
                     ; The sub pixel positions have just been set to half a *4-bit* pixel
                     ; We now instead set to to half a *2-bit* and its highest bit is actually the lowest bit of the original RIGHT_POINT_X
                     lda RIGHT_POINT_X_SUB      ; contains X2[-1], 64  (quarter of a 4-bit pixel)
-                    sta VERA_FX_X_POS_S
+                    sta VERA_FX_Y_POS_S
                     .endif
                     
+                    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+            
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
                     asl
@@ -1834,9 +1849,9 @@ y2address_is_setup_double_top:
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
             ldy Y_DISTANCE_LEFT_TOP
             
-            lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
-    
             .if(!DO_4BIT)
+                lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+        
                 ; 8-bit mode
                 lda #%00001010           ; DCSEL=5, ADDRSEL=0
                 sta VERA_CTRL
@@ -1845,6 +1860,8 @@ y2address_is_setup_double_top:
                 jsr do_the_jump_to_the_table
             .else
                 .if(!DO_2BIT)
+                    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+            
                     ; 4-bit mode
                     lda #%00001010           ; DCSEL=5, ADDRSEL=0
                     sta VERA_CTRL
@@ -1869,6 +1886,8 @@ y2address_is_setup_double_top:
                     sta VERA_FX_Y_POS_S
                     .endif
 
+                    lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
+            
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
                     ; We shift this value to the left once (and preserve X2[-1] in the CARRY!)
                     asl
