@@ -451,6 +451,46 @@ generate_fill_line_iterate_code:
 
     rts
     
+    
+; Note: TMP1 should contain the value of y to be compared with
+generate_loop_at_y_equals:
+
+    ; -- cpy --
+    lda #$C0
+    jsr add_code_byte
+    
+    lda TMP1
+    jsr add_code_byte
+    
+    ; -- beq loop (itself)
+    lda #$F0               ; beq ...
+    jsr add_code_byte
+
+    lda #$FE               ; jump 2 steps back (so to itself)
+    jsr add_code_byte
+    
+    rts
+
+
+generate_infinite_loop_code:
+
+    ; -- bra --
+    lda #$80
+    jsr add_code_byte
+    
+    lda #$FE           ; jump 2 steps back (so to itself)
+    jsr add_code_byte
+    
+    rts
+    
+generate_stp_code:
+
+    ; -- stp --
+    lda #$DB
+    jsr add_code_byte
+    
+    rts
+
  
 generate_rts_code:
 
