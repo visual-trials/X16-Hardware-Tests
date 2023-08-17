@@ -205,6 +205,9 @@ gen_generate_ending_pixels:
     lda NR_OF_ENDING_PIXELS
     beq gen_ending_pixels_are_generated    ; If there should be no ending pixels generated, we skip generating them
 
+    ; We need to generate the conditional end-poke in 2-bit mode here
+    jsr generate_conditional_end_poke
+    
     jsr generate_draw_ending_pixels_code
     
 gen_ending_pixels_are_generated:
@@ -219,6 +222,9 @@ gen_ending_pixels_are_generated:
     
 gen_start_and_end_in_same_column:
 
+    ; We need to generate the conditional end-poke in 2-bit mode here
+    jsr generate_conditional_end_poke
+    
     jsr generate_draw_starting_and_ending_pixels_code
 
     .if(TEST_JUMP_TABLE)
@@ -288,6 +294,7 @@ tmp_skip_stp:
     sta NR_OF_STARTING_PIXELS
        
     lda NR_OF_STARTING_PIXELS
+; FIXME: remove this!
 ;    dec NR_OF_STARTING_PIXELS
     bne starting_pixels_can_be_generated_8
     ; When NR_OF_STARTING_PIXELS is decremented to 0 we should not draw any starting 4-bit pixels,
