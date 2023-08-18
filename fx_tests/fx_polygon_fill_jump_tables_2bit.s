@@ -164,7 +164,7 @@ done_adjusting_4bit_variables:
     
 gen_less_than_8_pixels:
 
-    .if(1)
+    .if(0)
         lda LEFT_OVER_PIXELS
         cmp #20
         bcs tmp_skip_stp ; if a is larger than the value above
@@ -205,10 +205,16 @@ starting_pixels_can_be_generated:
     ; check if GEN_START_X + GEN_FILL_LENGTH_LOW >= 8
     clc
     lda GEN_START_X
-    adc GEN_FILL_LENGTH_LOW
+; FIXME: CLEANUP!
+;    adc GEN_FILL_LENGTH_LOW
+    adc LEFT_OVER_PIXELS
     cmp #8
     bcc gen_start_and_end_in_same_column  ; we end in the same 8-pixel column as where we start
-    beq gen_start_and_end_in_same_column
+    bne gen_generate_starting_pixels
+    
+    ; We end (4-bit pixel wise) exactly at the end of the 4-byte column. If we have to do an end-poke we are NOT in the same end-column: the end-poke should be done AFTER the 4-bit pixels!
+    bra gen_start_and_end_in_same_column_end_poke_afterwards
+
     
     ; ============= generate starting pixels code (< 8 pixels) ===============
 
@@ -266,6 +272,20 @@ gen_start_and_end_in_same_column:
     
     rts
     
+gen_start_and_end_in_same_column_end_poke_afterwards:
+
+    jsr generate_draw_starting_and_ending_pixels_code
+
+    ; We need to generate the conditional end-poke in 2-bit mode here
+    jsr generate_conditional_end_poke
+    
+    .if(TEST_JUMP_TABLE)
+        jsr generate_rts_code
+    .else
+        jsr generate_fill_line_iterate_code
+    .endif
+    
+    rts
     
 gen_more_or_equal_to_8_pixels:
 

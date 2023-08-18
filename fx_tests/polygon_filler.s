@@ -2225,7 +2225,7 @@ triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
 ; FIXME!
 ;   .word   0,   0,   100,  70,    0,  50,    4       ; all positive slopes
-   .word   0,   0,   100,  70,    0,  50,    255       ; all positive slopes
+;   .word   0,   0,   100,  70,    0,  50,    255       ; all positive slopes
 ; FIXME!
 ;   .word   0,   0,   200,   1,  100,  70,    5
    .word   0,   0,   200,   1,  100,  70,    %10101010

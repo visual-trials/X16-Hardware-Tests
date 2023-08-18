@@ -502,11 +502,24 @@ generate_stp_at_y_equals:
     jsr add_code_byte
 
     lda #$01               ; jump 1 step ahead (skipping the stp)
+;    lda #$04               ; jump 4 step ahead (skipping the stp and the lda)
     jsr add_code_byte
     
     ; -- stp --
     lda #$DB
     jsr add_code_byte
+    
+    .if(0)
+        ; -- lda $9F2B (FILL_LENGTH_LOW)
+        lda #$AD               ; lda ....
+        jsr add_code_byte
+
+        lda #$2B               ; $2B
+        jsr add_code_byte
+        
+        lda #$9F               ; $9F
+        jsr add_code_byte
+    .endif
     
     ; Since we are about to do a debug-compare, we have to restore the carry bit (in the stack)
     ; -- plp --
