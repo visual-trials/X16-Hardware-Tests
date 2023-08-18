@@ -9,6 +9,10 @@ white_color = (200,200,200)
 screen_width = 320*2
 screen_height = 240*2
 
+# We need to divide the slope by 2 for 2-bit mode
+# IMPORTANT: change this to what you need!
+DO_2BIT = False
+
 pygame.init()
 
 pygame.display.set_caption('X16 slope table generator')
@@ -82,9 +86,13 @@ def run():
             else:
                 slope = x / y
                 neg_slope = (-320+x) / y
-                
-            slope_int = int(slope * 256)
-            neg_slope_int = int(neg_slope * 256)
+            
+            if DO_2BIT:
+                slope_int = int(slope/2 * 256)
+                neg_slope_int = int(neg_slope/2 * 256)
+            else:
+                slope_int = int(slope * 256)
+                neg_slope_int = int(neg_slope * 256)
             
             # print("neg_slope: " + str(neg_slope))
             # print("neg_slope_int: " + str(neg_slope_int))
@@ -189,127 +197,130 @@ def run():
         
     if(True):
     
-        tableFile = open("fx_tests/tables/slopes_column_0_low.bin", "wb")
-        tableFile.write(bytearray(slopes_column_0_low))
-        tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_column_0_high.bin", "wb")
-        tableFile.write(bytearray(slopes_column_0_high))
-        tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_column_0_vhigh.bin", "wb")
-        tableFile.write(bytearray(slopes_column_0_vhigh))
-        tableFile.close()
-        
-        tableFile = open("fx_tests/tables/slopes_column_1_low.bin", "wb")
-        tableFile.write(bytearray(slopes_column_1_low))
-        tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_column_1_high.bin", "wb")
-        tableFile.write(bytearray(slopes_column_1_high))
-        tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_column_1_vhigh.bin", "wb")
-        tableFile.write(bytearray(slopes_column_1_vhigh))
-        tableFile.close()
-        
-        tableFile = open("fx_tests/tables/slopes_column_2_low.bin", "wb")
-        tableFile.write(bytearray(slopes_column_2_low))
-        tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_column_2_high.bin", "wb")
-        tableFile.write(bytearray(slopes_column_2_high))
-        tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_column_2_vhigh.bin", "wb")
-        tableFile.write(bytearray(slopes_column_2_vhigh))
-        tableFile.close()
-        
-        tableFile = open("fx_tests/tables/slopes_column_3_low.bin", "wb")
-        tableFile.write(bytearray(slopes_column_3_low))
-        tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_column_3_high.bin", "wb")
-        tableFile.write(bytearray(slopes_column_3_high))
-        tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_column_3_vhigh.bin", "wb")
-        tableFile.write(bytearray(slopes_column_3_vhigh))
-        tableFile.close()
-        
-        tableFile = open("fx_tests/tables/slopes_column_4_low.bin", "wb")
-        tableFile.write(bytearray(slopes_column_4_low))
-        tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_column_4_high.bin", "wb")
-        tableFile.write(bytearray(slopes_column_4_high))
-        tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_column_4_vhigh.bin", "wb")
-        tableFile.write(bytearray(slopes_column_4_vhigh))
-        tableFile.close()
+        if (not DO_2BIT):
+            tableFile = open("fx_tests/tables/slopes_column_0_low.bin", "wb")
+            tableFile.write(bytearray(slopes_column_0_low))
+            tableFile.close()
+            tableFile = open("fx_tests/tables/slopes_column_0_high.bin", "wb")
+            tableFile.write(bytearray(slopes_column_0_high))
+            tableFile.close()
+            tableFile = open("fx_tests/tables/slopes_column_0_vhigh.bin", "wb")
+            tableFile.write(bytearray(slopes_column_0_vhigh))
+            tableFile.close()
+            
+            tableFile = open("fx_tests/tables/slopes_column_1_low.bin", "wb")
+            tableFile.write(bytearray(slopes_column_1_low))
+            tableFile.close()
+            tableFile = open("fx_tests/tables/slopes_column_1_high.bin", "wb")
+            tableFile.write(bytearray(slopes_column_1_high))
+            tableFile.close()
+            tableFile = open("fx_tests/tables/slopes_column_1_vhigh.bin", "wb")
+            tableFile.write(bytearray(slopes_column_1_vhigh))
+            tableFile.close()
+            
+            tableFile = open("fx_tests/tables/slopes_column_2_low.bin", "wb")
+            tableFile.write(bytearray(slopes_column_2_low))
+            tableFile.close()
+            tableFile = open("fx_tests/tables/slopes_column_2_high.bin", "wb")
+            tableFile.write(bytearray(slopes_column_2_high))
+            tableFile.close()
+            tableFile = open("fx_tests/tables/slopes_column_2_vhigh.bin", "wb")
+            tableFile.write(bytearray(slopes_column_2_vhigh))
+            tableFile.close()
+            
+            tableFile = open("fx_tests/tables/slopes_column_3_low.bin", "wb")
+            tableFile.write(bytearray(slopes_column_3_low))
+            tableFile.close()
+            tableFile = open("fx_tests/tables/slopes_column_3_high.bin", "wb")
+            tableFile.write(bytearray(slopes_column_3_high))
+            tableFile.close()
+            tableFile = open("fx_tests/tables/slopes_column_3_vhigh.bin", "wb")
+            tableFile.write(bytearray(slopes_column_3_vhigh))
+            tableFile.close()
+            
+            tableFile = open("fx_tests/tables/slopes_column_4_low.bin", "wb")
+            tableFile.write(bytearray(slopes_column_4_low))
+            tableFile.close()
+            tableFile = open("fx_tests/tables/slopes_column_4_high.bin", "wb")
+            tableFile.write(bytearray(slopes_column_4_high))
+            tableFile.close()
+            tableFile = open("fx_tests/tables/slopes_column_4_vhigh.bin", "wb")
+            tableFile.write(bytearray(slopes_column_4_vhigh))
+            tableFile.close()
     
+        post_fix = ".bin"
+        if DO_2BIT:
+            post_fix = "_2bit.bin"
     
-    
-        tableFile = open("fx_tests/tables/slopes_packed_column_0_low.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_packed_column_0_low" + post_fix, "wb")
         tableFile.write(bytearray(slopes_packed_column_0_low))
         tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_packed_column_0_high.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_packed_column_0_high" + post_fix, "wb")
         tableFile.write(bytearray(slopes_packed_column_0_high))
         tableFile.close()
         
-        tableFile = open("fx_tests/tables/slopes_packed_column_1_low.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_packed_column_1_low" + post_fix, "wb")
         tableFile.write(bytearray(slopes_packed_column_1_low))
         tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_packed_column_1_high.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_packed_column_1_high" + post_fix, "wb")
         tableFile.write(bytearray(slopes_packed_column_1_high))
         tableFile.close()
         
-        tableFile = open("fx_tests/tables/slopes_packed_column_2_low.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_packed_column_2_low" + post_fix, "wb")
         tableFile.write(bytearray(slopes_packed_column_2_low))
         tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_packed_column_2_high.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_packed_column_2_high" + post_fix, "wb")
         tableFile.write(bytearray(slopes_packed_column_2_high))
         tableFile.close()
         
-        tableFile = open("fx_tests/tables/slopes_packed_column_3_low.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_packed_column_3_low" + post_fix, "wb")
         tableFile.write(bytearray(slopes_packed_column_3_low))
         tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_packed_column_3_high.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_packed_column_3_high" + post_fix, "wb")
         tableFile.write(bytearray(slopes_packed_column_3_high))
         tableFile.close()
         
-        tableFile = open("fx_tests/tables/slopes_packed_column_4_low.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_packed_column_4_low" + post_fix, "wb")
         tableFile.write(bytearray(slopes_packed_column_4_low))
         tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_packed_column_4_high.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_packed_column_4_high" + post_fix, "wb")
         tableFile.write(bytearray(slopes_packed_column_4_high))
         tableFile.close()
         
         
     
-        tableFile = open("fx_tests/tables/slopes_negative_packed_column_0_low.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_negative_packed_column_0_low" + post_fix, "wb")
         tableFile.write(bytearray(slopes_negative_packed_column_0_low))
         tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_negative_packed_column_0_high.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_negative_packed_column_0_high" + post_fix, "wb")
         tableFile.write(bytearray(slopes_negative_packed_column_0_high))
         tableFile.close()
         
-        tableFile = open("fx_tests/tables/slopes_negative_packed_column_1_low.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_negative_packed_column_1_low" + post_fix, "wb")
         tableFile.write(bytearray(slopes_negative_packed_column_1_low))
         tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_negative_packed_column_1_high.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_negative_packed_column_1_high" + post_fix, "wb")
         tableFile.write(bytearray(slopes_negative_packed_column_1_high))
         tableFile.close()
         
-        tableFile = open("fx_tests/tables/slopes_negative_packed_column_2_low.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_negative_packed_column_2_low" + post_fix, "wb")
         tableFile.write(bytearray(slopes_negative_packed_column_2_low))
         tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_negative_packed_column_2_high.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_negative_packed_column_2_high" + post_fix, "wb")
         tableFile.write(bytearray(slopes_negative_packed_column_2_high))
         tableFile.close()
         
-        tableFile = open("fx_tests/tables/slopes_negative_packed_column_3_low.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_negative_packed_column_3_low" + post_fix, "wb")
         tableFile.write(bytearray(slopes_negative_packed_column_3_low))
         tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_negative_packed_column_3_high.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_negative_packed_column_3_high" + post_fix, "wb")
         tableFile.write(bytearray(slopes_negative_packed_column_3_high))
         tableFile.close()
         
-        tableFile = open("fx_tests/tables/slopes_negative_packed_column_4_low.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_negative_packed_column_4_low" + post_fix, "wb")
         tableFile.write(bytearray(slopes_negative_packed_column_4_low))
         tableFile.close()
-        tableFile = open("fx_tests/tables/slopes_negative_packed_column_4_high.bin", "wb")
+        tableFile = open("fx_tests/tables/slopes_negative_packed_column_4_high" + post_fix, "wb")
         tableFile.write(bytearray(slopes_negative_packed_column_4_high))
         tableFile.close()
         

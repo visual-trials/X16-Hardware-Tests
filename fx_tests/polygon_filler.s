@@ -2215,17 +2215,15 @@ load_next_triangle:
 NR_OF_TRIANGLES = 12
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
-; FIXME!
 ;   .word   0,   0,   100,  70,    0,  50,    4       ; all positive slopes
    .word   0,   0,   100,  70,    0,  50,    255       ; all positive slopes
-; FIXME!
-;   .word   0,   0,   200,   1,  100,  70,    5
-   .word   0,   0,   200,   1,  100,  70,    %10101010
+   .word   0,   0,   200,   1,  100,  70,    5
+;   .word   0,   0,   200,   1,  100,  70,    %10101010
    .word   0,   0,   280,   0,  200,   1,    3
    .word 200,   1,   279,   0,  280,   120,  7
    .word 279,   0,   280,   0,  280,   120,  15
-;   .word 180,  50,   200,   1,  280,   120,  8       ; negative + positive slope at the top, positive+positive slope at the bottom
-   .word 180,  50,   200,   1,  280,   120,  255       ; negative + positive slope at the top, positive+positive slope at the bottom
+   .word 180,  50,   200,   1,  280,   120,  8       ; negative + positive slope at the top, positive+positive slope at the bottom
+;   .word 180,  50,   200,   1,  280,   120,  255       ; negative + positive slope at the top, positive+positive slope at the bottom
    .word   0, 120,    80, 100,  280,   120,  9
    .word 100,  70,   200,   1,  180,    50,  10
    .word   0,  50,    80, 100,    0,   120,  11
@@ -2284,9 +2282,13 @@ palette_data:
 end_of_palette_data:
 
 
-NR_OF_TRIANGLES = 72
+; FIXME!
+;NR_OF_TRIANGLES = 72
+NR_OF_TRIANGLES = 1
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
+; FIXME: remove the IF!
+    .if(0)
     .word 260 ,26  ,267 ,13  ,280 ,20  ,16
     .word 260 ,26  ,280 ,20  ,280 ,52  ,17
     .word 262 ,64  ,260 ,26  ,280 ,52  ,18
@@ -2354,6 +2356,7 @@ triangle_data:
     .word 10  ,111 ,0   ,92  ,36  ,88  ,40
     .word 0   ,0   ,0   ,0   ,34  ,0   ,51
     .word 0   ,120 ,0   ,116 ,10  ,111 ,52
+    .endif
     .word 0   ,70  ,0   ,70  ,13  ,75  ,32
     .word 0   ,81  ,0   ,70  ,13  ,75  ,24
     .word 0   ,92  ,0   ,81  ,13  ,75  ,17
@@ -2688,27 +2691,52 @@ irq:
     
     .if(USE_SLOPE_TABLES)
         .if(USE_POLYGON_FILLER)
-            .binary "fx_tests/tables/slopes_packed_column_0_low.bin"
-            .binary "fx_tests/tables/slopes_packed_column_0_high.bin"
-            .binary "fx_tests/tables/slopes_packed_column_1_low.bin"
-            .binary "fx_tests/tables/slopes_packed_column_1_high.bin"
-            .binary "fx_tests/tables/slopes_packed_column_2_low.bin"
-            .binary "fx_tests/tables/slopes_packed_column_2_high.bin"
-            .binary "fx_tests/tables/slopes_packed_column_3_low.bin"
-            .binary "fx_tests/tables/slopes_packed_column_3_high.bin"
-            .binary "fx_tests/tables/slopes_packed_column_4_low.bin"
-            .binary "fx_tests/tables/slopes_packed_column_4_high.bin"
-            .if(USE_180_DEGREES_SLOPE_TABLE)
-                .binary "fx_tests/tables/slopes_negative_packed_column_0_low.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_0_high.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_1_low.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_1_high.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_2_low.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_2_high.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_3_low.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_3_high.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_4_low.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_4_high.bin"
+            .if(DO_4BIT && DO_2BIT)
+                .binary "fx_tests/tables/slopes_packed_column_0_low_2bit.bin"
+                .binary "fx_tests/tables/slopes_packed_column_0_high_2bit.bin"
+                .binary "fx_tests/tables/slopes_packed_column_1_low_2bit.bin"
+                .binary "fx_tests/tables/slopes_packed_column_1_high_2bit.bin"
+                .binary "fx_tests/tables/slopes_packed_column_2_low_2bit.bin"
+                .binary "fx_tests/tables/slopes_packed_column_2_high_2bit.bin"
+                .binary "fx_tests/tables/slopes_packed_column_3_low_2bit.bin"
+                .binary "fx_tests/tables/slopes_packed_column_3_high_2bit.bin"
+                .binary "fx_tests/tables/slopes_packed_column_4_low_2bit.bin"
+                .binary "fx_tests/tables/slopes_packed_column_4_high_2bit.bin"
+                .if(USE_180_DEGREES_SLOPE_TABLE)
+                    .binary "fx_tests/tables/slopes_negative_packed_column_0_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_0_high_2bit.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_1_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_1_high_2bit.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_2_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_2_high_2bit.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_3_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_3_high_2bit.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_4_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_4_high_2bit.bin"
+                .endif
+            .else
+                .binary "fx_tests/tables/slopes_packed_column_0_low.bin"
+                .binary "fx_tests/tables/slopes_packed_column_0_high.bin"
+                .binary "fx_tests/tables/slopes_packed_column_1_low.bin"
+                .binary "fx_tests/tables/slopes_packed_column_1_high.bin"
+                .binary "fx_tests/tables/slopes_packed_column_2_low.bin"
+                .binary "fx_tests/tables/slopes_packed_column_2_high.bin"
+                .binary "fx_tests/tables/slopes_packed_column_3_low.bin"
+                .binary "fx_tests/tables/slopes_packed_column_3_high.bin"
+                .binary "fx_tests/tables/slopes_packed_column_4_low.bin"
+                .binary "fx_tests/tables/slopes_packed_column_4_high.bin"
+                .if(USE_180_DEGREES_SLOPE_TABLE)
+                    .binary "fx_tests/tables/slopes_negative_packed_column_0_low.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_0_high.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_1_low.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_1_high.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_2_low.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_2_high.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_3_low.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_3_high.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_4_low.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_4_high.bin"
+                .endif
             .endif
         .else
             ; FIXME: right now we include vhigh tables *TWICE*! The second time is a dummy include! (since we want all _low tables to be aligned with ROM_BANK % 4 == 1)

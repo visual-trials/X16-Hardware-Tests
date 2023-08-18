@@ -625,6 +625,12 @@ MACRO_calculate_slope_using_division: .macro Y_DISTANCE, SLOPE
     lda \Y_DISTANCE
     sta DIVISOR
 
+    .if(DO_4BIT && DO_2BIT)
+        ; We need to divide the slope by 2 (in 2-bit mode), so we multiply the y by 2 here
+        asl DIVISOR
+        rol DIVISOR+1
+    .endif
+    
     jsr divide_24bits
     
     lda DIVIDEND+2
@@ -972,33 +978,6 @@ draw_triangle_with_single_top_point:
     ; SPEED: cant we and use only 1 byte for Y? (since Y < 240 pixels)
     
 
-    ; FIXME: We are currently dividing all X-positions by 2 at the start. This will also adjust the SLOPES accordingly
-    ;        but it is BETTER/MORE PRECISE to determine the SLOPES based on the original X-positions and
-    ;        generate special 2-bit SLOPE-tables that give the SLOPE-values based on this original X-positions
-    .if(DO_4BIT && DO_2BIT)
-        lda TOP_POINT_X
-        lda TOP_POINT_X+1
-        
-        lsr TOP_POINT_X+1
-        ror TOP_POINT_X
-        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
-        ror a            ; X[-1], 64
-        sta TOP_POINT_X_SUB
-        
-        lsr LEFT_POINT_X+1
-        ror LEFT_POINT_X
-        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
-        ror a            ; X[-1], 64
-        sta LEFT_POINT_X_SUB
-        
-        lsr RIGHT_POINT_X+1
-        ror RIGHT_POINT_X
-        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
-        ror a            ; X[-1], 64
-        sta RIGHT_POINT_X_SUB
-    .endif
-    
-    
     ; ============== LEFT POINT vs TOP POINT ============
     
     .if(USE_POLYGON_FILLER && USE_SLOPE_TABLES && USE_180_DEGREES_SLOPE_TABLE)
@@ -1161,6 +1140,36 @@ slope_right_left_is_negated_in_x:
 slope_right_left_is_correctly_signed:
     .endif
 
+    
+    ; In 2-bit mode we divide the x-positions by 2. The slopes are based on the original x-values.
+    
+    ; FIXME: We are currently dividing all X-positions by 2 at the start. This will also adjust the SLOPES accordingly
+    ;        but it is BETTER/MORE PRECISE to determine the SLOPES based on the original X-positions and
+    ;        generate special 2-bit SLOPE-tables that give the SLOPE-values based on this original X-positions
+    
+    .if(DO_4BIT && DO_2BIT)
+        lda TOP_POINT_X
+        lda TOP_POINT_X+1
+        
+        lsr TOP_POINT_X+1
+        ror TOP_POINT_X
+        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
+        ror a            ; X[-1], 64
+        sta TOP_POINT_X_SUB
+        
+        lsr LEFT_POINT_X+1
+        ror LEFT_POINT_X
+        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
+        ror a            ; X[-1], 64
+        sta LEFT_POINT_X_SUB
+        
+        lsr RIGHT_POINT_X+1
+        ror RIGHT_POINT_X
+        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
+        ror a            ; X[-1], 64
+        sta RIGHT_POINT_X_SUB
+    .endif
+    
     
     ; -- We setup the starting x and y and the color --
     .if(USE_POLYGON_FILLER)
@@ -1620,33 +1629,6 @@ draw_triangle_with_double_top_points:
     ; SPEED: cant we and use only 1 byte for Y? (since Y < 240 pixels)
     
     
-    ; FIXME: We are currently dividing all X-positions by 2 at the start. This will also adjust the SLOPES accordingly
-    ;        but it is BETTER/MORE PRECISE to determine the SLOPES based on the original X-positions and
-    ;        generate special 2-bit SLOPE-tables that give the SLOPE-values based on this original X-positions
-    .if(DO_4BIT && DO_2BIT)
-        lda BOTTOM_POINT_X
-        lda BOTTOM_POINT_X+1
-        
-        lsr BOTTOM_POINT_X+1
-        ror BOTTOM_POINT_X
-        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
-        ror a            ; X[-1], 64
-        sta BOTTOM_POINT_X_SUB
-        
-        lsr LEFT_POINT_X+1
-        ror LEFT_POINT_X
-        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
-        ror a            ; X[-1], 64
-        sta LEFT_POINT_X_SUB
-        
-        lsr RIGHT_POINT_X+1
-        ror RIGHT_POINT_X
-        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
-        ror a            ; X[-1], 64
-        sta RIGHT_POINT_X_SUB
-    .endif
-
-
     ; ============== BOTTOM POINT vs LEFT POINT ============
     
     .if(USE_POLYGON_FILLER && USE_SLOPE_TABLES && USE_180_DEGREES_SLOPE_TABLE)
@@ -1734,6 +1716,36 @@ slope_right_bottom_is_correctly_signed:
 
     .endif
 
+    
+    ; In 2-bit mode we divide the x-positions by 2. The slopes are based on the original x-values.
+    
+    ; FIXME: We are currently dividing all X-positions by 2 at the start. This will also adjust the SLOPES accordingly
+    ;        but it is BETTER/MORE PRECISE to determine the SLOPES based on the original X-positions and
+    ;        generate special 2-bit SLOPE-tables that give the SLOPE-values based on this original X-positions
+    
+    .if(DO_4BIT && DO_2BIT)
+        lda BOTTOM_POINT_X
+        lda BOTTOM_POINT_X+1
+        
+        lsr BOTTOM_POINT_X+1
+        ror BOTTOM_POINT_X
+        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
+        ror a            ; X[-1], 64
+        sta BOTTOM_POINT_X_SUB
+        
+        lsr LEFT_POINT_X+1
+        ror LEFT_POINT_X
+        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
+        ror a            ; X[-1], 64
+        sta LEFT_POINT_X_SUB
+        
+        lsr RIGHT_POINT_X+1
+        ror RIGHT_POINT_X
+        lda #128         ; half a 4-bit pixel (which gets divided by 2 with the ror)
+        ror a            ; X[-1], 64
+        sta RIGHT_POINT_X_SUB
+    .endif
+    
     ; -- We setup the starting x and y and the color --
     .if(USE_POLYGON_FILLER)
         ; Setting up for drawing a polygon, setting both addresses at the same starting point
