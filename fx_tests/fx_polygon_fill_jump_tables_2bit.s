@@ -90,6 +90,8 @@ adjust_4bit_variables:
     
 left_over_pixels_is_ok:    
     
+    stz GEN_START_X_SET_TO_ZERO
+    
     ; We are also incrementing GEN_START_X, since (in case of a start-poke) we start one 4-bit pixel later
     ; If this exceeds 7 (so is equal to 8) we set it to 0
     inc GEN_START_X
@@ -97,6 +99,10 @@ left_over_pixels_is_ok:
     cmp #8
     bne gen_start_x_is_ok
     stz GEN_START_X
+    
+    lda #1
+    sta GEN_START_X_SET_TO_ZERO
+    
 gen_start_x_is_ok:
 
     ; We re-calculate NR_OF_STARTING_PIXELS based on the new GEN_START_X
@@ -278,7 +284,7 @@ gen_start_and_end_in_same_column_end_poke_afterwards:
     
 gen_more_or_equal_to_8_pixels:
 
-    .if(1)
+    .if(0)
         lda LEFT_OVER_PIXELS
         cmp #6
         bcs tmp_skip_stp ; if a is larger than the value above
@@ -315,6 +321,20 @@ tmp_skip_stp:
     ; When NR_OF_STARTING_PIXELS is 8 we should not draw any starting 4-bit pixels,
     ; BUT we have to proceeed to the next 4-byte column (when doing a start-poke)! So we have to write $FF to DATA1 (which is a transparent cache write)
     jsr generate_empty_cache_write
+
+    ; When we have a single start-POKE at the end of a 8-pixel (4-bit) column AND we END in the 7th (4-bit) pixel
+    ; we have an incorrect amount of fill length (its actually <8). To rectify we load 8 pixels here.
+    lda GEN_START_X_SET_TO_ZERO
+    beq gen_start_not_set_to_zero
+    
+    lda NR_OF_ENDING_PIXELS
+    cmp #7
+    bne gen_start_not_set_to_zero
+    
+    lda #1
+    sta GEN_LOANED_8_PIXELS
+
+gen_start_not_set_to_zero:
     
     ; Since we dont want to generate any starting pixels, we can proceed to jumping to the second table
     bra gen_generate_jump_to_second_table
@@ -323,9 +343,6 @@ starting_pixels_can_be_generated_8:
     
     ; ============= generate starting pixels code (>= 8 (4-bit) pixels) ===============
 
-; FIXME: this is WRONG in case we have a single start-POKE at the end of a 8-pixel (4-bit) column!
-; FIXME: this is WRONG in case we have a single start-POKE at the end of a 8-pixel (4-bit) column!
-; FIXME: this is WRONG in case we have a single start-POKE at the end of a 8-pixel (4-bit) column!
     ; if NR_OF_STARTING_PIXELS == 8 (meaning GEN_START_X == 0) we do not subtract 8 of the total left-over pixel count and we do NOT generate starting pixels!
     lda NR_OF_STARTING_PIXELS
     cmp #8
