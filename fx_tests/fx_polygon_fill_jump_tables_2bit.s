@@ -165,17 +165,10 @@ gen_start_x_is_ok:
 starting_pixels_can_be_generated:
     .endif
 
-
-    ; If we have less than 8 pixels AND fill length low == 0, we have nothing to do, so we go to the end
-; FIXME! We should check LEFT_OVER_PIXELS (16-bit) instead, correct?
-; FIXME! We should check LEFT_OVER_PIXELS (16-bit) instead, correct?
-; FIXME! We should check LEFT_OVER_PIXELS (16-bit) instead, correct?
-;    lda GEN_FILL_LENGTH_LOW
+    ; If we have less than 8 pixels AND fill length low == 0, we have nothing to do, so we go to the end (well, we might have to end-poke still)
+    ; Note: we check LEFT_OVER_PIXELS (16-bit) instead of GEN_FILL_LENGTH_LOW here, since LEFT_OVER_PIXELS could have just been changed
     lda LEFT_OVER_PIXELS
-; FIXME! This is UNTRUE if POKING needs to be done! -> maybe jump to the check for poking AFTER the starting pixels?
-; FIXME! This is UNTRUE if POKING needs to be done! -> maybe jump to the check for poking AFTER the starting pixels?
-; FIXME! This is UNTRUE if POKING needs to be done! -> maybe jump to the check for poking AFTER the starting pixels?
-    beq gen_ending_pixels_are_generated
+    beq gen_generate_ending_poke_only
 
     ; ===== We need to check if the starting and ending pixels are in the same 8-pixel colum (note: 4-bit pixels) ====
     ; check if GEN_START_X + GEN_FILL_LENGTH_LOW >= 8
@@ -209,6 +202,13 @@ gen_generate_ending_pixels:
     jsr generate_conditional_end_poke
     
     jsr generate_draw_ending_pixels_code
+    
+    bra gen_ending_pixels_are_generated
+    
+gen_generate_ending_poke_only:
+    
+    ; We need to generate the conditional end-poke in 2-bit mode here
+    jsr generate_conditional_end_poke
     
 gen_ending_pixels_are_generated:
     .if(TEST_JUMP_TABLE)

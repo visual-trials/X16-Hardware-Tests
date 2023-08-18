@@ -3,7 +3,7 @@
 
 DO_SPEED_TEST = 1  ; ALSO change: TEST_JUMP_TABLE and USE_SOFT_FILL_LEN!
 DO_4BIT = 1
-DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
+DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 
 USE_POLYGON_FILLER = 1
@@ -2220,7 +2220,7 @@ load_next_triangle:
     
     .if(1)
 ; FIXME!
-NR_OF_TRIANGLES = 1
+NR_OF_TRIANGLES = 2
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
 ; FIXME!
@@ -2228,7 +2228,7 @@ triangle_data:
    .word   0,   0,   100,  70,    0,  50,    255       ; all positive slopes
 ; FIXME!
 ;   .word   0,   0,   200,   1,  100,  70,    5
-;   .word   0,   0,   200,   1,  100,  70,    %10101010
+   .word   0,   0,   200,   1,  100,  70,    %10101010
    .word   0,   0,   280,   0,  200,   1,    3
    .word 200,   1,   279,   0,  280,   120,  7
    .word 279,   0,   280,   0,  280,   120,  15

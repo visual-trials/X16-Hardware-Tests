@@ -949,11 +949,6 @@ MACRO_set_address_using_multiplication .macro POINT_Y
 .endmacro
 
 
-; FIXME!
-; FIXME!
-; FIXME!
-TMP_DO_SUB_PIXEL = 1
-    
 draw_triangle_with_single_top_point:
 
     ; Note: we can assume here that:
@@ -1295,14 +1290,12 @@ first_left_point_is_lower_in_y:
                     lda #%00001011           ; DCSEL=5, ADDRSEL=1
                     sta VERA_CTRL
 
-                    .if(TMP_DO_SUB_PIXEL)
                     ; The sub pixel positions have just been set to half a *4-bit* pixel
                     ; We now instead set to to half a *2-bit* and its highest bit is actually the lowest bit of the original TOP_POINT_X
                     lda TOP_POINT_X_SUB      ; contains X1/X2[-1], 64  (quarter of a 4-bit pixel)
                     sta VERA_FX_X_POS_S
                     sta VERA_FX_Y_POS_S
-                    .endif
-                    
+
                     lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
 
                     lda VERA_FX_POLY_FILL_L  ; This contains: X2[-1], X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1]
@@ -1374,12 +1367,10 @@ first_left_point_is_lower_in_y:
                     lda #%00001011           ; DCSEL=5, ADDRSEL=1
                     sta VERA_CTRL
                     
-                    .if(TMP_DO_SUB_PIXEL)
                     ; The sub pixel positions have just been set to half a *4-bit* pixel
                     ; We now instead set to to half a *2-bit* and its highest bit is actually the lowest bit of the original LEFT_POINT_X
                     lda LEFT_POINT_X_SUB      ; contains X1[-1], 64  (quarter of a 4-bit pixel)
                     sta VERA_FX_X_POS_S
-                    .endif
                     
                     lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
             
@@ -1430,13 +1421,11 @@ first_right_point_is_lower_in_y:
                     lda #%00001011           ; DCSEL=5, ADDRSEL=1
                     sta VERA_CTRL
                     
-                    .if(TMP_DO_SUB_PIXEL)
                     ; The sub pixel positions have just been set to half a *4-bit* pixel
                     ; We now instead set to to half a *2-bit* and its highest bit is actually the lowest bit of the original TOP_POINT_X
                     lda TOP_POINT_X_SUB      ; contains X1/X2[-1], 64  (quarter of a 4-bit pixel)
                     sta VERA_FX_X_POS_S
                     sta VERA_FX_Y_POS_S
-                    .endif
                     
                     lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
             
@@ -1507,12 +1496,10 @@ first_right_point_is_lower_in_y:
                     lda #%00001011           ; DCSEL=5, ADDRSEL=1
                     sta VERA_CTRL
                     
-                    .if(TMP_DO_SUB_PIXEL)
                     ; The sub pixel positions have just been set to half a *4-bit* pixel
                     ; We now instead set to to half a *2-bit* and its highest bit is actually the lowest bit of the original RIGHT_POINT_X
                     lda RIGHT_POINT_X_SUB      ; contains X2[-1], 64  (quarter of a 4-bit pixel)
                     sta VERA_FX_Y_POS_S
-                    .endif
                     
                     lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
             
@@ -1874,7 +1861,6 @@ y2address_is_setup_double_top:
                     lda #%00001011           ; DCSEL=5, ADDRSEL=1
                     sta VERA_CTRL
                     
-                    .if(TMP_DO_SUB_PIXEL)
                     ; The sub pixel positions have just been set to half a *4-bit* pixel
                     ; We now instead set to to half a *2-bit* and its highest bit is actually the lowest bit of the original LEFT_POINT_X
                     lda LEFT_POINT_X_SUB      ; contains X1[-1], 64  (quarter of a 4-bit pixel)
@@ -1884,7 +1870,6 @@ y2address_is_setup_double_top:
                     ; We now instead set to to half a *2-bit* and its highest bit is actually the lowest bit of the original RIGHT_POINT_X
                     lda RIGHT_POINT_X_SUB      ; contains X2[-1], 64  (quarter of a 4-bit pixel)
                     sta VERA_FX_Y_POS_S
-                    .endif
 
                     lda VERA_DATA1   ; this will increment x1 and x2 and the fill_length value will be calculated (= x2 - x1). Also: ADDR1 will be updated with ADDR0 + x1
             
