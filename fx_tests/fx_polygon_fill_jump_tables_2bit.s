@@ -1,6 +1,6 @@
 
     
-    
+; FIXME: we could move this down again and inline it! (not in a routine)
 decode_fill_length_low:
 
     ; == We extract this info (4-bit) ==
@@ -111,27 +111,14 @@ generate_single_fill_line_code:
     ply
     
     
-    ; We then generate the code that deals with < 8 pixels (4-bit)
     
-gen_less_than_8_pixels:
-
+    ; === We adjust the 4-bit variables when start-poking is needed ===
+    
     jsr decode_fill_length_low
     
-; FIXME: do END-POKE!
-; FIXME: do END-POKE!
-; FIXME: do END-POKE!
-
-
-    ; ============= generate start-POKE code and empty cache write (< 8 (4-bit) pixels) ===============
-    
-    .if(1)
     lda GEN_START_X_SUB
-    beq starting_pixels_can_be_generated
+    beq done_adjusting_4bit_variables
 
-    jsr generate_start_poke
-    
-; FIXME! It is possible only ONE pixel has to be drawn (just a single POKE). In that case LEFT_OVER_PIXELS would be 0 and it would become NEGATIVE here!
-    
     ; When doing a starting POKE, we *skip* the first 4-bit pixel, so we remove it here
     sec
     lda LEFT_OVER_PIXELS
@@ -141,7 +128,16 @@ gen_less_than_8_pixels:
     sbc #0
     sta LEFT_OVER_PIXELS+1
     
-    ; Note: we are also incrementing GEN_START_X, since the variable is used after this
+    bpl left_over_pixels_is_ok
+    
+    ; It is possible only ONE pixel has to be drawn (just a single POKE). In that case LEFT_OVER_PIXELS would be 0 and it would become NEGATIVE here!
+    ; So we set LEFT_OVER_PIXELS to 0 here
+    stz LEFT_OVER_PIXELS+1
+    stz LEFT_OVER_PIXELS
+    
+left_over_pixels_is_ok:    
+    
+    ; We are also incrementing GEN_START_X, since (in case of a start-poke) we start one 4-bit pixel later
     ; If this exceeds 7 (so is equal to 8) we set it to 0
     inc GEN_START_X
     lda GEN_START_X
@@ -149,21 +145,56 @@ gen_less_than_8_pixels:
     bne gen_start_x_is_ok
     stz GEN_START_X
 gen_start_x_is_ok:
+
+    ; We re-calculate NR_OF_STARTING_PIXELS based on the new GEN_START_X
+    ; -- NR_OF_STARTING_PIXELS = 8 - GEN_START_X --
+    sec
+    lda #8
+    sbc GEN_START_X
+    sta NR_OF_STARTING_PIXELS
     
-    dec NR_OF_STARTING_PIXELS
+done_adjusting_4bit_variables:    
+    
+    
+    
+    
+    
+    
+    ; We then generate the code that deals with < 8 pixels (4-bit)
+    
+gen_less_than_8_pixels:
+
+    .if(1)
+        lda LEFT_OVER_PIXELS
+        cmp #20
+        bcs tmp_skip_stp ; if a is larger than the value above
+        
+        ; Note that register y contains the nr of fill lines left (so it counts down)
+        lda #2
+        sta DEBUG_VALUE
+        ;jsr generate_loop_at_y_equals
+        jsr generate_stp_at_y_equals
+tmp_skip_stp:
+    .endif
+
+
+    ; ============= generate start-POKE code and empty cache write (< 8 (4-bit) pixels) ===============
+    
+    lda GEN_START_X_SUB
+    beq starting_pixels_can_be_generated
+    
+    jsr generate_start_poke
+    
+    lda NR_OF_STARTING_PIXELS
     bne starting_pixels_can_be_generated
-    ; When NR_OF_STARTING_PIXELS is decremented to 0 we should not draw any starting 4-bit pixels,
-    ; BUT we have to proceeed to the next 4-byte column! So we have to write $FF to DATA1
+    ; When NR_OF_STARTING_PIXELS is 0 we should not draw any starting 4-bit pixels,
+    ; BUT we have to proceeed to the next 4-byte column (when doing a start-poke)! So we have to write $FF to DATA1 (which is a transparent cache write)
     jsr generate_empty_cache_write
     
     ; Since we dont want to generate any starting pixels, we can proceed to generating the ending pixels
-; FIXME! should we also check whether we are in the same 4-byte column?
-; FIXME! should we also check whether we are in the same 4-byte column?
-; FIXME! should we also check whether we are in the same 4-byte column?
     bra gen_generate_ending_pixels
     
 starting_pixels_can_be_generated:
-    .endif
 
     ; If we have less than 8 pixels AND fill length low == 0, we have nothing to do, so we go to the end (well, we might have to end-poke still)
     ; Note: we check LEFT_OVER_PIXELS (16-bit) instead of GEN_FILL_LENGTH_LOW here, since LEFT_OVER_PIXELS could have just been changed
@@ -237,18 +268,6 @@ gen_start_and_end_in_same_column:
     
     
 gen_more_or_equal_to_8_pixels:
-
-    .if(0)
-        lda LEFT_OVER_PIXELS
-        cmp #20
-        bcs tmp_skip_stp
-        
-        ; Note that register y contains the nr of fill lines left (so it counts down)
-        lda #5
-        sta TMP1
-        jsr generate_loop_at_y_equals
-tmp_skip_stp:
-    .endif
 
     ; ============= generate start-POKE code and empty cache write (>= 8 (4-bit) pixels) ===============
     

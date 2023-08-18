@@ -452,14 +452,19 @@ generate_fill_line_iterate_code:
     rts
     
     
-; Note: TMP1 should contain the value of y to be compared with
+; Note: DEBUG_VALUE should contain the value of y to be compared with
 generate_loop_at_y_equals:
+
+    ; Since we are about to do a debug-compare, we have to store the carry bit (in the stack)
+    ; -- php --
+    lda #$08
+    jsr add_code_byte
 
     ; -- cpy --
     lda #$C0
     jsr add_code_byte
     
-    lda TMP1
+    lda DEBUG_VALUE
     jsr add_code_byte
     
     ; -- beq loop (itself)
@@ -467,6 +472,45 @@ generate_loop_at_y_equals:
     jsr add_code_byte
 
     lda #$FE               ; jump 2 steps back (so to itself)
+    jsr add_code_byte
+    
+    ; Since we are about to do a debug-compare, we have to restore the carry bit (in the stack)
+    ; -- plp --
+    lda #$28
+    jsr add_code_byte
+    
+    rts
+
+
+; Note: DEBUG_VALUE should contain the value of y to be compared with
+generate_stp_at_y_equals:
+
+    ; Since we are about to do a debug-compare, we have to store the carry bit (in the stack)
+    ; -- php --
+    lda #$08
+    jsr add_code_byte
+
+    ; -- cpy --
+    lda #$C0
+    jsr add_code_byte
+    
+    lda DEBUG_VALUE
+    jsr add_code_byte
+    
+    ; -- bne skip_stp
+    lda #$D0               ; bne ...
+    jsr add_code_byte
+
+    lda #$01               ; jump 1 step ahead (skipping the stp)
+    jsr add_code_byte
+    
+    ; -- stp --
+    lda #$DB
+    jsr add_code_byte
+    
+    ; Since we are about to do a debug-compare, we have to restore the carry bit (in the stack)
+    ; -- plp --
+    lda #$28
     jsr add_code_byte
     
     rts
