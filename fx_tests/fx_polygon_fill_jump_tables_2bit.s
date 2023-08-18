@@ -27,6 +27,7 @@ decode_fill_length_low:
     lsr                   ; 00000, X1[2], 00
     ora GEN_START_X       ; OR with X1[1:0]
     sta GEN_START_X       ; 00000, X1[2:0]
+    sta GEN_START_X_ORG   ; used for start-poke position (since GEN_START_X is adjusted for 4-bit pixel start)
     
     lda FILL_LENGTH_LOW
     and #%00011100        ; 000, FILL_LENGTH[2:0], 00
@@ -186,8 +187,9 @@ tmp_skip_stp:
     jsr generate_start_poke
     
     lda NR_OF_STARTING_PIXELS
+    cmp #8
     bne starting_pixels_can_be_generated
-    ; When NR_OF_STARTING_PIXELS is 0 we should not draw any starting 4-bit pixels,
+    ; When NR_OF_STARTING_PIXELS is 8 we should not draw any starting 4-bit pixels,
     ; BUT we have to proceeed to the next 4-byte column (when doing a start-poke)! So we have to write $FF to DATA1 (which is a transparent cache write)
     jsr generate_empty_cache_write
     
@@ -202,11 +204,9 @@ starting_pixels_can_be_generated:
     beq gen_generate_ending_poke_only
 
     ; ===== We need to check if the starting and ending pixels are in the same 8-pixel colum (note: 4-bit pixels) ====
-    ; check if GEN_START_X + GEN_FILL_LENGTH_LOW >= 8
+    ; check if GEN_START_X + LEFT_OVER_PIXELS >= 8
     clc
     lda GEN_START_X
-; FIXME: CLEANUP!
-;    adc GEN_FILL_LENGTH_LOW
     adc LEFT_OVER_PIXELS
     cmp #8
     bcc gen_start_and_end_in_same_column  ; we end in the same 8-pixel column as where we start
@@ -421,13 +421,13 @@ generate_start_poke:
     lda #$A9               ; lda #....
     jsr add_code_byte
 
-    ; Note: GEN_START_X is in 4-bit pixels!
+    ; Note: GEN_START_X_ORG is in 4-bit pixels!
     
-    lda GEN_START_X          ; 00000, X1[2], X1[1], X1[0]
+    lda GEN_START_X_ORG      ; 00000, X1[2], X1[1], X1[0]
     lsr a                    ; 000000, X1[2], X1[1]
     sta GEN_POKE_BYTE
     
-    lda GEN_START_X          ; 00000, X1[2], X1[1], X1[0]
+    lda GEN_START_X_ORG      ; 00000, X1[2], X1[1], X1[0]
     and #%00000001
     lsr a                    ; 00000000 (X1[0] in CARRY)
     ror a                    ; X1[0], 0000000

@@ -33,6 +33,7 @@
 
 ; -- Used to generate jump tables --
 ; GEN_START_X
+; GEN_START_X_ORG ; only for 2-bit mode
 ; GEN_FILL_LENGTH_LOW
 ; GEN_FILL_LENGTH_IS_16_OR_MORE (8-bit) / GEN_FILL_LENGTH_IS_8_OR_MORE (4-bit)
 ; GEN_LOANED_16_PIXELS (8-bit) / GEN_LOANED_8_PIXELS (4-bit) / GEN_START_X_SUB (2-bit)

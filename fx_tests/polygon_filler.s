@@ -27,11 +27,7 @@ USE_SOFT_FILL_LEN = 0 ; This turns off reading from 9F2B and 9F2C (for fill leng
 COLOR_CHECK        = $05 ; Background color = 0, foreground color 5 (green)
 COLOR_CROSS        = $02 ; Background color = 0, foreground color 2 (red)
 
-; FIXME!
-; FIXME!
-; FIXME!
-BASE_X = 0
-;BASE_X = 20
+BASE_X = 20
 BASE_Y = 50
 BX = BASE_X
 BY = BASE_Y
@@ -230,13 +226,14 @@ NR_OF_ENDING_PIXELS      = $9B
 
 
 GEN_START_X              = $9C
-GEN_FILL_LENGTH_LOW      = $9D
-GEN_FILL_LENGTH_IS_16_OR_MORE = $9E
+GEN_START_X_ORG          = $9D ; only for 2-bit mode
+GEN_FILL_LENGTH_LOW      = $9E
+GEN_FILL_LENGTH_IS_16_OR_MORE = $9F
 GEN_FILL_LENGTH_IS_8_OR_MORE = GEN_FILL_LENGTH_IS_16_OR_MORE
-GEN_LOANED_16_PIXELS     = $9F
+GEN_LOANED_16_PIXELS     = $A0
 GEN_LOANED_8_PIXELS = GEN_LOANED_16_PIXELS
-GEN_START_X_SUB          = $A0
-GEN_FILL_LINE_CODE_INDEX = $A1
+GEN_START_X_SUB          = $A1
+GEN_FILL_LINE_CODE_INDEX = $A2
 
 TEST_POKE_BYTE           = $B0
 GEN_POKE_BYTE = TEST_POKE_BYTE
@@ -391,12 +388,6 @@ reset:
     .endif
     
     .if(USE_JUMP_TABLE)
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
-; FIXME!
         jsr generate_fill_line_end_code
         jsr generate_fill_line_end_jump
         jsr generate_fill_line_start_code_and_jump
@@ -2220,12 +2211,12 @@ load_next_triangle:
     
     .if(1)
 ; FIXME!
-NR_OF_TRIANGLES = 1
+NR_OF_TRIANGLES = 12
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
 ; FIXME!
 ;   .word   0,   0,   100,  70,    0,  50,    4       ; all positive slopes
-;   .word   0,   0,   100,  70,    0,  50,    255       ; all positive slopes
+   .word   0,   0,   100,  70,    0,  50,    255       ; all positive slopes
 ; FIXME!
 ;   .word   0,   0,   200,   1,  100,  70,    5
    .word   0,   0,   200,   1,  100,  70,    %10101010
