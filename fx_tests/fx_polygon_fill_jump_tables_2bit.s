@@ -167,19 +167,6 @@ generate_single_fill_line_code:
 
 gen_less_than_8_pixels:
 
-    .if(0)
-        lda LEFT_OVER_PIXELS
-        cmp #20
-        bcs tmp_skip_stp ; if a is larger than the value above
-        
-        ; Note that register y contains the nr of fill lines left (so it counts down)
-        lda #1
-        sta DEBUG_VALUE
-        ;jsr generate_loop_at_y_equals
-        jsr generate_stp_at_y_equals
-tmp_skip_stp:
-    .endif
-
 
     ; ============= generate start-POKE code and empty cache write (< 8 (4-bit) pixels) ===============
     
@@ -291,6 +278,19 @@ gen_start_and_end_in_same_column_end_poke_afterwards:
     
 gen_more_or_equal_to_8_pixels:
 
+    .if(1)
+        lda LEFT_OVER_PIXELS
+        cmp #6
+        bcs tmp_skip_stp ; if a is larger than the value above
+        
+        ; Note that register y contains the nr of fill lines left (so it counts down)
+        lda #46
+        sta DEBUG_VALUE
+        ;jsr generate_loop_at_y_equals
+        jsr generate_stp_at_y_equals
+tmp_skip_stp:
+    .endif
+
 
     .if(0)
         lda LEFT_OVER_PIXELS
@@ -323,6 +323,9 @@ starting_pixels_can_be_generated_8:
     
     ; ============= generate starting pixels code (>= 8 (4-bit) pixels) ===============
 
+; FIXME: this is WRONG in case we have a single start-POKE at the end of a 8-pixel (4-bit) column!
+; FIXME: this is WRONG in case we have a single start-POKE at the end of a 8-pixel (4-bit) column!
+; FIXME: this is WRONG in case we have a single start-POKE at the end of a 8-pixel (4-bit) column!
     ; if NR_OF_STARTING_PIXELS == 8 (meaning GEN_START_X == 0) we do not subtract 8 of the total left-over pixel count and we do NOT generate starting pixels!
     lda NR_OF_STARTING_PIXELS
     cmp #8

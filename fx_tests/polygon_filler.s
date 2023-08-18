@@ -2224,12 +2224,12 @@ triangle_data:
 ;;   .word 200,   1,   279,   0,  280,   120,  7
 ;;   .word 279,   0,   280,   0,  280,   120,  15
 ;   .word 180,  50,   200,   1,  280,   120,  8       ; negative + positive slope at the top, positive+positive slope at the bottom
-   .word 180,  50,   200,   1,  280,   120,  255       ; negative + positive slope at the top, positive+positive slope at the bottom
-   .word   0, 120,    80, 100,  280,   120,  9
-   .word 100,  70,   200,   1,  180,    50,  10
-   .word   0,  50,    80, 100,    0,   120,  11
-   .word   0,  50,   100,  70,   80,   100,  12
-   .word 100,  70,   180,  50,   80,   100,  13
+;;   .word 180,  50,   200,   1,  280,   120,  255       ; negative + positive slope at the top, positive+positive slope at the bottom
+;;   .word   0, 120,    80, 100,  280,   120,  9
+;;   .word 100,  70,   200,   1,  180,    50,  10
+;;   .word   0,  50,    80, 100,    0,   120,  11
+;;   .word   0,  50,   100,  70,   80,   100,  12
+;;   .word 100,  70,   180,  50,   80,   100,  13
    .word 180,  50,   280, 120,   80,   100,  14
 palette_data:   
     ; dummy
