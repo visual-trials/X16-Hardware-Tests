@@ -65,57 +65,9 @@ decode_fill_length_low:
     rts
 
     
-generate_single_fill_line_code:
-    
-    ; This routines expects this:
-    ;    FILL_LENGTH_LOW (shifted left) (2-bit)   : X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1], 0
-    ;
-    ; Note: X2[-1] is not mentioned here, since it is shifted-out and put in the CARRY instead (during code-run)
-    ;       So we are assuming all bits are already shifted to the left!
-    ;
-    ; Important: the 'fill length' from VERA is in 4-bit pixels! (not in 2-bit pixels). 
-    ;            the X1 and X2 positions are in 4-bit positions! And X1/X2[-1] means: 'half a 4-bit pixel' (aka a 2-bit pixel)
+adjust_4bit_variables:
 
-    jsr decode_fill_length_low
-
-    ; We create a conditional branch to the code when FILL_LENGTH_HIGH (during run time) is zero -> towards the code 
-    jsr generate_load_fill_len_high  ; = ldx VERA_FX_POLY_FILL_H
-    jsr generate_beq                 ; = beq ...
-    
-    ; Since we dont know yet how long the code (when FILL_LENGTH_HIGH is not zero) will be, we remember the place WHERE we have to PATCH the offset
-    sty STORE_ADDRESS
-    lda CODE_ADDRESS+1
-    sta STORE_ADDRESS+1
-    
-    jsr generate_dummy_offset        ; = dummy offset byte (PATCHED later on!)
-    
-    ; We first generate the code that deals with >= 8 pixels (4-bit)
-    jsr gen_more_or_equal_to_8_pixels
-    
-    ; We remember the address where the code (when FILL_LENGTH_HIGH is zero) will start
-    sty LOAD_ADDRESS
-    lda CODE_ADDRESS+1
-    sta LOAD_ADDRESS+1
-    
-    ; We calculate the branch-offset
-    sec
-    lda LOAD_ADDRESS
-    sbc STORE_ADDRESS
-    
-    ; We adjust it the branch-offset by 1
-    dec
-    
-    ; We PATCH the branch-offset (we overwrite the dummy offset value)
-    phy
-    ldy #0
-    sta (STORE_ADDRESS), y
-    ply
-    
-    
-    
     ; === We adjust the 4-bit variables when start-poking is needed ===
-    
-    jsr decode_fill_length_low
     
     lda GEN_START_X_SUB
     beq done_adjusting_4bit_variables
@@ -156,13 +108,63 @@ gen_start_x_is_ok:
     
 done_adjusting_4bit_variables:    
     
+    rts
     
+
     
+generate_single_fill_line_code:
     
+    ; This routines expects this:
+    ;    FILL_LENGTH_LOW (shifted left) (2-bit)   : X1[1:0], X1[2], FILL_LENGTH[2:0], X1[-1], 0
+    ;
+    ; Note: X2[-1] is not mentioned here, since it is shifted-out and put in the CARRY instead (during code-run)
+    ;       So we are assuming all bits are already shifted to the left!
+    ;
+    ; Important: the 'fill length' from VERA is in 4-bit pixels! (not in 2-bit pixels). 
+    ;            the X1 and X2 positions are in 4-bit positions! And X1/X2[-1] means: 'half a 4-bit pixel' (aka a 2-bit pixel)
+
+    jsr decode_fill_length_low
+    jsr adjust_4bit_variables
+
+    ; We create a conditional branch to the code when FILL_LENGTH_HIGH (during run time) is zero -> towards the code 
+    jsr generate_load_fill_len_high  ; = ldx VERA_FX_POLY_FILL_H
+    jsr generate_beq                 ; = beq ...
+    
+    ; Since we dont know yet how long the code (when FILL_LENGTH_HIGH is not zero) will be, we remember the place WHERE we have to PATCH the offset
+    sty STORE_ADDRESS
+    lda CODE_ADDRESS+1
+    sta STORE_ADDRESS+1
+    
+    jsr generate_dummy_offset        ; = dummy offset byte (PATCHED later on!)
+    
+    ; We first generate the code that deals with >= 8 pixels (4-bit)
+    jsr gen_more_or_equal_to_8_pixels
+    
+    ; We remember the address where the code (when FILL_LENGTH_HIGH is zero) will start
+    sty LOAD_ADDRESS
+    lda CODE_ADDRESS+1
+    sta LOAD_ADDRESS+1
+    
+    ; We calculate the branch-offset
+    sec
+    lda LOAD_ADDRESS
+    sbc STORE_ADDRESS
+    
+    ; We adjust it the branch-offset by 1
+    dec
+    
+    ; We PATCH the branch-offset (we overwrite the dummy offset value)
+    phy
+    ldy #0
+    sta (STORE_ADDRESS), y
+    ply
     
     
     ; We then generate the code that deals with < 8 pixels (4-bit)
     
+    jsr decode_fill_length_low
+    jsr adjust_4bit_variables
+
 gen_less_than_8_pixels:
 
     .if(0)
@@ -171,7 +173,7 @@ gen_less_than_8_pixels:
         bcs tmp_skip_stp ; if a is larger than the value above
         
         ; Note that register y contains the nr of fill lines left (so it counts down)
-        lda #2
+        lda #1
         sta DEBUG_VALUE
         ;jsr generate_loop_at_y_equals
         jsr generate_stp_at_y_equals
@@ -289,10 +291,6 @@ gen_start_and_end_in_same_column_end_poke_afterwards:
     
 gen_more_or_equal_to_8_pixels:
 
-    ; ============= generate start-POKE code and empty cache write (>= 8 (4-bit) pixels) ===============
-    
-    lda GEN_START_X_SUB
-    beq starting_pixels_can_be_generated_8
 
     .if(0)
         lda LEFT_OVER_PIXELS
@@ -303,41 +301,19 @@ tmp_skip_stp:
     .endif
 
     
+
+    ; ============= generate start-POKE code and empty cache write (>= 8 (4-bit) pixels) ===============
+    
+    lda GEN_START_X_SUB
+    beq starting_pixels_can_be_generated_8
+
     jsr generate_start_poke
     
-    ; When doing a starting POKE, we *skip* the first 4-bit pixel, so we remove it here
-    sec
-    lda LEFT_OVER_PIXELS
-    sbc #1
-    sta LEFT_OVER_PIXELS
-    lda LEFT_OVER_PIXELS+1
-    sbc #0
-    sta LEFT_OVER_PIXELS+1
-    
-    ; Note: we are also incrementing GEN_START_X, since start at the next (4-bit) pixel
-    ; If this exceeds 7 (so is equal to 8) we set it to 0
-    inc GEN_START_X
-; FIXME! WHY DOES TURNING THIS OFF WORK???
-; FIXME! WHY DOES TURNING THIS OFF WORK???
-; FIXME! WHY DOES TURNING THIS OFF WORK???
-;    lda GEN_START_X
-;    cmp #8
-;    bne gen_start_x_is_ok_8
-;    stz GEN_START_X
-;gen_start_x_is_ok_8:
-    
-    ; -- NR_OF_STARTING_PIXELS = 8 - GEN_START_X --
-    sec
-    lda #8
-    sbc GEN_START_X
-    sta NR_OF_STARTING_PIXELS
-       
     lda NR_OF_STARTING_PIXELS
-; FIXME: remove this!
-;    dec NR_OF_STARTING_PIXELS
+    cmp #8
     bne starting_pixels_can_be_generated_8
-    ; When NR_OF_STARTING_PIXELS is decremented to 0 we should not draw any starting 4-bit pixels,
-    ; BUT we have to proceeed to the next 4-byte column! So we have to write $FF to DATA1
+    ; When NR_OF_STARTING_PIXELS is 8 we should not draw any starting 4-bit pixels,
+    ; BUT we have to proceeed to the next 4-byte column (when doing a start-poke)! So we have to write $FF to DATA1 (which is a transparent cache write)
     jsr generate_empty_cache_write
     
     ; Since we dont want to generate any starting pixels, we can proceed to jumping to the second table
@@ -412,7 +388,6 @@ jump_address_is_valid:
     jsr generate_table_jump_without_ldx
     
     rts
-    
     
     
 generate_start_poke:

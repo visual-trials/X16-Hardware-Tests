@@ -502,8 +502,11 @@ generate_stp_at_y_equals:
     lda #$D0               ; bne ...
     jsr add_code_byte
 
-    lda #$01               ; jump 1 step ahead (skipping the stp)
-;    lda #$04               ; jump 4 step ahead (skipping the stp and the lda)
+    .if(0)
+        lda #$04               ; jump 4 step ahead (skipping the stp and the lda)
+    .else
+        lda #$01               ; jump 1 step ahead (skipping the stp)
+    .endif
     jsr add_code_byte
     
     ; -- stp --
