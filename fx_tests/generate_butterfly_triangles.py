@@ -7,7 +7,7 @@ import random
 background_color = (100,0,100)
 
 left_border = 20
-top_border = 50
+top_border = 20
 lb = left_border*2
 tb = top_border*2
 
@@ -50,6 +50,7 @@ def run():
     
     points = []
     
+    # 0
     points.append({ "x" : base_points[0][0], "y" : base_points[0][1], "z" : 0 })
     points.append({ "x" : (base_points[1][0] - base_points[0][0]) * 1/4, "y" : (base_points[1][1] - base_points[0][1]) * 1/4, "z" : 0 })
     points.append({ "x" : (base_points[2][0] - base_points[0][0]) * 1/4, "y" : (base_points[2][1] - base_points[0][1]) * 1/4, "z" : 0 })
@@ -59,52 +60,44 @@ def run():
     points.append({ "x" : (base_points[2][0] - base_points[0][0]) * 3/4, "y" : (base_points[2][1] - base_points[0][1]) * 3/4, "z" : 0 })
     points.append({ "x" : (base_points[1][0] - base_points[0][0]) * 4/4, "y" : (base_points[1][1] - base_points[0][1]) * 4/4, "z" : 0 })
     points.append({ "x" : (base_points[2][0] - base_points[0][0]) * 4/4, "y" : (base_points[2][1] - base_points[0][1]) * 4/4, "z" : 0 })
-    points.append({ "x" : base_points[1][0], "y" : base_points[1][1], "z" : 0 })
-    points.append({ "x" : base_points[2][0], "y" : base_points[2][1], "z" : 0 })
+    # 9
+    points.append({ "x" : base_points[3][0], "y" : base_points[3][1], "z" : 0 })
+    points.append({ "x" : base_points[2][0], "y" : base_points[3][1], "z" : 0 })
+    # 11
+    points.append({ "x" : base_points[4][0], "y" : base_points[4][1], "z" : 0 })
+    points.append({ "x" : base_points[2][0], "y" : base_points[4][1], "z" : 0 })
     
-    print(points)
+    # print(points)
     
     triangles_raw = [
 # FIXME: is this the right order? Clockwise or anti-clock wise?
-        [0, 1, 2],
+        [ 0,  1,  2],
+        [ 1,  2,  3],
+        [ 3,  2,  4],
+        [ 3,  4,  5],
+        [ 5,  4,  6],
+        [ 5,  6,  7],
+        [ 7,  6,  8],
+        [ 7,  8,  9],
+        [ 9,  8, 10],
+        [ 9, 10, 11],
+        [11, 10, 12],
         
     
     ]
     
-    '''
     triangles = []
-    base_triangles_data = [
-        [   0,   0,   100,  70,    0,  50,    ],
-        [   0,   0,   200,   1,  100,  70,    ],
-        [   0,   0,   280,   0,  200,   1,    ],
-        [ 200,   1,   279,   0,  280,   120,  ],
-        [ 279,   0,   280,   0,  280,   120,  ],
-        [ 180,  50,   200,   1,  280,   120,  ],
-        [   0, 120,    80, 100,  280,   120,  ],
-        [ 100,  70,   200,   1,  180,    50,  ],
-        [   0,  50,    80, 100,    0,   120,  ],
-        [   0,  50,   100,  70,   80,   100,  ],
-        [ 100,  70,   180,  50,   80,   100,  ],
-        [ 180,  50,   280, 120,   80,   100,  ]
-    ]
-    
-    for triangle_data_index in range(len(base_triangles_data)):
-        triangle_data = base_triangles_data[triangle_data_index]
-        
-        random_color = random.randint(0, 255)
-        
-        triangles.append({
-            "pt1": {"x":triangle_data[0], "y":triangle_data[1], "z":0}, 
-            "pt2": {"x":triangle_data[2], "y":triangle_data[3], "z":0}, 
-            "pt3": {"x":triangle_data[4], "y":triangle_data[5], "z":0}, 
-            "clr": random_color})
-    '''
-    
-    triangles = []
+    color_index = 0
     for triangle_point_indexes in triangles_raw:
         pt1 = points[triangle_point_indexes[0]]
         pt2 = points[triangle_point_indexes[1]]
         pt3 = points[triangle_point_indexes[2]]
+
+        # FIXME: we need a new color every TWO triangles!
+        # FIXME: we need a new color every TWO triangles!
+        # FIXME: we need a new color every TWO triangles!
+        # FIXME: should we start at index 0 or 1?
+        color_index += 1
         
         # Calculate the normal of the points using the CROSS PRODUCT
         
@@ -138,7 +131,7 @@ def run():
         
         # FIXME: We should reverse the order of the points in order to create a clockwise winding
         triangle_points = [pt2, pt1, pt3, normal_vector ]
-        triangles.append(triangle_points)
+        triangles.append({ "triangle_points" : triangle_points, "clr" : color_index})
             
     # print(points)
     # print(triangles)
@@ -146,13 +139,15 @@ def run():
     
     for triangle_index in range(0, len(triangles)):
         tri = triangles[triangle_index]
-        # triangle_color = color_by_index[tri["clr"] % 8] 
-        triangle_color = blue_color
+        tri_points = tri["triangle_points"]
+        triangle_color = color_by_index[tri["clr"] % 8] 
+        
+        sc = 1.5 # scale
         
         pygame.draw.polygon(screen, triangle_color, [
-            [tri[0]["x"]*2+lb, tri[0]["y"]*2+tb], 
-            [tri[1]["x"]*2+lb, tri[1]["y"]*2+tb], 
-            [tri[2]["x"]*2+lb, tri[2]["y"]*2+tb]], 0)
+            [tri_points[0]["x"]*sc+lb, tri_points[0]["y"]*sc+tb], 
+            [tri_points[1]["x"]*sc+lb, tri_points[1]["y"]*sc+tb], 
+            [tri_points[2]["x"]*sc+lb, tri_points[2]["y"]*sc+tb]], 0)
             
             # print('slope:' + str(x) + ":"+ str(y) + " -> " +str(slope_high) + "." + str(slope_low))
                 
@@ -161,26 +156,21 @@ def run():
         pygame.display.update()
             
     
-    '''
     print('NR_OF_TRIANGLES = ' + str(len(triangles)))
     print('triangle_3d_data:')
     print('    ; Note: the normal is a normal point relative to 0.0 (with a length of $100)')
     print('    ;       x1,    y1,    z1,    x2,    y2,    z2,    x3,    y3,    z3,    xn,    yn,    zn,   cl')
     
-    color_index = 0
     for triangle in triangles:
         single_triangle_data = []
-        for triangle_point in triangle:
+        for triangle_point in triangle["triangle_points"]:
             single_triangle_data.append(float_to_word(triangle_point["x"]))
             single_triangle_data.append(float_to_word(triangle_point["y"]))
             single_triangle_data.append(float_to_word(triangle_point["z"]))
         
-        # FIXME: add color??
-        color_index += 1
-        single_triangle_data.append(color_index)
+        single_triangle_data.append(triangle["clr"])
         
         print('    .word ' + ', '.join('$' + str(format(x,"04X")).ljust(4, ' ') for x in single_triangle_data))
-    '''
         
         
     running = True
