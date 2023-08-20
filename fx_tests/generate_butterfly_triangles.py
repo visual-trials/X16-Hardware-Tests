@@ -66,6 +66,22 @@ def run():
     # 11
     points.append({ "x" : base_points[4][0], "y" : base_points[4][1], "z" : 0 })
     points.append({ "x" : base_points[2][0], "y" : base_points[4][1], "z" : 0 })
+    # 13
+    points.append({ "x" : base_points[5][0], "y" : base_points[5][1], "z" : 0 })
+    points.append({ "x" : base_points[6][0], "y" : base_points[6][1], "z" : 0 })
+    # 15
+    points.append({ "x" : base_points[5][0] + (base_points[7][0] - base_points[5][0]) * 1/3, "y" : base_points[5][1] + (base_points[7][1] - base_points[5][1]) * 1/3, "z" : 0 })
+    points.append({ "x" : base_points[6][0] + (base_points[7][0] - base_points[6][0]) * 1/3, "y" : base_points[6][1] + (base_points[7][1] - base_points[6][1]) * 1/3, "z" : 0 })
+    # 17
+    points.append({ "x" : base_points[5][0] + (base_points[7][0] - base_points[5][0]) * 2/3, "y" : base_points[5][1] + (base_points[7][1] - base_points[5][1]) * 2/3, "z" : 0 })
+    points.append({ "x" : base_points[6][0] + (base_points[7][0] - base_points[6][0]) * 2/3, "y" : base_points[6][1] + (base_points[7][1] - base_points[6][1]) * 2/3, "z" : 0 })
+    # 19
+    points.append({ "x" : base_points[7][0], "y" : base_points[7][1], "z" : 0 })
+    
+    
+# FIXME: EXCEEDS 255!!
+# FIXME: EXCEEDS 255!!
+# FIXME: EXCEEDS 255!!
     
     # print(points)
     
@@ -82,8 +98,13 @@ def run():
         [ 9,  8, 10],
         [ 9, 10, 11],
         [11, 10, 12],
-        
-    
+        [11, 12, 13],
+        [13, 12, 14],
+        [13, 14, 15],
+        [15, 14, 16],
+        [15, 16, 17],
+        [17, 16, 18],
+        [17, 18, 19],
     ]
     
     triangles = []
@@ -142,7 +163,7 @@ def run():
         tri_points = tri["triangle_points"]
         triangle_color = color_by_index[tri["clr"] % 8] 
         
-        sc = 1.5 # scale
+        sc = 1.2 # scale
         
         pygame.draw.polygon(screen, triangle_color, [
             [tri_points[0]["x"]*sc+lb, tri_points[0]["y"]*sc+tb], 
