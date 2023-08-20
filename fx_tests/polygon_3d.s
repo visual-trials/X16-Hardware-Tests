@@ -3,6 +3,7 @@
 
 DO_SPEED_TEST = 1
 DO_4BIT = 0
+DO_2BIT = 0
 KEEP_RUNNING = 1
 USE_LIGHT = 1
 USE_KEYBOARD_INPUT = 1
@@ -168,7 +169,7 @@ VRAM_ADDRESS             = $90 ; 91 ; 92
 
 LEFT_OVER_PIXELS         = $96 ; 97
 NIBBLE_PATTERN           = $98
-NR_OF_4_PIXELS           = $99
+NR_OF_FULL_CACHE_WRITES  = $99
 NR_OF_STARTING_PIXELS    = $9A
 NR_OF_ENDING_PIXELS      = $9B
 
@@ -2742,6 +2743,15 @@ end_of_palette_data:
     .include utils/setup_vera_for_bitmap_and_tilemap.s
     .include fx_tests/fx_polygon_fill.s
     .include fx_tests/fx_polygon_fill_jump_tables.s
+    .if(!DO_4BIT)
+        .include fx_tests/fx_polygon_fill_jump_tables_8bit.s
+    .else
+        .if(!DO_2BIT)
+            .include fx_tests/fx_polygon_fill_jump_tables_4bit.s
+        .else
+            .include fx_tests/fx_polygon_fill_jump_tables_2bit.s
+        .endif
+    .endif
 
     
     ; === Cosine and sine tables ===
