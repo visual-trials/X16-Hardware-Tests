@@ -158,24 +158,25 @@ def run():
     # print(points)
     
     triangles_raw_one_side = [
-        [ 1,  0,  2],
-        [ 1,  2,  3],
-        [ 3,  2,  4],
-        [ 3,  4,  5],
-        [ 5,  4,  6],
-        [ 5,  6,  7],
-        [ 7,  6,  8],
-        [ 7,  8,  9],
-        [ 9,  8, 10],
-        [ 9, 10, 11],
-        [11, 10, 12],
-        [11, 12, 13],
-        [13, 12, 14],
-        [13, 14, 15],
-        [15, 14, 16],
-        [15, 16, 17],
-        [17, 16, 18],
-        [17, 18, 19],
+        # note that index 3 = color index
+        [ 1,  0,  2,   16],
+        [ 1,  2,  3,   17],
+        [ 3,  2,  4,   17],
+        [ 3,  4,  5,   18],
+        [ 5,  4,  6,   18],
+        [ 5,  6,  7,   19],
+        [ 7,  6,  8,   19],
+        [ 7,  8,  9,   20],
+        [ 9,  8, 10,   20],
+        [ 9, 10, 11,   21],
+        [11, 10, 12,   21],
+        [11, 12, 13,   22],
+        [13, 12, 14,   22],
+        [13, 14, 15,   23],
+        [15, 14, 16,   23],
+        [15, 16, 17,   24],
+        [17, 16, 18,   24],
+        [17, 18, 19,   25],
     ]
     
     triangles_raw = []
@@ -184,7 +185,7 @@ def run():
         
     for triangle_raw in triangles_raw_one_side:
         # Adding the triangle on the other side (by changing the order of the points)
-        triangles_raw.append([triangle_raw[0], triangle_raw[2], triangle_raw[1]])
+        triangles_raw.append([triangle_raw[0], triangle_raw[2], triangle_raw[1], triangle_raw[3]]) # note that index 3 = color
         
     
     triangles = []
@@ -193,13 +194,8 @@ def run():
         pt1 = points[triangle_point_indexes[0]]
         pt2 = points[triangle_point_indexes[1]]
         pt3 = points[triangle_point_indexes[2]]
+        color_index = triangle_point_indexes[3]
 
-        # FIXME: we need a new color every TWO triangles!
-        # FIXME: we need a new color every TWO triangles!
-        # FIXME: we need a new color every TWO triangles!
-        # FIXME: should we start at index 0 or 1?
-        color_index += 1
-        
         # Calculate the normal of the points using the CROSS PRODUCT
         
         a = { "x": pt3['x'] - pt1['x'], "y": pt3['y'] - pt1['y'], "z": pt3['z'] - pt1['z'] }
