@@ -212,10 +212,6 @@ SLOPE_RIGHT_BOTTOM = SLOPE_TOP_RIGHT
 SLOPE_LEFT_RIGHT         = $80 ; 81 ; 82   ; TODO: do we really need 24 bits here?
 SLOPE_RIGHT_LEFT = SLOPE_LEFT_RIGHT
 
-
-Y_DISTANCE_FIRST         = $86 ; 87
-Y_DISTANCE_SECOND        = $88 ; 89
-
 VRAM_ADDRESS             = $90 ; 91 ; 92
 
 LEFT_OVER_PIXELS         = $96 ; 97

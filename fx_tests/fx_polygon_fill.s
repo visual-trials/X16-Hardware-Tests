@@ -101,9 +101,6 @@
 ; SLOPE_LEFT_RIGHT (3 bytes)
 ; SLOPE_RIGHT_LEFT = SLOPE_LEFT_RIGHT
 
-; Y_DISTANCE_FIRST (2 bytes)
-; Y_DISTANCE_SECOND (2 bytes)
-
 ; Used to generate the y2address table
 ; VRAM_ADDRESS (3 bytes)
 

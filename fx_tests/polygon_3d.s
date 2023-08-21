@@ -79,26 +79,27 @@ BYTE_TO_PRINT             = $0E
 DECIMAL_STRING            = $0F ; 10 ; 11
 
 ; Timing
-TIMING_COUNTER            = $14 ; 15
-TIME_ELAPSED_MS           = $16
-TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
+TIMING_COUNTER            = $13 ; 14
+TIME_ELAPSED_MS           = $15
+TIME_ELAPSED_SUB_MS       = $16 ; one nibble of sub-milliseconds
 
 ; Used only by (slow) 16-bit multiplier (multply_16bits)
-MULTIPLIER                = $18 ; 19
-MULTIPLICAND              = $1A ; 1B
-PRODUCT                   = $1C ; 1D ; 1E ; 1F
+MULTIPLIER                = $17 ; 18
+MULTIPLICAND              = $19 ; 1A
+PRODUCT                   = $1B ; 1C ; 1D ; 1E
 
 ; Used by the (slow) 24-bit divider (divide_24bits)
-DIVIDEND                  = $20 ; 21 ; 22  ; the thing you want to divide (e.g. 100 /) . This will also the result after the division
-DIVISOR                   = $23 ; 24 ; 25  ; the thing you divide by (e.g. / 10)
-REMAINDER                 = $26 ; 27 ; 28
+DIVIDEND                  = $1F ; 20 ; 21  ; the thing you want to divide (e.g. 100 /) . This will also the result after the division
+DIVISOR                   = $22 ; 23 ; 24  ; the thing you divide by (e.g. / 10)
+REMAINDER                 = $25 ; 26 ; 27
 
 ; For geneating code
-END_JUMP_ADDRESS          = $2B ; 2C
-START_JUMP_ADDRESS        = $2D ; 2E
-CODE_ADDRESS              = $2F ; 30
-LOAD_ADDRESS              = $31 ; 32
-STORE_ADDRESS             = $33 ; 34
+END_JUMP_ADDRESS          = $28 ; 29
+START_JUMP_ADDRESS        = $2A ; 2B
+CODE_ADDRESS              = $2C ; 2D
+LOAD_ADDRESS              = $2E ; 2F
+STORE_ADDRESS             = $30 ; 31
+VRAM_ADDRESS              = $32 ; 33 ; 34
 
 TABLE_ROM_BANK            = $35
 DRAW_LENGTH               = $36  ; for generating draw code
@@ -106,12 +107,13 @@ DRAW_LENGTH               = $36  ; for generating draw code
 TRIANGLE_COUNT            = $37
 TRIANGLE_INDEX            = $38
 
-
 ; Polygon filler
 NUMBER_OF_ROWS             = $39
 FILL_LENGTH_LOW            = $3A
 FILL_LENGTH_HIGH           = $3B
 ; X1_THREE_LOWER_BITS        = $3C
+
+; FREE: $3D available
 
 ; "Software" implementation of polygon filler
 SOFT_Y                     = $3E ; 3F
@@ -129,6 +131,7 @@ SOFT_X1_INCR_HALF          = $52 ; 53
 SOFT_X2_INCR_HALF_SUB      = $54 ; 55
 SOFT_X2_INCR_HALF          = $56 ; 57
 
+; FREE: $58 - $5F available
 
 ; Note: a triangle either has:
 ;   - a single top-point, which means it also has a bottom-left point and bottom-right point
@@ -143,6 +146,8 @@ RIGHT_POINT_Y            = $6A ; 6B
 BOTTOM_POINT_X           = TOP_POINT_X
 BOTTOM_POINT_Y           = TOP_POINT_Y
 TRIANGLE_COLOR           = $6C
+
+; FREE: $6D - $6F available
 
 ; Used for calculating the slope between two points
 X_DISTANCE               = $70 ; 71
@@ -161,32 +166,33 @@ SLOPE_RIGHT_BOTTOM = SLOPE_TOP_RIGHT
 SLOPE_LEFT_RIGHT         = $80 ; 81 ; 82   ; TODO: do we really need 24 bits here?
 SLOPE_RIGHT_LEFT = SLOPE_LEFT_RIGHT
 
+; FREE: $83 - $84 available
 
-Y_DISTANCE_FIRST         = $86 ; 87
-Y_DISTANCE_SECOND        = $88 ; 89
+LEFT_OVER_PIXELS         = $85 ; 86
+NIBBLE_PATTERN           = $87
+NR_OF_FULL_CACHE_WRITES  = $88
+NR_OF_STARTING_PIXELS    = $89
+NR_OF_ENDING_PIXELS      = $8A
 
-VRAM_ADDRESS             = $90 ; 91 ; 92
+GEN_START_X              = $8B
+GEN_FILL_LENGTH_LOW      = $8C
+GEN_FILL_LENGTH_IS_16_OR_MORE = $8D
+GEN_LOANED_16_PIXELS     = $8E
+GEN_FILL_LINE_CODE_INDEX = $8F
 
-LEFT_OVER_PIXELS         = $96 ; 97
-NIBBLE_PATTERN           = $98
-NR_OF_FULL_CACHE_WRITES  = $99
-NR_OF_STARTING_PIXELS    = $9A
-NR_OF_ENDING_PIXELS      = $9B
+; FREE: $8A - $95 available
 
+TMP_POINT_X              = $90 ; 91
+TMP_POINT_Y              = $92 ; 93
+TMP_POINT_Z              = $94 ; 95
 
-GEN_START_X              = $9C
-GEN_FILL_LENGTH_LOW      = $9D
-GEN_FILL_LENGTH_IS_16_OR_MORE = $9E
-GEN_LOANED_16_PIXELS     = $9F
-GEN_FILL_LINE_CODE_INDEX = $A0
+ANGLE_X                  = $96 ; 97  ; number between 0 and 511
+ANGLE_Y                  = $98 ; 99  ; number between 0 and 511
+ANGLE_Z                  = $9A ; 9B  ; number between 0 and 511
 
-TMP_POINT_X              = $A1 ; A2
-TMP_POINT_Y              = $A3 ; A4
-TMP_POINT_Z              = $A5 ; A6
+TRANSLATE_Z              = $9C ; 9D
 
-
-ANGLE_X                  = $A7 ; A8  ; number between 0 and 511
-ANGLE_Z                  = $A9 ; AA  ; number between 0 and 511
+; FREE: $9E - $AA available
 
 ANGLE                    = $AB ; AC
 SINE_OUTPUT              = $AD ; AE
@@ -194,8 +200,6 @@ MINUS_SINE_OUTPUT        = $AF ; B0
 COSINE_OUTPUT            = $B1 ; B2
 ; FIXME: not used atm!
 MINUS_COSINE_OUTPUT      = $B3 ; B4
-
-TRANSLATE_Z              = $B5 ; B6
 
 DOT_PRODUCT              = $B7 ; B8
 CURRENT_SUM_Z            = $B9 ; BA
@@ -519,7 +523,6 @@ keep_running:
     .endif
     
     
-; FIXME!
     jsr draw_all_triangles
     
     .if(KEEP_RUNNING)
