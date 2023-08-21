@@ -334,7 +334,7 @@ reset:
     ; Setup stack
     ldx #$ff
     txs
-    
+
     jsr setup_vera_for_bitmap_and_tile_map
     .if(USE_DOUBLE_BUFFER)
         lda #%00000001           ; Disable Layer 0 and 1, Enable VGA
@@ -507,7 +507,7 @@ keep_running:
             sta VERA_CTRL
 
             lda #%00000000           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
-            sta $9F29
+            sta VERA_FX_CTRL
         .endif
         
         lda #%00000000           ; DCSEL=0, ADDRSEL=0
@@ -1051,19 +1051,19 @@ MACRO_rotate_cos_minus_sin .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TR
     
     .if(USE_FX_MULTIPLIER)
     
-        lda $9F29           ; reset accumulator
+        lda VERA_FX_ACCUM_RESET   ; reset accumulator
     
         lda COSINE_OUTPUT
-        sta $9F29
+        sta VERA_FX_CACHE_L
         lda COSINE_OUTPUT+1
-        sta $9F2A
+        sta VERA_FX_CACHE_M
     
         lda \TRIANGLES_3D_POINT_A, x
-        sta $9F2B
+        sta VERA_FX_CACHE_H
         lda \TRIANGLES_3D_POINT_A+MAX_NR_OF_TRIANGLES, x
-        sta $9F2C
+        sta VERA_FX_CACHE_U
         
-        lda $9F2A           ; accumulate
+        lda VERA_FX_ACCUM         ; accumulate
     .else 
         lda COSINE_OUTPUT
         sta MULTIPLIER
@@ -1089,14 +1089,14 @@ MACRO_rotate_cos_minus_sin .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TR
     .if(USE_FX_MULTIPLIER)
         ; Note: we are using MINUS sine here, since we want to subtract! (but we are in add-mode)
         lda MINUS_SINE_OUTPUT
-        sta $9F29
+        sta VERA_FX_CACHE_L
         lda MINUS_SINE_OUTPUT+1
-        sta $9F2A
+        sta VERA_FX_CACHE_M
         
         lda \TRIANGLES_3D_POINT_B, x
-        sta $9F2B
+        sta VERA_FX_CACHE_H
         lda \TRIANGLES_3D_POINT_B+MAX_NR_OF_TRIANGLES, x
-        sta $9F2C
+        sta VERA_FX_CACHE_U
         
         ; We write the multiplication result to VRAM
         stz VERA_DATA0
@@ -1145,19 +1145,19 @@ MACRO_rotate_sin_plus_cos .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TRI
     
     .if(USE_FX_MULTIPLIER)
     
-        lda $9F29           ; reset accumulator
+        lda VERA_FX_ACCUM_RESET  ; reset accumulator
     
         lda SINE_OUTPUT
-        sta $9F29
+        sta VERA_FX_CACHE_L
         lda SINE_OUTPUT+1
-        sta $9F2A
+        sta VERA_FX_CACHE_M
     
         lda \TRIANGLES_3D_POINT_A, x
-        sta $9F2B
+        sta VERA_FX_CACHE_H
         lda \TRIANGLES_3D_POINT_A+MAX_NR_OF_TRIANGLES, x
-        sta $9F2C
+        sta VERA_FX_CACHE_U
         
-        lda $9F2A           ; accumulate
+        lda VERA_FX_ACCUM        ; accumulate
     .else 
         lda SINE_OUTPUT
         sta MULTIPLIER
@@ -1182,14 +1182,14 @@ MACRO_rotate_sin_plus_cos .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TRI
     
     .if(USE_FX_MULTIPLIER)
         lda COSINE_OUTPUT
-        sta $9F29
+        sta VERA_FX_CACHE_L
         lda COSINE_OUTPUT+1
-        sta $9F2A
+        sta VERA_FX_CACHE_M
         
         lda \TRIANGLES_3D_POINT_B, x
-        sta $9F2B
+        sta VERA_FX_CACHE_H
         lda \TRIANGLES_3D_POINT_B+MAX_NR_OF_TRIANGLES, x
-        sta $9F2C
+        sta VERA_FX_CACHE_U
         
         ; We write the multiplication result to VRAM
         stz VERA_DATA0
@@ -1295,17 +1295,17 @@ MACRO_divide_by_z .macro TRIANGLES_3D_POINT_X_OR_Y, TRIANGLES_3D_POINT_Z, OUTPUT
         .if(USE_FX_MULTIPLIER)
             ; We load the INVERSE_Z_LOW
             lda (LOAD_ADDRESS), y
-            sta $9F29
+            sta VERA_FX_CACHE_L
             
             ; We load the INVERSE_Z_HIGH
             inc LOAD_ADDRESS+1
             lda (LOAD_ADDRESS), y
-            sta $9F2A
+            sta VERA_FX_CACHE_M
 
             lda \TRIANGLES_3D_POINT_X_OR_Y,x
-            sta $9F2B
+            sta VERA_FX_CACHE_H
             lda \TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
-            sta $9F2C
+            sta VERA_FX_CACHE_U
 
             ; -- X (or Y) * 1 / Z
             
@@ -1425,19 +1425,19 @@ MACRO_calculate_dot_product .macro TRIANGLES_3D_POINTA_X, TRIANGLES_3D_POINTA_Y,
     
     .if(USE_FX_MULTIPLIER)
     
-        lda $9F29           ; reset accumulator
+        lda VERA_FX_ACCUM_RESET   ; reset accumulator
     
         lda \TRIANGLES_3D_POINTA_X,x
-        sta $9F29
+        sta VERA_FX_CACHE_L
         lda \TRIANGLES_3D_POINTA_X+MAX_NR_OF_TRIANGLES,x
-        sta $9F2A
+        sta VERA_FX_CACHE_M
 
         lda \TRIANGLES_3D_POINTN_X, x
-        sta $9F2B
+        sta VERA_FX_CACHE_H
         lda \TRIANGLES_3D_POINTN_X+MAX_NR_OF_TRIANGLES, x
-        sta $9F2C
+        sta VERA_FX_CACHE_U
 
-        lda $9F2A           ; accumulate
+        lda VERA_FX_ACCUM         ; accumulate
         
     .else
         lda \TRIANGLES_3D_POINTA_X,x
@@ -1466,16 +1466,16 @@ MACRO_calculate_dot_product .macro TRIANGLES_3D_POINTA_X, TRIANGLES_3D_POINTA_Y,
     .if(USE_FX_MULTIPLIER)
     
         lda \TRIANGLES_3D_POINTA_Y,x
-        sta $9F29
+        sta VERA_FX_CACHE_L
         lda \TRIANGLES_3D_POINTA_Y+MAX_NR_OF_TRIANGLES,x
-        sta $9F2A
+        sta VERA_FX_CACHE_M
 
         lda \TRIANGLES_3D_POINTN_Y, x
-        sta $9F2B
+        sta VERA_FX_CACHE_H
         lda \TRIANGLES_3D_POINTN_Y+MAX_NR_OF_TRIANGLES, x
-        sta $9F2C
+        sta VERA_FX_CACHE_U
 
-        lda $9F2A           ; accumulate
+        lda VERA_FX_ACCUM       ; accumulate
         
     .else
     
@@ -1505,14 +1505,14 @@ MACRO_calculate_dot_product .macro TRIANGLES_3D_POINTA_X, TRIANGLES_3D_POINTA_Y,
     .if(USE_FX_MULTIPLIER)
     
         lda \TRIANGLES_3D_POINTA_Z,x
-        sta $9F29
+        sta VERA_FX_CACHE_L
         lda \TRIANGLES_3D_POINTA_Z+MAX_NR_OF_TRIANGLES,x
-        sta $9F2A
+        sta VERA_FX_CACHE_M
 
         lda \TRIANGLES_3D_POINTN_Z, x
-        sta $9F2B
+        sta VERA_FX_CACHE_H
         lda \TRIANGLES_3D_POINTN_Z+MAX_NR_OF_TRIANGLES, x
-        sta $9F2C
+        sta VERA_FX_CACHE_U
 
         ; We write the multiplication result to VRAM
         stz VERA_DATA0
@@ -1565,19 +1565,19 @@ MACRO_calculate_dot_product_for_light .macro TRIANGLES_3D_POINTN_X, TRIANGLES_3D
     
     .if(USE_FX_MULTIPLIER)
     
-        lda $9F29           ; reset accumulator
+        lda VERA_FX_ACCUM_RESET    ; reset accumulator
         
         lda LIGHT_DIRECTION_3D_X
-        sta $9F29
+        sta VERA_FX_CACHE_L
         lda LIGHT_DIRECTION_3D_X+1
-        sta $9F2A
+        sta VERA_FX_CACHE_M
 
         lda \TRIANGLES_3D_POINTN_X, x
-        sta $9F2B
+        sta VERA_FX_CACHE_H
         lda \TRIANGLES_3D_POINTN_X+MAX_NR_OF_TRIANGLES, x
-        sta $9F2C
+        sta VERA_FX_CACHE_U
 
-        lda $9F2A           ; accumulate
+        lda VERA_FX_ACCUM         ; accumulate
         
     .else
         lda LIGHT_DIRECTION_3D_X
@@ -1606,16 +1606,16 @@ MACRO_calculate_dot_product_for_light .macro TRIANGLES_3D_POINTN_X, TRIANGLES_3D
     .if(USE_FX_MULTIPLIER)
     
         lda LIGHT_DIRECTION_3D_Y
-        sta $9F29
+        sta VERA_FX_CACHE_L
         lda LIGHT_DIRECTION_3D_Y+1
-        sta $9F2A
+        sta VERA_FX_CACHE_M
 
         lda \TRIANGLES_3D_POINTN_Y, x
-        sta $9F2B
+        sta VERA_FX_CACHE_H
         lda \TRIANGLES_3D_POINTN_Y+MAX_NR_OF_TRIANGLES, x
-        sta $9F2C
+        sta VERA_FX_CACHE_U
 
-        lda $9F2A           ; accumulate
+        lda VERA_FX_ACCUM      ; accumulate
         
     .else
     
@@ -1645,14 +1645,14 @@ MACRO_calculate_dot_product_for_light .macro TRIANGLES_3D_POINTN_X, TRIANGLES_3D
     .if(USE_FX_MULTIPLIER)
     
         lda LIGHT_DIRECTION_3D_Z
-        sta $9F29
+        sta VERA_FX_CACHE_L
         lda LIGHT_DIRECTION_3D_Z+1
-        sta $9F2A
+        sta VERA_FX_CACHE_M
 
         lda \TRIANGLES_3D_POINTN_Z, x
-        sta $9F2B
+        sta VERA_FX_CACHE_H
         lda \TRIANGLES_3D_POINTN_Z+MAX_NR_OF_TRIANGLES, x
-        sta $9F2C
+        sta VERA_FX_CACHE_U
 
         ; We write the multiplication result to VRAM
         stz VERA_DATA0
@@ -1723,7 +1723,7 @@ MACRO_prepare_fx_multiplier .macro
         sta VERA_CTRL
         
         lda #%01001000           ; cache write enabled = 1, 16bit hop = 1, addr1-mode = normal
-        sta $9F29
+        sta VERA_FX_CTRL
         
         ; Setting ADDR0 + increment
         lda #%00110000           ; +4 increment
@@ -1749,7 +1749,7 @@ MACRO_prepare_fx_multiplier .macro
         sta VERA_ADDR_LOW
         
         lda #%10010000           ; reset accumulator = 1, add/sub = 0 (add), multiplier enabled = 1, cache index  = 0
-        sta $9F2C
+        sta VERA_FX_MULT
     .endif
 .endmacro
 
@@ -2031,7 +2031,7 @@ scale_and_position_done:
     sta VERA_CTRL
         
     lda #%00000000           ; multiplier enabled = 0
-    sta $9F2C
+    sta VERA_FX_MULT
 
     rts
     
@@ -2253,10 +2253,10 @@ clear_screen_fast_4_bytes:
 
     ; TODO: we *could* use 'one byte cache cycling' so we have to set only *one* byte of the cache here
     lda #BACKGROUND_COLOR
-    sta $9F29                ; cache32[7:0]
-    sta $9F2A                ; cache32[15:8]
-    sta $9F2B                ; cache32[23:16]
-    sta $9F2C                ; cache32[31:24]
+    sta VERA_FX_CACHE_L      ; cache32[7:0]
+    sta VERA_FX_CACHE_M      ; cache32[15:8]
+    sta VERA_FX_CACHE_H      ; cache32[23:16]
+    sta VERA_FX_CACHE_U      ; cache32[31:24]
 
     ; We setup blit writes
     
@@ -2264,7 +2264,7 @@ clear_screen_fast_4_bytes:
     sta VERA_CTRL
 
     lda #%01000000           ; transparent writes = 0, blit write = 1, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
-    sta $9F29
+    sta VERA_FX_CTRL
     
     
     ; Left part of the screen (256 columns)
@@ -2324,9 +2324,8 @@ clear_next_column_right_4_bytes:
     cpx #64
     bne clear_next_column_right_4_bytes
      
-    lda #%00000000           ; map base addr = 0, blit write enabled = 0, repeat/clip = 0
-    sta $9F2B       
-    
+    lda #%00000000           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
+    sta VERA_FX_CTRL
     
     rts
     
@@ -2368,7 +2367,7 @@ next_clear_instruction:
 copy_palette_from_index_16:
 
     ; Starting at palette VRAM address
-
+    
     lda #%00010001      ; setting bit 16 of vram address to 1, setting auto-increment value to 1
     sta VERA_ADDR_BANK
 
