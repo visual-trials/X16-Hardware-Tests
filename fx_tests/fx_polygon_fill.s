@@ -1933,6 +1933,7 @@ done_drawing_all_triangles_double_top:
     
     
 
+    .if(!USE_POLYGON_FILLER)
     
 draw_polygon_part_using_software_polygon_filler_naively:
 
@@ -2131,6 +2132,8 @@ soft_polygon_fill_triangle_done:
     sta SOFT_X2+1
     
     rts
+    
+    .endif
     
     
 ; FIXME: UGLY and SLOW! -> this ensures this works with TEST_JUMP_TABLE! (which contains an rts)

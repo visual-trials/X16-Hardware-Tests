@@ -118,10 +118,11 @@ def run():
     points.append({ "x" : base_points[6][0] + (base_points[7][0] - base_points[6][0]) * 2/3, "y" : base_points[6][1] + (base_points[7][1] - base_points[6][1]) * 2/3, "z" : 0 })
     # 19
     points.append({ "x" : base_points[7][0], "y" : base_points[7][1], "z" : 0 })
-
+    
+    nr_of_points_in_one_wing = len(points)
 
     # Translate origin
-    translate_x = - base_points[2][0] - 20 # the full width + some margin between the wings
+    translate_x = - base_points[2][0] - 18 # the full width + some margin between the wings
     translate_y = - base_points[7][1] / 2 # half of the full height
     translate_z = 0
     for point_index, point in enumerate(points):
@@ -136,7 +137,14 @@ def run():
         point["y"] /= scale_down
         point["z"] /= scale_down
         
+    # We duplicate all points to be used for the second wing
+    new_points = []
+    for point_index, point in enumerate(points):
+        new_point = point.copy()
+        new_point["x"] = -point["x"]
+        new_points.append(new_point)
         
+    points = points + new_points
     
     # print(points)
     
@@ -169,7 +177,19 @@ def run():
     for triangle_raw in triangles_raw_one_side:
         # Adding the triangle on the other side (by changing the order of the points)
         triangles_raw.append([triangle_raw[0], triangle_raw[2], triangle_raw[1], triangle_raw[3]]) # note that triangle_raw[3] = color index / 16
+
         
+    # We duplicate all triangles to be used for the second wing
+    new_triangles_raw = []
+    for triangle_raw_index, triangle_raw in enumerate(triangles_raw):
+        new_triangle_raw = triangle_raw.copy()
+        new_triangle_raw[0] += nr_of_points_in_one_wing
+        new_triangle_raw[1] += nr_of_points_in_one_wing
+        new_triangle_raw[2] += nr_of_points_in_one_wing
+        new_triangles_raw.append(new_triangle_raw)
+        
+    triangles_raw = triangles_raw + new_triangles_raw
+    
     
     triangles = []
     color_index = 0

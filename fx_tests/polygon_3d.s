@@ -189,11 +189,14 @@ TMP_POINT_Z              = $94 ; 95
 
 ANGLE_X                  = $96 ; 97  ; number between 0 and 511
 ANGLE_Y_WINGS            = $98 ; 99  ; number between 0 and 511
-ANGLE_Z                  = $9A ; 9B  ; number between 0 and 511
+ANGLE_Y_WINGS_INV        = $9A ; 9B  ; number between 0 and 511
+ANGLE_Z                  = $9C ; 9D  ; number between 0 and 511
 
-TRANSLATE_Z              = $9C ; 9D
+WING_ANIMATION_INDEX     = $9E
 
-; FREE: $9E - $AA available
+TRANSLATE_Z              = $A0 ; A1
+
+; FREE: $A0 - $AA available
 
 ANGLE                    = $AB ; AC
 SINE_OUTPUT              = $AD ; AE
@@ -212,7 +215,7 @@ PREVIOUS_LINKED_LIST_ENTRY = $BD
 LINKED_LIST_NEW_ENTRY      = $BE
 
 DELTA_ANGLE_X              = $C0 ; C1
-DELTA_ANGLE_Y              = $C2 ; C3
+DELTA_ANGLE_Y_WINGS        = $C2 ; C3
 DELTA_ANGLE_Z              = $C4 ; C5
 
 NR_OF_KBD_KEY_CODE_BYTES   = $C6     ; Required by keyboard.s
@@ -800,10 +803,19 @@ switch_to_filling_high_vram_buffer:
 init_world:
 
     .if(DO_BUTTERFLY)
+; FIXME!
         lda #0
         sta ANGLE_Y_WINGS
         lda #0
         sta ANGLE_Y_WINGS+1
+
+        stz WING_ANIMATION_INDEX
+        
+        ; We start movement of the wings
+        lda #2
+        sta DELTA_ANGLE_Y_WINGS
+        lda #0
+        sta DELTA_ANGLE_Y_WINGS+1
     .endif
 
 ; FIXME!
@@ -862,8 +874,9 @@ update_world:
 
     stz DELTA_ANGLE_X
     stz DELTA_ANGLE_X+1
-    stz DELTA_ANGLE_Y
-    stz DELTA_ANGLE_Y+1
+; FIXME: do this more cleanly!
+;    stz DELTA_ANGLE_Y_WINGS
+;    stz DELTA_ANGLE_Y_WINGS+1
     stz DELTA_ANGLE_Z
     stz DELTA_ANGLE_Z+1
     
@@ -920,6 +933,52 @@ down_arrow_key_down_handled:
         sta DELTA_ANGLE_Z
         lda #1
         sta DELTA_ANGLE_X
+    .endif
+    
+    .if(DO_BUTTERFLY)
+    
+; FIXME: do this more cleanly!
+
+        lda WING_ANIMATION_INDEX
+        cmp #30
+        bcc delta_angle_y_wings_is_ok
+        
+        ; We need to negate the wing motion
+        sec
+        lda #<(512)
+        sbc DELTA_ANGLE_Y_WINGS
+        sta DELTA_ANGLE_Y_WINGS
+        lda #>(512)
+        sbc DELTA_ANGLE_Y_WINGS+1
+        sta DELTA_ANGLE_Y_WINGS+1
+        
+        ; We start over the animation (the opposite direction)
+        stz WING_ANIMATION_INDEX
+        
+delta_angle_y_wings_is_ok:
+        inc WING_ANIMATION_INDEX
+        
+        ; -- Update ANGLE_Y_WINGS --
+        clc
+        lda ANGLE_Y_WINGS
+        adc DELTA_ANGLE_Y_WINGS
+        sta ANGLE_Y_WINGS
+        lda ANGLE_Y_WINGS+1
+        adc DELTA_ANGLE_Y_WINGS+1
+        sta ANGLE_Y_WINGS+1
+
+        bpl angle_y_wings_is_positive
+        clc
+        adc #$2               ; We have a negative angle, so we have to add $200
+        sta ANGLE_Y_WINGS+1
+        bra angle_y_wings_updated
+angle_y_wings_is_positive:
+        cmp #2                ; we should never reach $200, we are >= $200
+        bne angle_y_wings_updated
+        sec
+        sbc #$2               ; We have a angle >= $200, so we have to subtract $200
+        sta ANGLE_Y_WINGS+1
+angle_y_wings_updated:
     .endif
     
     
@@ -1827,13 +1886,52 @@ rotate_first_wing_in_y_next_triangle:
         MACRO_rotate_sin_plus_cos  TRIANGLES_3D_POINTN_Z, TRIANGLES_3D_POINTN_X, TRIANGLES2_3D_POINTN_X
 
         inx
-        cpx #NR_OF_TRIANGLES
-; FIXME: DO THIS INSTEAD!        cpx #NR_OF_TRIANGLES/2  ; first wing = first half of the triangles
+        cpx #NR_OF_TRIANGLES/2  ; first wing = first half of the triangles
         beq rotate_first_wing_in_y_done
         jmp rotate_first_wing_in_y_next_triangle
 rotate_first_wing_in_y_done:
 
+        ; We take the inverse (360 degrees minus the angle) of the wing-angle for the second wing
+        sec
+; FIXME: WHY DOESNT 512 work here??
+; FIXME: WHY DOESNT 512 work here??
+; FIXME: WHY DOESNT 512 work here??
+        lda #<(511)    ; 511 = 360 degrees
+        sbc ANGLE_Y_WINGS
+        sta ANGLE_Y_WINGS_INV
+        lda #>(511)
+        sbc ANGLE_Y_WINGS+1
+        sta ANGLE_Y_WINGS_INV+1
+        
+        MACRO_load_sine ANGLE_Y_WINGS_INV
+        MACRO_load_cosine ANGLE_Y_WINGS_INV
+        
+        ldx #NR_OF_TRIANGLES/2 ; second wing =  second half of the triangles
+rotate_second_wing_in_y_next_triangle:
 
+        MACRO_reset_fx_multiplier
+
+        ; -- Point 1 --
+        MACRO_rotate_cos_minus_sin TRIANGLES_3D_POINT1_Z, TRIANGLES_3D_POINT1_X, TRIANGLES2_3D_POINT1_Z
+        MACRO_rotate_sin_plus_cos  TRIANGLES_3D_POINT1_Z, TRIANGLES_3D_POINT1_X, TRIANGLES2_3D_POINT1_X
+        
+        ; -- Point 2 --
+        MACRO_rotate_cos_minus_sin TRIANGLES_3D_POINT2_Z, TRIANGLES_3D_POINT2_X, TRIANGLES2_3D_POINT2_Z
+        MACRO_rotate_sin_plus_cos  TRIANGLES_3D_POINT2_Z, TRIANGLES_3D_POINT2_X, TRIANGLES2_3D_POINT2_X
+
+        ; -- Point 3 --
+        MACRO_rotate_cos_minus_sin TRIANGLES_3D_POINT3_Z, TRIANGLES_3D_POINT3_X, TRIANGLES2_3D_POINT3_Z
+        MACRO_rotate_sin_plus_cos  TRIANGLES_3D_POINT3_Z, TRIANGLES_3D_POINT3_X, TRIANGLES2_3D_POINT3_X
+
+        ; -- Point N --
+        MACRO_rotate_cos_minus_sin TRIANGLES_3D_POINTN_Z, TRIANGLES_3D_POINTN_X, TRIANGLES2_3D_POINTN_Z
+        MACRO_rotate_sin_plus_cos  TRIANGLES_3D_POINTN_Z, TRIANGLES_3D_POINTN_X, TRIANGLES2_3D_POINTN_X
+
+        inx
+        cpx #NR_OF_TRIANGLES
+        beq rotate_second_wing_in_y_done
+        jmp rotate_second_wing_in_y_next_triangle
+rotate_second_wing_in_y_done:
 
     .else
         ; FIXME: SPEED: we dont really want to do this when not doing butterfly wings!
@@ -2703,7 +2801,7 @@ end_of_palette_data:
     
     
     .if(1)
-NR_OF_TRIANGLES = 36
+NR_OF_TRIANGLES = 72
 triangle_3d_data:
     ; Note: the normal is a normal point relative to 0.0 (with a length of $100)
     ;       x1,    y1,    z1,    x2,    y2,    z2,    x3,    y3,    z3,    xn,    yn,    zn,   cl
@@ -2743,6 +2841,42 @@ triangle_3d_data:
     .word $FD0A, $02B0, $0000, $FD33, $01E8, $0000, $FEAD, $01E8, $0000, $0000, $0000, $0100, $0090
     .word $FDC6, $02B0, $0000, $FD0A, $02B0, $0000, $FEAD, $01E8, $0000, $0000, $0000, $0100, $0090
     .word $FCE0, $0377, $0000, $FD0A, $02B0, $0000, $FDC6, $02B0, $0000, $0000, $0000, $0100, $00A0
+    .word $03CE, $FC89, $0000, $0398, $FD40, $0000, $02F6, $FD40, $0000, $0000, $0000, $0100, $0010
+    .word $02F6, $FD40, $0000, $0398, $FD40, $0000, $0362, $FDF8, $0000, $0000, $0000, $0100, $0020
+    .word $02F6, $FD40, $0000, $0362, $FDF8, $0000, $021D, $FDF8, $0000, $0000, $0000, $0100, $0020
+    .word $021D, $FDF8, $0000, $0362, $FDF8, $0000, $032B, $FEB0, $0000, $0000, $0000, $0100, $0030
+    .word $021D, $FDF8, $0000, $032B, $FEB0, $0000, $0145, $FEB0, $0000, $0000, $0000, $0100, $0030
+    .word $0145, $FEB0, $0000, $032B, $FEB0, $0000, $02F5, $FF68, $0000, $0000, $0000, $0100, $0040
+    .word $0145, $FEB0, $0000, $02F5, $FF68, $0000, $006C, $FF68, $0000, $0000, $0000, $0100, $0040
+    .word $006C, $FF68, $0000, $02F5, $FF68, $0000, $0115, $FFEB, $0000, $0000, $0000, $0100, $0050
+    .word $006C, $FF68, $0000, $0115, $FFEB, $0000, $006C, $FFEB, $0000, $0000, $0000, $0100, $0050
+    .word $006C, $FFEB, $0000, $0115, $FFEB, $0000, $0115, $009D, $0000, $0000, $0000, $0100, $0060
+    .word $006C, $FFEB, $0000, $0115, $009D, $0000, $006C, $009D, $0000, $0000, $0000, $0100, $0060
+    .word $006C, $009D, $0000, $0115, $009D, $0000, $02A3, $0120, $0000, $0000, $0000, $0100, $0070
+    .word $006C, $009D, $0000, $02A3, $0120, $0000, $006C, $0120, $0000, $0000, $0000, $0100, $0070
+    .word $006C, $0120, $0000, $02A3, $0120, $0000, $02CD, $01E8, $0000, $0000, $0000, $0100, $0080
+    .word $006C, $0120, $0000, $02CD, $01E8, $0000, $0153, $01E8, $0000, $0000, $0000, $0100, $0080
+    .word $0153, $01E8, $0000, $02CD, $01E8, $0000, $02F6, $02B0, $0000, $0000, $0000, $0100, $0090
+    .word $0153, $01E8, $0000, $02F6, $02B0, $0000, $023A, $02B0, $0000, $0000, $0000, $0100, $0090
+    .word $023A, $02B0, $0000, $02F6, $02B0, $0000, $0320, $0377, $0000, $0000, $0000, $0100, $00A0
+    .word $02F6, $FD40, $0000, $0398, $FD40, $0000, $03CE, $FC89, $0000, $0000, $0000, $FF00, $0010
+    .word $0362, $FDF8, $0000, $0398, $FD40, $0000, $02F6, $FD40, $0000, $0000, $0000, $FF00, $0020
+    .word $021D, $FDF8, $0000, $0362, $FDF8, $0000, $02F6, $FD40, $0000, $0000, $0000, $FF00, $0020
+    .word $032B, $FEB0, $0000, $0362, $FDF8, $0000, $021D, $FDF8, $0000, $0000, $0000, $FF00, $0030
+    .word $0145, $FEB0, $0000, $032B, $FEB0, $0000, $021D, $FDF8, $0000, $0000, $0000, $FF00, $0030
+    .word $02F5, $FF68, $0000, $032B, $FEB0, $0000, $0145, $FEB0, $0000, $0000, $0000, $FF00, $0040
+    .word $006C, $FF68, $0000, $02F5, $FF68, $0000, $0145, $FEB0, $0000, $0000, $0000, $FF00, $0040
+    .word $0115, $FFEB, $0000, $02F5, $FF68, $0000, $006C, $FF68, $0000, $0000, $0000, $FF00, $0050
+    .word $006C, $FFEB, $0000, $0115, $FFEB, $0000, $006C, $FF68, $0000, $0000, $0000, $FF00, $0050
+    .word $0115, $009D, $0000, $0115, $FFEB, $0000, $006C, $FFEB, $0000, $0000, $0000, $FF00, $0060
+    .word $006C, $009D, $0000, $0115, $009D, $0000, $006C, $FFEB, $0000, $0000, $0000, $FF00, $0060
+    .word $02A3, $0120, $0000, $0115, $009D, $0000, $006C, $009D, $0000, $0000, $0000, $FF00, $0070
+    .word $006C, $0120, $0000, $02A3, $0120, $0000, $006C, $009D, $0000, $0000, $0000, $FF00, $0070
+    .word $02CD, $01E8, $0000, $02A3, $0120, $0000, $006C, $0120, $0000, $0000, $0000, $FF00, $0080
+    .word $0153, $01E8, $0000, $02CD, $01E8, $0000, $006C, $0120, $0000, $0000, $0000, $FF00, $0080
+    .word $02F6, $02B0, $0000, $02CD, $01E8, $0000, $0153, $01E8, $0000, $0000, $0000, $FF00, $0090
+    .word $023A, $02B0, $0000, $02F6, $02B0, $0000, $0153, $01E8, $0000, $0000, $0000, $FF00, $0090
+    .word $0320, $0377, $0000, $02F6, $02B0, $0000, $023A, $02B0, $0000, $0000, $0000, $FF00, $00A0
     
 palette_data:
     .byte $00, $00  ; palette index 16
