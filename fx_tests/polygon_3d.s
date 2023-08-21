@@ -5,8 +5,8 @@ DO_SPEED_TEST = 1
 DO_4BIT = 0
 DO_2BIT = 0
 KEEP_RUNNING = 1
-USE_LIGHT = 0
-USE_KEYBOARD_INPUT = 0
+USE_LIGHT = 1
+USE_KEYBOARD_INPUT = 1
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
 
@@ -482,7 +482,10 @@ wait_1:
   
 test_speed_of_simple_3d_polygon_scene:
 
-    jsr copy_palette_from_index_16
+    .if(1)
+        jsr copy_palette_from_index_16
+        jsr copy_palette_from_index_128
+    .endif
 
     jsr load_3d_triangle_data_into_ram
 
@@ -791,16 +794,16 @@ switch_to_filling_high_vram_buffer:
     
     
 init_world:    
-    lda #48
 ; FIXME!
-;    lda #0
+;    lda #48
+    lda #0
     sta ANGLE_Z
     lda #0
     sta ANGLE_Z+1
 
-    lda #44
 ; FIXME!
-;    lda #0
+;    lda #44
+    lda #0
     sta ANGLE_X
     lda #0
     sta ANGLE_X+1
@@ -1971,14 +1974,20 @@ scale_and_position_keep_going:
         lda DOT_PRODUCT+1
         bpl check_if_full_light
         ; When DOT_PRODUCT < 00.00 we want dark light color!
-        lda #$10    ; Black for now
+        
+; FIXME: maybe we should the bright color base base color (not black)?
+        
+; FIXME: REMOVE lda #$10    ; Black for now
+        lda TRIANGLES_ORG_COLOR,x   ; Base color (dark)
         bra color_calculated
 check_if_full_light:
         ; -- Take care of +1.0 case --
         lda DOT_PRODUCT+1
         beq map_light_to_color
         ; When DOT_PRODUCT = 01.00 we want FULL light color!
-        lda #$1F  ; white
+        lda #$0F  ; white
+        ora TRIANGLES_ORG_COLOR,x   ; Base color (dark)
+; FIXME: REMOVE lda #$1F  ; white
         bra color_calculated
 map_light_to_color:
         ; -- Take care < +1.0 cases --
@@ -1987,7 +1996,8 @@ map_light_to_color:
         lsr
         lsr
         lsr
-        ora #$10   ; starting with black
+        ora TRIANGLES_ORG_COLOR,x   ; Base color (dark)
+; FIXME: REMOVE   ora #$10   ; starting with black
 color_calculated:
         sta TRIANGLES_COLOR,y
     .else
@@ -2390,6 +2400,28 @@ next_packed_color:
     rts
 
 
+copy_palette_from_index_128:
+
+    ; Starting at palette VRAM address
+    
+    lda #%00010001      ; setting bit 16 of vram address to 1, setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+
+    lda #<(VERA_PALETTE+2*128)
+    sta VERA_ADDR_LOW
+    lda #>(VERA_PALETTE+2*128)
+    sta VERA_ADDR_HIGH
+
+    ldy #0
+next_packed_color_128:
+    lda palette_data_128, y
+    sta VERA_DATA0
+    iny
+    cpy #(end_of_palette_data_128-palette_data_128)
+    bne next_packed_color_128
+
+    rts
+
     
 load_3d_triangle_data_into_ram:
 
@@ -2647,54 +2679,208 @@ triangle_3d_data:
     ; Note: the normal is a normal point relative to 0.0 (with a length of $100)
     ;       x1,    y1,    z1,    x2,    y2,    z2,    x3,    y3,    z3,    xn,    yn,    zn,   cl
     .word $FC32, $FC89, $0000, $FC68, $FD40, $0000, $FD0A, $FD40, $0000, $0000, $0000, $FF00, $0010
-    .word $FD0A, $FD40, $0000, $FC68, $FD40, $0000, $FC9E, $FDF8, $0000, $0000, $0000, $FF00, $0011
-    .word $FD0A, $FD40, $0000, $FC9E, $FDF8, $0000, $FDE3, $FDF8, $0000, $0000, $0000, $FF00, $0011
-    .word $FDE3, $FDF8, $0000, $FC9E, $FDF8, $0000, $FCD5, $FEB0, $0000, $0000, $0000, $FF00, $0012
-    .word $FDE3, $FDF8, $0000, $FCD5, $FEB0, $0000, $FEBB, $FEB0, $0000, $0000, $0000, $FF00, $0012
-    .word $FEBB, $FEB0, $0000, $FCD5, $FEB0, $0000, $FD0B, $FF68, $0000, $0000, $0000, $FF00, $0013
-    .word $FEBB, $FEB0, $0000, $FD0B, $FF68, $0000, $FF94, $FF68, $0000, $0000, $0000, $FF00, $0013
-    .word $FF94, $FF68, $0000, $FD0B, $FF68, $0000, $FEEB, $FFEB, $0000, $0000, $0000, $FF00, $0014
-    .word $FF94, $FF68, $0000, $FEEB, $FFEB, $0000, $FF94, $FFEB, $0000, $0000, $0000, $FF00, $0014
-    .word $FF94, $FFEB, $0000, $FEEB, $FFEB, $0000, $FEEB, $009D, $0000, $0000, $0000, $FF00, $0015
-    .word $FF94, $FFEB, $0000, $FEEB, $009D, $0000, $FF94, $009D, $0000, $0000, $0000, $FF00, $0015
-    .word $FF94, $009D, $0000, $FEEB, $009D, $0000, $FD5D, $0120, $0000, $0000, $0000, $FF00, $0016
-    .word $FF94, $009D, $0000, $FD5D, $0120, $0000, $FF94, $0120, $0000, $0000, $0000, $FF00, $0016
-    .word $FF94, $0120, $0000, $FD5D, $0120, $0000, $FD33, $01E8, $0000, $0000, $0000, $FF00, $0017
-    .word $FF94, $0120, $0000, $FD33, $01E8, $0000, $FEAD, $01E8, $0000, $0000, $0000, $FF00, $0017
-    .word $FEAD, $01E8, $0000, $FD33, $01E8, $0000, $FD0A, $02B0, $0000, $0000, $0000, $FF00, $0018
-    .word $FEAD, $01E8, $0000, $FD0A, $02B0, $0000, $FDC6, $02B0, $0000, $0000, $0000, $FF00, $0018
-    .word $FDC6, $02B0, $0000, $FD0A, $02B0, $0000, $FCE0, $0377, $0000, $0000, $0000, $FF00, $0019
+    .word $FD0A, $FD40, $0000, $FC68, $FD40, $0000, $FC9E, $FDF8, $0000, $0000, $0000, $FF00, $0020
+    .word $FD0A, $FD40, $0000, $FC9E, $FDF8, $0000, $FDE3, $FDF8, $0000, $0000, $0000, $FF00, $0020
+    .word $FDE3, $FDF8, $0000, $FC9E, $FDF8, $0000, $FCD5, $FEB0, $0000, $0000, $0000, $FF00, $0030
+    .word $FDE3, $FDF8, $0000, $FCD5, $FEB0, $0000, $FEBB, $FEB0, $0000, $0000, $0000, $FF00, $0030
+    .word $FEBB, $FEB0, $0000, $FCD5, $FEB0, $0000, $FD0B, $FF68, $0000, $0000, $0000, $FF00, $0040
+    .word $FEBB, $FEB0, $0000, $FD0B, $FF68, $0000, $FF94, $FF68, $0000, $0000, $0000, $FF00, $0040
+    .word $FF94, $FF68, $0000, $FD0B, $FF68, $0000, $FEEB, $FFEB, $0000, $0000, $0000, $FF00, $0050
+    .word $FF94, $FF68, $0000, $FEEB, $FFEB, $0000, $FF94, $FFEB, $0000, $0000, $0000, $FF00, $0050
+    .word $FF94, $FFEB, $0000, $FEEB, $FFEB, $0000, $FEEB, $009D, $0000, $0000, $0000, $FF00, $0060
+    .word $FF94, $FFEB, $0000, $FEEB, $009D, $0000, $FF94, $009D, $0000, $0000, $0000, $FF00, $0060
+    .word $FF94, $009D, $0000, $FEEB, $009D, $0000, $FD5D, $0120, $0000, $0000, $0000, $FF00, $0070
+    .word $FF94, $009D, $0000, $FD5D, $0120, $0000, $FF94, $0120, $0000, $0000, $0000, $FF00, $0070
+    .word $FF94, $0120, $0000, $FD5D, $0120, $0000, $FD33, $01E8, $0000, $0000, $0000, $FF00, $0080
+    .word $FF94, $0120, $0000, $FD33, $01E8, $0000, $FEAD, $01E8, $0000, $0000, $0000, $FF00, $0080
+    .word $FEAD, $01E8, $0000, $FD33, $01E8, $0000, $FD0A, $02B0, $0000, $0000, $0000, $FF00, $0090
+    .word $FEAD, $01E8, $0000, $FD0A, $02B0, $0000, $FDC6, $02B0, $0000, $0000, $0000, $FF00, $0090
+    .word $FDC6, $02B0, $0000, $FD0A, $02B0, $0000, $FCE0, $0377, $0000, $0000, $0000, $FF00, $00A0
     .word $FD0A, $FD40, $0000, $FC68, $FD40, $0000, $FC32, $FC89, $0000, $0000, $0000, $0100, $0010
-    .word $FC9E, $FDF8, $0000, $FC68, $FD40, $0000, $FD0A, $FD40, $0000, $0000, $0000, $0100, $0011
-    .word $FDE3, $FDF8, $0000, $FC9E, $FDF8, $0000, $FD0A, $FD40, $0000, $0000, $0000, $0100, $0011
-    .word $FCD5, $FEB0, $0000, $FC9E, $FDF8, $0000, $FDE3, $FDF8, $0000, $0000, $0000, $0100, $0012
-    .word $FEBB, $FEB0, $0000, $FCD5, $FEB0, $0000, $FDE3, $FDF8, $0000, $0000, $0000, $0100, $0012
-    .word $FD0B, $FF68, $0000, $FCD5, $FEB0, $0000, $FEBB, $FEB0, $0000, $0000, $0000, $0100, $0013
-    .word $FF94, $FF68, $0000, $FD0B, $FF68, $0000, $FEBB, $FEB0, $0000, $0000, $0000, $0100, $0013
-    .word $FEEB, $FFEB, $0000, $FD0B, $FF68, $0000, $FF94, $FF68, $0000, $0000, $0000, $0100, $0014
-    .word $FF94, $FFEB, $0000, $FEEB, $FFEB, $0000, $FF94, $FF68, $0000, $0000, $0000, $0100, $0014
-    .word $FEEB, $009D, $0000, $FEEB, $FFEB, $0000, $FF94, $FFEB, $0000, $0000, $0000, $0100, $0015
-    .word $FF94, $009D, $0000, $FEEB, $009D, $0000, $FF94, $FFEB, $0000, $0000, $0000, $0100, $0015
-    .word $FD5D, $0120, $0000, $FEEB, $009D, $0000, $FF94, $009D, $0000, $0000, $0000, $0100, $0016
-    .word $FF94, $0120, $0000, $FD5D, $0120, $0000, $FF94, $009D, $0000, $0000, $0000, $0100, $0016
-    .word $FD33, $01E8, $0000, $FD5D, $0120, $0000, $FF94, $0120, $0000, $0000, $0000, $0100, $0017
-    .word $FEAD, $01E8, $0000, $FD33, $01E8, $0000, $FF94, $0120, $0000, $0000, $0000, $0100, $0017
-    .word $FD0A, $02B0, $0000, $FD33, $01E8, $0000, $FEAD, $01E8, $0000, $0000, $0000, $0100, $0018
-    .word $FDC6, $02B0, $0000, $FD0A, $02B0, $0000, $FEAD, $01E8, $0000, $0000, $0000, $0100, $0018
-    .word $FCE0, $0377, $0000, $FD0A, $02B0, $0000, $FDC6, $02B0, $0000, $0000, $0000, $0100, $0019
+    .word $FC9E, $FDF8, $0000, $FC68, $FD40, $0000, $FD0A, $FD40, $0000, $0000, $0000, $0100, $0020
+    .word $FDE3, $FDF8, $0000, $FC9E, $FDF8, $0000, $FD0A, $FD40, $0000, $0000, $0000, $0100, $0020
+    .word $FCD5, $FEB0, $0000, $FC9E, $FDF8, $0000, $FDE3, $FDF8, $0000, $0000, $0000, $0100, $0030
+    .word $FEBB, $FEB0, $0000, $FCD5, $FEB0, $0000, $FDE3, $FDF8, $0000, $0000, $0000, $0100, $0030
+    .word $FD0B, $FF68, $0000, $FCD5, $FEB0, $0000, $FEBB, $FEB0, $0000, $0000, $0000, $0100, $0040
+    .word $FF94, $FF68, $0000, $FD0B, $FF68, $0000, $FEBB, $FEB0, $0000, $0000, $0000, $0100, $0040
+    .word $FEEB, $FFEB, $0000, $FD0B, $FF68, $0000, $FF94, $FF68, $0000, $0000, $0000, $0100, $0050
+    .word $FF94, $FFEB, $0000, $FEEB, $FFEB, $0000, $FF94, $FF68, $0000, $0000, $0000, $0100, $0050
+    .word $FEEB, $009D, $0000, $FEEB, $FFEB, $0000, $FF94, $FFEB, $0000, $0000, $0000, $0100, $0060
+    .word $FF94, $009D, $0000, $FEEB, $009D, $0000, $FF94, $FFEB, $0000, $0000, $0000, $0100, $0060
+    .word $FD5D, $0120, $0000, $FEEB, $009D, $0000, $FF94, $009D, $0000, $0000, $0000, $0100, $0070
+    .word $FF94, $0120, $0000, $FD5D, $0120, $0000, $FF94, $009D, $0000, $0000, $0000, $0100, $0070
+    .word $FD33, $01E8, $0000, $FD5D, $0120, $0000, $FF94, $0120, $0000, $0000, $0000, $0100, $0080
+    .word $FEAD, $01E8, $0000, $FD33, $01E8, $0000, $FF94, $0120, $0000, $0000, $0000, $0100, $0080
+    .word $FD0A, $02B0, $0000, $FD33, $01E8, $0000, $FEAD, $01E8, $0000, $0000, $0000, $0100, $0090
+    .word $FDC6, $02B0, $0000, $FD0A, $02B0, $0000, $FEAD, $01E8, $0000, $0000, $0000, $0100, $0090
+    .word $FCE0, $0377, $0000, $FD0A, $02B0, $0000, $FDC6, $02B0, $0000, $0000, $0000, $0100, $00A0
     
 palette_data:
-    .byte $9c, $0c  ; palette index 16
-    .byte $8c, $07  ; palette index 17
-    .byte $9c, $04  ; palette index 18
-    .byte $cf, $08  ; palette index 19
-    .byte $cb, $05  ; palette index 20
-    .byte $c8, $03  ; palette index 21
-    .byte $c5, $0a  ; palette index 22
-    .byte $c5, $0e  ; palette index 23
-    .byte $95, $0f  ; palette index 24
-    .byte $54, $0f  ; palette index 25
+    .byte $00, $00  ; palette index 16
+    .byte $00, $00  ; palette index 17
+    .byte $11, $01  ; palette index 18
+    .byte $12, $02  ; palette index 19
+    .byte $23, $03  ; palette index 20
+    .byte $34, $04  ; palette index 21
+    .byte $34, $04  ; palette index 22
+    .byte $45, $05  ; palette index 23
+    .byte $46, $06  ; palette index 24
+    .byte $57, $07  ; palette index 25
+    .byte $68, $08  ; palette index 26
+    .byte $68, $08  ; palette index 27
+    .byte $79, $09  ; palette index 28
+    .byte $7a, $0a  ; palette index 29
+    .byte $8b, $0b  ; palette index 30
+    .byte $9c, $0c  ; palette index 31
+    .byte $00, $00  ; palette index 32
+    .byte $00, $00  ; palette index 33
+    .byte $11, $00  ; palette index 34
+    .byte $12, $01  ; palette index 35
+    .byte $23, $01  ; palette index 36
+    .byte $24, $02  ; palette index 37
+    .byte $34, $02  ; palette index 38
+    .byte $35, $03  ; palette index 39
+    .byte $46, $03  ; palette index 40
+    .byte $47, $04  ; palette index 41
+    .byte $58, $04  ; palette index 42
+    .byte $58, $05  ; palette index 43
+    .byte $69, $05  ; palette index 44
+    .byte $6a, $06  ; palette index 45
+    .byte $7b, $06  ; palette index 46
+    .byte $8c, $07  ; palette index 47
+    .byte $00, $00  ; palette index 48
+    .byte $00, $00  ; palette index 49
+    .byte $11, $00  ; palette index 50
+    .byte $12, $00  ; palette index 51
+    .byte $23, $01  ; palette index 52
+    .byte $34, $01  ; palette index 53
+    .byte $34, $01  ; palette index 54
+    .byte $45, $01  ; palette index 55
+    .byte $46, $02  ; palette index 56
+    .byte $57, $02  ; palette index 57
+    .byte $68, $02  ; palette index 58
+    .byte $68, $02  ; palette index 59
+    .byte $79, $03  ; palette index 60
+    .byte $7a, $03  ; palette index 61
+    .byte $8b, $03  ; palette index 62
+    .byte $9c, $04  ; palette index 63
+    .byte $00, $00  ; palette index 64
+    .byte $01, $00  ; palette index 65
+    .byte $12, $01  ; palette index 66
+    .byte $23, $01  ; palette index 67
+    .byte $34, $02  ; palette index 68
+    .byte $45, $02  ; palette index 69
+    .byte $46, $03  ; palette index 70
+    .byte $57, $03  ; palette index 71
+    .byte $68, $04  ; palette index 72
+    .byte $79, $04  ; palette index 73
+    .byte $8a, $05  ; palette index 74
+    .byte $8b, $05  ; palette index 75
+    .byte $9c, $06  ; palette index 76
+    .byte $ad, $06  ; palette index 77
+    .byte $be, $07  ; palette index 78
+    .byte $cf, $08  ; palette index 79
+    .byte $00, $00  ; palette index 80
+    .byte $00, $00  ; palette index 81
+    .byte $11, $00  ; palette index 82
+    .byte $22, $01  ; palette index 83
+    .byte $32, $01  ; palette index 84
+    .byte $43, $01  ; palette index 85
+    .byte $44, $02  ; palette index 86
+    .byte $55, $02  ; palette index 87
+    .byte $65, $02  ; palette index 88
+    .byte $76, $03  ; palette index 89
+    .byte $87, $03  ; palette index 90
+    .byte $88, $03  ; palette index 91
+    .byte $98, $04  ; palette index 92
+    .byte $a9, $04  ; palette index 93
+    .byte $ba, $04  ; palette index 94
+    .byte $cb, $05  ; palette index 95
+    .byte $00, $00  ; palette index 96
+    .byte $00, $00  ; palette index 97
+    .byte $11, $00  ; palette index 98
+    .byte $21, $00  ; palette index 99
+    .byte $32, $00  ; palette index 100
+    .byte $42, $01  ; palette index 101
+    .byte $43, $01  ; palette index 102
+    .byte $53, $01  ; palette index 103
+    .byte $64, $01  ; palette index 104
+    .byte $74, $01  ; palette index 105
+    .byte $85, $02  ; palette index 106
+    .byte $85, $02  ; palette index 107
+    .byte $96, $02  ; palette index 108
+    .byte $a6, $02  ; palette index 109
+    .byte $b7, $02  ; palette index 110
+    .byte $c8, $03  ; palette index 111
+    .byte $00, $00  ; palette index 112
+    .byte $00, $00  ; palette index 113
+    .byte $10, $01  ; palette index 114
+    .byte $21, $02  ; palette index 115
+    .byte $31, $02  ; palette index 116
+    .byte $41, $03  ; palette index 117
+    .byte $42, $04  ; palette index 118
+    .byte $52, $04  ; palette index 119
+    .byte $62, $05  ; palette index 120
+    .byte $73, $06  ; palette index 121
+    .byte $83, $06  ; palette index 122
+    .byte $83, $07  ; palette index 123
+    .byte $94, $08  ; palette index 124
+    .byte $a4, $08  ; palette index 125
+    .byte $b4, $09  ; palette index 126
+    .byte $c5, $0a  ; palette index 127
 end_of_palette_data:
+
+
+palette_data_128:
+    .byte $00, $00  ; palette index 128
+    .byte $00, $00  ; palette index 129
+    .byte $10, $01  ; palette index 130
+    .byte $21, $02  ; palette index 131
+    .byte $31, $03  ; palette index 132
+    .byte $41, $04  ; palette index 133
+    .byte $42, $05  ; palette index 134
+    .byte $52, $06  ; palette index 135
+    .byte $62, $07  ; palette index 136
+    .byte $73, $08  ; palette index 137
+    .byte $83, $09  ; palette index 138
+    .byte $83, $0a  ; palette index 139
+    .byte $94, $0b  ; palette index 140
+    .byte $a4, $0c  ; palette index 141
+    .byte $b4, $0d  ; palette index 142
+    .byte $c5, $0e  ; palette index 143
+    .byte $00, $00  ; palette index 144
+    .byte $00, $01  ; palette index 145
+    .byte $10, $02  ; palette index 146
+    .byte $11, $03  ; palette index 147
+    .byte $21, $04  ; palette index 148
+    .byte $31, $05  ; palette index 149
+    .byte $32, $06  ; palette index 150
+    .byte $42, $07  ; palette index 151
+    .byte $42, $08  ; palette index 152
+    .byte $53, $09  ; palette index 153
+    .byte $63, $0a  ; palette index 154
+    .byte $63, $0b  ; palette index 155
+    .byte $74, $0c  ; palette index 156
+    .byte $74, $0d  ; palette index 157
+    .byte $84, $0e  ; palette index 158
+    .byte $95, $0f  ; palette index 159
+    .byte $00, $00  ; palette index 160
+    .byte $00, $01  ; palette index 161
+    .byte $00, $02  ; palette index 162
+    .byte $10, $03  ; palette index 163
+    .byte $11, $04  ; palette index 164
+    .byte $11, $05  ; palette index 165
+    .byte $21, $06  ; palette index 166
+    .byte $21, $07  ; palette index 167
+    .byte $22, $08  ; palette index 168
+    .byte $32, $09  ; palette index 169
+    .byte $32, $0a  ; palette index 170
+    .byte $32, $0b  ; palette index 171
+    .byte $43, $0c  ; palette index 172
+    .byte $43, $0d  ; palette index 173
+    .byte $43, $0e  ; palette index 174
+    .byte $54, $0f  ; palette index 175
+end_of_palette_data_128:
     .endif
     
     
