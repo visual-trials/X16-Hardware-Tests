@@ -9,6 +9,7 @@ USE_LIGHT = 1
 USE_KEYBOARD_INPUT = 1
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
+DO_BUTTERFLY = 1
 
 ; WEIRD BUG: when using JUMP_TABLES, the triangles look very 'edgy'!! --> it is 'SOLVED' by putting the jump FILL_LINE_END_CODE_x-block aligned to 256 bytes!?!?
 
@@ -187,7 +188,7 @@ TMP_POINT_Y              = $92 ; 93
 TMP_POINT_Z              = $94 ; 95
 
 ANGLE_X                  = $96 ; 97  ; number between 0 and 511
-ANGLE_Y                  = $98 ; 99  ; number between 0 and 511
+ANGLE_Y_WINGS            = $98 ; 99  ; number between 0 and 511
 ANGLE_Z                  = $9A ; 9B  ; number between 0 and 511
 
 TRANSLATE_Z              = $9C ; 9D
@@ -796,7 +797,15 @@ switch_to_filling_high_vram_buffer:
 
     
     
-init_world:    
+init_world:
+
+    .if(DO_BUTTERFLY)
+        lda #0
+        sta ANGLE_Y_WINGS
+        lda #0
+        sta ANGLE_Y_WINGS+1
+    .endif
+
 ; FIXME!
 ;    lda #48
     lda #0
@@ -1786,6 +1795,78 @@ MACRO_reset_fx_multiplier .macro
 calculate_projection_of_3d_onto_2d_screen:
 
     MACRO_prepare_fx_multiplier
+    
+    ; Handy: https://www.cs.helsinki.fi/group/goa/mallinnus/3dtransf/3drot.html
+    
+    ; FIXME: SPEED: we should *COMBINE* these X, Y and Z rotations into a WORLD MATRIX!
+    
+    .if(DO_BUTTERFLY)
+    
+        MACRO_load_sine ANGLE_Y_WINGS
+        MACRO_load_cosine ANGLE_Y_WINGS
+        
+        ldx #0
+rotate_first_wing_in_y_next_triangle:
+
+        MACRO_reset_fx_multiplier
+
+        ; -- Point 1 --
+        MACRO_rotate_cos_minus_sin TRIANGLES_3D_POINT1_Z, TRIANGLES_3D_POINT1_X, TRIANGLES2_3D_POINT1_Z
+        MACRO_rotate_sin_plus_cos  TRIANGLES_3D_POINT1_Z, TRIANGLES_3D_POINT1_X, TRIANGLES2_3D_POINT1_X
+        
+        ; -- Point 2 --
+        MACRO_rotate_cos_minus_sin TRIANGLES_3D_POINT2_Z, TRIANGLES_3D_POINT2_X, TRIANGLES2_3D_POINT2_Z
+        MACRO_rotate_sin_plus_cos  TRIANGLES_3D_POINT2_Z, TRIANGLES_3D_POINT2_X, TRIANGLES2_3D_POINT2_X
+
+        ; -- Point 3 --
+        MACRO_rotate_cos_minus_sin TRIANGLES_3D_POINT3_Z, TRIANGLES_3D_POINT3_X, TRIANGLES2_3D_POINT3_Z
+        MACRO_rotate_sin_plus_cos  TRIANGLES_3D_POINT3_Z, TRIANGLES_3D_POINT3_X, TRIANGLES2_3D_POINT3_X
+
+        ; -- Point N --
+        MACRO_rotate_cos_minus_sin TRIANGLES_3D_POINTN_Z, TRIANGLES_3D_POINTN_X, TRIANGLES2_3D_POINTN_Z
+        MACRO_rotate_sin_plus_cos  TRIANGLES_3D_POINTN_Z, TRIANGLES_3D_POINTN_X, TRIANGLES2_3D_POINTN_X
+
+        inx
+        cpx #NR_OF_TRIANGLES
+; FIXME: DO THIS INSTEAD!        cpx #NR_OF_TRIANGLES/2  ; first wing = first half of the triangles
+        beq rotate_first_wing_in_y_done
+        jmp rotate_first_wing_in_y_next_triangle
+rotate_first_wing_in_y_done:
+
+
+
+    .else
+        ; FIXME: SPEED: we dont really want to do this when not doing butterfly wings!
+        ldx #0
+copy_x_and_z_next_triangle:
+
+        ; -- Point 1 --
+        MACRO_copy_point_value TRIANGLES_3D_POINT1_X, TRIANGLES2_3D_POINT1_X
+        MACRO_copy_point_value TRIANGLES_3D_POINT1_Z, TRIANGLES2_3D_POINT1_Z
+        
+        ; -- Point 2 --
+        MACRO_copy_point_value TRIANGLES_3D_POINT2_X, TRIANGLES2_3D_POINT2_X
+        MACRO_copy_point_value TRIANGLES_3D_POINT2_Z, TRIANGLES2_3D_POINT2_Z
+
+        ; -- Point 3 --
+        MACRO_copy_point_value TRIANGLES_3D_POINT3_X, TRIANGLES2_3D_POINT3_X
+        MACRO_copy_point_value TRIANGLES_3D_POINT3_Z, TRIANGLES2_3D_POINT3_Z
+
+        ; -- Point N --
+        MACRO_copy_point_value TRIANGLES_3D_POINTN_X, TRIANGLES2_3D_POINTN_X
+        MACRO_copy_point_value TRIANGLES_3D_POINTN_Z, TRIANGLES2_3D_POINTN_Z
+
+        inx
+        cpx #NR_OF_TRIANGLES
+        beq copy_x_and_z_done
+        jmp copy_x_and_z_next_triangle
+copy_x_and_z_done:
+
+    .endif
+    
+    
+    
+    
 
     MACRO_load_sine ANGLE_Z
     MACRO_load_cosine ANGLE_Z
@@ -1793,49 +1874,23 @@ calculate_projection_of_3d_onto_2d_screen:
     ldx #0
 rotate_in_z_next_triangle:
 
-    .if(1)
-        MACRO_reset_fx_multiplier
+    MACRO_reset_fx_multiplier
+
+    ; -- Point 1 --
+    MACRO_rotate_cos_minus_sin TRIANGLES2_3D_POINT1_X, TRIANGLES_3D_POINT1_Y, TRIANGLES3_3D_POINT1_X
+    MACRO_rotate_sin_plus_cos  TRIANGLES2_3D_POINT1_X, TRIANGLES_3D_POINT1_Y, TRIANGLES2_3D_POINT1_Y
     
-        ; -- Point 1 --
-        MACRO_rotate_cos_minus_sin TRIANGLES_3D_POINT1_X, TRIANGLES_3D_POINT1_Y, TRIANGLES2_3D_POINT1_X
-        MACRO_rotate_sin_plus_cos  TRIANGLES_3D_POINT1_X, TRIANGLES_3D_POINT1_Y, TRIANGLES2_3D_POINT1_Y
-        ; MACRO_copy_point_value TRIANGLES_3D_POINT1_Z, TRIANGLES2_3D_POINT1_Z
-        
-        ; -- Point 2 --
-        MACRO_rotate_cos_minus_sin TRIANGLES_3D_POINT2_X, TRIANGLES_3D_POINT2_Y, TRIANGLES2_3D_POINT2_X
-        MACRO_rotate_sin_plus_cos  TRIANGLES_3D_POINT2_X, TRIANGLES_3D_POINT2_Y, TRIANGLES2_3D_POINT2_Y
-        ; MACRO_copy_point_value TRIANGLES_3D_POINT2_Z, TRIANGLES2_3D_POINT2_Z
+    ; -- Point 2 --
+    MACRO_rotate_cos_minus_sin TRIANGLES2_3D_POINT2_X, TRIANGLES_3D_POINT2_Y, TRIANGLES3_3D_POINT2_X
+    MACRO_rotate_sin_plus_cos  TRIANGLES2_3D_POINT2_X, TRIANGLES_3D_POINT2_Y, TRIANGLES2_3D_POINT2_Y
 
-        ; -- Point 3 --
-        MACRO_rotate_cos_minus_sin TRIANGLES_3D_POINT3_X, TRIANGLES_3D_POINT3_Y, TRIANGLES2_3D_POINT3_X
-        MACRO_rotate_sin_plus_cos  TRIANGLES_3D_POINT3_X, TRIANGLES_3D_POINT3_Y, TRIANGLES2_3D_POINT3_Y
-        ; MACRO_copy_point_value TRIANGLES_3D_POINT3_Z, TRIANGLES2_3D_POINT3_Z
+    ; -- Point 3 --
+    MACRO_rotate_cos_minus_sin TRIANGLES2_3D_POINT3_X, TRIANGLES_3D_POINT3_Y, TRIANGLES3_3D_POINT3_X
+    MACRO_rotate_sin_plus_cos  TRIANGLES2_3D_POINT3_X, TRIANGLES_3D_POINT3_Y, TRIANGLES2_3D_POINT3_Y
 
-        ; -- Point N --
-        MACRO_rotate_cos_minus_sin TRIANGLES_3D_POINTN_X, TRIANGLES_3D_POINTN_Y, TRIANGLES2_3D_POINTN_X
-        MACRO_rotate_sin_plus_cos  TRIANGLES_3D_POINTN_X, TRIANGLES_3D_POINTN_Y, TRIANGLES2_3D_POINTN_Y
-        ; MACRO_copy_point_value TRIANGLES_3D_POINTN_Z, TRIANGLES2_3D_POINTN_Z
-    .else
-        ; -- Point 1 --
-        MACRO_copy_point_value TRIANGLES_3D_POINT1_X, TRIANGLES2_3D_POINT1_X
-        MACRO_copy_point_value TRIANGLES_3D_POINT1_Y, TRIANGLES2_3D_POINT1_Y
-        ; MACRO_copy_point_value TRIANGLES_3D_POINT1_Z, TRIANGLES2_3D_POINT1_Z
-        
-        ; -- Point 2 --
-        MACRO_copy_point_value TRIANGLES_3D_POINT2_X, TRIANGLES2_3D_POINT2_X
-        MACRO_copy_point_value TRIANGLES_3D_POINT2_Y, TRIANGLES2_3D_POINT2_Y
-        ; MACRO_copy_point_value TRIANGLES_3D_POINT2_Z, TRIANGLES2_3D_POINT2_Z
-
-        ; -- Point 3 --
-        MACRO_copy_point_value TRIANGLES_3D_POINT3_X, TRIANGLES2_3D_POINT3_X
-        MACRO_copy_point_value TRIANGLES_3D_POINT3_Y, TRIANGLES2_3D_POINT3_Y
-        ; MACRO_copy_point_value TRIANGLES_3D_POINT3_Z, TRIANGLES2_3D_POINT3_Z
-
-        ; -- Point N --
-        MACRO_copy_point_value TRIANGLES_3D_POINTN_X, TRIANGLES2_3D_POINTN_X
-        MACRO_copy_point_value TRIANGLES_3D_POINTN_Y, TRIANGLES2_3D_POINTN_Y
-        ; MACRO_copy_point_value TRIANGLES_3D_POINTN_Z, TRIANGLES2_3D_POINTN_Z
-    .endif
+    ; -- Point N --
+    MACRO_rotate_cos_minus_sin TRIANGLES2_3D_POINTN_X, TRIANGLES_3D_POINTN_Y, TRIANGLES3_3D_POINTN_X
+    MACRO_rotate_sin_plus_cos  TRIANGLES2_3D_POINTN_X, TRIANGLES_3D_POINTN_Y, TRIANGLES2_3D_POINTN_Y
 
     inx
     cpx #NR_OF_TRIANGLES
@@ -1851,49 +1906,23 @@ rotate_in_x_next_triangle:
     
     ; WARNING: we are using TRIANGLES (not TRIANGLES2) for Z here!
     
-    .if(1)
-        MACRO_reset_fx_multiplier
+    MACRO_reset_fx_multiplier
+
+    ; -- Point 1 --
+    MACRO_rotate_cos_minus_sin TRIANGLES2_3D_POINT1_Y, TRIANGLES2_3D_POINT1_Z, TRIANGLES3_3D_POINT1_Y
+    MACRO_rotate_sin_plus_cos  TRIANGLES2_3D_POINT1_Y, TRIANGLES2_3D_POINT1_Z, TRIANGLES3_3D_POINT1_Z
     
-        ; -- Point 1 --
-        MACRO_rotate_cos_minus_sin TRIANGLES2_3D_POINT1_Y, TRIANGLES_3D_POINT1_Z, TRIANGLES3_3D_POINT1_Y
-        MACRO_rotate_sin_plus_cos  TRIANGLES2_3D_POINT1_Y, TRIANGLES_3D_POINT1_Z, TRIANGLES3_3D_POINT1_Z
-        ; MACRO_copy_point_value TRIANGLES2_3D_POINT1_X, TRIANGLES3_3D_POINT1_X
-        
-        ; -- Point 2 --
-        MACRO_rotate_cos_minus_sin TRIANGLES2_3D_POINT2_Y, TRIANGLES_3D_POINT2_Z, TRIANGLES3_3D_POINT2_Y
-        MACRO_rotate_sin_plus_cos  TRIANGLES2_3D_POINT2_Y, TRIANGLES_3D_POINT2_Z, TRIANGLES3_3D_POINT2_Z
-        ; MACRO_copy_point_value TRIANGLES2_3D_POINT2_X, TRIANGLES3_3D_POINT2_X
+    ; -- Point 2 --
+    MACRO_rotate_cos_minus_sin TRIANGLES2_3D_POINT2_Y, TRIANGLES2_3D_POINT2_Z, TRIANGLES3_3D_POINT2_Y
+    MACRO_rotate_sin_plus_cos  TRIANGLES2_3D_POINT2_Y, TRIANGLES2_3D_POINT2_Z, TRIANGLES3_3D_POINT2_Z
 
-        ; -- Point 3 --
-        MACRO_rotate_cos_minus_sin TRIANGLES2_3D_POINT3_Y, TRIANGLES_3D_POINT3_Z, TRIANGLES3_3D_POINT3_Y
-        MACRO_rotate_sin_plus_cos  TRIANGLES2_3D_POINT3_Y, TRIANGLES_3D_POINT3_Z, TRIANGLES3_3D_POINT3_Z
-        ; MACRO_copy_point_value TRIANGLES2_3D_POINT3_X, TRIANGLES3_3D_POINT3_X
-        
-        ; -- Point N --
-        MACRO_rotate_cos_minus_sin TRIANGLES2_3D_POINTN_Y, TRIANGLES_3D_POINTN_Z, TRIANGLES3_3D_POINTN_Y
-        MACRO_rotate_sin_plus_cos  TRIANGLES2_3D_POINTN_Y, TRIANGLES_3D_POINTN_Z, TRIANGLES3_3D_POINTN_Z
-        ; MACRO_copy_point_value TRIANGLES2_3D_POINTN_X, TRIANGLES3_3D_POINTN_X
-    .else
-        ; -- Point 1 --
-        ; MACRO_copy_point_value TRIANGLES2_3D_POINT1_X, TRIANGLES3_3D_POINT1_X
-        MACRO_copy_point_value TRIANGLES2_3D_POINT1_Y, TRIANGLES3_3D_POINT1_Y
-        MACRO_copy_point_value TRIANGLES2_3D_POINT1_Z, TRIANGLES3_3D_POINT1_Z
-        
-        ; -- Point 2 --
-        ; MACRO_copy_point_value TRIANGLES2_3D_POINT2_X, TRIANGLES3_3D_POINT2_X
-        MACRO_copy_point_value TRIANGLES2_3D_POINT2_Y, TRIANGLES3_3D_POINT2_Y
-        MACRO_copy_point_value TRIANGLES2_3D_POINT2_Z, TRIANGLES3_3D_POINT2_Z
-
-        ; -- Point 3 --
-        ; MACRO_copy_point_value TRIANGLES2_3D_POINT3_X, TRIANGLES3_3D_POINT3_X
-        MACRO_copy_point_value TRIANGLES2_3D_POINT3_Y, TRIANGLES3_3D_POINT3_Y
-        MACRO_copy_point_value TRIANGLES2_3D_POINT3_Z, TRIANGLES3_3D_POINT3_Z
-        
-        ; -- Point N --
-        ; MACRO_copy_point_value TRIANGLES2_3D_POINTN_X, TRIANGLES3_3D_POINTN_X
-        MACRO_copy_point_value TRIANGLES2_3D_POINTN_Y, TRIANGLES3_3D_POINTN_Y
-        MACRO_copy_point_value TRIANGLES2_3D_POINTN_Z, TRIANGLES3_3D_POINTN_Z
-    .endif
+    ; -- Point 3 --
+    MACRO_rotate_cos_minus_sin TRIANGLES2_3D_POINT3_Y, TRIANGLES2_3D_POINT3_Z, TRIANGLES3_3D_POINT3_Y
+    MACRO_rotate_sin_plus_cos  TRIANGLES2_3D_POINT3_Y, TRIANGLES2_3D_POINT3_Z, TRIANGLES3_3D_POINT3_Z
+    
+    ; -- Point N --
+    MACRO_rotate_cos_minus_sin TRIANGLES2_3D_POINTN_Y, TRIANGLES2_3D_POINTN_Z, TRIANGLES3_3D_POINTN_Y
+    MACRO_rotate_sin_plus_cos  TRIANGLES2_3D_POINTN_Y, TRIANGLES2_3D_POINTN_Z, TRIANGLES3_3D_POINTN_Z
     
     inx
     cpx #NR_OF_TRIANGLES
@@ -1922,8 +1951,7 @@ back_face_cull_next_triangle:
     MACRO_reset_fx_multiplier
     
     ; We calculate the dot-product between point1 and pointN (the normal of the triange)
-    ; WARNING: we are using TRIANGLES2 (not TRIANGLES3) for X here!
-    MACRO_calculate_dot_product TRIANGLES2_3D_POINT1_X, TRIANGLES3_3D_POINT1_Y, TRIANGLES3_3D_POINT1_Z, TRIANGLES2_3D_POINTN_X, TRIANGLES3_3D_POINTN_Y, TRIANGLES3_3D_POINTN_Z
+    MACRO_calculate_dot_product TRIANGLES3_3D_POINT1_X, TRIANGLES3_3D_POINT1_Y, TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINTN_X, TRIANGLES3_3D_POINTN_Y, TRIANGLES3_3D_POINTN_Z
     lda DOT_PRODUCT+1
     bmi triangle_is_not_facing_camera
     
@@ -2014,18 +2042,16 @@ color_calculated:
 
     phy
     
-    ; WARNING: we are using TRIANGLES2 (not TRIANGLES3) for X here!
-    
     ; - Point 1 -
-    MACRO_divide_by_z TRIANGLES2_3D_POINT1_X, TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINT1_X
+    MACRO_divide_by_z TRIANGLES3_3D_POINT1_X, TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINT1_X
     MACRO_divide_by_z TRIANGLES3_3D_POINT1_Y, TRIANGLES3_3D_POINT1_Z, TRIANGLES3_3D_POINT1_Y
     
     ; - Point 2 -
-    MACRO_divide_by_z TRIANGLES2_3D_POINT2_X, TRIANGLES3_3D_POINT2_Z, TRIANGLES3_3D_POINT2_X
+    MACRO_divide_by_z TRIANGLES3_3D_POINT2_X, TRIANGLES3_3D_POINT2_Z, TRIANGLES3_3D_POINT2_X
     MACRO_divide_by_z TRIANGLES3_3D_POINT2_Y, TRIANGLES3_3D_POINT2_Z, TRIANGLES3_3D_POINT2_Y
     
     ; - Point 3 -
-    MACRO_divide_by_z TRIANGLES2_3D_POINT3_X, TRIANGLES3_3D_POINT3_Z, TRIANGLES3_3D_POINT3_X
+    MACRO_divide_by_z TRIANGLES3_3D_POINT3_X, TRIANGLES3_3D_POINT3_Z, TRIANGLES3_3D_POINT3_X
     MACRO_divide_by_z TRIANGLES3_3D_POINT3_Y, TRIANGLES3_3D_POINT3_Z, TRIANGLES3_3D_POINT3_Y
     
     ply
