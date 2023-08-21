@@ -25,6 +25,30 @@ orange_color = (200,100,0)
 
 color_by_index = [ black_color, white_color, blue_color, red_color, green_color, yellow_color, purple_color, orange_color ]
 
+all_colors = []
+
+# We dont want to touch/use the first 16 colors of the palette
+all_colors.append(None)
+all_colors.append(None)
+all_colors.append(None)
+all_colors.append(None)
+
+all_colors.append(None)
+all_colors.append(None)
+all_colors.append(None)
+all_colors.append(None)
+
+all_colors.append(None)
+all_colors.append(None)
+all_colors.append(None)
+all_colors.append(None)
+
+all_colors.append(None)
+all_colors.append(None)
+all_colors.append(None)
+all_colors.append(None)
+
+
 pygame.init()
 
 pygame.display.set_caption('X16 generate butterfly triangles')
@@ -35,6 +59,40 @@ clock = pygame.time.Clock()
 def run():
 
     screen.fill(background_color)
+
+    colors_hex = [
+        '#cd9ac6', # 16 : violet
+        '#7581c0', # 17 : violet/blue
+        '#4392cd', # 18 : blue
+        '#88cff0', # 19 : light blue
+        '#5fcabe', # 20 : green/blue
+        '#36c082', # 21 : green (middle)
+        '#a2c651', # 22 : green/yellow
+        '#ebcc57', # 23 : yellow
+        '#fa9d56', # 24 : orange
+        '#f5544c', # 25 : red
+    ]
+
+    for color_hex in colors_hex:
+        color_string_raw = color_hex.split('#',1)[1]
+        # We only take the higher nibble of each color byte
+        color_string = color_string_raw[0] + color_string_raw[2] + color_string_raw[4]
+        
+        color_index = len(all_colors)
+        
+        red = int('0x'+color_string[0], 0)*16
+        green = int('0x'+color_string[1], 0)*16
+        blue = int('0x'+color_string[2], 0)*16
+        
+        color = ( red, green, blue)
+        
+        color_data = {"color_str" : color_string, "index" : color_index, "color": color}
+        all_colors.append(color_data)
+        #clr_index = color_data["index"]
+        #all_colors_by_str[color_string] = color_data
+        
+    # print(all_colors)
+
 
     # These are taken from x16_logo_measurements.png
     base_points = [
@@ -79,15 +137,17 @@ def run():
     points.append({ "x" : base_points[7][0], "y" : base_points[7][1], "z" : 0 })
     
     
-# FIXME: EXCEEDS 255!!
-# FIXME: EXCEEDS 255!!
-# FIXME: EXCEEDS 255!!
+    # We need the points to be smaller in the engine, so we divide by
+    scale_down = 100
+    for point in points:
+        point["x"] /= scale_down
+        point["y"] /= scale_down
+        point["z"] /= scale_down
     
     # print(points)
     
-    triangles_raw = [
-# FIXME: is this the right order? Clockwise or anti-clock wise?
-        [ 0,  1,  2],
+    triangles_raw_one_side = [
+        [ 1,  0,  2],
         [ 1,  2,  3],
         [ 3,  2,  4],
         [ 3,  4,  5],
@@ -106,6 +166,15 @@ def run():
         [17, 16, 18],
         [17, 18, 19],
     ]
+    
+    triangles_raw = []
+    for triangle_raw in triangles_raw_one_side:
+        triangles_raw.append(triangle_raw)
+        
+    for triangle_raw in triangles_raw_one_side:
+        # Adding the triangle on the other side (by changing the order of the points)
+        triangles_raw.append([triangle_raw[0], triangle_raw[2], triangle_raw[1]])
+        
     
     triangles = []
     color_index = 0
@@ -163,7 +232,7 @@ def run():
         tri_points = tri["triangle_points"]
         triangle_color = color_by_index[tri["clr"] % 8] 
         
-        sc = 1.2 # scale
+        sc = 1.2 * scale_down # scale
         
         pygame.draw.polygon(screen, triangle_color, [
             [tri_points[0]["x"]*sc+lb, tri_points[0]["y"]*sc+tb], 
@@ -176,7 +245,9 @@ def run():
             
         pygame.display.update()
             
-    
+            
+    # Triangles
+            
     print('NR_OF_TRIANGLES = ' + str(len(triangles)))
     print('triangle_3d_data:')
     print('    ; Note: the normal is a normal point relative to 0.0 (with a length of $100)')
@@ -192,7 +263,40 @@ def run():
         single_triangle_data.append(triangle["clr"])
         
         print('    .word ' + ', '.join('$' + str(format(x,"04X")).ljust(4, ' ') for x in single_triangle_data))
+      
+
+    # Palette
+    
+    paletteString = ""
+    print('')
+    print('palette_data:')
+    for color in all_colors:
+        if (color is None):
+            continue
+        blue = color["color"][2]
+        blue = blue & 0xF0
+        blue = blue >> 4
+        # print(hex(blue))
         
+        green = color["color"][1]
+        green = green & 0xF0
+        # print(hex(green))
+        # print(format(blue | green,"02x"))
+        
+        red = color["color"][0]
+        red = red & 0xF0
+        red = red >> 4
+        # print(format(red,"02x"))
+        paletteString += "    .byte "
+        paletteString += "$" + format(green | blue,"02x") + ", "
+        paletteString += "$" + format(red,"02x")
+        paletteString += "  ; palette index " + str(color["index"])
+        paletteString += "\n"
+    paletteString += "end_of_palette_data:\n"
+    print(paletteString)
+    print('')
+            
+    
         
     running = True
     while running:
