@@ -135,14 +135,25 @@ def run():
     points.append({ "x" : base_points[6][0] + (base_points[7][0] - base_points[6][0]) * 2/3, "y" : base_points[6][1] + (base_points[7][1] - base_points[6][1]) * 2/3, "z" : 0 })
     # 19
     points.append({ "x" : base_points[7][0], "y" : base_points[7][1], "z" : 0 })
-    
+
+
+    # Translate origin
+    translate_x = - base_points[2][0] - 20 # the full width + some margin between the wings
+    translate_y = - base_points[7][1] / 2 # half of the full height
+    translate_z = 0
+    for point in points:
+        point["x"] += translate_x
+        point["y"] += translate_y
+        point["z"] += translate_z
     
     # We need the points to be smaller in the engine, so we divide by
-    scale_down = 100
+    scale_down = 47
     for point in points:
         point["x"] /= scale_down
         point["y"] /= scale_down
         point["z"] /= scale_down
+        
+        
     
     # print(points)
     
@@ -232,12 +243,12 @@ def run():
         tri_points = tri["triangle_points"]
         triangle_color = color_by_index[tri["clr"] % 8] 
         
-        sc = 1.2 * scale_down # scale
+        sc = 1.2 * 30 # scale (approximating z ~ 8)
         
         pygame.draw.polygon(screen, triangle_color, [
-            [tri_points[0]["x"]*sc+lb, tri_points[0]["y"]*sc+tb], 
-            [tri_points[1]["x"]*sc+lb, tri_points[1]["y"]*sc+tb], 
-            [tri_points[2]["x"]*sc+lb, tri_points[2]["y"]*sc+tb]], 0)
+            [tri_points[0]["x"]*sc+screen_width/2, tri_points[0]["y"]*sc+screen_height/2], 
+            [tri_points[1]["x"]*sc+screen_width/2, tri_points[1]["y"]*sc+screen_height/2], 
+            [tri_points[2]["x"]*sc+screen_width/2, tri_points[2]["y"]*sc+screen_height/2]], 0)
             
             # print('slope:' + str(x) + ":"+ str(y) + " -> " +str(slope_high) + "." + str(slope_low))
                 
