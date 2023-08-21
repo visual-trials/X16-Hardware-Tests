@@ -220,7 +220,7 @@ def run():
     for triangle_index in range(0, len(triangles)):
         tri = triangles[triangle_index]
         tri_points = tri["triangle_points"]
-        triangle_color = color_by_index[tri["clr"] % 8] 
+        triangle_color = color_by_index[(tri["clr"]//16) % 8] 
         
         sc = 1.2 * 30 # scale (approximating z ~ 8)
         
