@@ -5,7 +5,7 @@ DO_SPEED_TEST = 1
 DO_4BIT = 0
 DO_2BIT = 0
 KEEP_RUNNING = 1
-USE_LIGHT = 1
+USE_LIGHT = 0
 USE_KEYBOARD_INPUT = 1
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
@@ -1293,6 +1293,8 @@ MACRO_divide_by_z .macro TRIANGLES_3D_POINT_X_OR_Y, TRIANGLES_3D_POINT_Z, OUTPUT
         sta LOAD_ADDRESS+1
 
         .if(USE_FX_MULTIPLIER)
+            lda VERA_FX_ACCUM_RESET   ; reset accumulator
+    
             ; We load the INVERSE_Z_LOW
             lda (LOAD_ADDRESS), y
             sta VERA_FX_CACHE_L
@@ -1564,7 +1566,7 @@ MACRO_calculate_dot_product_for_light .macro TRIANGLES_3D_POINTN_X, TRIANGLES_3D
     ; -- L.x * N.x
     
     .if(USE_FX_MULTIPLIER)
-    
+            
         lda VERA_FX_ACCUM_RESET    ; reset accumulator
         
         lda LIGHT_DIRECTION_3D_X
@@ -1770,6 +1772,7 @@ MACRO_reset_fx_multiplier .macro
         
         lda #%00001101           ; DCSEL=6, ADDRSEL=1
         sta VERA_CTRL
+        
     .endif
 .endmacro
 
@@ -1957,7 +1960,7 @@ scale_and_position_keep_going:
     
 
     ; -- Copy color of triangle --
-    
+
     .if(USE_LIGHT)
         ; WARNING: we are using TRIANGLES2 (not TRIANGLES3) for X here!
 
