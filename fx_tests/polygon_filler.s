@@ -316,7 +316,9 @@ COPY_SLOPE_TABLES_TO_BANKED_RAM   = $8400
 COPY_DIV_TABLES_TO_BANKED_RAM = $8500  ; NOT USED BY polygon filler!!
 
     .if(USE_POLYGON_FILLER)
+        .if(!USE_JUMP_TABLE)
 DRAW_ROW_64_CODE         = $AA00   ; When USE_POLYGON_FILLER is 1: A000-A9FF and B0600-BFFF are occucpied by the slope tables! (the latter by the 90-180 degrees slope tables)
+        .endif
     .else
 DRAW_ROW_64_CODE         = $B500   ; When USE_POLYGON_FILLER is 0: A000-B4FF are occucpied by the slope tables!
     .endif
@@ -382,7 +384,9 @@ reset:
     .endif
     
     .if(USE_UNROLLED_LOOP)
-        jsr generate_draw_row_64_code
+        .if(!USE_JUMP_TABLE)
+            jsr generate_draw_row_64_code
+        .endif
     .endif
     
     .if(USE_JUMP_TABLE)

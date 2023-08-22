@@ -2712,6 +2712,7 @@ end_of_copy_slope_tables_to_banked_ram:
 
     
     
+    .if(!USE_JUMP_TABLE)
 generate_draw_row_64_code:
 
     lda #64                 ; We start at draw length of 64 (we do this *instead* of draw length 0)
@@ -2760,7 +2761,7 @@ next_draw_64_instruction:
     
     
     rts
-
+    .endif
     
     
 add_code_byte:
