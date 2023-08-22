@@ -5,7 +5,7 @@ DO_4_BYTES_PER_WRITE = 1
     .if (DO_4_BYTES_PER_WRITE)
 BACKGROUND_COLOR = 57  ; We use color 57 (instead of 2), since it 57 contains both a high nibble and low nibble values (used for testing blit nibble masks)
     .else
-BACKGROUND_COLOR = 06; Blue 
+BACKGROUND_COLOR = 6; Blue 
     .endif
 FOREGROUND_COLOR = 1
 
@@ -537,9 +537,15 @@ generate_clear_column_code:
 
 next_clear_instruction:
 
-    ; -- sta VERA_DATA0 ($9F23)
-    lda #$9C               ; stz ....
-    jsr add_code_byte
+    .if(DO_4_BYTES_PER_WRITE)
+        ; -- stz VERA_DATA0 ($9F23)
+        lda #$9C               ; stz ....
+        jsr add_code_byte
+    .else
+        ; -- sta VERA_DATA0 ($9F23)
+        lda #$8D               ; sta ....
+        jsr add_code_byte
+    .endif
 
     lda #$23               ; $23
     jsr add_code_byte
