@@ -2140,6 +2140,7 @@ soft_polygon_fill_triangle_done:
 do_the_jump_to_the_table:
     jmp (FILL_LINE_START_JUMP,x)
 
+    .if(!(USE_JUMP_TABLE && !TEST_JUMP_TABLE))
 draw_polygon_part_using_polygon_filler_naively:
 
 ; FIXME
@@ -2305,6 +2306,7 @@ polygon_fill_triangle_row_done:
 polygon_fill_triangle_done:
     
     rts
+    .endif
     
     
 generate_y_to_address_table:
