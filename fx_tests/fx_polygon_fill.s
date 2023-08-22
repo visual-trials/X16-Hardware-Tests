@@ -21,6 +21,8 @@
 ; DO_4BIT = 1 or 0
 ; DO_2BIT = 1 or 0 (DO_4BIT has to be 1 for this to take effect)
 
+; DEBUG = 1 or 0
+
 ; === Required ZP addresses: (one byte each, unless mentioned otherwise) ===
 
 ; RAM_BANK (=$00)

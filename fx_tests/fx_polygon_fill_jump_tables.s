@@ -454,6 +454,7 @@ generate_fill_line_iterate_code:
     rts
     
     
+    .if(DEBUG)
 ; Note: DEBUG_VALUE should contain the value of y to be compared with
 generate_loop_at_y_equals:
 
@@ -482,8 +483,10 @@ generate_loop_at_y_equals:
     jsr add_code_byte
     
     rts
+    .endif
 
 
+    .if(DEBUG)
 ; Note: DEBUG_VALUE should contain the value of y to be compared with
 generate_stp_at_y_equals:
 
@@ -532,8 +535,10 @@ generate_stp_at_y_equals:
     jsr add_code_byte
     
     rts
+    .endif
 
 
+    .if(DEBUG)
 generate_infinite_loop_code:
 
     ; -- bra --
@@ -544,7 +549,9 @@ generate_infinite_loop_code:
     jsr add_code_byte
     
     rts
+    .endif
     
+    .if(DEBUG)
 generate_stp_code:
 
     ; -- stp --
@@ -552,7 +559,7 @@ generate_stp_code:
     jsr add_code_byte
     
     rts
-
+    .endif
  
 generate_rts_code:
 
