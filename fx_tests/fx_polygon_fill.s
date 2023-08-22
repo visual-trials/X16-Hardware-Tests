@@ -127,6 +127,7 @@
 ; Y_TO_ADDRESS_LOW (256 bytes)
 ; Y_TO_ADDRESS_HIGH (256 bytes)
 ; Y_TO_ADDRESS_BANK (256 bytes)
+; Y_TO_ADDRESS_BANK2 (256 bytes) (for second frame buffer)
 
 ; COPY_SLOPE_TABLES_TO_BANKED_RAM (less than 256 bytes)
 ; COPY_DIV_TABLES_TO_BANKED_RAM (less than 256 bytes)
