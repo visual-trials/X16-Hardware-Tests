@@ -105,7 +105,18 @@ copy_petscii_charset:
     sta VERA_ADDR_HIGH
     lda #$00
     sta VERA_ADDR_LOW
+
+    .ifdef CREATE_PRG
     
+; FIXME: IMPLEMENT LOADING PETSCII CHARSET FROM ROM BANK 6!
+; FIXME: IMPLEMENT LOADING PETSCII CHARSET FROM ROM BANK 6!
+; FIXME: IMPLEMENT LOADING PETSCII CHARSET FROM ROM BANK 6!
+
+; Maybe we can define copy_petscii_0-7 and set them to ROM addresses?
+; Maybe we can define copy_petscii_0-7 and set them to ROM addresses?
+; Maybe we can define copy_petscii_0-7 and set them to ROM addresses?
+    
+    .else
     ldy #0
 copy_petscii_0:
     lda petscii_0, y
@@ -161,6 +172,7 @@ copy_petscii_7:
     sta VERA_DATA0
     iny
     bne copy_petscii_7
+    .endif
 
     rts
 
