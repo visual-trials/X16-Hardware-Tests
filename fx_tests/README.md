@@ -5,7 +5,7 @@ The VERA FX update contains quite a lot of new features that need to be tested.
 
 Below are the FX tests that have been created to test all facets of the FX feature set.
 
-### Building into ROM or SD files
+### Building into ROM or PRG files
 
 For each of these tests a .rom file can be created or a alternatively a PRG file. 
 Some tests require some additional files to be generated and included. 
