@@ -52,10 +52,9 @@ TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
 ; RAM addresses
 CLEAR_COLUMN_CODE        = $7E00    ; 152 * 3 bytes + 1 byte = 457 bytes
 
+
     .include utils/build_as_prg_or_rom.s
 
-; FIXME! OLD WAY!    
-;    .org $C000
 
 reset:
     ; Disable interrupts 
