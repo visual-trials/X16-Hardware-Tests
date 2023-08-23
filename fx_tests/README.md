@@ -12,7 +12,7 @@ Some tests require some additional files and these are also included in the SD f
 
 To run the tests copy the contents of the SD folder (in this git repo) to a folder on your SD card (e.g. "FX-TESTS").
 Then using the `DOS "CD:<MY FOLDER>` command go to the folder where all tests are located. 
-Using the command `DOS "$` or the command `LOAD "$",8` you can see all the PRG files. 
+Using the command `DOS "$` (or the command `LOAD "$"` followed by `LIST`) you can see all the PRG files. 
 Do a `LOAD "<THE FILENAME.PRG>"` to load a specific test program and `RUN` to execute it.
 
 Alternatively you can use a .rom file (inside the ROM folder) to run these tests as a ROM.
@@ -46,7 +46,6 @@ Here are the PRG names and what their results should look like:
 | ------------- | ------------- |
 | `SINGLE-READWRITE.PRG`  | <img src='screenshots/SINGLE-READWRITE.PRG.png' width='300'> |
 | `MULTI-READWRITE.PRG`  | <img src='screenshots/MULTI-READWRITE.PRG.png' width='300'> |
-
 
 
 ## Line draw tests
