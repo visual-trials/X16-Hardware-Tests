@@ -33,6 +33,9 @@ Here are the PRGs and what their results should look like:
 | `SINGLE-WRITE.PRG`  | <img src='screenshots/SINGLE-WRITE.PRG.png' width='300'> |
 | `MULTI-WRITE.PRG`  | <img src='screenshots/MULTI-WRITE.PRG.png' width='300'> |
 
+## Multiplier and accumulator tests
+
+
 
 ## Line draw tests
 
