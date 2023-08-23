@@ -5,7 +5,7 @@ The VERA FX update contains quite a lot of new features that need to be tested.
 
 Below are the FX tests that have been created to test all facets of the FX feature set.
 
-### PRG files
+### Running the tests
 
 For each of these tests a PRG file is generated. These PRG files are located in the SD folder. 
 Some tests require some additional files and these are also included in the SD folder.
@@ -20,13 +20,18 @@ Alternatively you can use a .rom file (inside the ROM folder) to run these tests
 
 ## Cache write tests
 
-The cache write tests can be build into a .rom like this:
+These test uses the 32-bit cache to write many times to a bitmap. Essentially filling the screen.
 
-`./vasm6502_oldstyle.exe -Fbin -dotdir ./fx_tests/multibyte_writes.s -wdc02 -o ./fx_tests/ROM/multibyte_writes.rom`
+There are multiple variants: 
+  - filling to a 4bpp bitmap (320x240) or a 8bpp bitmap (320x240). 
+  - filling one byte a time (the old way) or four bytes at the same time (using the 32-bit cache)
 
-or as a PRG like this:
+Here are the corresponding PRGs:
 
-`./vasm6502_oldstyle.exe -Fbin -dotdir ./fx_tests/multibyte_writes.s -wdc02 -D CREATE_PRG -o ./fx_tests/SD/MULTI-WRITE.PRG`
+**SINGLE-WRITE-4BPP.PRG**
+**SINGLE-WRITE-8BPP.PRG**
+**MULTI-WRITE-8BPP.PRG**
+**MULTI-WRITE-4BPP.PRG**
 
 ## Line draw tests
 
@@ -38,15 +43,6 @@ or as a PRG like this:
 
 
 ## Polygon filler tests
-
-The polygon filler tests can be build into a .rom like this:
-
-`./vasm6502_oldstyle.exe -Fbin -dotdir ./fx_tests/polygon_filler.s -wdc02 -o ./fx_tests/ROM/polygon_filler.rom` 
-
-or as a PRG like this:
-
-`./vasm6502_oldstyle.exe -Fbin -dotdir ./fx_tests/polygon_filler.s -wdc02 -o ./fx_tests/ROM/polygon_filler.rom` 
-
 
 
 
