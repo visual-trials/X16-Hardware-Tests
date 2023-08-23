@@ -138,6 +138,9 @@
 ;   DRAW_ROW_64_CODE         = $AA00   ; When USE_POLYGON_FILLER is 1: A000-A9FF and B600-BFFF are occucpied by the slope tables! (the latter by the 90-180 degrees slope tables)
 ;   DRAW_ROW_64_CODE         = $B500   ; When USE_POLYGON_FILLER is 0: A000-B4FF are occucpied by the slope tables!
 
+; SOURCE_TABLE_ADDRESS = $C000 (when copying tables from banked ROM)
+; SOURCE_TABLE_ADDRESS = $???? (when copying tables from Fixed RAM, which is loaded from SD card)
+
     
 MACRO_copy_point_x .macro TRIANGLES_POINT_X, POINT_X
     lda \TRIANGLES_POINT_X, x
@@ -2397,9 +2400,9 @@ copy_div_tables_to_banked_ram:
     
 next_div_table_to_copy:    
 
-    lda #<($C000)        ; Our source table starts at C000
+    lda #<SOURCE_TABLE_ADDRESS
     sta LOAD_ADDRESS
-    lda #>($C000)
+    lda #>SOURCE_TABLE_ADDRESS
     sta LOAD_ADDRESS+1
 
     lda #<($B000)        ; We store at Bx00
@@ -2479,22 +2482,58 @@ next_div_byte_to_copy_to_banked_ram:
 end_of_copy_div_tables_to_banked_ram:
 
 
+
+    .ifdef CREATE_PRG
     
-; NOTE: we are now using ROM banks to contain tables. We need to copy those tables to Banked RAM, but have to run that copy-code in Fixed RAM.
+FILE_INDEX = TABLE_ROM_BANK      ; used for loading files from the SD card (instead of from a ROM bank)
+
+slope_filename:      .byte    "tbl/slp-a.bin" 
+end_slope_filename:
+
+; This will load a slope table using the FILE_INDEX (which starts at 1)
+load_slope_table:
+    
+        clc
+        lda #'a'-1                  ; 'a' = $61 (since FILE_INDEX starts at 1 we subtract 1 here)
+        adc FILE_INDEX
+        sta end_slope_filename-5 ; 5 characters from the end is the 'a'
+
+        lda #(end_slope_filename-slope_filename) ; Length of filename
+        ldx #<slope_filename      ; Low byte of Fname address
+        ldy #>slope_filename      ; High byte of Fname address
+        jsr SETNAM
+     
+        lda #1            ; Logical file number
+        ldx #8            ; Device 8 = sd card
+        ldy #2            ; 0=ignore address in bin file (2 first bytes)
+                          ; 1=use address in bin file
+                          ; 2=?use address in bin file? (and dont add first 2 bytes?)
+        jsr SETLFS
+     
+        lda #0
+        ldx #<SOURCE_TABLE_ADDRESS
+        ldy #>SOURCE_TABLE_ADDRESS
+        jsr LOAD
+
+        rts
+
+    .else
+        ; NOTE: we are now using ROM banks to contain tables. We need to copy those tables to Banked RAM, but have to run that copy-code in Fixed RAM.
     
 copy_slope_table_copier_to_ram:
 
-    ; Copying copy_slope_tables_to_banked_ram -> COPY_SLOPE_TABLES_TO_BANKED_RAM
-    
-    ldy #0
+        ; Copying copy_slope_tables_to_banked_ram -> COPY_SLOPE_TABLES_TO_BANKED_RAM
+        
+        ldy #0
 copy_tables_to_banked_ram_byte:
-    lda copy_slope_tables_to_banked_ram, y
-    sta COPY_SLOPE_TABLES_TO_BANKED_RAM, y
-    iny 
-    cpy #(end_of_copy_slope_tables_to_banked_ram-copy_slope_tables_to_banked_ram)
-    bne copy_tables_to_banked_ram_byte
+        lda copy_slope_tables_to_banked_ram, y
+        sta COPY_SLOPE_TABLES_TO_BANKED_RAM, y
+        iny 
+        cpy #(end_of_copy_slope_tables_to_banked_ram-copy_slope_tables_to_banked_ram)
+        bne copy_tables_to_banked_ram_byte
 
-    rts
+        rts
+    .endif
     
 
     .if(USE_POLYGON_FILLER)
@@ -2507,9 +2546,9 @@ copy_slope_tables_to_banked_ram:
     sta TABLE_ROM_BANK
     
 next_table_to_copy:    
-    lda #<($C000)        ; Our source table starts at C000
+    lda #<SOURCE_TABLE_ADDRESS
     sta LOAD_ADDRESS
-    lda #>($C000)
+    lda #>SOURCE_TABLE_ADDRESS
     sta LOAD_ADDRESS+1
 
     lda #<($A000)        ; We store at Ax00
@@ -2522,11 +2561,15 @@ next_table_to_copy:
     sbc #1               ; since the TABLE_ROM_BANK starts at 1, we substract one from it
     sta STORE_ADDRESS+1
 
-    ; Switching ROM BANK
-    lda TABLE_ROM_BANK
-    sta ROM_BANK
+    .ifndef CREATE_PRG
+        ; Switching ROM BANK
+        lda TABLE_ROM_BANK
+        sta ROM_BANK
 ; FIXME: remove nop!
-    nop
+        nop
+    .else
+        jsr load_slope_table
+    .endif
     
         ldx #0                             ; x = x-coordinate (within a column of 64)
 next_x_to_copy_to_banked_ram:
@@ -2570,9 +2613,9 @@ next_byte_to_copy_to_banked_ram:
         sta TABLE_ROM_BANK
     
 next_table_to_copy_neg:
-        lda #<($C000)        ; Our source table starts at C000
+        lda #<SOURCE_TABLE_ADDRESS
         sta LOAD_ADDRESS
-        lda #>($C000)
+        lda #>SOURCE_TABLE_ADDRESS
         sta LOAD_ADDRESS+1
 
         lda #<($B600)        ; We store at Bx00
@@ -2585,11 +2628,15 @@ next_table_to_copy_neg:
         sbc #11              ; since the TABLE_ROM_BANK starts at 11, we substract one from it
         sta STORE_ADDRESS+1
 
-        ; Switching ROM BANK
-        lda TABLE_ROM_BANK
-        sta ROM_BANK
-    ; FIXME: remove nop!
-        nop
+        .ifndef CREATE_PRG
+            ; Switching ROM BANK
+            lda TABLE_ROM_BANK
+            sta ROM_BANK
+; FIXME: remove nop!
+            nop
+        .else
+            jsr load_slope_table
+        .endif
         
             ldx #0                             ; x = x-coordinate (within a column of 64)
 next_x_to_copy_to_banked_ram_neg:
@@ -2627,11 +2674,13 @@ next_byte_to_copy_to_banked_ram_neg:
     .endif
     
     
-    ; Switching back to ROM bank 0
-    lda #$00
-    sta ROM_BANK
+    .ifndef CREATE_PRG
+        ; Switching back to ROM bank 0
+        lda #$00
+        sta ROM_BANK
 ; FIXME: remove nop!
-    nop
+        nop
+    .endif
    
     rts
 end_of_copy_slope_tables_to_banked_ram:
@@ -2646,9 +2695,9 @@ copy_slope_tables_to_banked_ram:
     sta TABLE_ROM_BANK
     
 next_table_to_copy:    
-    lda #<($C000)        ; Our source table starts at C000
+    lda #<SOURCE_TABLE_ADDRESS
     sta LOAD_ADDRESS
-    lda #>($C000)
+    lda #>SOURCE_TABLE_ADDRESS
     sta LOAD_ADDRESS+1
 
     lda #<($A000)        ; We store at Ax00
@@ -2661,11 +2710,15 @@ next_table_to_copy:
     sbc #1               ; since the TABLE_ROM_BANK starts at 1, we substract one from it
     sta STORE_ADDRESS+1
 
-    ; Switching ROM BANK
-    lda TABLE_ROM_BANK
-    sta ROM_BANK
+    .ifndef CREATE_PRG
+        ; Switching ROM BANK
+        lda TABLE_ROM_BANK
+        sta ROM_BANK
 ; FIXME: remove nop!
-    nop
+        nop
+    .else
+        jsr load_slope_table
+    .endif
     
         ldx #0                             ; x = x-coordinate (within a column of 64)
 next_x_to_copy_to_banked_ram:
@@ -2700,11 +2753,13 @@ next_byte_to_copy_to_banked_ram:
     cmp #21               ; we go from 1-20 so we need to stop at 21
     bne next_table_to_copy
 
-    ; Switching back to ROM bank 0
-    lda #$00
-    sta ROM_BANK
+    .ifndef CREATE_PRG
+        ; Switching back to ROM bank 0
+        lda #$00
+        sta ROM_BANK
 ; FIXME: remove nop!
-    nop
+        nop
+    .endif
    
     rts
 end_of_copy_slope_tables_to_banked_ram:

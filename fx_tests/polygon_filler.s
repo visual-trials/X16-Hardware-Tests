@@ -8,7 +8,7 @@ USE_DITHERING = 0
 DEBUG = 0
 
 ; Defined from commandline: USE_POLYGON_FILLER = 1
-USE_SLOPE_TABLES = 0
+USE_SLOPE_TABLES = 1
 ; Defined from commandline: USE_UNROLLED_LOOP = 1
 USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
@@ -250,6 +250,14 @@ FILL_LENGTH_HIGH_SOFT    = $2801
 FILL_LINE_START_JUMP     = $2F00
 FILL_LINE_START_CODE     = $3000   ; 128 different (start of) fill line code patterns -> safe: takes $0D00 bytes
 
+    .ifndef CREATE_PRG
+SOURCE_TABLE_ADDRESS     = $C000
+    .else
+; FIXME: we need to put this is the CORRECT location!
+; FIXME: we need to put this is the CORRECT location!
+; FIXME: we need to put this is the CORRECT location!
+SOURCE_TABLE_ADDRESS     = $5E00
+    .endif
 
     .if(!DO_4BIT)
 ; 8-bit:
@@ -378,6 +386,19 @@ reset:
     
     jsr copy_palette_from_index_16
 
+    .if(USE_SLOPE_TABLES)
+        .ifndef CREATE_PRG
+            jsr copy_slope_table_copier_to_ram
+            jsr COPY_SLOPE_TABLES_TO_BANKED_RAM
+        .else
+            ; When running as PRG, we have to load the slope tables from the SD card
+            ; So we dont need to use ROM banks. There is no need to copy the copier.
+            ; IMPORTANT: copying of the slope tables temporarily uses 16kB of Fixed RAM, so this
+            ;            has to be done BEFORE parts of this 16kB is filled with other information!
+            jsr copy_slope_tables_to_banked_ram
+        .endif
+    .endif
+    
     .if (USE_WRITE_CACHE)
         jsr generate_clear_column_code
         jsr clear_screen_fast_4_bytes
@@ -399,11 +420,6 @@ reset:
     
     .if(USE_Y_TO_ADDRESS_TABLE)
         jsr generate_y_to_address_table
-    .endif
-    
-    .if(USE_SLOPE_TABLES)
-        jsr copy_slope_table_copier_to_ram
-        jsr COPY_SLOPE_TABLES_TO_BANKED_RAM
     .endif
     
     .if(DO_SPEED_TEST)
@@ -2694,77 +2710,79 @@ irq:
 
     ; NOTE: we are now using ROM banks to contain tables. We need to copy those tables to Banked RAM, but have to run that copy-code in Fixed RAM.
     
-    .if(USE_SLOPE_TABLES)
-        .if(USE_POLYGON_FILLER)
-            .if(DO_4BIT && DO_2BIT)
-                .binary "fx_tests/tables/slopes_packed_column_0_low_2bit.bin"
-                .binary "fx_tests/tables/slopes_packed_column_0_high_2bit.bin"
-                .binary "fx_tests/tables/slopes_packed_column_1_low_2bit.bin"
-                .binary "fx_tests/tables/slopes_packed_column_1_high_2bit.bin"
-                .binary "fx_tests/tables/slopes_packed_column_2_low_2bit.bin"
-                .binary "fx_tests/tables/slopes_packed_column_2_high_2bit.bin"
-                .binary "fx_tests/tables/slopes_packed_column_3_low_2bit.bin"
-                .binary "fx_tests/tables/slopes_packed_column_3_high_2bit.bin"
-                .binary "fx_tests/tables/slopes_packed_column_4_low_2bit.bin"
-                .binary "fx_tests/tables/slopes_packed_column_4_high_2bit.bin"
-                .if(USE_180_DEGREES_SLOPE_TABLE)
-                    .binary "fx_tests/tables/slopes_negative_packed_column_0_low_2bit.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_0_high_2bit.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_1_low_2bit.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_1_high_2bit.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_2_low_2bit.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_2_high_2bit.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_3_low_2bit.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_3_high_2bit.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_4_low_2bit.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_4_high_2bit.bin"
+    .ifndef CREATE_PRG
+        .if(USE_SLOPE_TABLES)
+            .if(USE_POLYGON_FILLER)
+                .if(DO_4BIT && DO_2BIT)
+                    .binary "fx_tests/tables/slopes_packed_column_0_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_0_high_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_1_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_1_high_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_2_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_2_high_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_3_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_3_high_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_4_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_4_high_2bit.bin"
+                    .if(USE_180_DEGREES_SLOPE_TABLE)
+                        .binary "fx_tests/tables/slopes_negative_packed_column_0_low_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_0_high_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_1_low_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_1_high_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_2_low_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_2_high_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_3_low_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_3_high_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_4_low_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_4_high_2bit.bin"
+                    .endif
+                .else
+                    .binary "fx_tests/tables/slopes_packed_column_0_low.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_0_high.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_1_low.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_1_high.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_2_low.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_2_high.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_3_low.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_3_high.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_4_low.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_4_high.bin"
+                    .if(USE_180_DEGREES_SLOPE_TABLE)
+                        .binary "fx_tests/tables/slopes_negative_packed_column_0_low.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_0_high.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_1_low.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_1_high.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_2_low.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_2_high.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_3_low.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_3_high.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_4_low.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_4_high.bin"
+                    .endif
                 .endif
             .else
-                .binary "fx_tests/tables/slopes_packed_column_0_low.bin"
-                .binary "fx_tests/tables/slopes_packed_column_0_high.bin"
-                .binary "fx_tests/tables/slopes_packed_column_1_low.bin"
-                .binary "fx_tests/tables/slopes_packed_column_1_high.bin"
-                .binary "fx_tests/tables/slopes_packed_column_2_low.bin"
-                .binary "fx_tests/tables/slopes_packed_column_2_high.bin"
-                .binary "fx_tests/tables/slopes_packed_column_3_low.bin"
-                .binary "fx_tests/tables/slopes_packed_column_3_high.bin"
-                .binary "fx_tests/tables/slopes_packed_column_4_low.bin"
-                .binary "fx_tests/tables/slopes_packed_column_4_high.bin"
-                .if(USE_180_DEGREES_SLOPE_TABLE)
-                    .binary "fx_tests/tables/slopes_negative_packed_column_0_low.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_0_high.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_1_low.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_1_high.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_2_low.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_2_high.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_3_low.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_3_high.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_4_low.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_4_high.bin"
-                .endif
+                ; FIXME: right now we include vhigh tables *TWICE*! The second time is a dummy include! (since we want all _low tables to be aligned with ROM_BANK % 4 == 1)
+                .binary "fx_tests/tables/slopes_column_0_low.bin"
+                .binary "fx_tests/tables/slopes_column_0_high.bin"
+                .binary "fx_tests/tables/slopes_column_0_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_0_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_1_low.bin"
+                .binary "fx_tests/tables/slopes_column_1_high.bin"
+                .binary "fx_tests/tables/slopes_column_1_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_1_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_2_low.bin"
+                .binary "fx_tests/tables/slopes_column_2_high.bin"
+                .binary "fx_tests/tables/slopes_column_2_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_2_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_3_low.bin"
+                .binary "fx_tests/tables/slopes_column_3_high.bin"
+                .binary "fx_tests/tables/slopes_column_3_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_3_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_4_low.bin"
+                .binary "fx_tests/tables/slopes_column_4_high.bin"
+                .binary "fx_tests/tables/slopes_column_4_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_4_vhigh.bin"
             .endif
-        .else
-            ; FIXME: right now we include vhigh tables *TWICE*! The second time is a dummy include! (since we want all _low tables to be aligned with ROM_BANK % 4 == 1)
-            .binary "fx_tests/tables/slopes_column_0_low.bin"
-            .binary "fx_tests/tables/slopes_column_0_high.bin"
-            .binary "fx_tests/tables/slopes_column_0_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_0_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_1_low.bin"
-            .binary "fx_tests/tables/slopes_column_1_high.bin"
-            .binary "fx_tests/tables/slopes_column_1_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_1_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_2_low.bin"
-            .binary "fx_tests/tables/slopes_column_2_high.bin"
-            .binary "fx_tests/tables/slopes_column_2_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_2_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_3_low.bin"
-            .binary "fx_tests/tables/slopes_column_3_high.bin"
-            .binary "fx_tests/tables/slopes_column_3_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_3_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_4_low.bin"
-            .binary "fx_tests/tables/slopes_column_4_high.bin"
-            .binary "fx_tests/tables/slopes_column_4_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_4_vhigh.bin"
+            
         .endif
-        
     .endif
