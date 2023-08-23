@@ -7,7 +7,7 @@ CLEAR_SCREEN_FAST = 0
 
     .if (USE_LINE_DRAW_HELPER)
         .if(DO_4BIT)
-BACKGROUND_COLOR = $00  ; FIXME: nicer color!
+BACKGROUND_COLOR = $10  ; FIXME: nicer color!
         .else
 BACKGROUND_COLOR = 251  ; Nice purple
         .endif

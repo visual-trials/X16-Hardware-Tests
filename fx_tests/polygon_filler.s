@@ -2,15 +2,15 @@
 ; ISSUE: what if VERA says: draw 321 pixels? We will crash now...
 
 DO_SPEED_TEST = 1  ; ALSO change: TEST_JUMP_TABLE and USE_SOFT_FILL_LEN!
-DO_4BIT = 1
-DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
+DO_4BIT = 0
+DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 DEBUG = 0
 
-USE_POLYGON_FILLER = 1
+; Defined from commandline: USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 0
-USE_UNROLLED_LOOP = 0
-USE_JUMP_TABLE = 1
+; Defined from commandline: USE_UNROLLED_LOOP = 1
+USE_JUMP_TABLE = 0
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
 USE_180_DEGREES_SLOPE_TABLE = 0  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
@@ -328,7 +328,9 @@ DRAW_ROW_64_CODE         = $B500   ; When USE_POLYGON_FILLER is 0: A000-B4FF are
 COLOR_PIXELS_ADDRESS     = $12C00  ; The place where all color pixels are stored (the cache is filled with these colors) -> Just after 320x240 pxiels.
     
 
-  .org $C000
+
+    .include utils/build_as_prg_or_rom.s
+
 
 reset:
 
@@ -2211,7 +2213,7 @@ load_next_triangle:
     rts
     
     
-    .if(1)
+    .if(0)
 ; FIXME!
 NR_OF_TRIANGLES = 2
 triangle_data:
@@ -2237,7 +2239,7 @@ end_of_palette_data:
     .endif
    
    
-    .if(0)
+    .if(1)
 ; FIXME: there is still a bug visible in 2-bit mode using these triangles!?
 ; FIXME: there is still a bug visible in 2-bit mode using these triangles!?
 ; FIXME: there is still a bug visible in 2-bit mode using these triangles!?
@@ -2284,12 +2286,12 @@ end_of_palette_data:
 
 
 ; FIXME!
-;NR_OF_TRIANGLES = 72
-NR_OF_TRIANGLES = 1
+NR_OF_TRIANGLES = 72
+;NR_OF_TRIANGLES = 1
 triangle_data:
     ;     x1,  y1,    x2,  y2,    x3,  y3    cl
 ; FIXME: remove the IF!
-    .if(0)
+    .if(1)
     .word 260 ,26  ,267 ,13  ,280 ,20  ,16
     .word 260 ,26  ,280 ,20  ,280 ,52  ,17
     .word 262 ,64  ,260 ,26  ,280 ,52  ,18
@@ -2668,25 +2670,27 @@ triangle_data:
         .endif
     .endif
 
-    ; ======== PETSCII CHARSET =======
+    .ifndef CREATE_PRG
+        ; ======== PETSCII CHARSET =======
 
-    .org $F700
-    .include "utils/petscii.s"
-    
-    ; ======== NMI / IRQ =======
+        .org $F700
+        .include "utils/petscii.s"
+        
+        ; ======== NMI / IRQ =======
 nmi:
-    ; TODO: implement this
-    ; FIXME: ugly hack!
-    jmp reset
-    rti
+        ; TODO: implement this
+        ; FIXME: ugly hack!
+        jmp reset
+        rti
    
 irq:
-    rti
+        rti
 
-    .org $fffa
-    .word nmi
-    .word reset
-    .word irq
+        .org $fffa
+        .word nmi
+        .word reset
+        .word irq
+    .endif
 
     ; NOTE: we are now using ROM banks to contain tables. We need to copy those tables to Banked RAM, but have to run that copy-code in Fixed RAM.
     
