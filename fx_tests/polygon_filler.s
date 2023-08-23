@@ -2656,15 +2656,15 @@ triangle_data:
     .include utils/utils.s
     .include utils/timing.s
     .include utils/setup_vera_for_bitmap_and_tilemap.s
-    .include fx_tests/fx_polygon_fill.s
-    .include fx_tests/fx_polygon_fill_jump_tables.s
+    .include fx_tests/utils/fx_polygon_fill.s
+    .include fx_tests/utils/fx_polygon_fill_jump_tables.s
     .if(!DO_4BIT)
-        .include fx_tests/fx_polygon_fill_jump_tables_8bit.s
+        .include fx_tests/utils/fx_polygon_fill_jump_tables_8bit.s
     .else
         .if(!DO_2BIT)
-            .include fx_tests/fx_polygon_fill_jump_tables_4bit.s
+            .include fx_tests/utils/fx_polygon_fill_jump_tables_4bit.s
         .else
-            .include fx_tests/fx_polygon_fill_jump_tables_2bit.s
+            .include fx_tests/utils/fx_polygon_fill_jump_tables_2bit.s
         .endif
     .endif
 
