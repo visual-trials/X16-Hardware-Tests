@@ -19,11 +19,11 @@ Alternatively you can use a .rom file (inside the ROM folder) to run these tests
 
 ## Cache write tests
 
-These test uses the 32-bit cache to write many times to a bitmap. Essentially filling the screen.
+These tests use the 32-bit cache to **write a constant value** many times to a bitmap. Essentially filling the screen.
 
 There are two variants: 
-  - filling one byte a time (the old way) 
-  - filling four bytes at the same time (using the 32-bit cache)
+  - writing one byte a time (the old way) 
+  - writing four bytes at the same time (using the 32-bit cache)
 
 Here are the PRGs and what their results should look like:
 
@@ -33,6 +33,20 @@ Here are the PRGs and what their results should look like:
 | `MULTI-WRITE.PRG`  | <img src='screenshots/MULTI-WRITE.PRG.png' width='300'> |
 
 ## Cache read and write tests
+
+These tests use the 32-bit cache to **read and write** (aka copy) many times from and to VRAM. Essentially copying a bitmap to the screen.
+
+There are two variants: 
+  - reading and writing one byte a time (the old way) 
+  - reading one and writing four bytes at the same time (using the 32-bit cache)
+
+Here are the PRGs and what their results should look like:
+
+| PRG  | Screenshot |
+| ------------- | ------------- |
+| `SINGLE-READWRITE.PRG`  | <img src='screenshots/SINGLE-READWRITE.PRG.png' width='300'> |
+| `MULTI-READWRITE.PRG`  | <img src='screenshots/MULTI-READWRITE.PRG.png' width='300'> |
+
 
 
 ## Line draw tests

@@ -1,5 +1,5 @@
 
-DO_4_BYTES_PER_COPY = 1
+; Defined from commandline: DO_4_BYTES_PER_COPY = 1
 
     .if (DO_4_BYTES_PER_COPY)
 BACKGROUND_COLOR = 34  ; 34 = Red in this palette
@@ -71,11 +71,16 @@ COPY_ROW_CODE             = $7E00
 
 
 ; ROM addresses
+    .ifndef CREATE_PRG
 PALLETE           = $CC00
 PIXELS            = $D000
+    .else
+PALLETE           = $6C00
+PIXELS            = $7000
+    .endif
 
 
-  .org $C000
+    .include utils/build_as_prg_or_rom.s
 
 reset:
 
@@ -845,19 +850,20 @@ jmp_next_pixel_row:
     .include utils/timing.s
     .include utils/setup_vera_for_bitmap_and_tilemap.s
 
-    ; ======== NMI / IRQ =======
+    .ifndef CREATE_PRG
+        ; ======== NMI / IRQ =======
 nmi:
-    ; TODO: implement this
-    ; FIXME: ugly hack!
-    jmp reset
-    rti
+        ; TODO: implement this
+        ; FIXME: ugly hack!
+        jmp reset
+        rti
    
 irq:
-    rti
+        rti
+    .endif
     
     
-    
-  .org $CC00
+  .org PALLETE
 
   .byte $fe, $0f
   .byte $ee, $0f
@@ -1118,7 +1124,7 @@ irq:
   
 
 
-  .org $D000
+  .org PIXELS
 
   .byte  $f1, $f1, $f1, $f1, $f1, $f1, $fe, $ff, $ff, $fe, $30, $fe, $ff, $30, $30, $30, $30, $30, $2d, $30, $29, $2d, $29, $29, $29, $29, $29, $27, $29, $29, $27, $29, $29, $29, $29, $29, $27, $26, $24, $24, $24, $21, $24, $24, $1e, $1c, $1c, $1c, $18, $1c, $18, $1c, $1c, $1c, $18, $1c, $1f, $21, $21, $21, $21, $21, $24, $24, $24, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $26, $26, $26, $26, $26, $26, $26, $26, $65, $65, $65, $65, $65, $64, $61, $60, $90, $90, $90, $90, $90, $8b, $8b, $88
   .byte  $f1, $f1, $e3, $f1, $f1, $fe, $fe, $ff, $ff, $ff, $fe, $30, $fe, $30, $30, $30, $30, $30, $30, $30, $2d, $2d, $29, $29, $29, $29, $29, $29, $27, $29, $27, $29, $29, $2d, $29, $29, $27, $27, $26, $24, $24, $24, $24, $24, $21, $1e, $1c, $1e, $1c, $1c, $1c, $1c, $1c, $1c, $1c, $1c, $21, $21, $21, $21, $21, $21, $24, $27, $24, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $26, $27, $26, $26, $26, $65, $65, $63, $65, $63, $66, $63, $64, $60, $60, $90, $90, $90, $90, $90, $8f, $8f
@@ -1197,15 +1203,18 @@ irq:
   .byte  $12, $fa, $f9, $0d, $0d, $0d, $f9, $17, $17, $fa, $0d, $12, $15, $f9, $10, $f9, $12, $12, $16, $15, $15, $19, $20, $fb, $fa, $fc, $1e, $1d, $18, $1d, $18, $fd, $5a, $17, $15, $17, $17, $16, $53, $16, $16, $15, $11, $16, $10, $15, $11, $10, $10, $13, $11, $11, $10, $13, $0f, $11, $13, $11, $0f, $0d, $0f, $11, $11, $10, $0f, $0f, $10, $0f, $09, $0b, $0f, $10, $11, $0f, $0f, $0f, $10, $0f, $10, $10, $14, $14, $11, $13, $16, $53, $14, $14, $16, $53, $53, $18, $20, $14, $14, $11, $13, $13, $16, $15
     
     
+    .ifndef CREATE_PRG
     
-    ; ======== PETSCII CHARSET =======
+        ; ======== PETSCII CHARSET =======
 
-    .org $F700
-    .include "utils/petscii.s"
-    
-    
+        .org $F700
+        .include "utils/petscii.s"
+        
+        
 
-    .org $fffa
-    .word nmi
-    .word reset
-    .word irq
+        .org $fffa
+        .word nmi
+        .word reset
+        .word irq
+        
+    .endif
