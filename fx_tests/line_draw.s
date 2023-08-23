@@ -1,5 +1,5 @@
 
-DO_SPEED_TEST = 0
+DO_SPEED_TEST = 1
 USE_LINE_DRAW_HELPER = 1
 DO_4BIT = 1
 
@@ -276,10 +276,17 @@ test_speed_of_drawing_lines:
     lda #8
     sta CURSOR_Y
 
-    lda #<draw_lines_320x240_8bpp_message
-    sta TEXT_TO_PRINT
-    lda #>draw_lines_320x240_8bpp_message
-    sta TEXT_TO_PRINT + 1
+    .if(DO_4BIT)
+        lda #<draw_lines_320x240_4bpp_message
+        sta TEXT_TO_PRINT
+        lda #>draw_lines_320x240_4bpp_message
+        sta TEXT_TO_PRINT + 1
+    .else
+        lda #<draw_lines_320x240_8bpp_message
+        sta TEXT_TO_PRINT
+        lda #>draw_lines_320x240_8bpp_message
+        sta TEXT_TO_PRINT + 1
+    .endif
     
     jsr print_text_zero
     
@@ -316,6 +323,9 @@ test_speed_of_drawing_lines:
 
 draw_lines_320x240_8bpp_message: 
     .asciiz "Drew 32 lines 320x240 (8bpp) "
+draw_lines_320x240_4bpp_message: 
+    .asciiz "Drew 32 lines 320x240 (4bpp) "
+    
 draw_lines_without_line_draw_helper_message: 
     ; TODO: maybe specify what method exactly is used!
     .asciiz "Method: not using line draw helper"
