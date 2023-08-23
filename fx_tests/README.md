@@ -17,7 +17,6 @@ Do a `LOAD "<THE FILENAME.PRG>"` to load a specific test program and `RUN` to ex
 
 Alternatively you can use a .rom file (inside the ROM folder) to run these tests as a ROM.
 
-
 ## Cache write tests
 
 These test uses the 32-bit cache to write many times to a bitmap. Essentially filling the screen.
@@ -33,10 +32,6 @@ Here are the PRGs and what their results should look like:
 | `SINGLE-WRITE.PRG`  | <img src='screenshots/SINGLE-WRITE.PRG.png' width='300'> |
 | `MULTI-WRITE.PRG`  | <img src='screenshots/MULTI-WRITE.PRG.png' width='300'> |
 
-## Multiplier and accumulator tests
-
-
-
 ## Line draw tests
 
 
@@ -50,4 +45,16 @@ Here are the PRGs and what their results should look like:
 
 
 
-## Polygon 3D tests
+## Multiplier and accumulator tests
+
+
+
+## Tiled Perspective (integrated) tests 
+
+
+
+## Polygon 3D Engine (integrated) tests
+
+
+
+
