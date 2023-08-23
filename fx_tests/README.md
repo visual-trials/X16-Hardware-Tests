@@ -26,12 +26,15 @@ There are multiple variants:
   - filling to a 4bpp bitmap (320x240) or a 8bpp bitmap (320x240). 
   - filling one byte a time (the old way) or four bytes at the same time (using the 32-bit cache)
 
-Here are the corresponding PRGs:
+Here are the PRGs and what their results should look like:
 
-`SINGLE-WRITE-4BPP.PRG`
-`SINGLE-WRITE-8BPP.PRG`
-`MULTI-WRITE-8BPP.PRG`
-`MULTI-WRITE-4BPP.PRG`
+| PRG  | Screenshot |
+| ------------- | ------------- |
+| `SINGLE-WRITE-4BPP.PRG`  | <img src='screenshots/SINGLE-WRITE-4BPP.PRG.png' width='300'> |
+| `SINGLE-WRITE-8BPP.PRG`  | <img src='screenshots/SINGLE-WRITE-8BPP.PRG.png' width='300'> |
+| `MULTI-WRITE-4BPP.PRG`  | <img src='screenshots/MULTI-WRITE-4BPP.PRG.png' width='300'> |
+| `MULTI-WRITE-8BPP.PRG`  | <img src='screenshots/MULTI-WRITE-8BPP.PRG.png' width='300'> |
+
 
 ## Line draw tests
 
