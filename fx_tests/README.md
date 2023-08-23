@@ -25,7 +25,7 @@ There are two variants:
   - writing one byte a time (the old way) 
   - writing four bytes at the same time (using the 32-bit cache)
 
-Here are the PRGs and what their results should look like:
+Here are the PRG names and what their results should look like:
 
 | PRG  | Screenshot |
 | ------------- | ------------- |
@@ -40,7 +40,7 @@ There are two variants:
   - reading and writing one byte a time (the old way) 
   - reading one and writing four bytes at the same time (using the 32-bit cache)
 
-Here are the PRGs and what their results should look like:
+Here are the PRG names and what their results should look like:
 
 | PRG  | Screenshot |
 | ------------- | ------------- |
