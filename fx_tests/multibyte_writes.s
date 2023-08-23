@@ -1,6 +1,6 @@
 
 DO_SPEED_TEST = 1
-DO_4_BYTES_PER_WRITE = 1
+; Defined from commandline: DO_4_BYTES_PER_WRITE = 1
 
     .if (DO_4_BYTES_PER_WRITE)
 BACKGROUND_COLOR = 57  ; We use color 57 (instead of 2), since it 57 contains both a high nibble and low nibble values (used for testing blit nibble masks)

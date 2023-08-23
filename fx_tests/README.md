@@ -22,18 +22,16 @@ Alternatively you can use a .rom file (inside the ROM folder) to run these tests
 
 These test uses the 32-bit cache to write many times to a bitmap. Essentially filling the screen.
 
-There are multiple variants: 
-  - filling to a 4bpp bitmap (320x240) or a 8bpp bitmap (320x240). 
-  - filling one byte a time (the old way) or four bytes at the same time (using the 32-bit cache)
+There are two variants: 
+  - filling one byte a time (the old way) 
+  - filling four bytes at the same time (using the 32-bit cache)
 
 Here are the PRGs and what their results should look like:
 
 | PRG  | Screenshot |
 | ------------- | ------------- |
-| `SINGLE-WRITE-4BPP.PRG`  | <img src='screenshots/SINGLE-WRITE-4BPP.PRG.png' width='300'> |
-| `SINGLE-WRITE-8BPP.PRG`  | <img src='screenshots/SINGLE-WRITE-8BPP.PRG.png' width='300'> |
-| `MULTI-WRITE-4BPP.PRG`  | <img src='screenshots/MULTI-WRITE-4BPP.PRG.png' width='300'> |
-| `MULTI-WRITE-8BPP.PRG`  | <img src='screenshots/MULTI-WRITE-8BPP.PRG.png' width='300'> |
+| `SINGLE-WRITE.PRG`  | <img src='screenshots/SINGLE-WRITE.PRG.png' width='300'> |
+| `MULTI-WRITE.PRG`  | <img src='screenshots/MULTI-WRITE.PRG.png' width='300'> |
 
 
 ## Line draw tests
