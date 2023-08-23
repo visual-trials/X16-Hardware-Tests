@@ -94,6 +94,17 @@ vera_ready:
     rts
     
     
+    .ifdef CREATE_PRG
+petscii_0 = $C000
+petscii_1 = $C100
+petscii_2 = $C200
+petscii_3 = $C300
+petscii_4 = $C400
+petscii_5 = $C500
+petscii_6 = $C600
+petscii_7 = $C700
+    .endif
+    
 copy_petscii_charset:
 
     ; -- Copy petscii charset to VRAM at $1F000-$1F7FF
@@ -107,16 +118,17 @@ copy_petscii_charset:
     sta VERA_ADDR_LOW
 
     .ifdef CREATE_PRG
+        ; We are assuming this code runs in Fixed RAM, so we can savely switch ROM banks
+        
+        ; We remember the ROM bank we are in right now
+        lda ROM_BANK
+        pha
+        
+        ; We are switching to ROM bank 6 since the PETSCII charset is located there
+        lda #6
+        sta ROM_BANK
+    .endif
     
-; FIXME: IMPLEMENT LOADING PETSCII CHARSET FROM ROM BANK 6!
-; FIXME: IMPLEMENT LOADING PETSCII CHARSET FROM ROM BANK 6!
-; FIXME: IMPLEMENT LOADING PETSCII CHARSET FROM ROM BANK 6!
-
-; Maybe we can define copy_petscii_0-7 and set them to ROM addresses?
-; Maybe we can define copy_petscii_0-7 and set them to ROM addresses?
-; Maybe we can define copy_petscii_0-7 and set them to ROM addresses?
-    
-    .else
     ldy #0
 copy_petscii_0:
     lda petscii_0, y
@@ -172,6 +184,11 @@ copy_petscii_7:
     sta VERA_DATA0
     iny
     bne copy_petscii_7
+
+    .ifdef CREATE_PRG
+        ; We are switching back to ROM bank 0
+        pla
+        sta ROM_BANK
     .endif
 
     rts
