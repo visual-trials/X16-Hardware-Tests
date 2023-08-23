@@ -28,11 +28,7 @@ There are multiple variants:
 
 Here are the corresponding PRGs:
 
-> SINGLE-WRITE-4BPP.PRG
-
-> SINGLE-WRITE-8BPP.PRG
->
-> MULTI-WRITE-8BPP.PRG
+> | SINGLE-WRITE-4BPP.PRG | SINGLE-WRITE-8BPP.PRG | MULTI-WRITE-8BPP.PRG |
 
 **MULTI-WRITE-4BPP.PRG**
 
