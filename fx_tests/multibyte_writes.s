@@ -1,6 +1,10 @@
 
+    ; These are the *default* settings. When not defining DEFAULT from the commandline, these have all to be set.
+    .ifdef DEFAULT
+DO_4_BYTES_PER_WRITE = 1
+    .endif
+
 DO_SPEED_TEST = 1
-; Defined from commandline: DO_4_BYTES_PER_WRITE = 1
 
     .if (DO_4_BYTES_PER_WRITE)
 BACKGROUND_COLOR = 57  ; We use color 57 (instead of 2), since it 57 contains both a high nibble and low nibble values (used for testing blit nibble masks)
