@@ -2377,20 +2377,23 @@ end_div_filename:
 
 ; This will load a DIV table using the TABLE_ROM_BANK (which starts at 1)
 load_div_table:
+
+        stp
     
         clc
-        lda #'a'-1                  ; 'a' = $61 (since TABLE_ROM_BANK starts at 1 we subtract 1 here)
+        lda #'a'                  ; 'a' = $61
         adc TABLE_ROM_BANK
         
         ; This is a bit a of HACK/WORKAROUD: we are subtracting again from TABLE_ROM_BANK (so it always starts with 1)
+        sec
         .if(USE_SLOPE_TABLES)
             .if(USE_180_DEGREES_SLOPE_TABLE)
-                sbc #25               ; we go from 21-24 so we need to stop at 25
+                sbc #21               ; since the TABLE_ROM_BANK starts at 21, we substract 21 from it
             .else
-                sbc #15               ; we go from 11-14 so we need to stop at 15
+                sbc #11               ; since the TABLE_ROM_BANK starts at 11, we substract 11 from it
             .endif
         .else
-            sbc #5                    ; we go from 1-4 so we need to stop at 5
+            sbc #1                    ; since the TABLE_ROM_BANK starts at 1, we substract 1 from it
         .endif
         
         sta end_div_filename-5 ; 5 characters from the end is the 'a'

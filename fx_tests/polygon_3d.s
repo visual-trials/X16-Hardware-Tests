@@ -7,17 +7,19 @@ USE_POLYGON_FILLER = 1
 USE_SLOPE_TABLES = 1
 USE_UNROLLED_LOOP = 1
 USE_JUMP_TABLE = 1
+USE_DIV_TABLES = 1
     .else
 ; When not defining DEFAULT from the commandline, these (shift names) will all have to be set from the commandline.    
 USE_POLYGON_FILLER = FXPOLY
 USE_SLOPE_TABLES = SLP
 USE_UNROLLED_LOOP = UNR
 USE_JUMP_TABLE = JMP
+USE_DIV_TABLES = DIV
     .endif
 
 USE_FX_MULTIPLIER = 1
-USE_DIV_TABLES = 0
 
+DO_BUTTERFLY = 1
 
 DO_SPEED_TEST = 1
 DO_4BIT = 0
@@ -27,7 +29,6 @@ USE_LIGHT = 1
 USE_KEYBOARD_INPUT = 1
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
-DO_BUTTERFLY = 0
 DEBUG = 0
 
 ; WEIRD BUG: when using JUMP_TABLES, the triangles look very 'edgy'!! --> it is 'SOLVED' by putting the jump FILL_LINE_END_CODE_x-block aligned to 256 bytes!?!?
@@ -244,46 +245,46 @@ DEBUG_VALUE                = $D0
 
 
 
-FILL_LENGTH_LOW_SOFT     = $2800
-FILL_LENGTH_HIGH_SOFT    = $2801
+FILL_LENGTH_LOW_SOFT     = $4800
+FILL_LENGTH_HIGH_SOFT    = $4801
 
 ; RAM addresses
 
-KEYBOARD_STATE           = $2A80   ; 128 bytes (state for each key of the keyboard)
-CLEAR_COLUMN_CODE        = $2B00   ; takes up to 02D0
-KEYBOARD_KEY_CODE_BUFFER = $2DE0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
+KEYBOARD_STATE           = $4A80   ; 128 bytes (state for each key of the keyboard)
+CLEAR_COLUMN_CODE        = $4B00   ; takes up to 02D0
+KEYBOARD_KEY_CODE_BUFFER = $4DE0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
 
-FILL_LINE_START_JUMP     = $2E00
-FILL_LINE_START_CODE     = $2F00   ; 128 different (start of) fill line code patterns -> safe: takes $0D00 bytes
+FILL_LINE_START_JUMP     = $4E00
+FILL_LINE_START_CODE     = $4F00   ; 128 different (start of) fill line code patterns -> safe: takes $0D00 bytes
 
 ; FIXME: can we put these jump tables closer to each other? Do they need to be aligned to 256 bytes? (they are 80 bytes each)
 ; FIXME: IMPORTANT: we set the two lower bits of this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 4 tables should stay $100! AND the two lower bits should stay 00b!
-FILL_LINE_END_JUMP_0     = $3C00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0)
-FILL_LINE_END_JUMP_1     = $3D00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1)
-FILL_LINE_END_JUMP_2     = $3E00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2)
-FILL_LINE_END_JUMP_3     = $3F00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3)
+FILL_LINE_END_JUMP_0     = $5C00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0)
+FILL_LINE_END_JUMP_1     = $5D00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1)
+FILL_LINE_END_JUMP_2     = $5E00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2)
+FILL_LINE_END_JUMP_3     = $5F00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3)
 
 ; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> MORE than 256 bytes!!
-FILL_LINE_END_CODE_0     = $4000   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_END_CODE_1     = $4200   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_END_CODE_2     = $4400   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
-FILL_LINE_END_CODE_3     = $4600   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_0     = $6000   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_1     = $6200   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_2     = $6400   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_3     = $6600   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 
 ; Triangle data is (easely) accessed through an single index (0-127)
 ; == IMPORTANT: we assume a *clockwise* ordering of the 3 points of a triangle! ==
 MAX_NR_OF_TRIANGLES      = 128
-TRIANGLES_POINT1_X       = $4800 ; 4880
-TRIANGLES_POINT1_Y       = $4900 ; 4980
-TRIANGLES_POINT2_X       = $4A00 ; 4A80
-TRIANGLES_POINT2_Y       = $4B00 ; 4B80
-TRIANGLES_POINT3_X       = $4C00 ; 4C80
-TRIANGLES_POINT3_Y       = $4D00 ; 4D80
+TRIANGLES_POINT1_X       = $6800 ; 6880
+TRIANGLES_POINT1_Y       = $6900 ; 6980
+TRIANGLES_POINT2_X       = $6A00 ; 6A80
+TRIANGLES_POINT2_Y       = $6B00 ; 6B80
+TRIANGLES_POINT3_X       = $6C00 ; 6C80
+TRIANGLES_POINT3_Y       = $6D00 ; 6D80
 
-TRIANGLES_ORG_COLOR      = $4E00 ; Only 128 bytes used
-TRIANGLES_COLOR          = $4E80 ; Only 128 bytes used
+TRIANGLES_ORG_COLOR      = $6E00 ; Only 128 bytes used
+TRIANGLES_COLOR          = $6E80 ; Only 128 bytes used
 
-TRIANGLES_LINKED_LIST_INDEX = $4F00 ; Only 128 bytes used
-TRIANGLES_LINKED_LIST_NEXT  = $4F80 ; Only 128 bytes used
+TRIANGLES_LINKED_LIST_INDEX = $6F00 ; Only 128 bytes used
+TRIANGLES_LINKED_LIST_NEXT  = $6F80 ; Only 128 bytes used
 
     .ifndef CREATE_PRG
 SOURCE_TABLE_ADDRESS     = $C000
@@ -295,54 +296,56 @@ SOURCE_TABLE_ADDRESS     = $5E00
     .endif
 
 ; FIXME: We should instead use a series of POINTS and INDEXES to those points are used to define TRIANGLES!
-TRIANGLES_3D_POINT1_X    = $5000 ; 5080
-TRIANGLES_3D_POINT1_Y    = $5100 ; 5180
-TRIANGLES_3D_POINT1_Z    = $5200 ; 5280
-TRIANGLES_3D_POINT2_X    = $5300 ; 5380
-TRIANGLES_3D_POINT2_Y    = $5400 ; 5480
-TRIANGLES_3D_POINT2_Z    = $5500 ; 5580
-TRIANGLES_3D_POINT3_X    = $5600 ; 5680
-TRIANGLES_3D_POINT3_Y    = $5700 ; 5780
-TRIANGLES_3D_POINT3_Z    = $5800 ; 5880
-TRIANGLES_3D_POINTN_X    = $5900 ; 5980
-TRIANGLES_3D_POINTN_Y    = $5A00 ; 5A80
-TRIANGLES_3D_POINTN_Z    = $5B00 ; 5B80
+TRIANGLES_3D_POINT1_X    = $7000 ; 7080
+TRIANGLES_3D_POINT1_Y    = $7100 ; 7180
+TRIANGLES_3D_POINT1_Z    = $7200 ; 7280
+TRIANGLES_3D_POINT2_X    = $7300 ; 7380
+TRIANGLES_3D_POINT2_Y    = $7400 ; 7480
+TRIANGLES_3D_POINT2_Z    = $7500 ; 7580
+TRIANGLES_3D_POINT3_X    = $7600 ; 7680
+TRIANGLES_3D_POINT3_Y    = $7700 ; 7780
+TRIANGLES_3D_POINT3_Z    = $7800 ; 7880
+TRIANGLES_3D_POINTN_X    = $7900 ; 7980
+TRIANGLES_3D_POINTN_Y    = $7A00 ; 7A80
+TRIANGLES_3D_POINTN_Z    = $7B00 ; 7B80
 
-TRIANGLES2_3D_POINT1_X   = $5C00 ; 5C80
-TRIANGLES2_3D_POINT1_Y   = $5D00 ; 5D80
-TRIANGLES2_3D_POINT1_Z   = $5E00 ; 5E80
-TRIANGLES2_3D_POINT2_X   = $5F00 ; 5F80
-TRIANGLES2_3D_POINT2_Y   = $6000 ; 6080
-TRIANGLES2_3D_POINT2_Z   = $6100 ; 6180
-TRIANGLES2_3D_POINT3_X   = $6200 ; 6280
-TRIANGLES2_3D_POINT3_Y   = $6300 ; 6380
-TRIANGLES2_3D_POINT3_Z   = $6400 ; 6480
-TRIANGLES2_3D_POINTN_X   = $6500 ; 6580
-TRIANGLES2_3D_POINTN_Y   = $6600 ; 6680
-TRIANGLES2_3D_POINTN_Z   = $6700 ; 6780
+TRIANGLES2_3D_POINT1_X   = $7C00 ; 7C80
+TRIANGLES2_3D_POINT1_Y   = $7D00 ; 7D80
+TRIANGLES2_3D_POINT1_Z   = $7E00 ; 7E80
+TRIANGLES2_3D_POINT2_X   = $7F00 ; 7F80
+TRIANGLES2_3D_POINT2_Y   = $8000 ; 8080
+TRIANGLES2_3D_POINT2_Z   = $8100 ; 8180
+TRIANGLES2_3D_POINT3_X   = $8200 ; 8280
+TRIANGLES2_3D_POINT3_Y   = $8300 ; 8380
+TRIANGLES2_3D_POINT3_Z   = $8400 ; 8480
+TRIANGLES2_3D_POINTN_X   = $8500 ; 8580
+TRIANGLES2_3D_POINTN_Y   = $8600 ; 8680
+TRIANGLES2_3D_POINTN_Z   = $8700 ; 8780
 
-TRIANGLES3_3D_POINT1_X   = $6800 ; 6880
-TRIANGLES3_3D_POINT1_Y   = $6900 ; 6980
-TRIANGLES3_3D_POINT1_Z   = $6A00 ; 6A80
-TRIANGLES3_3D_POINT2_X   = $6B00 ; 6B80
-TRIANGLES3_3D_POINT2_Y   = $6C00 ; 6C80
-TRIANGLES3_3D_POINT2_Z   = $6D00 ; 6D80
-TRIANGLES3_3D_POINT3_X   = $6E00 ; 6E80
-TRIANGLES3_3D_POINT3_Y   = $6F00 ; 6F80
-TRIANGLES3_3D_POINT3_Z   = $7000 ; 7080
-TRIANGLES3_3D_POINTN_X   = $7100 ; 7180
-TRIANGLES3_3D_POINTN_Y   = $7200 ; 7280
-TRIANGLES3_3D_POINTN_Z   = $7300 ; 7380
-TRIANGLES3_3D_SUM_Z      = $7400 ; 7480
+TRIANGLES3_3D_POINT1_X   = $8800 ; 8880
+TRIANGLES3_3D_POINT1_Y   = $8900 ; 8980
+TRIANGLES3_3D_POINT1_Z   = $8A00 ; 8A80
+TRIANGLES3_3D_POINT2_X   = $8B00 ; 8B80
+TRIANGLES3_3D_POINT2_Y   = $8C00 ; 8C80
+TRIANGLES3_3D_POINT2_Z   = $8D00 ; 8D80
+TRIANGLES3_3D_POINT3_X   = $8E00 ; 8E80
+TRIANGLES3_3D_POINT3_Y   = $8F00 ; 8F80
+TRIANGLES3_3D_POINT3_Z   = $9000 ; 9080
+TRIANGLES3_3D_POINTN_X   = $9100 ; 9180
+TRIANGLES3_3D_POINTN_Y   = $9200 ; 9280
+TRIANGLES3_3D_POINTN_Z   = $9300 ; 9380
+TRIANGLES3_3D_SUM_Z      = $9400 ; 9480
 
 
-Y_TO_ADDRESS_LOW         = $8400
-Y_TO_ADDRESS_HIGH        = $8500
-Y_TO_ADDRESS_BANK        = $8600
-Y_TO_ADDRESS_BANK2       = $8700   ; Only use when double buffering
+Y_TO_ADDRESS_LOW         = $9500
+Y_TO_ADDRESS_HIGH        = $9600
+Y_TO_ADDRESS_BANK        = $9700
+Y_TO_ADDRESS_BANK2       = $9800   ; Only use when double buffering
 
-COPY_SLOPE_TABLES_TO_BANKED_RAM = $8800  ; TODO: is this smaller than 256 bytes?
-COPY_DIV_TABLES_TO_BANKED_RAM   = $8900
+    .ifndef CREATE_PRG
+COPY_SLOPE_TABLES_TO_BANKED_RAM = $9900  ; TODO: is this smaller than 256 bytes?
+COPY_DIV_TABLES_TO_BANKED_RAM   = $9A00
+    .endif
 
     .if(USE_POLYGON_FILLER)
         .if(!USE_JUMP_TABLE)
@@ -2801,7 +2804,7 @@ get_cosine_for_angle:
     rts
     
     
-    .if(1)
+    .if(0)
 NR_OF_TRIANGLES = 12
 triangle_3d_data:
 
@@ -2848,7 +2851,7 @@ end_of_palette_data:
     
     
     
-    .if(0)
+    .if(1)
 NR_OF_TRIANGLES = 72
 triangle_3d_data:
     ; Note: the normal is a normal point relative to 0.0 (with a length of $100)
