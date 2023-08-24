@@ -3238,7 +3238,20 @@ end_of_palette_data:
             .include fx_tests/utils/fx_polygon_fill_jump_tables_2bit.s
         .endif
     .endif
+    
 
+    .ifndef CREATE_PRG
+        ; ======== NMI / IRQ =======
+nmi:
+        ; TODO: implement this
+        ; FIXME: ugly hack!
+        jmp reset
+        rti
+   
+irq:
+        rti
+    .endif
+        
     
     ; === Cosine and sine tables ===
 
@@ -3271,16 +3284,6 @@ cosine_words:
 
         .org $F700
         .include "utils/petscii.s"
-        
-        ; ======== NMI / IRQ =======
-nmi:
-        ; TODO: implement this
-        ; FIXME: ugly hack!
-        jmp reset
-        rti
-   
-irq:
-        rti
         
 
         .org $fffa
