@@ -2372,14 +2372,12 @@ generate_next_y_to_address_entry:
     
     .ifdef CREATE_PRG
     
-div_filename:      .byte    "tbl/dev-a.bin" 
+div_filename:      .byte    "tbl/div-a.bin" 
 end_div_filename:
 
 ; This will load a DIV table using the TABLE_ROM_BANK (which starts at 1)
 load_div_table:
 
-        stp
-    
         clc
         lda #'a'                  ; 'a' = $61
         adc TABLE_ROM_BANK
