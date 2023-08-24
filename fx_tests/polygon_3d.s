@@ -2737,6 +2737,7 @@ get_sine_for_angle:
     rol ANGLE+1
     
     ; We add the angle to the table base address
+    
     clc
     lda #<sine_words
     adc ANGLE
@@ -3235,10 +3236,14 @@ end_of_palette_data:
     
     ; === Cosine and sine tables ===
 
+    .ifndef CREATE_PRG
+        .org $EF00
+    .else
 ; FIXME!
 ; FIXME!
-; FIXME!
-;    .org $EF00
+; FIXME!  
+;        .org $EF00
+    .endif
     
     ; FIXME: put this in a more general place!
 

@@ -47,6 +47,14 @@ echo Building: Polygon 3D tests
 
 REM ./vasm6502_oldstyle.exe -Fbin -dotdir ./fx_tests/polygon_3d.s -wdc02 -D DEFAULT -o ./fx_tests/polygon_3d.rom
 
+REM FIXME! OVERLAPPING SECTIONS!?
+
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/polygon_3d.s -wdc02 -D FXPOLY=1 -D UNR=0 -D SLP=0 -D JMP=0 -o ./fx_tests/ROM/POLY3D-FXPOLY.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/polygon_3d.s -wdc02 -D FXPOLY=1 -D UNR=0 -D SLP=0 -D JMP=0 -D CREATE_PRG -o ./fx_tests/SD/POLY3D-FXPOLY.PRG
+
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/polygon_3d.s -wdc02 -D FXPOLY=1 -D UNR=0 -D SLP=1 -D JMP=0 -o ./fx_tests/ROM/POLY3D-FXPOLY-SLP.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/polygon_3d.s -wdc02 -D FXPOLY=1 -D UNR=0 -D SLP=1 -D JMP=0 -D CREATE_PRG -o ./fx_tests/SD/POLY3D-FXPOLY-SLP.PRG
+
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/polygon_3d.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -o ./fx_tests/ROM/POLY3D-FXPOLY-SLP-JMP.ROM
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/polygon_3d.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -D CREATE_PRG -o ./fx_tests/SD/POLY3D-FXPOLY-SLP-JMP.PRG
 
