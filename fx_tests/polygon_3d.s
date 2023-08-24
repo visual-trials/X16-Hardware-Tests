@@ -27,7 +27,7 @@ USE_LIGHT = 1
 USE_KEYBOARD_INPUT = 1
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
-DO_BUTTERFLY = 1
+DO_BUTTERFLY = 0
 DEBUG = 0
 
 ; WEIRD BUG: when using JUMP_TABLES, the triangles look very 'edgy'!! --> it is 'SOLVED' by putting the jump FILL_LINE_END_CODE_x-block aligned to 256 bytes!?!?
@@ -536,7 +536,9 @@ test_speed_of_simple_3d_polygon_scene:
 
     .if(1)
         jsr copy_palette_from_index_16
-        jsr copy_palette_from_index_128
+        .if(DO_BUTTERFLY)
+            jsr copy_palette_from_index_128
+        .endif
     .endif
 
     jsr load_3d_triangle_data_into_ram
@@ -2570,7 +2572,7 @@ next_packed_color:
 
     rts
 
-
+    .if(DO_BUTTERFLY)
 copy_palette_from_index_128:
 
     ; Starting at palette VRAM address
@@ -2592,6 +2594,7 @@ next_packed_color_128:
     bne next_packed_color_128
 
     rts
+    .endif
 
     
 load_3d_triangle_data_into_ram:
@@ -2798,7 +2801,7 @@ get_cosine_for_angle:
     rts
     
     
-    .if(0)
+    .if(1)
 NR_OF_TRIANGLES = 12
 triangle_3d_data:
 
@@ -2845,7 +2848,7 @@ end_of_palette_data:
     
     
     
-    .if(1)
+    .if(0)
 NR_OF_TRIANGLES = 72
 triangle_3d_data:
     ; Note: the normal is a normal point relative to 0.0 (with a length of $100)
