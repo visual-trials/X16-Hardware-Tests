@@ -1,5 +1,8 @@
 
-; Defined from commandline: DO_4_BYTES_PER_COPY = 1
+    .ifdef DEFAULT
+; These are the *default* settings. When not defining DEFAULT from the commandline, these will all have to be set from the commandline.
+DO_4_BYTES_PER_COPY = 1
+    .endif
 
     .if (DO_4_BYTES_PER_COPY)
 BACKGROUND_COLOR = 34  ; 34 = Red in this palette

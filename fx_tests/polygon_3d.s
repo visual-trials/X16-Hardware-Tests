@@ -1,6 +1,24 @@
 
 ; FIXME: we add nops after switching RAM_BANK. This is needed for the Breadboard of JeffreyH but not on stock hardware! Maybe add a setting to turn this on/off.
 
+    .ifdef DEFAULT
+; These are the *default* settings. 
+USE_POLYGON_FILLER = 1
+USE_SLOPE_TABLES = 1
+USE_UNROLLED_LOOP = 1
+USE_JUMP_TABLE = 1
+    .else
+; When not defining DEFAULT from the commandline, these (shift names) will all have to be set from the commandline.    
+USE_POLYGON_FILLER = FXPOLY
+USE_SLOPE_TABLES = SLP
+USE_UNROLLED_LOOP = UNR
+USE_JUMP_TABLE = JMP
+    .endif
+
+USE_FX_MULTIPLIER = 1
+USE_DIV_TABLES = 0
+
+
 DO_SPEED_TEST = 1
 DO_4BIT = 0
 DO_2BIT = 0
@@ -14,18 +32,14 @@ DEBUG = 0
 
 ; WEIRD BUG: when using JUMP_TABLES, the triangles look very 'edgy'!! --> it is 'SOLVED' by putting the jump FILL_LINE_END_CODE_x-block aligned to 256 bytes!?!?
 
-USE_POLYGON_FILLER = 1
-USE_FX_MULTIPLIER = 1
-USE_SLOPE_TABLES = 1
-USE_DIV_TABLES = 1
-USE_UNROLLED_LOOP = 1
-USE_JUMP_TABLE = 1
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
 
 TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
 USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
-USE_180_DEGREES_SLOPE_TABLE = 1  ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
+; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
+; Right now this is always turned on when slope tables are turned on
+USE_180_DEGREES_SLOPE_TABLE = USE_SLOPE_TABLES
 
 USE_Y_TO_ADDRESS_TABLE = 1
 
@@ -271,6 +285,15 @@ TRIANGLES_COLOR          = $4E80 ; Only 128 bytes used
 TRIANGLES_LINKED_LIST_INDEX = $4F00 ; Only 128 bytes used
 TRIANGLES_LINKED_LIST_NEXT  = $4F80 ; Only 128 bytes used
 
+    .ifndef CREATE_PRG
+SOURCE_TABLE_ADDRESS     = $C000
+    .else
+; FIXME: we need to put this is the CORRECT location!
+; FIXME: we need to put this is the CORRECT location!
+; FIXME: we need to put this is the CORRECT location!
+SOURCE_TABLE_ADDRESS     = $5E00
+    .endif
+
 ; FIXME: We should instead use a series of POINTS and INDEXES to those points are used to define TRIANGLES!
 TRIANGLES_3D_POINT1_X    = $5000 ; 5080
 TRIANGLES_3D_POINT1_Y    = $5100 ; 5180
@@ -334,8 +357,8 @@ DRAW_ROW_64_CODE         = $B500   ; When USE_POLYGON_FILLER is 0: A000-B4FF are
 MATH_RESULTS_ADDRESS     = $0FF00  ; The place where all math results are stored -> After the first frame buffer, just before the second frame buffer.
 
 
+    .include utils/build_as_prg_or_rom.s
 
-  .org $C000
 
 reset:
 
@@ -356,6 +379,32 @@ reset:
     jsr init_cursor
     jsr init_keyboard
     jsr init_timer
+
+    .if(USE_SLOPE_TABLES)
+        .ifndef CREATE_PRG
+            jsr copy_slope_table_copier_to_ram
+            jsr COPY_SLOPE_TABLES_TO_BANKED_RAM
+        .else
+            ; When running as PRG, we have to load the SLOPE tables from the SD card
+            ; So we dont need to use ROM banks. There is no need to copy the copier.
+            ; IMPORTANT: copying of the SLOPE tables temporarily uses 16kB of Fixed RAM, so this
+            ;            has to be done BEFORE parts of this 16kB is filled with other information!
+            jsr copy_slope_tables_to_banked_ram
+        .endif
+    .endif
+    
+    .if(USE_DIV_TABLES)
+        .ifndef CREATE_PRG
+            jsr copy_div_table_copier_to_ram
+            jsr COPY_DIV_TABLES_TO_BANKED_RAM
+        .else
+            ; When running as PRG, we have to load the DIV tables from the SD card
+            ; So we dont need to use ROM banks. There is no need to copy the copier.
+            ; IMPORTANT: copying of the DIV tables temporarily uses 16kB of Fixed RAM, so this
+            ;            has to be done BEFORE parts of this 16kB is filled with other information!
+            jsr copy_div_tables_to_banked_ram
+        .endif
+    .endif
 
     .if (USE_WRITE_CACHE)
         jsr generate_clear_column_code
@@ -379,16 +428,6 @@ reset:
     
     .if(USE_Y_TO_ADDRESS_TABLE)
         jsr generate_y_to_address_table
-    .endif
-    
-    .if(USE_SLOPE_TABLES)
-        jsr copy_slope_table_copier_to_ram
-        jsr COPY_SLOPE_TABLES_TO_BANKED_RAM
-    .endif
-    
-    .if(USE_DIV_TABLES)
-        jsr copy_div_table_copier_to_ram
-        jsr COPY_DIV_TABLES_TO_BANKED_RAM
     .endif
     
     .if(DO_SPEED_TEST)
@@ -3196,7 +3235,10 @@ end_of_palette_data:
     
     ; === Cosine and sine tables ===
 
-    .org $EF00
+; FIXME!
+; FIXME!
+; FIXME!
+;    .org $EF00
     
     ; FIXME: put this in a more general place!
 
@@ -3213,82 +3255,87 @@ sine_words:
 cosine_words:
     .word 256, 256, 256, 256, 256, 256, 255, 255, 255, 254, 254, 254, 253, 253, 252, 252, 251, 250, 250, 249, 248, 248, 247, 246, 245, 244, 243, 242, 241, 240, 239, 238, 237, 235, 234, 233, 231, 230, 229, 227, 226, 224, 223, 221, 220, 218, 216, 215, 213, 211, 209, 207, 206, 204, 202, 200, 198, 196, 194, 192, 190, 188, 185, 183, 181, 179, 177, 174, 172, 170, 167, 165, 162, 160, 157, 155, 152, 150, 147, 145, 142, 140, 137, 134, 132, 129, 126, 123, 121, 118, 115, 112, 109, 107, 104, 101, 98, 95, 92, 89, 86, 83, 80, 77, 74, 71, 68, 65, 62, 59, 56, 53, 50, 47, 44, 41, 38, 34, 31, 28, 25, 22, 19, 16, 13, 9, 6, 3, 0, -2, -5, -8, -12, -15, -18, -21, -24, -27, -30, -33, -37, -40, -43, -46, -49, -52, -55, -58, -61, -64, -67, -70, -73, -76, -79, -82, -85, -88, -91, -94, -97, -100, -103, -106, -108, -111, -114, -117, -120, -122, -125, -128, -131, -133, -136, -139, -141, -144, -146, -149, -151, -154, -156, -159, -161, -164, -166, -169, -171, -173, -176, -178, -180, -182, -184, -187, -189, -191, -193, -195, -197, -199, -201, -203, -205, -206, -208, -210, -212, -214, -215, -217, -219, -220, -222, -223, -225, -226, -228, -229, -230, -232, -233, -234, -236, -237, -238, -239, -240, -241, -242, -243, -244, -245, -246, -247, -247, -248, -249, -249, -250, -251, -251, -252, -252, -253, -253, -253, -254, -254, -254, -255, -255, -255, -255, -255, -255, -255, -255, -255, -255, -255, -254, -254, -254, -253, -253, -253, -252, -252, -251, -251, -250, -249, -249, -248, -247, -247, -246, -245, -244, -243, -242, -241, -240, -239, -238, -237, -236, -234, -233, -232, -230, -229, -228, -226, -225, -223, -222, -220, -219, -217, -215, -214, -212, -210, -208, -206, -205, -203, -201, -199, -197, -195, -193, -191, -189, -187, -184, -182, -180, -178, -176, -173, -171, -169, -166, -164, -161, -159, -156, -154, -151, -149, -146, -144, -141, -139, -136, -133, -131, -128, -125, -122, -120, -117, -114, -111, -108, -106, -103, -100, -97, -94, -91, -88, -85, -82, -79, -76, -73, -70, -67, -64, -61, -58, -55, -52, -49, -46, -43, -40, -37, -33, -30, -27, -24, -21, -18, -15, -12, -8, -5, -2, 0, 3, 6, 9, 13, 16, 19, 22, 25, 28, 31, 34, 38, 41, 44, 47, 50, 53, 56, 59, 62, 65, 68, 71, 74, 77, 80, 83, 86, 89, 92, 95, 98, 101, 104, 107, 109, 112, 115, 118, 121, 123, 126, 129, 132, 134, 137, 140, 142, 145, 147, 150, 152, 155, 157, 160, 162, 165, 167, 170, 172, 174, 177, 179, 181, 183, 185, 188, 190, 192, 194, 196, 198, 200, 202, 204, 206, 207, 209, 211, 213, 215, 216, 218, 220, 221, 223, 224, 226, 227, 229, 230, 231, 233, 234, 235, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 248, 249, 250, 250, 251, 252, 252, 253, 253, 254, 254, 254, 255, 255, 255, 256, 256, 256, 256, 256
     
-    ; ======== PETSCII CHARSET =======
+    .ifndef CREATE_PRG
+        ; ======== PETSCII CHARSET =======
 
-    .org $F700
-    .include "utils/petscii.s"
-    
-    ; ======== NMI / IRQ =======
+        .org $F700
+        .include "utils/petscii.s"
+        
+        ; ======== NMI / IRQ =======
 nmi:
-    ; TODO: implement this
-    ; FIXME: ugly hack!
-    jmp reset
-    rti
+        ; TODO: implement this
+        ; FIXME: ugly hack!
+        jmp reset
+        rti
    
 irq:
-    rti
+        rti
+        
 
-    .org $fffa
-    .word nmi
-    .word reset
-    .word irq
+        .org $fffa
+        .word nmi
+        .word reset
+        .word irq
+    .endif
 
     ; NOTE: we are now using ROM banks to contain tables. We need to copy those tables to Banked RAM, but have to run that copy-code in Fixed RAM.
     
-    .if(USE_SLOPE_TABLES)
-        .if(USE_POLYGON_FILLER)
-            .binary "fx_tests/tables/slopes_packed_column_0_low.bin"
-            .binary "fx_tests/tables/slopes_packed_column_0_high.bin"
-            .binary "fx_tests/tables/slopes_packed_column_1_low.bin"
-            .binary "fx_tests/tables/slopes_packed_column_1_high.bin"
-            .binary "fx_tests/tables/slopes_packed_column_2_low.bin"
-            .binary "fx_tests/tables/slopes_packed_column_2_high.bin"
-            .binary "fx_tests/tables/slopes_packed_column_3_low.bin"
-            .binary "fx_tests/tables/slopes_packed_column_3_high.bin"
-            .binary "fx_tests/tables/slopes_packed_column_4_low.bin"
-            .binary "fx_tests/tables/slopes_packed_column_4_high.bin"
-            .if(USE_180_DEGREES_SLOPE_TABLE)
-                .binary "fx_tests/tables/slopes_negative_packed_column_0_low.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_0_high.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_1_low.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_1_high.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_2_low.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_2_high.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_3_low.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_3_high.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_4_low.bin"
-                .binary "fx_tests/tables/slopes_negative_packed_column_4_high.bin"
-            .endif
-        .else
-            ; FIXME: right now we include vhigh tables *TWICE*! The second time is a dummy include! (since we want all _low tables to be aligned with ROM_BANK % 4 == 1)
-            .binary "fx_tests/tables/slopes_column_0_low.bin"
-            .binary "fx_tests/tables/slopes_column_0_high.bin"
-            .binary "fx_tests/tables/slopes_column_0_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_0_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_1_low.bin"
-            .binary "fx_tests/tables/slopes_column_1_high.bin"
-            .binary "fx_tests/tables/slopes_column_1_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_1_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_2_low.bin"
-            .binary "fx_tests/tables/slopes_column_2_high.bin"
-            .binary "fx_tests/tables/slopes_column_2_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_2_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_3_low.bin"
-            .binary "fx_tests/tables/slopes_column_3_high.bin"
-            .binary "fx_tests/tables/slopes_column_3_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_3_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_4_low.bin"
-            .binary "fx_tests/tables/slopes_column_4_high.bin"
-            .binary "fx_tests/tables/slopes_column_4_vhigh.bin"
-            .binary "fx_tests/tables/slopes_column_4_vhigh.bin"
-            .if(USE_DIV_TABLES)
-                FIXME: no support for DIV tables when USE_SLOPE_TABLES is turned off!
+    .ifndef CREATE_PRG
+        .if(USE_SLOPE_TABLES)
+            .if(USE_POLYGON_FILLER)
+                .binary "fx_tests/tables/slopes_packed_column_0_low.bin"
+                .binary "fx_tests/tables/slopes_packed_column_0_high.bin"
+                .binary "fx_tests/tables/slopes_packed_column_1_low.bin"
+                .binary "fx_tests/tables/slopes_packed_column_1_high.bin"
+                .binary "fx_tests/tables/slopes_packed_column_2_low.bin"
+                .binary "fx_tests/tables/slopes_packed_column_2_high.bin"
+                .binary "fx_tests/tables/slopes_packed_column_3_low.bin"
+                .binary "fx_tests/tables/slopes_packed_column_3_high.bin"
+                .binary "fx_tests/tables/slopes_packed_column_4_low.bin"
+                .binary "fx_tests/tables/slopes_packed_column_4_high.bin"
+                .if(USE_180_DEGREES_SLOPE_TABLE)
+                    .binary "fx_tests/tables/slopes_negative_packed_column_0_low.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_0_high.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_1_low.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_1_high.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_2_low.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_2_high.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_3_low.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_3_high.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_4_low.bin"
+                    .binary "fx_tests/tables/slopes_negative_packed_column_4_high.bin"
+                .endif
+            .else
+                ; FIXME: right now we include vhigh tables *TWICE*! The second time is a dummy include! (since we want all _low tables to be aligned with ROM_BANK % 4 == 1)
+                .binary "fx_tests/tables/slopes_column_0_low.bin"
+                .binary "fx_tests/tables/slopes_column_0_high.bin"
+                .binary "fx_tests/tables/slopes_column_0_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_0_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_1_low.bin"
+                .binary "fx_tests/tables/slopes_column_1_high.bin"
+                .binary "fx_tests/tables/slopes_column_1_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_1_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_2_low.bin"
+                .binary "fx_tests/tables/slopes_column_2_high.bin"
+                .binary "fx_tests/tables/slopes_column_2_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_2_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_3_low.bin"
+                .binary "fx_tests/tables/slopes_column_3_high.bin"
+                .binary "fx_tests/tables/slopes_column_3_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_3_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_4_low.bin"
+                .binary "fx_tests/tables/slopes_column_4_high.bin"
+                .binary "fx_tests/tables/slopes_column_4_vhigh.bin"
+                .binary "fx_tests/tables/slopes_column_4_vhigh.bin"
+                .if(USE_DIV_TABLES)
+                    FIXME: no support for DIV tables when USE_SLOPE_TABLES is turned off!
+                .endif
             .endif
         .endif
-    .endif
-    .if(USE_DIV_TABLES)
-        .binary "fx_tests/tables/div_pos_0_low.bin"
-        .binary "fx_tests/tables/div_pos_0_high.bin"
-        .binary "fx_tests/tables/div_pos_1_low.bin"
-        .binary "fx_tests/tables/div_pos_1_high.bin"
+        .if(USE_DIV_TABLES)
+            .binary "fx_tests/tables/div_pos_0_low.bin"
+            .binary "fx_tests/tables/div_pos_0_high.bin"
+            .binary "fx_tests/tables/div_pos_1_low.bin"
+            .binary "fx_tests/tables/div_pos_1_high.bin"
+        .endif
     .endif

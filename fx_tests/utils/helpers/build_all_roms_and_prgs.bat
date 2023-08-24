@@ -1,7 +1,9 @@
 @echo off
 
 echo Building: Cache write tests
+
 REM ./vasm6502_oldstyle.exe -Fbin -dotdir ./fx_tests/multibyte_writes.s -wdc02 -D DEFAULT -o ./fx_tests/multibyte_writes.rom
+
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/multibyte_writes.s -wdc02 -D DO_4_BYTES_PER_WRITE=0 -o ./fx_tests/ROM/SINGLE-WRITE.ROM
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/multibyte_writes.s -wdc02 -D DO_4_BYTES_PER_WRITE=0 -D CREATE_PRG -o ./fx_tests/SD/SINGLE-WRITE.PRG
 
@@ -9,6 +11,9 @@ vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/multibyte_writes.s -wdc02 
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/multibyte_writes.s -wdc02 -D DO_4_BYTES_PER_WRITE=1 -D CREATE_PRG -o ./fx_tests/SD/MULTI-WRITE.PRG
 
 echo Building: Cache read and write tests
+
+REM ./vasm6502_oldstyle.exe -Fbin -dotdir ./fx_tests/multibyte_blits.s -wdc02 -D DEFAULT -o ./fx_tests/multibyte_blits.rom
+
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/multibyte_blits.s -wdc02 -D DO_4_BYTES_PER_COPY=0 -o ./fx_tests/ROM/SINGLE-READWRITE.ROM
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/multibyte_blits.s -wdc02 -D DO_4_BYTES_PER_COPY=0 -D CREATE_PRG -o ./fx_tests/SD/SINGLE-READWRITE.PRG
 
@@ -20,7 +25,7 @@ echo Building: Line draw tests
 
 echo Building: Polygon filler tests
 
-REM FIXME: ADD MORE OPTIONS HERE!
+REM ./vasm6502_oldstyle.exe -Fbin -dotdir ./fx_tests/polygon_filler.s -wdc02 -D DEFAULT -o ./fx_tests/polygon_filler.rom
 
 REM WARNING!!! THERE ARE INCORRECT SLOPE TABLES FOR NOFXPOLY!!
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/polygon_filler.s -wdc02 -D FXPOLY=0 -D UNR=0 -D SLP=0 -D JMP=0 -o ./fx_tests/ROM/POLYFILL-NOFXPOLY.ROM
@@ -37,6 +42,15 @@ vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/polygon_filler.s -wdc02 -D
 
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/polygon_filler.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -o ./fx_tests/ROM/POLYFILL-FXPOLY-SLP-JMP.ROM
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/polygon_filler.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -D CREATE_PRG -o ./fx_tests/SD/POLYFILL-FXPOLY-SLP-JMP.PRG
+
+echo Building: Polygon 3D tests
+
+REM ./vasm6502_oldstyle.exe -Fbin -dotdir ./fx_tests/polygon_3d.s -wdc02 -D DEFAULT -o ./fx_tests/polygon_3d.rom
+
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/polygon_3d.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -o ./fx_tests/ROM/POLY3D-FXPOLY-SLP-JMP.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet ./fx_tests/polygon_3d.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -D CREATE_PRG -o ./fx_tests/SD/POLY3D-FXPOLY-SLP-JMP.PRG
+
+
 
 echo Copying: SLOPE tables (16kB each)
 copy .\fx_tests\tables\slopes_packed_column_0_low.bin             .\fx_tests\SD\TBL\SLP-A.BIN

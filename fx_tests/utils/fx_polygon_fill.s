@@ -2370,20 +2370,68 @@ generate_next_y_to_address_entry:
     rts
     
     
+    .ifdef CREATE_PRG
+    
+div_filename:      .byte    "tbl/dev-a.bin" 
+end_div_filename:
+
+; This will load a DIV table using the TABLE_ROM_BANK (which starts at 1)
+load_div_table:
+    
+        clc
+        lda #'a'-1                  ; 'a' = $61 (since TABLE_ROM_BANK starts at 1 we subtract 1 here)
+        adc TABLE_ROM_BANK
+        
+        ; This is a bit a of HACK/WORKAROUD: we are subtracting again from TABLE_ROM_BANK (so it always starts with 1)
+        .if(USE_SLOPE_TABLES)
+            .if(USE_180_DEGREES_SLOPE_TABLE)
+                sbc #25               ; we go from 21-24 so we need to stop at 25
+            .else
+                sbc #15               ; we go from 11-14 so we need to stop at 15
+            .endif
+        .else
+            sbc #5                    ; we go from 1-4 so we need to stop at 5
+        .endif
+        
+        sta end_div_filename-5 ; 5 characters from the end is the 'a'
+
+        lda #(end_div_filename-div_filename) ; Length of filename
+        ldx #<div_filename      ; Low byte of Fname address
+        ldy #>div_filename      ; High byte of Fname address
+        jsr SETNAM
+     
+        lda #1            ; Logical file number
+        ldx #8            ; Device 8 = sd card
+        ldy #2            ; 0=ignore address in bin file (2 first bytes)
+                          ; 1=use address in bin file
+                          ; 2=?use address in bin file? (and dont add first 2 bytes?)
+        jsr SETLFS
+     
+        lda #0
+        ldx #<SOURCE_TABLE_ADDRESS
+        ldy #>SOURCE_TABLE_ADDRESS
+        jsr LOAD
+
+        rts
+
+    .else
     
 copy_div_table_copier_to_ram:
 
-    ; Copying copy_div_tables_to_banked_ram -> COPY_DIV_TABLES_TO_BANKED_RAM
-    
-    ldy #0
+        ; Copying copy_div_tables_to_banked_ram -> COPY_DIV_TABLES_TO_BANKED_RAM
+        
+        ldy #0
 copy_div_tables_to_banked_ram_byte:
-    lda copy_div_tables_to_banked_ram, y
-    sta COPY_DIV_TABLES_TO_BANKED_RAM, y
-    iny 
-    cpy #(end_of_copy_div_tables_to_banked_ram-copy_div_tables_to_banked_ram)
-    bne copy_div_tables_to_banked_ram_byte
+        lda copy_div_tables_to_banked_ram, y
+        sta COPY_DIV_TABLES_TO_BANKED_RAM, y
+        iny 
+        cpy #(end_of_copy_div_tables_to_banked_ram-copy_div_tables_to_banked_ram)
+        bne copy_div_tables_to_banked_ram_byte
 
-    rts
+        rts
+    
+    .endif
+
     
 copy_div_tables_to_banked_ram:
 
@@ -2423,11 +2471,16 @@ next_div_table_to_copy:
     .endif
     sta STORE_ADDRESS+1
 
-    ; Switching ROM BANK
-    lda TABLE_ROM_BANK
-    sta ROM_BANK
+
+    .ifndef CREATE_PRG
+        ; Switching ROM BANK
+        lda TABLE_ROM_BANK
+        sta ROM_BANK
 ; FIXME: remove nop!
-    nop
+        nop
+    .else
+        jsr load_div_table
+    .endif
 
 
         ldx #0                             ; x = n[13:8]
@@ -2471,31 +2524,29 @@ next_div_byte_to_copy_to_banked_ram:
     .endif
     bne next_div_table_to_copy
 
-
-    ; Switching back to ROM bank 0
-    lda #$00
-    sta ROM_BANK
+    .ifndef CREATE_PRG
+        ; Switching back to ROM bank 0
+        lda #$00
+        sta ROM_BANK
 ; FIXME: remove nop!
-    nop
+        nop
+    .endif
 
     rts
 end_of_copy_div_tables_to_banked_ram:
 
 
-
     .ifdef CREATE_PRG
     
-FILE_INDEX = TABLE_ROM_BANK      ; used for loading files from the SD card (instead of from a ROM bank)
-
 slope_filename:      .byte    "tbl/slp-a.bin" 
 end_slope_filename:
 
-; This will load a slope table using the FILE_INDEX (which starts at 1)
+; This will load a slope table using the TABLE_ROM_BANK (which starts at 1)
 load_slope_table:
     
         clc
-        lda #'a'-1                  ; 'a' = $61 (since FILE_INDEX starts at 1 we subtract 1 here)
-        adc FILE_INDEX
+        lda #'a'-1                  ; 'a' = $61 (since TABLE_ROM_BANK starts at 1 we subtract 1 here)
+        adc TABLE_ROM_BANK
         sta end_slope_filename-5 ; 5 characters from the end is the 'a'
 
         lda #(end_slope_filename-slope_filename) ; Length of filename
