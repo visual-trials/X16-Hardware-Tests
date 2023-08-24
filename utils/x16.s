@@ -129,4 +129,7 @@ IO5_BASE_ADDRESS  = $9FA0
 IO6_BASE_ADDRESS  = $9FC0
 IO7_BASE_ADDRESS  = $9FE0
 
-
+; Kernal API functions
+SETNAM            = $FFBD  ; set filename
+SETLFS            = $FFBA  ; Set LA, FA, and SA
+LOAD              = $FFD5  ; Load a file into main memory or VRAM
