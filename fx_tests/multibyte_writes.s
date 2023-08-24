@@ -1,6 +1,6 @@
 
-    ; These are the *default* settings. When not defining DEFAULT from the commandline, these have all to be set.
     .ifdef DEFAULT
+; These are the *default* settings. When not defining DEFAULT from the commandline, these will all have to be set from the commandline.
 DO_4_BYTES_PER_WRITE = 1
     .endif
 
