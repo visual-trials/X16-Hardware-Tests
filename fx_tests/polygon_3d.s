@@ -3096,12 +3096,14 @@ generate_next_character:
 ; FIXME: use generated code to make this FASTER!!
 draw_bitmap_text_to_screen:
 
+; FIXME: SPEED this is setup each time this routine is called. 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
  
 ;    lda #%01001000           ; cache write enabled = 1, 16bit hop = 1, addr1-mode = normal
 ;    sta VERA_FX_CTRL
     
+; FIXME: SPEED this is setup each time this routine is called. 
     ; Setting ADDR0 + increment
     lda #%00010000           ; +1 increment
     ora FRAME_BUFFER_INDEX   ; contains 0 or 1
@@ -3163,6 +3165,68 @@ draw_bitmap_text_next_character_line:
 
     rts
     
+    
+    .if(0)
+draw_bitmap_to_screen:
+
+; FIXME: SPEED this is setup each time this routine is called. 
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+ 
+;    lda #%01001000           ; cache write enabled = 1, 16bit hop = 1, addr1-mode = normal
+;    sta VERA_FX_CTRL
+    
+; FIXME: SPEED this is setup each time this routine is called. 
+    ; Setting ADDR0 + increment
+    lda #%00010000           ; +1 increment
+    ora FRAME_BUFFER_INDEX   ; contains 0 or 1
+    sta VERA_ADDR_BANK
+
+    lda BITMAP_RAM_BANK_START
+    sta RAM_BANK
+    
+    lda #<BITMAP
+    sta LOAD_ADDRESS
+    lda #>BITMAP
+    sta LOAD_ADDRESS+1
+    
+    ldx BITMAP_HEIGHT_PIXELS
+draw_bitmap_next_line:
+
+    lda VRAM_ADDRESS
+    sta VERA_ADDR_LOW
+    lda VRAM_ADDRESS+1
+    sta VERA_ADDR_HIGH
+
+; FIXME: SPEED this is SLOW!    
+; FIXME: SPEED this is SLOW!    
+; FIXME: SPEED this is SLOW!    
+    ldy #0
+draw_bitmap_next_pixel:
+    lda (LOAD_ADDRESS),y
+    sta VERA_DATA0
+    iny
+    cpy BITMAP_WIDTH_PIXELS
+    bne draw_bitmap_next_pixel
+    
+    clc
+    lda VRAM_ADDRESS
+    adc #<320
+    sta VRAM_ADDRESS
+    lda VRAM_ADDRESS+1
+    adc #>320
+    sta VRAM_ADDRESS+1
+    
+    inc RAM_BANK
+    
+    dex
+    bne draw_bitmap_next_line
+
+    rts
+    .endif
+    
+
+    
 draw_all_bitmap_texts:
 
 ; FIXME: dont GENERATE THIS!
@@ -3221,6 +3285,42 @@ draw_all_bitmap_texts:
     .endif
 
     rts
+
+    .if(0)
+draw_cursor_keys:
+
+    ; -- UP key --
+
+; FIXME!
+    sta BITMAP_RAM_BANK_START
+    sta BITMAP_HEIGHT_PIXELS
+    sta BITMAP_WIDTH_PIXELS
+    
+    lda #<(320*UP_KEY_Y_POS+UP_KEY_X_POS)
+    sta VRAM_ADDRESS
+    lda #>(320*UP_KEY_Y_POS+UP_KEY_X_POS)
+    sta VRAM_ADDRESS+1
+    
+    jsr draw_bitmap
+
+    ; -- LEFT, DOWN, RIGHT key --
+
+; FIXME!
+    sta BITMAP_RAM_BANK_START
+    sta BITMAP_HEIGHT_PIXELS
+    sta BITMAP_WIDTH_PIXELS
+    
+    lda #<(320*LEFT_DOWN_RIGHT_KEY_Y_POS+LEFT_DOWN_RIGHT_KEY_X_POS)
+    sta VRAM_ADDRESS
+    lda #>(320*LEFT_DOWN_RIGHT_KEY_Y_POS+LEFT_DOWN_RIGHT_KEY_X_POS)
+    sta VRAM_ADDRESS+1
+    
+    jsr draw_bitmap
+
+    rts
+    .endif
+    
+    
     
     
     .if(0)
