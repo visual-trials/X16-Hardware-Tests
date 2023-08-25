@@ -893,15 +893,15 @@ init_world:
     .endif
 
 ; FIXME!
-;    lda #48
-    lda #0
+    lda #200
+;    lda #0
     sta ANGLE_Z
     lda #0
     sta ANGLE_Z+1
 
 ; FIXME!
-;    lda #44
-    lda #0
+    lda #200
+;    lda #0
     sta ANGLE_X
     lda #0
     sta ANGLE_X+1
