@@ -424,6 +424,7 @@ reset:
     
 ; FIXME: is this the correct place?
 ; FIXME: set BITMAP_TEXT_TO_DRAW!!
+    jsr copy_vera_firmware_version
     jsr generate_text_as_bitmap_in_banked_ram
 
     .if (USE_WRITE_CACHE)
@@ -2941,11 +2942,43 @@ char_pixel_color_ok:
 ; FIXME: dont put this here!!
 ; FIXME: dont put this here!!
 vera_firmware_version:
-;    .asciiz "vera firmware v0.3.1"
-    .byte 22, 5, 18, 1, 0, 6, 9, 18, 13, 23, 1, 18, 5, 0, 22, 27, 37, 30, 37, 28 ; "vera firmware v0.3.1"
+;    .asciiz "vera firmware v0.0.0"
+    .byte 22, 5, 18, 1, 0, 6, 9, 18, 13, 23, 1, 18, 5, 0, 22, 27, 37, 27, 37, 27 ; "vera firmware v0.0.0"
 end_of_vera_firmware_version:
 
 BITMAP_TEXT_LENGTH=end_of_vera_firmware_version-vera_firmware_version
+
+
+
+copy_vera_firmware_version:
+
+    lda #%01111110           ; DCSEL=63, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; Note we are skipping VERA_DC_VER0 here, since it must be 'V' when we reach this point
+    
+    clc
+    lda VERA_DC_VER1
+    adc #27          ; our 0 starts at character index 27
+    sta end_of_vera_firmware_version-5
+    
+    clc
+    lda VERA_DC_VER2
+    adc #27          ; our 0 starts at character index 27
+    sta end_of_vera_firmware_version-3
+    
+    clc
+    lda VERA_DC_VER3
+    adc #27          ; our 0 starts at character index 27
+    sta end_of_vera_firmware_version-1
+    
+
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+
+    rts
+
+
 
 generate_text_as_bitmap_in_banked_ram:    
 
