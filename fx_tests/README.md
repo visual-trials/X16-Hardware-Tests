@@ -10,8 +10,8 @@ Below are the FX tests that have been created to test all facets of the FX featu
 For each of these tests a PRG file is generated. These PRG files are located in the SD folder. 
 Some tests require some additional files and these are also included in the SD folder.
 
-To run the tests copy the contents of the SD folder (in this git repo) to a folder on your SD card (e.g. "FX-TESTS").
-Then using the `DOS "CD:<MY FOLDER>` command go to the folder where all tests are located. 
+To run the tests copy the contents of the SD folder (in this git repo) to a folder on your SD card (e.g. "FX").
+Then using the `DOS "CD:<MY FOLDER>` command go to the folder you just copied and where all the tests are located. 
 Pressing `F7` or using the command `DOS "$` (or the command `LOAD "$"` followed by `LIST`) you can see all the PRG files. 
 Do a `LOAD "<THE FILENAME.PRG>"` to load a specific test program and `RUN` to execute it.
 
