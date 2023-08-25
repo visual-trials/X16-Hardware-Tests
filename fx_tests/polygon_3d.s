@@ -84,7 +84,8 @@ TMP3                      = $04
 TMP4                      = $05
 
 ; FIXME: these are leftovers of memory tests in the general hardware tester (needed by utils.s atm). We dont use them, but cant remove them right now
-BANK_TESTING              = $06   
+BANK_TESTING              = $06
+BITMAP_RAM_BANK_START = BANK_TESTING
 BAD_VALUE                 = $07
 
 ; Printing
@@ -97,6 +98,8 @@ INDENTATION               = $0D
 BYTE_TO_PRINT             = $0E
 CHARACTER_INDEX_TO_DRAW = BYTE_TO_PRINT
 DECIMAL_STRING            = $0F ; 10 ; 11
+BITMAP_TEXT_LENGTH        = $12
+BITMAP_TEXT_LENGTH_PIXELS = BITMAP_TEXT_LENGTH
 
 ; Timing
 TIMING_COUNTER            = $13 ; 14
@@ -423,9 +426,55 @@ reset:
     .endif
     
 ; FIXME: is this the correct place?
-; FIXME: set BITMAP_TEXT_TO_DRAW!!
-    jsr copy_vera_firmware_version
-    jsr generate_text_as_bitmap_in_banked_ram
+    .if(DRAW_BITMAP_TEXT)
+        ; -- FIRMWARE VERSION --
+    
+        jsr copy_vera_firmware_version
+        
+        lda #end_of_vera_firmware_version_text-vera_firmware_version_text
+        sta BITMAP_TEXT_LENGTH
+        
+        lda #<vera_firmware_version_text
+        sta BITMAP_TEXT_TO_DRAW
+        lda #>vera_firmware_version_text
+        sta BITMAP_TEXT_TO_DRAW+1
+        
+        lda #FIRMWARE_RAM_BANK_START
+        sta BITMAP_RAM_BANK_START
+        
+        jsr generate_text_as_bitmap_in_banked_ram
+        
+        ; -- VERA FX DEMO --
+        
+        lda #end_of_vera_fx_demo_text-vera_fx_demo_text
+        sta BITMAP_TEXT_LENGTH
+        
+        lda #<vera_fx_demo_text
+        sta BITMAP_TEXT_TO_DRAW
+        lda #>vera_fx_demo_text
+        sta BITMAP_TEXT_TO_DRAW+1
+        
+        lda #FX_DEMO_RAM_BANK_START
+        sta BITMAP_RAM_BANK_START
+        
+        jsr generate_text_as_bitmap_in_banked_ram
+        
+        ; -- BUTTERFLY --
+        
+        lda #end_of_butterfly_3d_text-butterfly_3d_text
+        sta BITMAP_TEXT_LENGTH
+        
+        lda #<butterfly_3d_text
+        sta BITMAP_TEXT_TO_DRAW
+        lda #>butterfly_3d_text
+        sta BITMAP_TEXT_TO_DRAW+1
+        
+        lda #BUTTERFLY_RAM_BANK_START
+        sta BITMAP_RAM_BANK_START
+        
+        jsr generate_text_as_bitmap_in_banked_ram
+        
+    .endif
 
     .if (USE_WRITE_CACHE)
         jsr generate_clear_column_code
@@ -466,7 +515,7 @@ reset:
             .if (USE_WRITE_CACHE)
                 jsr clear_screen_fast_4_bytes
                 .if(DRAW_BITMAP_TEXT)
-                    jsr draw_bitmap_text_to_screen
+                    jsr draw_all_bitmap_texts
                 .endif
             .else
                 jsr clear_screen_slow
@@ -577,7 +626,7 @@ keep_running:
         jsr clear_screen_fast_4_bytes
         
         .if(DRAW_BITMAP_TEXT)
-            jsr draw_bitmap_text_to_screen
+            jsr draw_all_bitmap_texts
         .endif
     .else
         jsr clear_screen_slow
@@ -2832,9 +2881,9 @@ get_cosine_for_angle:
 ; FIXME: move this somewhere else!
 
 ; This will generate a bitmap given a text string
-; The size of the bitmap will be BITMAP_TEXT_LENGTH * 5 pixels wide by 5 pixels high
+; The size of the bitmap will be BITMAP_TEXT_LENGTH * 6 pixels wide by 5 pixels high
 ; Each of the 5 horizontal lines will be stored in a different bank.
-; The address each line is stored is STORE_ADDRESS+1 + 256-(5*BITMAP_TEXT_LENGTH)
+; The address each line is stored is STORE_ADDRESS+1 + 256-(6*BITMAP_TEXT_LENGTH)
 ; The text input should start BITMAP_TEXT_TO_DRAW and be in ascii lower case. BITMAP_TEXT_LENGTH should be set appropiatly (zero-termination is ignored)
 
 ascii_to_5x5_character_index:
@@ -2938,16 +2987,27 @@ char_pixel_color_ok:
     
     rts
 
-; FIXME: dont put this here!!
-; FIXME: dont put this here!!
-; FIXME: dont put this here!!
-vera_firmware_version:
-;    .asciiz "vera firmware v0.0.0"
-    .byte 22, 5, 18, 1, 0, 6, 9, 18, 13, 23, 1, 18, 5, 0, 22, 27, 37, 27, 37, 27 ; "vera firmware v0.0.0"
-end_of_vera_firmware_version:
+    ; FIXME: dont put this here!!
+FIRMWARE_X_POS = 10
+FIRMWARE_Y_POS = 180
+FIRMWARE_RAM_BANK_START = 0
+vera_firmware_version_text:
+    .byte 6, 9, 18, 13, 23, 1, 18, 5, 0, 22, 27, 37, 27, 37, 27 ; "FIRMWARE V0.0.0"
+end_of_vera_firmware_version_text:
 
-BITMAP_TEXT_LENGTH=end_of_vera_firmware_version-vera_firmware_version
+FX_DEMO_X_POS = 10
+FX_DEMO_Y_POS = 10
+FX_DEMO_RAM_BANK_START = 5
+vera_fx_demo_text:
+    .byte 22, 5, 18, 1, 0, 6, 24, 0, 4, 5, 13, 15 ; "VERA FX DEMO"
+end_of_vera_fx_demo_text:
 
+BUTTERFLY_X_POS = 10
+BUTTERFLY_Y_POS = 20
+BUTTERFLY_RAM_BANK_START = 10
+butterfly_3d_text:
+    .byte 30, 4, 0, 2, 21, 20, 20, 5, 18, 6, 12, 25 ; "3D BUTTERFLY"    
+end_of_butterfly_3d_text:
 
 
 copy_vera_firmware_version:
@@ -2960,18 +3020,17 @@ copy_vera_firmware_version:
     clc
     lda VERA_DC_VER1
     adc #27          ; our 0 starts at character index 27
-    sta end_of_vera_firmware_version-5
+    sta end_of_vera_firmware_version_text-5
     
     clc
     lda VERA_DC_VER2
     adc #27          ; our 0 starts at character index 27
-    sta end_of_vera_firmware_version-3
+    sta end_of_vera_firmware_version_text-3
     
     clc
     lda VERA_DC_VER3
     adc #27          ; our 0 starts at character index 27
-    sta end_of_vera_firmware_version-1
-    
+    sta end_of_vera_firmware_version_text-1
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
@@ -2982,36 +3041,18 @@ copy_vera_firmware_version:
 
 generate_text_as_bitmap_in_banked_ram:    
 
-; FIXME: actually read the text using BITMAP_TEXT_TO_DRAW and BITMAP_TEXT_LENGTH!!
-; FIXME: actually read the text using BITMAP_TEXT_TO_DRAW and BITMAP_TEXT_LENGTH!!
-; FIXME: actually read the text using BITMAP_TEXT_TO_DRAW and BITMAP_TEXT_LENGTH!!
-
-; FIXME: hardcoded length of string!
-    lda #BITMAP_TEXT_LENGTH
-    sta TMP3
-    
-    lda #<vera_firmware_version
-    sta BITMAP_TEXT_TO_DRAW
-    lda #>vera_firmware_version
-    sta BITMAP_TEXT_TO_DRAW+1
-
-; FIXME: we need to offset STORE_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
-; FIXME: we need to offset STORE_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
-; FIXME: we need to offset STORE_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
+    ; FIXME: we need to offset STORE_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
     lda #<BITMAP_TEXT
     sta STORE_ADDRESS
     lda #>BITMAP_TEXT
     sta STORE_ADDRESS+1
 
-; FIXME: HARDCODED!
-;    lda #0
-;    sta CHARACTER_INDEX_TO_DRAW
-    
     ; We start at the first character of the string
+; FIXME: use a different variable than TMP4 here!
     stz TMP4
     
 generate_next_character:
-; FIXME:    jsr ascii_to_5x5_character_index
+    ; TODO: jsr ascii_to_5x5_character_index
 
 ; FIXME: use a different variable than TMP4 here!
     ldy TMP4  ; the index in the string
@@ -3021,8 +3062,8 @@ generate_next_character:
     jsr set_load_address_to_5x5_character_data
     
     ; Switching the the appropiate RAM_BANK
-    ; FIXME: make the starting RAM_BANK a parameter, so more than one bitmap text can be used!
-    lda #0
+
+    lda BITMAP_RAM_BANK_START
     sta RAM_BANK
     
     jsr generate_one_5x5_character
@@ -3036,11 +3077,10 @@ generate_next_character:
     adc #0
     sta STORE_ADDRESS+1
 
-; FIXME: we should instead increment the index into the string!    
-;    inc CHARACTER_INDEX_TO_DRAW
+; FIXME: use a different variable than TMP4 here!
     inc TMP4
 
-    dec TMP3
+    dec BITMAP_TEXT_LENGTH
     bne generate_next_character
 
 ; FIXME: restore the RAM_BANK properly?!
@@ -3050,8 +3090,6 @@ generate_next_character:
     rts
     
     
-; FIXME: use generated code to make this FASTER!!
-; FIXME: use generated code to make this FASTER!!
 ; FIXME: use generated code to make this FASTER!!
 draw_bitmap_text_to_screen:
 
@@ -3066,28 +3104,18 @@ draw_bitmap_text_to_screen:
     ora FRAME_BUFFER_INDEX   ; contains 0 or 1
     sta VERA_ADDR_BANK
 
-    ; FIXME: put in the correct starting RAM_BANK
-    lda #0
+    lda BITMAP_RAM_BANK_START
     sta RAM_BANK
     
-    ; FIXME: put this at the right place on the screen!
-    lda #<(320*10+10)
-    sta VRAM_ADDRESS
-    lda #>(320*10+10)
-    sta VRAM_ADDRESS+1
-
-    ldx #5
-draw_bitmap_text_next_line:
-
-; FIXME: we need to offset LOAD_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
-; FIXME: we need to offset LOAD_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
-; FIXME: we need to offset LOAD_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
-; FIXME: this is not NEEDED since LOAD_ADDRESS isnt changed between lines?
+    ; FIXME: we need to offset LOAD_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
     lda #<BITMAP_TEXT
     sta LOAD_ADDRESS
     lda #>BITMAP_TEXT
     sta LOAD_ADDRESS+1
     
+    ldx #5
+draw_bitmap_text_next_line:
+
     lda VRAM_ADDRESS
     sta VERA_ADDR_LOW
     lda VRAM_ADDRESS+1
@@ -3114,8 +3142,7 @@ draw_bitmap_text_next_character_line:
     lda (LOAD_ADDRESS),y
     sta VERA_DATA0
     iny
-; FIXME: we need to compare to the length (in pixels) of the text!
-    cpy #6*BITMAP_TEXT_LENGTH
+    cpy BITMAP_TEXT_LENGTH_PIXELS
     bne draw_bitmap_text_next_character_line
     
     clc
@@ -3131,9 +3158,56 @@ draw_bitmap_text_next_character_line:
     dex
     bne draw_bitmap_text_next_line
 
-
     rts
     
+draw_all_bitmap_texts:
+
+    ; -- FIRMWARE VERSION --
+
+    lda #FIRMWARE_RAM_BANK_START
+    sta BITMAP_RAM_BANK_START
+    
+    lda #(end_of_vera_firmware_version_text-vera_firmware_version_text)*6
+    sta BITMAP_TEXT_LENGTH_PIXELS
+
+    lda #<(320*FIRMWARE_Y_POS+FIRMWARE_X_POS)
+    sta VRAM_ADDRESS
+    lda #>(320*FIRMWARE_Y_POS+FIRMWARE_X_POS)
+    sta VRAM_ADDRESS+1
+
+    jsr draw_bitmap_text_to_screen
+    
+    ; -- VERA FX DEMO --
+
+    lda #FX_DEMO_RAM_BANK_START
+    sta BITMAP_RAM_BANK_START
+    
+    lda #(end_of_vera_fx_demo_text-vera_fx_demo_text)*6
+    sta BITMAP_TEXT_LENGTH_PIXELS
+
+    lda #<(320*FX_DEMO_Y_POS+FX_DEMO_X_POS)
+    sta VRAM_ADDRESS
+    lda #>(320*FX_DEMO_Y_POS+FX_DEMO_X_POS)
+    sta VRAM_ADDRESS+1
+
+    jsr draw_bitmap_text_to_screen
+
+    ; -- BUTTERFLY --
+
+    lda #BUTTERFLY_RAM_BANK_START
+    sta BITMAP_RAM_BANK_START
+    
+    lda #(end_of_butterfly_3d_text-butterfly_3d_text)*6
+    sta BITMAP_TEXT_LENGTH_PIXELS
+
+    lda #<(320*BUTTERFLY_Y_POS+BUTTERFLY_X_POS)
+    sta VRAM_ADDRESS
+    lda #>(320*BUTTERFLY_Y_POS+BUTTERFLY_X_POS)
+    sta VRAM_ADDRESS+1
+
+    jsr draw_bitmap_text_to_screen
+
+    rts
     
     
     .if(0)
@@ -3551,7 +3625,7 @@ end_of_palette_data:
     
 ; FIXME! Put this somewhere else!
     
-NR_OF_5X5_CHARACTERS = 38   ; whitespace, A-Z, 0-9, period
+NR_OF_5X5_CHARACTERS = 40   ; whitespace, A-Z, 0-9, period , semicolon , quote
 font_5x5_data:
     .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
     .byte $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $00, $00, $00, $01
@@ -3591,7 +3665,8 @@ font_5x5_data:
     .byte $01, $01, $01, $01, $00, $01, $00, $00, $01, $00, $00, $01, $01, $00, $00, $01, $00, $00, $01, $00, $01, $01, $01, $01, $00
     .byte $01, $01, $01, $01, $00, $01, $00, $00, $01, $00, $01, $01, $01, $01, $00, $00, $00, $00, $01, $00, $01, $01, $01, $01, $00
     .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00
-    
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00
+    .byte $00, $01, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00    
     
     ; === Included files ===
     
