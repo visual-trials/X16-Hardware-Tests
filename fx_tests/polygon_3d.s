@@ -20,6 +20,7 @@ USE_DIV_TABLES = DIV
 USE_FX_MULTIPLIER = 1
 
 DO_BUTTERFLY = 1
+DRAW_BITMAP_TEXT = 1
 
 DO_SPEED_TEST = 1
 DO_4BIT = 0
@@ -88,11 +89,13 @@ BAD_VALUE                 = $07
 
 ; Printing
 TEXT_TO_PRINT             = $08 ; 09
+TEXT_TO_DRAW = TEXT_TO_PRINT
 TEXT_COLOR                = $0A
 CURSOR_X                  = $0B
 CURSOR_Y                  = $0C
 INDENTATION               = $0D
 BYTE_TO_PRINT             = $0E
+CHARACTER_INDEX_TO_DRAW = BYTE_TO_PRINT
 DECIMAL_STRING            = $0F ; 10 ; 11
 
 ; Timing
@@ -347,12 +350,22 @@ COPY_SLOPE_TABLES_TO_BANKED_RAM = $9900  ; TODO: is this smaller than 256 bytes?
 COPY_DIV_TABLES_TO_BANKED_RAM   = $9A00
     .endif
 
+    
+; === Banked RAM addresses ===
+
+    ; When USE_POLYGON_FILLER is 1: A000-A9FF and B600-BFFF are occucpied by the slope tables! (the latter by the 90-180 degrees slope tables)
+    ;                               B000-B3FF will contain the DIV tables
+    ;                               B500-B5FF will be used for bitmap text
+BITMAP_TEXT              = $B500
+
+    ; When USE_POLYGON_FILLER is 0: A000-B4FF are occucpied by the slope tables!
+    
     .if(USE_POLYGON_FILLER)
         .if(!USE_JUMP_TABLE)
-DRAW_ROW_64_CODE         = $AA00   ; When USE_POLYGON_FILLER is 1: A000-A9FF and B600-BFFF are occucpied by the slope tables! (the latter by the 90-180 degrees slope tables)
+DRAW_ROW_64_CODE         = $AA00   
         .endif
     .else
-DRAW_ROW_64_CODE         = $B500   ; When USE_POLYGON_FILLER is 0: A000-B4FF are occucpied by the slope tables!
+DRAW_ROW_64_CODE         = $B500   
     .endif
 
 ; ------------- VRAM addresses -------------
@@ -408,6 +421,10 @@ reset:
             jsr copy_div_tables_to_banked_ram
         .endif
     .endif
+    
+; FIXME: is this the correct place?
+; FIXME: set TEXT_TO_DRAW!!
+    jsr generate_text_as_bitmap_in_banked_ram
 
     .if (USE_WRITE_CACHE)
         jsr generate_clear_column_code
@@ -447,6 +464,9 @@ reset:
             
             .if (USE_WRITE_CACHE)
                 jsr clear_screen_fast_4_bytes
+                .if(DRAW_BITMAP_TEXT)
+                    jsr draw_bitmap_text_to_screen
+                .endif
             .else
                 jsr clear_screen_slow
             .endif
@@ -554,6 +574,10 @@ keep_running:
     
     .if (USE_WRITE_CACHE)
         jsr clear_screen_fast_4_bytes
+        
+        .if(DRAW_BITMAP_TEXT)
+            jsr draw_bitmap_text_to_screen
+        .endif
     .else
         jsr clear_screen_slow
     .endif
@@ -2802,6 +2826,232 @@ get_cosine_for_angle:
     sta MINUS_COSINE_OUTPUT+1
     
     rts
+    
+
+; FIXME: move this somewhere else!
+
+; This will generate a bitmap given a text string
+; The size of the bitmap will be TEXT_LENGTH * 5 pixels wide by 5 pixels high
+; Each of the 5 horizontal lines will be stored in a different bank.
+; The address each line is stored is STORE_ADDRESS+1 + 256-(5*TEXT_LENGTH)
+; The text input should start TEXT_TO_DRAW and be in ascii lower case. TEXT_LENGTH should be set appropiatly (zero-termination is ignored)
+
+ascii_to_5x5_character_index:
+; FIXME: implement this!
+    rts
+
+
+set_load_address_to_5x5_character_data:
+
+    lda #<font_5x5_data
+    sta LOAD_ADDRESS
+    lda #>font_5x5_data
+    sta LOAD_ADDRESS+1
+    
+    ; HACK: in order to multiply the character index by 25 (=5x5 bytes) we multiply by 16, by 8 and by 1 and add the results (16+8+1=25)
+    lda CHARACTER_INDEX_TO_DRAW
+    sta TMP1
+    stz TMP2
+    
+    ; Adding CHARACTER_INDEX_TO_DRAW * 1
+    clc
+    lda LOAD_ADDRESS
+    adc TMP1
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    adc TMP2
+    sta LOAD_ADDRESS+1
+    
+    ; CHARACTER_INDEX_TO_DRAW * 2
+    asl TMP1
+    rol TMP2  
+
+    ; CHARACTER_INDEX_TO_DRAW * 4
+    asl TMP1
+    rol TMP2  
+    
+    ; CHARACTER_INDEX_TO_DRAW * 8
+    asl TMP1
+    rol TMP2
+    
+    ; Adding CHARACTER_INDEX_TO_DRAW * 8
+    clc
+    lda LOAD_ADDRESS
+    adc TMP1
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    adc TMP2
+    sta LOAD_ADDRESS+1
+    
+    ; CHARACTER_INDEX_TO_DRAW * 16
+    asl TMP1
+    rol TMP2
+
+    ; Adding CHARACTER_INDEX_TO_DRAW * 16
+    clc
+    lda LOAD_ADDRESS
+    adc TMP1
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    adc TMP2
+    sta LOAD_ADDRESS+1
+
+    rts
+
+
+draw_one_5x5_character:
+    
+    ldx #0   ; x represents the line number of the character
+draw_one_line_of_char:
+    ldy #0   ; y represents the pixel number within the line of a character
+draw_one_pixel_of_char:
+    lda (LOAD_ADDRESS)
+    sta (STORE_ADDRESS), y
+    
+    ; We need to move to the next pixel to load
+    clc
+    lda LOAD_ADDRESS
+    adc #1
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    adc #0
+    sta LOAD_ADDRESS+1
+    
+    iny
+    cpy #5
+    bne draw_one_pixel_of_char
+
+    ; The next line to be store is in the next RAM_BANK
+    inc RAM_BANK
+    
+    inx
+    cpx #5
+    bne draw_one_line_of_char
+    
+    rts
+
+generate_text_as_bitmap_in_banked_ram:    
+
+; FIXME: actually read the text using TEXT_TO_DRAW and TEXT_LENGTH!!
+; FIXME: actually read the text using TEXT_TO_DRAW and TEXT_LENGTH!!
+; FIXME: actually read the text using TEXT_TO_DRAW and TEXT_LENGTH!!
+
+; FIXME: hardcoded length of string!
+    lda #1
+    sta TMP3
+
+; FIXME: we need to offset STORE_ADDRESS by 256 - 5*TEXT_LENGTH!
+; FIXME: we need to offset STORE_ADDRESS by 256 - 5*TEXT_LENGTH!
+; FIXME: we need to offset STORE_ADDRESS by 256 - 5*TEXT_LENGTH!
+    lda #<BITMAP_TEXT
+    sta STORE_ADDRESS
+    lda #>BITMAP_TEXT
+    sta STORE_ADDRESS+1
+
+; FIXME: HARDCODED!
+    lda #0
+    sta CHARACTER_INDEX_TO_DRAW
+    
+generate_next_character:
+; FIXME:    jsr ascii_to_5x5_character_index
+
+    jsr set_load_address_to_5x5_character_data
+    
+    ; Switching the the appropiate RAM_BANK
+    ; FIXME: make the starting RAM_BANK a parameter, so more than one bitmap text can be used!
+    lda #0
+    sta RAM_BANK
+    
+    jsr draw_one_5x5_character
+    
+    ; Moving to the next place to draw a character (6 pixels to the right: 5 for the character + 1 for whitespace)
+    clc
+    lda STORE_ADDRESS
+    adc #6
+    sta STORE_ADDRESS
+    lda STORE_ADDRESS+1
+    adc #0
+    sta STORE_ADDRESS+1
+
+; FIXME: we should instead increment the index into the string!    
+    inc CHARACTER_INDEX_TO_DRAW
+
+    dec TMP3
+    bne generate_next_character
+
+; FIXME: restore the RAM_BANK properly?!
+    lda #0
+    sta RAM_BANK
+    
+    rts
+    
+    
+; FIXME: use generated code to make this FASTER!!
+; FIXME: use generated code to make this FASTER!!
+; FIXME: use generated code to make this FASTER!!
+draw_bitmap_text_to_screen:
+
+        lda #%00000100           ; DCSEL=2, ADDRSEL=0
+        sta VERA_CTRL
+        
+;        lda #%01001000           ; cache write enabled = 1, 16bit hop = 1, addr1-mode = normal
+;        sta VERA_FX_CTRL
+        
+        ; Setting ADDR0 + increment
+        lda #%00010000           ; +1 increment
+        ora FRAME_BUFFER_INDEX   ; contains 0 or 1
+        sta VERA_ADDR_BANK
+
+
+    ; FIXME: put in the correct starting RAM_BANK
+    lda #0
+    sta RAM_BANK
+    
+    ; FIXME: put this at the right place on the screen!
+    lda #0
+    sta VRAM_ADDRESS
+    lda #0
+    sta VRAM_ADDRESS+1
+
+    ldx #5
+draw_bitmap_text_next_line:
+
+; FIXME: we need to offset LOAD_ADDRESS by 256 - 5*TEXT_LENGTH!
+; FIXME: we need to offset LOAD_ADDRESS by 256 - 5*TEXT_LENGTH!
+; FIXME: we need to offset LOAD_ADDRESS by 256 - 5*TEXT_LENGTH!
+    lda #<BITMAP_TEXT
+    sta LOAD_ADDRESS
+    lda #>BITMAP_TEXT
+    sta LOAD_ADDRESS+1
+    
+    lda VRAM_ADDRESS
+    sta VERA_ADDR_LOW
+    lda VRAM_ADDRESS+1
+    sta VERA_ADDR_HIGH
+    
+    ldy #5
+draw_bitmap_text_next_pixel:
+    lda (LOAD_ADDRESS),y
+    sta VERA_DATA0
+    dey
+    bne draw_bitmap_text_next_pixel
+    
+    clc
+    lda VRAM_ADDRESS
+    adc #<320
+    sta VRAM_ADDRESS
+    lda VRAM_ADDRESS+1
+    adc #>320
+    sta VRAM_ADDRESS+1
+    
+    inc RAM_BANK
+    
+    dex
+    bne draw_bitmap_text_next_line
+
+
+    rts
+    
     
     
     .if(0)
