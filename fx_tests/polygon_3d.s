@@ -2989,7 +2989,8 @@ char_pixel_color_ok:
 
     ; FIXME: dont put this here!!
 FIRMWARE_X_POS = 10
-FIRMWARE_Y_POS = 180
+FIRMWARE_Y_POS = 20
+;FIRMWARE_Y_POS = 180
 FIRMWARE_RAM_BANK_START = 0
 vera_firmware_version_text:
     .byte 6, 9, 18, 13, 23, 1, 18, 5, 0, 22, 27, 37, 27, 37, 27 ; "FIRMWARE V0.0.0"
@@ -2999,14 +3000,16 @@ FX_DEMO_X_POS = 10
 FX_DEMO_Y_POS = 10
 FX_DEMO_RAM_BANK_START = 5
 vera_fx_demo_text:
-    .byte 22, 5, 18, 1, 0, 6, 24, 0, 4, 5, 13, 15 ; "VERA FX DEMO"
+;    .byte 22, 5, 18, 1, 0, 6, 24, 0, 4, 5, 13, 15 ; "VERA FX DEMO"
+    .byte 22, 5, 18, 1, 0, 6, 24, 0, 4, 5, 13, 15, 38, 0, 39, 30, 4, 0, 2, 21, 20, 20, 5, 18, 6, 12, 25, 39 ; 'VERA FX DEMO: "3D BUTTERFLY"'
 end_of_vera_fx_demo_text:
 
 BUTTERFLY_X_POS = 10
-BUTTERFLY_Y_POS = 20
+;BUTTERFLY_Y_POS = 20
+BUTTERFLY_Y_POS = 180
 BUTTERFLY_RAM_BANK_START = 10
 butterfly_3d_text:
-    .byte 30, 4, 0, 2, 21, 20, 20, 5, 18, 6, 12, 25 ; "3D BUTTERFLY"    
+    .byte 39, 30, 4, 0, 2, 21, 20, 20, 5, 18, 6, 12, 25, 39 ; '"3D BUTTERFLY"'
 end_of_butterfly_3d_text:
 
 
@@ -3162,6 +3165,10 @@ draw_bitmap_text_next_character_line:
     
 draw_all_bitmap_texts:
 
+; FIXME: dont GENERATE THIS!
+; FIXME: dont GENERATE THIS!
+; FIXME: dont GENERATE THIS!
+    .if(1)
     ; -- FIRMWARE VERSION --
 
     lda #FIRMWARE_RAM_BANK_START
@@ -3176,6 +3183,7 @@ draw_all_bitmap_texts:
     sta VRAM_ADDRESS+1
 
     jsr draw_bitmap_text_to_screen
+    .endif
     
     ; -- VERA FX DEMO --
 
@@ -3192,6 +3200,10 @@ draw_all_bitmap_texts:
 
     jsr draw_bitmap_text_to_screen
 
+; FIXME: dont GENERATE THIS!
+; FIXME: dont GENERATE THIS!
+; FIXME: dont GENERATE THIS!
+    .if(0)
     ; -- BUTTERFLY --
 
     lda #BUTTERFLY_RAM_BANK_START
@@ -3206,6 +3218,7 @@ draw_all_bitmap_texts:
     sta VRAM_ADDRESS+1
 
     jsr draw_bitmap_text_to_screen
+    .endif
 
     rts
     
@@ -3625,7 +3638,7 @@ end_of_palette_data:
     
 ; FIXME! Put this somewhere else!
     
-NR_OF_5X5_CHARACTERS = 40   ; whitespace, A-Z, 0-9, period , semicolon , quote
+NR_OF_5X5_CHARACTERS = 40   ; whitespace, A-Z, 0-9, period (37), semicolon (38), quote (39)
 font_5x5_data:
     .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
     .byte $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $00, $00, $00, $01
