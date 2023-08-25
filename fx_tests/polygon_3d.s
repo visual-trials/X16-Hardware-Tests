@@ -89,7 +89,7 @@ BAD_VALUE                 = $07
 
 ; Printing
 TEXT_TO_PRINT             = $08 ; 09
-TEXT_TO_DRAW = TEXT_TO_PRINT
+BITMAP_TEXT_TO_DRAW = TEXT_TO_PRINT
 TEXT_COLOR                = $0A
 CURSOR_X                  = $0B
 CURSOR_Y                  = $0C
@@ -423,7 +423,7 @@ reset:
     .endif
     
 ; FIXME: is this the correct place?
-; FIXME: set TEXT_TO_DRAW!!
+; FIXME: set BITMAP_TEXT_TO_DRAW!!
     jsr generate_text_as_bitmap_in_banked_ram
 
     .if (USE_WRITE_CACHE)
@@ -2831,10 +2831,10 @@ get_cosine_for_angle:
 ; FIXME: move this somewhere else!
 
 ; This will generate a bitmap given a text string
-; The size of the bitmap will be TEXT_LENGTH * 5 pixels wide by 5 pixels high
+; The size of the bitmap will be BITMAP_TEXT_LENGTH * 5 pixels wide by 5 pixels high
 ; Each of the 5 horizontal lines will be stored in a different bank.
-; The address each line is stored is STORE_ADDRESS+1 + 256-(5*TEXT_LENGTH)
-; The text input should start TEXT_TO_DRAW and be in ascii lower case. TEXT_LENGTH should be set appropiatly (zero-termination is ignored)
+; The address each line is stored is STORE_ADDRESS+1 + 256-(5*BITMAP_TEXT_LENGTH)
+; The text input should start BITMAP_TEXT_TO_DRAW and be in ascii lower case. BITMAP_TEXT_LENGTH should be set appropiatly (zero-termination is ignored)
 
 ascii_to_5x5_character_index:
 ; FIXME: implement this!
@@ -2899,13 +2899,16 @@ set_load_address_to_5x5_character_data:
     rts
 
 
-draw_one_5x5_character:
+generate_one_5x5_character:
     
     ldx #0   ; x represents the line number of the character
-draw_one_line_of_char:
+generate_one_line_of_char:
     ldy #0   ; y represents the pixel number within the line of a character
-draw_one_pixel_of_char:
+generate_one_pixel_of_char:
     lda (LOAD_ADDRESS)
+    bne char_pixel_color_ok
+    lda #BACKGROUND_COLOR      ; If we see a 00, we want to replace it with the background color
+char_pixel_color_ok:
     sta (STORE_ADDRESS), y
     
     ; We need to move to the next pixel to load
@@ -2919,41 +2922,68 @@ draw_one_pixel_of_char:
     
     iny
     cpy #5
-    bne draw_one_pixel_of_char
+    bne generate_one_pixel_of_char
+    
+    ; We are one more empty pixel (whitespace)
+    lda #BACKGROUND_COLOR
+    sta (STORE_ADDRESS), y
 
     ; The next line to be store is in the next RAM_BANK
     inc RAM_BANK
     
     inx
     cpx #5
-    bne draw_one_line_of_char
+    bne generate_one_line_of_char
     
     rts
 
+; FIXME: dont put this here!!
+; FIXME: dont put this here!!
+; FIXME: dont put this here!!
+vera_firmware_version:
+;    .asciiz "vera firmware v0.3.1"
+    .byte 22, 5, 18, 1, 0, 6, 9, 18, 13, 23, 1, 18, 5, 0, 22, 27, 37, 30, 37, 28 ; "vera firmware v0.3.1"
+end_of_vera_firmware_version:
+
+BITMAP_TEXT_LENGTH=end_of_vera_firmware_version-vera_firmware_version
+
 generate_text_as_bitmap_in_banked_ram:    
 
-; FIXME: actually read the text using TEXT_TO_DRAW and TEXT_LENGTH!!
-; FIXME: actually read the text using TEXT_TO_DRAW and TEXT_LENGTH!!
-; FIXME: actually read the text using TEXT_TO_DRAW and TEXT_LENGTH!!
+; FIXME: actually read the text using BITMAP_TEXT_TO_DRAW and BITMAP_TEXT_LENGTH!!
+; FIXME: actually read the text using BITMAP_TEXT_TO_DRAW and BITMAP_TEXT_LENGTH!!
+; FIXME: actually read the text using BITMAP_TEXT_TO_DRAW and BITMAP_TEXT_LENGTH!!
 
 ; FIXME: hardcoded length of string!
-    lda #1
+    lda #BITMAP_TEXT_LENGTH
     sta TMP3
+    
+    lda #<vera_firmware_version
+    sta BITMAP_TEXT_TO_DRAW
+    lda #>vera_firmware_version
+    sta BITMAP_TEXT_TO_DRAW+1
 
-; FIXME: we need to offset STORE_ADDRESS by 256 - 5*TEXT_LENGTH!
-; FIXME: we need to offset STORE_ADDRESS by 256 - 5*TEXT_LENGTH!
-; FIXME: we need to offset STORE_ADDRESS by 256 - 5*TEXT_LENGTH!
+; FIXME: we need to offset STORE_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
+; FIXME: we need to offset STORE_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
+; FIXME: we need to offset STORE_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
     lda #<BITMAP_TEXT
     sta STORE_ADDRESS
     lda #>BITMAP_TEXT
     sta STORE_ADDRESS+1
 
 ; FIXME: HARDCODED!
-    lda #0
-    sta CHARACTER_INDEX_TO_DRAW
+;    lda #0
+;    sta CHARACTER_INDEX_TO_DRAW
+    
+    ; We start at the first character of the string
+    stz TMP4
     
 generate_next_character:
 ; FIXME:    jsr ascii_to_5x5_character_index
+
+; FIXME: use a different variable than TMP4 here!
+    ldy TMP4  ; the index in the string
+    lda (BITMAP_TEXT_TO_DRAW), y
+    sta CHARACTER_INDEX_TO_DRAW
 
     jsr set_load_address_to_5x5_character_data
     
@@ -2962,7 +2992,7 @@ generate_next_character:
     lda #0
     sta RAM_BANK
     
-    jsr draw_one_5x5_character
+    jsr generate_one_5x5_character
     
     ; Moving to the next place to draw a character (6 pixels to the right: 5 for the character + 1 for whitespace)
     clc
@@ -2974,7 +3004,8 @@ generate_next_character:
     sta STORE_ADDRESS+1
 
 ; FIXME: we should instead increment the index into the string!    
-    inc CHARACTER_INDEX_TO_DRAW
+;    inc CHARACTER_INDEX_TO_DRAW
+    inc TMP4
 
     dec TMP3
     bne generate_next_character
@@ -2991,34 +3022,34 @@ generate_next_character:
 ; FIXME: use generated code to make this FASTER!!
 draw_bitmap_text_to_screen:
 
-        lda #%00000100           ; DCSEL=2, ADDRSEL=0
-        sta VERA_CTRL
-        
-;        lda #%01001000           ; cache write enabled = 1, 16bit hop = 1, addr1-mode = normal
-;        sta VERA_FX_CTRL
-        
-        ; Setting ADDR0 + increment
-        lda #%00010000           ; +1 increment
-        ora FRAME_BUFFER_INDEX   ; contains 0 or 1
-        sta VERA_ADDR_BANK
-
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+ 
+;    lda #%01001000           ; cache write enabled = 1, 16bit hop = 1, addr1-mode = normal
+;    sta VERA_FX_CTRL
+    
+    ; Setting ADDR0 + increment
+    lda #%00010000           ; +1 increment
+    ora FRAME_BUFFER_INDEX   ; contains 0 or 1
+    sta VERA_ADDR_BANK
 
     ; FIXME: put in the correct starting RAM_BANK
     lda #0
     sta RAM_BANK
     
     ; FIXME: put this at the right place on the screen!
-    lda #0
+    lda #<(320*10+10)
     sta VRAM_ADDRESS
-    lda #0
+    lda #>(320*10+10)
     sta VRAM_ADDRESS+1
 
     ldx #5
 draw_bitmap_text_next_line:
 
-; FIXME: we need to offset LOAD_ADDRESS by 256 - 5*TEXT_LENGTH!
-; FIXME: we need to offset LOAD_ADDRESS by 256 - 5*TEXT_LENGTH!
-; FIXME: we need to offset LOAD_ADDRESS by 256 - 5*TEXT_LENGTH!
+; FIXME: we need to offset LOAD_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
+; FIXME: we need to offset LOAD_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
+; FIXME: we need to offset LOAD_ADDRESS by 256 - 6*BITMAP_TEXT_LENGTH!
+; FIXME: this is not NEEDED since LOAD_ADDRESS isnt changed between lines?
     lda #<BITMAP_TEXT
     sta LOAD_ADDRESS
     lda #>BITMAP_TEXT
@@ -3029,12 +3060,30 @@ draw_bitmap_text_next_line:
     lda VRAM_ADDRESS+1
     sta VERA_ADDR_HIGH
     
-    ldy #5
-draw_bitmap_text_next_pixel:
+    ; We draw 6 pixels for each character
+    ldy #0
+draw_bitmap_text_next_character_line:
     lda (LOAD_ADDRESS),y
     sta VERA_DATA0
-    dey
-    bne draw_bitmap_text_next_pixel
+    iny
+    lda (LOAD_ADDRESS),y
+    sta VERA_DATA0
+    iny
+    lda (LOAD_ADDRESS),y
+    sta VERA_DATA0
+    iny
+    lda (LOAD_ADDRESS),y
+    sta VERA_DATA0
+    iny
+    lda (LOAD_ADDRESS),y
+    sta VERA_DATA0
+    iny
+    lda (LOAD_ADDRESS),y
+    sta VERA_DATA0
+    iny
+; FIXME: we need to compare to the length (in pixels) of the text!
+    cpy #6*BITMAP_TEXT_LENGTH
+    bne draw_bitmap_text_next_character_line
     
     clc
     lda VRAM_ADDRESS
@@ -3469,8 +3518,9 @@ end_of_palette_data:
     
 ; FIXME! Put this somewhere else!
     
-NR_OF_5X5_CHARACTERS = 38   ; A-Z, 0-9, period, whitespace
+NR_OF_5X5_CHARACTERS = 38   ; whitespace, A-Z, 0-9, period
 font_5x5_data:
+    .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
     .byte $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $00, $00, $00, $01
     .byte $01, $01, $01, $01, $00, $01, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $01, $01, $01, $00
     .byte $01, $01, $01, $01, $01, $01, $00, $00, $00, $00, $01, $00, $00, $00, $00, $01, $00, $00, $00, $00, $01, $01, $01, $01, $01
@@ -3508,7 +3558,6 @@ font_5x5_data:
     .byte $01, $01, $01, $01, $00, $01, $00, $00, $01, $00, $00, $01, $01, $00, $00, $01, $00, $00, $01, $00, $01, $01, $01, $01, $00
     .byte $01, $01, $01, $01, $00, $01, $00, $00, $01, $00, $01, $01, $01, $01, $00, $00, $00, $00, $01, $00, $01, $01, $01, $01, $00
     .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00
-    .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00    
     
     
     ; === Included files ===
