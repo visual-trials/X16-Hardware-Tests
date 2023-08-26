@@ -21,6 +21,7 @@ USE_FX_MULTIPLIER = 1
 
 DO_BUTTERFLY = 1
 DRAW_BITMAP_TEXT = 1
+DRAW_CURSOR_KEYS = 1
 
 DO_SPEED_TEST = 1
 DO_4BIT = 0
@@ -85,21 +86,16 @@ TMP4                      = $05
 
 ; FIXME: these are leftovers of memory tests in the general hardware tester (needed by utils.s atm). We dont use them, but cant remove them right now
 BANK_TESTING              = $06
-BITMAP_RAM_BANK_START = BANK_TESTING
 BAD_VALUE                 = $07
 
 ; Printing
 TEXT_TO_PRINT             = $08 ; 09
-BITMAP_TEXT_TO_DRAW = TEXT_TO_PRINT
 TEXT_COLOR                = $0A
 CURSOR_X                  = $0B
 CURSOR_Y                  = $0C
 INDENTATION               = $0D
 BYTE_TO_PRINT             = $0E
-CHARACTER_INDEX_TO_DRAW = BYTE_TO_PRINT
 DECIMAL_STRING            = $0F ; 10 ; 11
-BITMAP_TEXT_LENGTH        = $12
-BITMAP_TEXT_LENGTH_PIXELS = BITMAP_TEXT_LENGTH
 
 ; Timing
 TIMING_COUNTER            = $13 ; 14
@@ -134,7 +130,7 @@ TRIANGLE_INDEX            = $38
 NUMBER_OF_ROWS             = $39
 FILL_LENGTH_LOW            = $3A
 FILL_LENGTH_HIGH           = $3B
-; X1_THREE_LOWER_BITS        = $3C
+; X1_THREE_LOWER_BITS      = $3C
 
 ; FREE: $3D available
 
@@ -154,7 +150,16 @@ SOFT_X1_INCR_HALF          = $52 ; 53
 SOFT_X2_INCR_HALF_SUB      = $54 ; 55
 SOFT_X2_INCR_HALF          = $56 ; 57
 
-; FREE: $58 - $5F available
+BITMAP_RAM_BANK_START      = $58
+CHARACTER_INDEX_TO_DRAW    = $59
+BITMAP_TEXT_TO_DRAW        = $5A ; 5B
+BITMAP_TO_DRAW = BITMAP_TEXT_TO_DRAW
+BITMAP_TEXT_LENGTH         = $5C
+BITMAP_TEXT_LENGTH_PIXELS = BITMAP_TEXT_LENGTH
+BITMAP_WIDTH_PIXELS        = $5D
+BITMAP_HEIGHT_PIXELS       = $5E
+
+; FREE: $5F available
 
 ; Note: a triangle either has:
 ;   - a single top-point, which means it also has a bottom-left point and bottom-right point
@@ -360,6 +365,7 @@ COPY_DIV_TABLES_TO_BANKED_RAM   = $9A00
     ;                               B000-B3FF will contain the DIV tables
     ;                               B500-B5FF will be used for bitmap text
 BITMAP_TEXT              = $B500
+BITMAP = BITMAP_TEXT
 
     ; When USE_POLYGON_FILLER is 0: A000-B4FF are occucpied by the slope tables!
     
@@ -475,6 +481,43 @@ reset:
         jsr generate_text_as_bitmap_in_banked_ram
         
     .endif
+    .if(DRAW_CURSOR_KEYS)
+    
+        lda #<left_down_right_keys_data
+        sta BITMAP_TO_DRAW
+        lda #>left_down_right_keys_data
+        sta BITMAP_TO_DRAW+1
+    
+        lda #LEFT_DOWN_RIGHT_KEY_RAM_BANK_START
+        sta BITMAP_RAM_BANK_START
+        
+        lda #LEFT_DOWN_RIGHT_KEY_HEIGHT_PIXELS
+        sta BITMAP_HEIGHT_PIXELS
+        
+        lda #LEFT_DOWN_RIGHT_KEY_WIDTH_PIXELS
+        sta BITMAP_WIDTH_PIXELS
+        
+        jsr copy_bitmap_to_banked_ram
+        
+        .if(0)
+        lda #<up_key
+        sta BITMAP_TO_DRAW
+        lda #>up_key
+        sta BITMAP_TO_DRAW+1
+        
+        lda #UP_KEY_RAM_BANK_START
+        sta BITMAP_RAM_BANK_START
+        
+        lda #UP_KEY_HEIGHT_PIXELS
+        sta BITMAP_HEIGHT_PIXELS
+        
+        lda #UP_KEY_WIDTH_PIXELS
+        sta BITMAP_WIDTH_PIXELS
+        
+        jsr copy_bitmap_to_banked_ram
+        .endif
+    
+    .endif
 
     .if (USE_WRITE_CACHE)
         jsr generate_clear_column_code
@@ -516,6 +559,7 @@ reset:
                 jsr clear_screen_fast_4_bytes
                 .if(DRAW_BITMAP_TEXT)
                     jsr draw_all_bitmap_texts
+                    jsr draw_cursor_keys
                 .endif
             .else
                 jsr clear_screen_slow
@@ -627,6 +671,7 @@ keep_running:
         
         .if(DRAW_BITMAP_TEXT)
             jsr draw_all_bitmap_texts
+            jsr draw_cursor_keys
         .endif
     .else
         jsr clear_screen_slow
@@ -2987,6 +3032,9 @@ char_pixel_color_ok:
     
     rts
 
+    
+    ; --------------------------------- BITMAP TEXTS --------------------------------------
+    
     ; FIXME: dont put this here!!
 FIRMWARE_X_POS = 10
 ;FIRMWARE_Y_POS = 20
@@ -3014,6 +3062,20 @@ butterfly_3d_text:
     .byte 39, 30, 4, 0, 2, 21, 20, 20, 5, 18, 6, 12, 25, 39 ; '"3D BUTTERFLY"'
 end_of_butterfly_3d_text:
 
+    ; ------------------------------- / BITMAP TEXTS --------------------------------------
+
+
+    ; --------------------------------- BITMAPS --------------------------------------
+    
+; FIXME: this might be lower if less than 3 bitmap texts are drawn!
+LEFT_DOWN_RIGHT_KEY_RAM_BANK_START = 15
+LEFT_DOWN_RIGHT_KEY_HEIGHT_PIXELS = 17
+LEFT_DOWN_RIGHT_KEY_WIDTH_PIXELS = 53
+LEFT_DOWN_RIGHT_KEY_Y_POS = 160
+LEFT_DOWN_RIGHT_KEY_X_POS = 240
+    
+
+    ; ------------------------------- / BITMAPS --------------------------------------
 
 copy_vera_firmware_version:
 
@@ -3042,7 +3104,58 @@ copy_vera_firmware_version:
 
     rts
 
+copy_bitmap_to_banked_ram:
 
+    lda #<BITMAP
+    sta STORE_ADDRESS
+    lda #>BITMAP
+    sta STORE_ADDRESS+1
+    
+    ; Switching the the appropiate RAM_BANK
+    lda BITMAP_RAM_BANK_START
+    sta RAM_BANK
+
+    lda BITMAP_TO_DRAW
+    sta LOAD_ADDRESS
+    lda BITMAP_TO_DRAW+1
+    sta LOAD_ADDRESS+1
+
+    ldx #0   ; x represents the y position in the bitmap
+generate_one_line_of_bitmap:
+    ldy #0   ; y represents the x position the horizontal line of a bitmap
+generate_one_pixel_of_bitmap:
+    lda (LOAD_ADDRESS)
+    bne bitmap_pixel_color_ok
+    lda #BACKGROUND_COLOR      ; If we see a 00, we want to replace it with the background color
+bitmap_pixel_color_ok:
+    sta (STORE_ADDRESS), y
+    
+    ; We need to move to the next pixel to load
+    clc
+    lda LOAD_ADDRESS
+    adc #1
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    adc #0
+    sta LOAD_ADDRESS+1
+    
+    iny
+    cpy BITMAP_WIDTH_PIXELS
+    bne generate_one_pixel_of_bitmap
+    
+    ; The next line to be store is in the next RAM_BANK
+    inc RAM_BANK
+    
+    inx
+    cpx BITMAP_HEIGHT_PIXELS
+    bne generate_one_line_of_bitmap
+    
+
+; FIXME: restore the RAM_BANK properly?!
+    lda #0
+    sta RAM_BANK
+    
+    rts
 
 generate_text_as_bitmap_in_banked_ram:    
 
@@ -3067,7 +3180,6 @@ generate_next_character:
     jsr set_load_address_to_5x5_character_data
     
     ; Switching the the appropiate RAM_BANK
-
     lda BITMAP_RAM_BANK_START
     sta RAM_BANK
     
@@ -3168,7 +3280,6 @@ draw_bitmap_text_next_character_line:
     rts
     
     
-    .if(0)
 draw_bitmap_to_screen:
 
 ; FIXME: SPEED this is setup each time this routine is called. 
@@ -3225,15 +3336,11 @@ draw_bitmap_next_pixel:
     bne draw_bitmap_next_line
 
     rts
-    .endif
     
 
     
 draw_all_bitmap_texts:
 
-; FIXME: dont GENERATE THIS!
-; FIXME: dont GENERATE THIS!
-; FIXME: dont GENERATE THIS!
     .if(1)
     ; -- FIRMWARE VERSION --
 
@@ -3251,6 +3358,9 @@ draw_all_bitmap_texts:
     jsr draw_bitmap_text_to_screen
     .endif
     
+; FIXME: dont GENERATE THIS!
+; FIXME: dont GENERATE THIS!
+; FIXME: dont GENERATE THIS!
     .if(0)
     ; -- VERA FX DEMO --
 
@@ -3268,9 +3378,6 @@ draw_all_bitmap_texts:
     jsr draw_bitmap_text_to_screen
     .endif
 
-; FIXME: dont GENERATE THIS!
-; FIXME: dont GENERATE THIS!
-; FIXME: dont GENERATE THIS!
     .if(1)
     ; -- BUTTERFLY --
 
@@ -3290,14 +3397,18 @@ draw_all_bitmap_texts:
 
     rts
 
-    .if(0)
 draw_cursor_keys:
 
+    .if(0)
     ; -- UP key --
 
-; FIXME!
+    lda #UP_KEY_RAM_BANK_START
     sta BITMAP_RAM_BANK_START
+    
+    lda #UP_KEY_HEIGHT_PIXELS
     sta BITMAP_HEIGHT_PIXELS
+    
+    lda #UP_KEY_WIDTH_PIXELS
     sta BITMAP_WIDTH_PIXELS
     
     lda #<(320*UP_KEY_Y_POS+UP_KEY_X_POS)
@@ -3305,13 +3416,18 @@ draw_cursor_keys:
     lda #>(320*UP_KEY_Y_POS+UP_KEY_X_POS)
     sta VRAM_ADDRESS+1
     
-    jsr draw_bitmap
+    jsr draw_bitmap_to_screen
+    .endif
 
     ; -- LEFT, DOWN, RIGHT key --
 
-; FIXME!
+    lda #LEFT_DOWN_RIGHT_KEY_RAM_BANK_START
     sta BITMAP_RAM_BANK_START
+    
+    lda #LEFT_DOWN_RIGHT_KEY_HEIGHT_PIXELS
     sta BITMAP_HEIGHT_PIXELS
+    
+    lda #LEFT_DOWN_RIGHT_KEY_WIDTH_PIXELS
     sta BITMAP_WIDTH_PIXELS
     
     lda #<(320*LEFT_DOWN_RIGHT_KEY_Y_POS+LEFT_DOWN_RIGHT_KEY_X_POS)
@@ -3319,10 +3435,9 @@ draw_cursor_keys:
     lda #>(320*LEFT_DOWN_RIGHT_KEY_Y_POS+LEFT_DOWN_RIGHT_KEY_X_POS)
     sta VRAM_ADDRESS+1
     
-    jsr draw_bitmap
+    jsr draw_bitmap_to_screen
 
     rts
-    .endif
     
     
     
@@ -3785,25 +3900,24 @@ font_5x5_data:
     .byte $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00
     .byte $00, $01, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00    
     
-    
-left_down_right_keys:    
-    .byte $01, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $01, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $01, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $01
-    .byte $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01
-    .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-    .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-    .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-    .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-    .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00
-    .byte $00, $00, $00, $00, $00, $00, $00, $00, $01, $01, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $01, $01, $01, $01, $01, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00
-    .byte $00, $00, $00, $00, $00, $00, $00, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00
-    .byte $00, $00, $00, $00, $00, $00, $00, $00, $01, $01, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00
-    .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00
-    .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-    .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-    .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-    .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-    .byte $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01
-    .byte $01, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $01, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $01, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $01
+left_down_right_keys_data:
+    .byte $00, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $00
+    .byte $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00
+    .byte $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01
+    .byte $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01
+    .byte $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01
+    .byte $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01
+    .byte $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01
+    .byte $01, $01, $01, $01, $01, $01, $01, $01, $00, $00, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $00, $00, $00, $00, $00, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $00, $00, $01, $01, $01, $01, $01, $01, $01, $01
+    .byte $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01
+    .byte $01, $01, $01, $01, $01, $01, $01, $01, $00, $00, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $00, $00, $01, $01, $01, $01, $01, $01, $01, $01
+    .byte $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01
+    .byte $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01
+    .byte $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01
+    .byte $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01
+    .byte $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01
+    .byte $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00
+    .byte $00, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $00    
     
     ; === Included files ===
     
