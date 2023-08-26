@@ -387,6 +387,10 @@ MATH_RESULTS_ADDRESS     = $0FF00  ; The place where all math results are stored
 
 reset:
 
+    .if(CREATE_PRG)
+        .include fx_tests/utils/check_for_vera_fx_firmware.s
+    .endif
+
     ; Disable interrupts 
     sei
     
@@ -1049,8 +1053,8 @@ update_world:
     .if(USE_KEYBOARD_INPUT)
 
 ; FIXME: what we really should do is determine which part of x,y,z has to be adjusted due to a left array key press (= dependent on the ship orientation)
-X_SPEED = 3
-Z_SPEED = 3
+X_SPEED = 2
+Z_SPEED = 2
 
         ; -- Left arrow key --
         ldx #KEY_CODE_LEFT_ARROW
