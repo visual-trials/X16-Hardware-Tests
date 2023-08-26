@@ -138,3 +138,4 @@ IO7_BASE_ADDRESS  = $9FE0
 SETNAM            = $FFBD  ; set filename
 SETLFS            = $FFBA  ; Set LA, FA, and SA
 LOAD              = $FFD5  ; Load a file into main memory or VRAM
+CHROUT            = $FFD2  ; print a character

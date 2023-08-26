@@ -21,15 +21,16 @@ NEWLINE = $0D
     
     ; Not checking VERA_DC_VER3
 
-    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+vera_firmware_good:
+
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
 
-vera_firmware_good:
    jmp keep_going
 
 vera_firmware_not_good:
 
-    lda #%00000100           ; DCSEL=0, ADDRSEL=0
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
    ; Send message to the user the VERA firmware is not high enough and quit
