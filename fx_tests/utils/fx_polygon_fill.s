@@ -2371,15 +2371,19 @@ generate_next_y_to_address_entry:
     
     
     .ifdef CREATE_PRG
-    
-div_filename:      .byte    "tbl/div-a.bin" 
+
+; FIXME!    
+div_filename:      .byte    "DIV-A.BIN" 
+;div_filename:      .byte    "tbl/div-a.bin" 
 end_div_filename:
 
 ; This will load a DIV table using the TABLE_ROM_BANK (which starts at 1)
 load_div_table:
 
         clc
-        lda #'a'                  ; 'a' = $61
+; FIXME!
+        lda #'A'                  ; 'A' = $??
+;        lda #'a'                  ; 'a' = $61
         adc TABLE_ROM_BANK
         
         ; This is a bit a of HACK/WORKAROUD: we are subtracting again from TABLE_ROM_BANK (so it always starts with 1)
@@ -2538,15 +2542,19 @@ end_of_copy_div_tables_to_banked_ram:
 
 
     .ifdef CREATE_PRG
-    
-slope_filename:      .byte    "tbl/slp-a.bin" 
+
+; FIXME!    
+slope_filename:      .byte    "SLP-A.BIN" 
+;slope_filename:      .byte    "tbl/slp-a.bin" 
 end_slope_filename:
 
 ; This will load a slope table using the TABLE_ROM_BANK (which starts at 1)
 load_slope_table:
     
         clc
-        lda #'a'-1                  ; 'a' = $61 (since TABLE_ROM_BANK starts at 1 we subtract 1 here)
+; FIXME!
+        lda #'A'-1                  ; 'A' = $?? (since TABLE_ROM_BANK starts at 1 we subtract 1 here)
+;        lda #'a'-1                  ; 'a' = $61 (since TABLE_ROM_BANK starts at 1 we subtract 1 here)
         adc TABLE_ROM_BANK
         sta end_slope_filename-5 ; 5 characters from the end is the 'a'
 
@@ -2566,6 +2574,13 @@ load_slope_table:
         ldx #<SOURCE_TABLE_ADDRESS
         ldy #>SOURCE_TABLE_ADDRESS
         jsr LOAD
+        
+        bcc slope_table_file_loaded
+; FIXME: do proper error handling!
+        stp
+        lda TABLE_ROM_BANK
+        
+slope_table_file_loaded:
 
         rts
 

@@ -42,7 +42,9 @@ USE_SOFT_FILL_LEN = 0; ; This turns off reading from 9F2B and 9F2C (for fill len
 
 ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 ; Right now this is always turned on when slope tables are turned on
-USE_180_DEGREES_SLOPE_TABLE = USE_SLOPE_TABLES
+; FIXME!!!
+;USE_180_DEGREES_SLOPE_TABLE = USE_SLOPE_TABLES
+USE_180_DEGREES_SLOPE_TABLE = 0
 
 USE_Y_TO_ADDRESS_TABLE = 1
 

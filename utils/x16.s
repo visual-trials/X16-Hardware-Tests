@@ -134,6 +134,24 @@ IO5_BASE_ADDRESS  = $9FA0
 IO6_BASE_ADDRESS  = $9FC0
 IO7_BASE_ADDRESS  = $9FE0
 
+; Kernal (ZP usage (from MooingLemur 2023-08-27)
+
+; $02-$22 are safe if you never call 16 bit kernal calls
+; $22-$7F are completely safe
+; $80-$A8 must be left alone, otherwise the kernal breaks, in particular, DOS is breaking.
+; $A9-$FF can be used if you dont use the floating point lib or intend to return to basic (cold start BASIC is fine, though)
+
+; KERNAL/DOS/BASIC/etc bank 0 vars
+
+; KEYMAP:   start = $A000, size = $0800; # the current keyboard mapping table
+; KVARSB0:  start = $A800, size = $0400; # there is some space free here
+; VECB0:    start = $AC00, size = $0020; # for misc vectors, stable addresses
+; BVARSB0:  start = $AD00, size = $00C0; # BASIC expansion variables, few used
+; AUDIOBSS: start = $ADC0, size = $0040; # audio bank scratch space and misc state
+; BAUDIO:   start = $AE00, size = $0100; # YM2151 shadow for audio routines
+; DOSDAT:   start = $B000, size = $0F00; # there is some space free here, too
+; USERPARM: start = $BF00, size = $0100; # Reserved param passing area for user progs
+
 ; Kernal API functions
 SETNAM            = $FFBD  ; set filename
 SETLFS            = $FFBA  ; Set LA, FA, and SA

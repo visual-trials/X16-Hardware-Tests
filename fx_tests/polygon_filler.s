@@ -222,36 +222,39 @@ SLOPE_TOP_LEFT           = $7A ; 7B ; 7C   ; TODO: do we really need 24 bits her
 SLOPE_LEFT_BOTTOM = SLOPE_TOP_LEFT
 SLOPE_TOP_RIGHT          = $7D ; 7E ; 7F   ; TODO: do we really need 24 bits here?
 SLOPE_RIGHT_BOTTOM = SLOPE_TOP_RIGHT
-SLOPE_LEFT_RIGHT         = $80 ; 81 ; 82   ; TODO: do we really need 24 bits here?
+; $80-$A8 must be left alone, otherwise the kernal breaks, in particular, DOS is breaking.
+SLOPE_LEFT_RIGHT         = $A9 ; AA ; AB   ; TODO: do we really need 24 bits here?
 SLOPE_RIGHT_LEFT = SLOPE_LEFT_RIGHT
 
-VRAM_ADDRESS             = $90 ; 91 ; 92
+; $AC-$AF are free!
 
-LEFT_OVER_PIXELS         = $96 ; 97
-NIBBLE_PATTERN           = $98
-NR_OF_FULL_CACHE_WRITES  = $99
-NR_OF_STARTING_PIXELS    = $9A
-NR_OF_ENDING_PIXELS      = $9B
+VRAM_ADDRESS             = $B0 ; B1 ; B2
+
+LEFT_OVER_PIXELS         = $B6 ; B7
+NIBBLE_PATTERN           = $B8
+NR_OF_FULL_CACHE_WRITES  = $B9
+NR_OF_STARTING_PIXELS    = $BA
+NR_OF_ENDING_PIXELS      = $BB
 
 
-GEN_START_X              = $9C
-GEN_START_X_ORG          = $9D ; only for 2-bit mode
-GEN_START_X_SET_TO_ZERO  = $9E ; only for 2-bit mode
-GEN_FILL_LENGTH_LOW      = $9F
-GEN_FILL_LENGTH_IS_16_OR_MORE = $9A0
+GEN_START_X              = $BC
+GEN_START_X_ORG          = $BD ; only for 2-bit mode
+GEN_START_X_SET_TO_ZERO  = $BE ; only for 2-bit mode
+GEN_FILL_LENGTH_LOW      = $BF
+GEN_FILL_LENGTH_IS_16_OR_MORE = $C0
 GEN_FILL_LENGTH_IS_8_OR_MORE = GEN_FILL_LENGTH_IS_16_OR_MORE
-GEN_LOANED_16_PIXELS     = $A1
+GEN_LOANED_16_PIXELS     = $C1
 GEN_LOANED_8_PIXELS = GEN_LOANED_16_PIXELS
-GEN_START_X_SUB          = $A2
-GEN_FILL_LINE_CODE_INDEX = $A3
+GEN_START_X_SUB          = $C2
+GEN_FILL_LINE_CODE_INDEX = $C3
 
-TEST_POKE_BYTE           = $B0
+TEST_POKE_BYTE           = $D0
 GEN_POKE_BYTE = TEST_POKE_BYTE
 
-TEST_COLUMN_NUMBER       = $B1
-TEST_FILL_LEN            = $B2
+TEST_COLUMN_NUMBER       = $D1
+TEST_FILL_LEN            = $D2
 
-DEBUG_VALUE              = $C7
+DEBUG_VALUE              = $D7
 
 
 ; ------------- RAM addresses -------------
