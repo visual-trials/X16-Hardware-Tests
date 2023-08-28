@@ -15,6 +15,7 @@ purple_color = (200,0,200)
 
 do_draw_orig = True
 do_draw_sim = True
+# FIXME: disable this to create tables!
 do_single_angle = False
 do_draw_border_lines = False
 do_clip = False
@@ -22,8 +23,8 @@ do_clip = False
 max_x_position_in_map = 2048 # The affine helper allows for a max position of 11 bits
 max_y_position_in_map = max_x_position_in_map
 
-screen_width = 320*2
-screen_height = 240*2
+screen_width = 320
+screen_height = 240
 
 map_width = 32
 map_height = map_width
@@ -41,7 +42,7 @@ color_by_index = [ black_color, white_color, blue_color, red_color, green_color,
 pygame.init()
 
 pygame.display.set_caption('X16 Mode7 table generator')
-screen = pygame.display.set_mode((screen_width, screen_height))
+screen = pygame.display.set_mode((screen_width*2, screen_height*2))
 clock = pygame.time.Clock()
 
 def run():
@@ -119,9 +120,18 @@ def run():
         y_sub_pixel_steps_low = []
         y_sub_pixel_steps_high = []
 
-        scaling = 64
+        
+        width = 256
+#        width = 192
+        half_width = width // 2
+        left_margin = (screen_width - width) // 2
+
+#        scaling = 96
+        scaling = 80  # = height?
+#        scaling = 64  # = height?
         start_y = 32 - 16
-        end_y = 96 - 16
+        end_y = 112 - 16
+#        end_y = 96 - 16
         for y in range(start_y, end_y):
     #    for y in range(16, 80):
     
@@ -130,10 +140,14 @@ def run():
             sy_rotated = None
             sub_pixel_increment_x = None
             sub_pixel_increment_y = None
-            for x in range(-96, 96):
+            for x in range(-half_width, half_width):
             
                 horizon = 0.001
-                fov = 96
+# FOV = half_width??
+# FOV = half_width??
+# FOV = half_width??
+#                fov = 96
+                fov = half_width
                 
                 if do_single_angle:
                     angle = math.pi * -0.07
@@ -156,12 +170,12 @@ def run():
                 sy_rotated += 17 * 8 / scaling
                 
                 # When we calculated the second pixel of a row, we know the increment between the first and second pixel
-                if (x == -95):
+                if (x == -(half_width-1)):
                     sub_pixel_increment_x = sx_rotated - previous_sx_rotated
                     sub_pixel_increment_y = sy_rotated - previous_sy_rotated
                 
                 # When we calculated the first pixel of a row, we know the start x and y position (in the texture) for the start of that row
-                if (x == -96):
+                if (x == -half_width):
                     start_sx = sx_rotated
                     start_sy = sy_rotated
 
@@ -170,7 +184,7 @@ def run():
                         pixel_color = black_color
                     else:
                         pixel_color = color_by_index[texture[int(sy_rotated * scaling) % map_pixel_height][int(sx_rotated * scaling) % map_pixel_width]]
-                    pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2, 2, 2))  # , width=border_width
+                    pygame.draw.rect(screen, pixel_color, pygame.Rect((x+half_width+ left_margin)*2, y*2, 2, 2))  # , width=border_width
                 
                 previous_sx_rotated = sx_rotated
                 previous_sy_rotated = sy_rotated
@@ -238,14 +252,14 @@ def run():
                 x_sub_pixel_step = (x_sub_pixel_steps_low[y_index] + x_sub_pixel_steps_high[y_index] * 256)/512 
                 y_sub_pixel_step = (y_sub_pixel_steps_low[y_index] + y_sub_pixel_steps_high[y_index] * 256)/512
                 
-                for x in range(-96, 96):
+                for x in range(-half_width, half_width):
              
                     if do_clip and (int(y_pixel_position_in_map) // map_pixel_height != 0 or int(x_pixel_position_in_map) // map_pixel_width != 0):
                         pixel_color = black_color
                     else:
                         pixel_color = color_by_index[texture[int(y_pixel_position_in_map) % map_pixel_height][int(x_pixel_position_in_map) % map_pixel_width]]
-# FIXME: +96 +64??
-                    pygame.draw.rect(screen, pixel_color, pygame.Rect((x+96+ 64)*2, y*2+192, 2, 2))  # , width=border_width
+
+                    pygame.draw.rect(screen, pixel_color, pygame.Rect((x+half_width+ left_margin)*2, y*2+192, 2, 2))  # , width=border_width
                     
                     x_pixel_position_in_map += x_sub_pixel_step
                     y_pixel_position_in_map += y_sub_pixel_step
