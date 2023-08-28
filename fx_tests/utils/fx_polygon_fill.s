@@ -2376,8 +2376,6 @@ generate_next_y_to_address_entry:
     
 ; We copy $B000-$BEFF (RAM Bank 0) into $5000-$5EFF
 backup_bank0_B000_into_5000:
-; FIXME!
-        rts
 
         lda #0
         sta RAM_BANK
@@ -2415,8 +2413,6 @@ backup_bank0_B000_into_5000_next_byte:
     
 ; We swap $B000-$BEFF (RAM Bank 0)  with $5000-$5EFF
 swap_bank0_B000_with_5000:
-; FIXME:
-;        stp
 
         lda LOAD_ADDRESS
         pha
@@ -2464,9 +2460,6 @@ swap_bank0_B000_with_5000_next_byte:
         cpx #$0F  ; If we reach BF00/5F00 we stop
         bne swap_bank0_B000_with_5000_next_256_bytes
         
-; FIXME:
-;        stp
-
         pla
         sta STORE_ADDRESS+1
         pla
@@ -2482,8 +2475,6 @@ swap_bank0_B000_with_5000_next_byte:
     
     .ifdef CREATE_PRG
 
-; FIXME!    
-;div_filename:      .byte    "DIV-A.BIN" 
 div_filename:      .byte    "TBL/DIV-A.BIN" 
 end_div_filename:
 
@@ -2491,9 +2482,7 @@ end_div_filename:
 load_div_table:
 
         clc
-; FIXME!
         lda #'A'                  ; 'A' = $41
-;        lda #'a'                  ; 'a' = $61
         adc TABLE_ROM_BANK
         
         ; This is a bit a of HACK/WORKAROUD: we are subtracting again from TABLE_ROM_BANK (so it always starts with 1)
@@ -2655,8 +2644,6 @@ end_of_copy_div_tables_to_banked_ram:
 
     .ifdef CREATE_PRG
 
-; FIXME!    
-;slope_filename:      .byte    "SLP-A.BIN" 
 slope_filename:      .byte    "TBL/SLP-A.BIN" 
 end_slope_filename:
 
@@ -2664,9 +2651,7 @@ end_slope_filename:
 load_slope_table:
     
         clc
-; FIXME!
         lda #'A'-1                  ; 'A' = $41 (since TABLE_ROM_BANK starts at 1 we subtract 1 here)
-;        lda #'a'-1                  ; 'a' = $61 (since TABLE_ROM_BANK starts at 1 we subtract 1 here)
         adc TABLE_ROM_BANK
         sta end_slope_filename-5 ; 5 characters from the end is the 'a'
 
