@@ -211,20 +211,17 @@ GEN_FILL_LENGTH_IS_16_OR_MORE = $B8
 GEN_LOANED_16_PIXELS     = $B9
 GEN_FILL_LINE_CODE_INDEX = $BA
 
-; FREE: $BB - $BF available
+TMP_POINT_X              = $BB ; BC
+TMP_POINT_Y              = $BD ; BE
+TMP_POINT_Z              = $BF ; C0
 
-TMP_POINT_X              = $C0 ; C1
-TMP_POINT_Y              = $C2 ; C3
-TMP_POINT_Z              = $C4 ; C5
+ANGLE_X                  = $C1 ; C2  ; number between 0 and 511
+ANGLE_Y_WINGS            = $C3 ; C4  ; number between 0 and 511
+ANGLE_Y_WINGS_INV        = $C5 ; C6  ; number between 0 and 511
+ANGLE_Z                  = $C7 ; C8  ; number between 0 and 511
 
-ANGLE_X                  = $C6 ; C7  ; number between 0 and 511
-ANGLE_Y_WINGS            = $C8 ; C9  ; number between 0 and 511
-ANGLE_Y_WINGS_INV        = $CA ; CB  ; number between 0 and 511
-ANGLE_Z                  = $CC ; CD  ; number between 0 and 511
-
-WING_ANIMATION_INDEX     = $CE
-
-; FREE: $CF available
+WING_ANIMATION_INDEX     = $C9
+WING_ANIMATION_ACTIVE    = $CA
 
 TRANSLATE_Z              = $D0 ; D1
 
@@ -272,7 +269,9 @@ SOURCE_TABLE_ADDRESS     = $5F00
 FILL_LENGTH_LOW_SOFT     = $4800
 FILL_LENGTH_HIGH_SOFT    = $4801
 
-KEYBOARD_STATE           = $4A80   ; 128 bytes (state for each key of the keyboard)
+KEYBOARD_STATE           = $4A00   ; 128 bytes (state for each key of the keyboard)
+KEYBOARD_EVENTS          = $4A80   ; 128 bytes (event for each key of the keyboard)
+
 CLEAR_COLUMN_CODE        = $4B00   ; takes up to 02D0
 KEYBOARD_KEY_CODE_BUFFER = $4DE0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
 
@@ -392,7 +391,7 @@ MATH_RESULTS_ADDRESS     = $0FF00  ; The place where all math results are stored
 
 reset:
 
-    .if(CREATE_PRG)
+    .ifdef CREATE_PRG
         .include fx_tests/utils/check_for_vera_fx_firmware.s
     .endif
 
@@ -997,6 +996,9 @@ init_world:
 
         stz WING_ANIMATION_INDEX
         
+        lda #1
+        sta WING_ANIMATION_ACTIVE
+        
         ; We start movement of the wings
         lda #2
         sta DELTA_ANGLE_Y_WINGS
@@ -1116,6 +1118,19 @@ up_arrow_key_down_handled:
         sta DELTA_ANGLE_X+1
 down_arrow_key_down_handled:
 
+        ; -- Spacebar key --
+        ldx #KEY_CODE_SPACE_BAR
+        lda KEYBOARD_EVENTS, x
+        and #%00000001      ; lowest bit means key just went down
+        beq spacebar_key_went_down_handled
+    
+        ; We toggle WING_ANIMATION_ACTIVE
+        lda WING_ANIMATION_ACTIVE
+        eor #$01
+        sta WING_ANIMATION_ACTIVE
+        
+spacebar_key_went_down_handled:
+
     .else
         lda #2
         sta DELTA_ANGLE_Z
@@ -1125,7 +1140,9 @@ down_arrow_key_down_handled:
     
     .if(DO_BUTTERFLY)
     
-; FIXME: do this more cleanly!
+        ; If the animation is not active, we do not increment the wing animation
+        lda WING_ANIMATION_ACTIVE
+        beq angle_y_wings_updated
 
         lda WING_ANIMATION_INDEX
         cmp #30
@@ -1144,6 +1161,7 @@ down_arrow_key_down_handled:
         stz WING_ANIMATION_INDEX
         
 delta_angle_y_wings_is_ok:
+
         inc WING_ANIMATION_INDEX
         
         ; -- Update ANGLE_Y_WINGS --
@@ -1219,8 +1237,10 @@ angle_x_updated:
 
 get_user_input:
 
+    ; FIXME: SPEED: clearing *all* keyboard events costs time...
+    jsr clear_keyboard_events   ; before retrieving the key codes, we clear all previous events
     jsr retrieve_keyboard_key_codes
-    jsr update_keyboard_state
+    jsr update_keyboard_state   ; this also records all keyboard events
 
     rts
     

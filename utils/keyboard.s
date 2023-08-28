@@ -7,6 +7,7 @@
 ; NR_OF_KBD_KEY_CODE_BYTES = $18   (ZP variable example)
 ; KEYBOARD_KEY_CODE_BUFFER = $7FE0 (memory address example)   ; 32 bytes (can be much less, since compact key codes are used now)
 ; KEYBOARD_STATE           = $6D00 (memory address example)   ; 128 bytes (state for each key of the keyboard)
+; KEYBOARD_EVENTS          = $6D80 (memory address example)   ; 128 bytes (event for each key of the keyboard)
 ;   Note: i2c.s must also be included!
 ; -------------------------
 
@@ -39,6 +40,15 @@ next_key_state:
     bne next_key_state
     rts
 
+clear_keyboard_events:
+    ldx #0
+next_key_event:
+    stz KEYBOARD_EVENTS, x
+    inx
+    cpx #128
+    bne next_key_event
+    rts
+    
 retrieve_keyboard_key_codes:
 
     ldx #SMC_I2C_ADDR
@@ -90,6 +100,11 @@ key_was_down:
     tax
     lda #1  
     sta KEYBOARD_STATE, x   ; 1 = key is down
+    
+    lda KEYBOARD_EVENTS, x
+    ora #%00000001
+    sta KEYBOARD_EVENTS, x  ; 1 = key just went down
+    
     bra key_state_stored
     
 key_was_up:
@@ -97,6 +112,11 @@ key_was_up:
     and #%01111111          ; remove the key up bit
     tax
     stz KEYBOARD_STATE, x   ; 0 = key is up
+    
+    lda KEYBOARD_EVENTS, x
+    ora #%00000010
+    sta KEYBOARD_EVENTS, x  ; 2 = key just went up
+    
 key_state_stored:
     
     iny
