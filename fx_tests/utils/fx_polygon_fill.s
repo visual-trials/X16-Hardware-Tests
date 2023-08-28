@@ -2370,11 +2370,121 @@ generate_next_y_to_address_entry:
     rts
     
     
+    
+    
+    .ifdef CREATE_PRG
+    
+; We copy $B000-$BEFF (RAM Bank 0) into $5000-$5EFF
+backup_bank0_B000_into_5000:
+; FIXME!
+        rts
+
+        lda #0
+        sta RAM_BANK
+        
+        lda #<($B000)
+        sta LOAD_ADDRESS
+        lda #>($B000)
+        sta LOAD_ADDRESS+1
+        
+        lda #<DOS_BANK0_BACKUP
+        sta STORE_ADDRESS
+        lda #>DOS_BANK0_BACKUP
+        sta STORE_ADDRESS+1
+        
+        ldx #0
+backup_bank0_B000_into_5000_next_256_bytes:
+
+        ldy #0
+backup_bank0_B000_into_5000_next_byte:
+
+        ; Copy one byte
+        lda (LOAD_ADDRESS),y
+        sta (STORE_ADDRESS),y
+        iny
+        bne backup_bank0_B000_into_5000_next_byte
+        
+        inc LOAD_ADDRESS+1
+        inc STORE_ADDRESS+1
+
+        inx
+        cpx #$0F  ; If we reach BF00/5F00 we stop
+        bne backup_bank0_B000_into_5000_next_256_bytes
+
+        rts
+    
+; We swap $B000-$BEFF (RAM Bank 0)  with $5000-$5EFF
+swap_bank0_B000_with_5000:
+; FIXME:
+;        stp
+
+        lda LOAD_ADDRESS
+        pha
+        lda LOAD_ADDRESS+1
+        pha
+        lda STORE_ADDRESS
+        pha
+        lda STORE_ADDRESS+1
+        pha
+        
+        lda #0
+        sta RAM_BANK
+        
+        lda #<($B000)
+        sta LOAD_ADDRESS
+        lda #>($B000)
+        sta LOAD_ADDRESS+1
+        
+        lda #<DOS_BANK0_BACKUP
+        sta STORE_ADDRESS
+        lda #>DOS_BANK0_BACKUP
+        sta STORE_ADDRESS+1
+        
+        ldx #0
+swap_bank0_B000_with_5000_next_256_bytes:
+
+        ldy #0
+swap_bank0_B000_with_5000_next_byte:
+
+        ; Swap one byte
+        lda (LOAD_ADDRESS),y
+        pha
+        lda (STORE_ADDRESS),y
+        sta (LOAD_ADDRESS),y
+        pla
+        sta (STORE_ADDRESS),y
+        
+        iny
+        bne swap_bank0_B000_with_5000_next_byte
+        
+        inc LOAD_ADDRESS+1
+        inc STORE_ADDRESS+1
+
+        inx
+        cpx #$0F  ; If we reach BF00/5F00 we stop
+        bne swap_bank0_B000_with_5000_next_256_bytes
+        
+; FIXME:
+;        stp
+
+        pla
+        sta STORE_ADDRESS+1
+        pla
+        sta STORE_ADDRESS
+        pla
+        sta LOAD_ADDRESS+1
+        pla
+        sta LOAD_ADDRESS
+        
+        rts
+
+    .endif
+    
     .ifdef CREATE_PRG
 
 ; FIXME!    
-div_filename:      .byte    "DIV-A.BIN" 
-;div_filename:      .byte    "tbl/div-a.bin" 
+;div_filename:      .byte    "DIV-A.BIN" 
+div_filename:      .byte    "TBL/DIV-A.BIN" 
 end_div_filename:
 
 ; This will load a DIV table using the TABLE_ROM_BANK (which starts at 1)
@@ -2484,7 +2594,9 @@ next_div_table_to_copy:
 ; FIXME: remove nop!
         nop
     .else
+        jsr swap_bank0_B000_with_5000 ; This restores DOS variables
         jsr load_div_table
+        jsr swap_bank0_B000_with_5000 ; This restores our own BANK 0 data
     .endif
 
 
@@ -2544,8 +2656,8 @@ end_of_copy_div_tables_to_banked_ram:
     .ifdef CREATE_PRG
 
 ; FIXME!    
-slope_filename:      .byte    "SLP-A.BIN" 
-;slope_filename:      .byte    "tbl/slp-a.bin" 
+;slope_filename:      .byte    "SLP-A.BIN" 
+slope_filename:      .byte    "TBL/SLP-A.BIN" 
 end_slope_filename:
 
 ; This will load a slope table using the TABLE_ROM_BANK (which starts at 1)
@@ -2635,7 +2747,9 @@ next_table_to_copy:
     ; FIXME: remove nop!
             nop
         .else
+            jsr swap_bank0_B000_with_5000 ; This restores DOS variables
             jsr load_slope_table
+            jsr swap_bank0_B000_with_5000 ; This restores our own BANK 0 data
         .endif
     
         ldx #0                             ; x = x-coordinate (within a column of 64)
@@ -2702,7 +2816,9 @@ next_table_to_copy_neg:
     ; FIXME: remove nop!
                 nop
             .else
+                jsr swap_bank0_B000_with_5000 ; This restores DOS variables
                 jsr load_slope_table
+                jsr swap_bank0_B000_with_5000 ; This restores our own BANK 0 data
             .endif
         
             ldx #0                             ; x = x-coordinate (within a column of 64)
@@ -2784,7 +2900,9 @@ next_table_to_copy:
     ; FIXME: remove nop!
             nop
         .else
+            jsr swap_bank0_B000_with_5000 ; This restores DOS variables
             jsr load_slope_table
+            jsr swap_bank0_B000_with_5000 ; This restores our own BANK 0 data
         .endif
     
         ldx #0                             ; x = x-coordinate (within a column of 64)

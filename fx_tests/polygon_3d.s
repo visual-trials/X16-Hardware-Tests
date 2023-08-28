@@ -413,6 +413,11 @@ reset:
     jsr init_keyboard
     jsr init_timer
 
+    .ifdef CREATE_PRG
+        ; We create a backup of the DOS variables in B000-BF00 of ram bank 0
+        jsr backup_bank0_B000_into_5000
+    .endif
+
     .if(USE_SLOPE_TABLES)
         .ifndef CREATE_PRG
             jsr copy_slope_table_copier_to_ram
