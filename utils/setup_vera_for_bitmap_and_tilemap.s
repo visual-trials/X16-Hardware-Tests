@@ -43,8 +43,20 @@ vera_ready:
     ; lda #%00010001           ; Enable Layer 0, Enable VGA
     ; lda #%00100001           ; Enable Layer 1, Enable VGA
     ; lda #%00110001           ; Enable Layer 0 and 1, Enable VGA
-    lda #%01110001           ; Enable Layer 0 and 1 and sprites, Enable VGA
     ; lda #%01000001           ; Enable sprites, Enable VGA
+    
+    lda VERA_DC_VIDEO
+    and #%00000011
+    bne output_mode_is_set
+    
+    ; If no output mode is, we turn on VGA
+    lda VERA_DC_VIDEO
+    ora #%00000001             ; Enable VGA
+    sta VERA_DC_VIDEO
+    
+output_mode_is_set:
+    lda VERA_DC_VIDEO
+    ora #%01110000           ; Enable Layer 0 and 1 and sprites
     sta VERA_DC_VIDEO
 
     lda #0                   ; Set Horizontal and vertical scoll to 0
