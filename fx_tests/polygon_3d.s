@@ -257,11 +257,19 @@ LIGHT_DIRECTION_3D_Z       = $CB ; CC
 DEBUG_VALUE                = $D0
 
 
+; ---------- RAM addresses used during LOADING of SD files ------
+    .ifndef CREATE_PRG
+SOURCE_TABLE_ADDRESS     = $C000
+    .else
+DOS_BANK0_BACKUP         = $5000  ; We use this part of memory to backup $B000-BF00 (used by DOS) to be able to load SD files
+SOURCE_TABLE_ADDRESS     = $5F00
+    .endif
+; ---------------------------------------------------------------
+
+; ------------ RAM addresses used during the DEMO ---------------
 
 FILL_LENGTH_LOW_SOFT     = $4800
 FILL_LENGTH_HIGH_SOFT    = $4801
-
-; RAM addresses
 
 KEYBOARD_STATE           = $4A80   ; 128 bytes (state for each key of the keyboard)
 CLEAR_COLUMN_CODE        = $4B00   ; takes up to 02D0
@@ -298,15 +306,6 @@ TRIANGLES_COLOR          = $6E80 ; Only 128 bytes used
 
 TRIANGLES_LINKED_LIST_INDEX = $6F00 ; Only 128 bytes used
 TRIANGLES_LINKED_LIST_NEXT  = $6F80 ; Only 128 bytes used
-
-    .ifndef CREATE_PRG
-SOURCE_TABLE_ADDRESS     = $C000
-    .else
-; FIXME: we need to put this is the CORRECT location!
-; FIXME: we need to put this is the CORRECT location!
-; FIXME: we need to put this is the CORRECT location!
-SOURCE_TABLE_ADDRESS     = $5E00
-    .endif
 
 ; FIXME: We should instead use a series of POINTS and INDEXES to those points are used to define TRIANGLES!
 TRIANGLES_3D_POINT1_X    = $7000 ; 7080
@@ -360,7 +359,6 @@ COPY_SLOPE_TABLES_TO_BANKED_RAM = $9900  ; TODO: is this smaller than 256 bytes?
 COPY_DIV_TABLES_TO_BANKED_RAM   = $9A00
     .endif
 
-    
 ; === Banked RAM addresses ===
 
     ; When USE_POLYGON_FILLER is 1: A000-A9FF and B600-BFFF are occucpied by the slope tables! (the latter by the 90-180 degrees slope tables)
@@ -378,6 +376,10 @@ DRAW_ROW_64_CODE         = $AA00
     .else
 DRAW_ROW_64_CODE         = $B500   
     .endif
+
+; ---------------------------------------------------------------
+    
+
 
 ; ------------- VRAM addresses -------------
 
