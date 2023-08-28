@@ -222,7 +222,9 @@ SLOPE_TOP_LEFT           = $7A ; 7B ; 7C   ; TODO: do we really need 24 bits her
 SLOPE_LEFT_BOTTOM = SLOPE_TOP_LEFT
 SLOPE_TOP_RIGHT          = $7D ; 7E ; 7F   ; TODO: do we really need 24 bits here?
 SLOPE_RIGHT_BOTTOM = SLOPE_TOP_RIGHT
+
 ; $80-$A8 must be left alone, otherwise the kernal breaks, in particular, DOS is breaking.
+
 SLOPE_LEFT_RIGHT         = $A9 ; AA ; AB   ; TODO: do we really need 24 bits here?
 SLOPE_RIGHT_LEFT = SLOPE_LEFT_RIGHT
 

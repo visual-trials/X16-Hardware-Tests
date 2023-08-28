@@ -193,68 +193,71 @@ SLOPE_TOP_LEFT           = $7A ; 7B ; 7C   ; TODO: do we really need 24 bits her
 SLOPE_LEFT_BOTTOM = SLOPE_TOP_LEFT
 SLOPE_TOP_RIGHT          = $7D ; 7E ; 7F   ; TODO: do we really need 24 bits here?
 SLOPE_RIGHT_BOTTOM = SLOPE_TOP_RIGHT
-SLOPE_LEFT_RIGHT         = $80 ; 81 ; 82   ; TODO: do we really need 24 bits here?
+
+; $80-$A8 must be left alone, otherwise the kernal breaks, in particular, DOS is breaking.
+
+SLOPE_LEFT_RIGHT         = $A9 ; AA ; AB   ; TODO: do we really need 24 bits here?
 SLOPE_RIGHT_LEFT = SLOPE_LEFT_RIGHT
 
-; FREE: $83 - $84 available
+; FREE: $AC - $AF available
 
-LEFT_OVER_PIXELS         = $85 ; 86
-NIBBLE_PATTERN           = $87
-NR_OF_FULL_CACHE_WRITES  = $88
-NR_OF_STARTING_PIXELS    = $89
-NR_OF_ENDING_PIXELS      = $8A
+LEFT_OVER_PIXELS         = $B0 ; B1
+NIBBLE_PATTERN           = $B2
+NR_OF_FULL_CACHE_WRITES  = $B3
+NR_OF_STARTING_PIXELS    = $B4
+NR_OF_ENDING_PIXELS      = $B5
 
-GEN_START_X              = $8B
-GEN_FILL_LENGTH_LOW      = $8C
-GEN_FILL_LENGTH_IS_16_OR_MORE = $8D
-GEN_LOANED_16_PIXELS     = $8E
-GEN_FILL_LINE_CODE_INDEX = $8F
+GEN_START_X              = $B6
+GEN_FILL_LENGTH_LOW      = $B7
+GEN_FILL_LENGTH_IS_16_OR_MORE = $B8
+GEN_LOANED_16_PIXELS     = $B9
+GEN_FILL_LINE_CODE_INDEX = $BA
 
-; FREE: $8A - $95 available
+; FREE: $BB - $BF available
 
-TMP_POINT_X              = $90 ; 91
-TMP_POINT_Y              = $92 ; 93
-TMP_POINT_Z              = $94 ; 95
+TMP_POINT_X              = $C0 ; C1
+TMP_POINT_Y              = $C2 ; C3
+TMP_POINT_Z              = $C4 ; C5
 
-ANGLE_X                  = $96 ; 97  ; number between 0 and 511
-ANGLE_Y_WINGS            = $98 ; 99  ; number between 0 and 511
-ANGLE_Y_WINGS_INV        = $9A ; 9B  ; number between 0 and 511
-ANGLE_Z                  = $9C ; 9D  ; number between 0 and 511
+ANGLE_X                  = $C6 ; C7  ; number between 0 and 511
+ANGLE_Y_WINGS            = $C8 ; C9  ; number between 0 and 511
+ANGLE_Y_WINGS_INV        = $CA ; CB  ; number between 0 and 511
+ANGLE_Z                  = $CC ; CD  ; number between 0 and 511
 
-WING_ANIMATION_INDEX     = $9E
+WING_ANIMATION_INDEX     = $CE
 
-TRANSLATE_Z              = $A0 ; A1
+; FREE: $CF available
 
-; FREE: $A0 - $AA available
+TRANSLATE_Z              = $D0 ; D1
 
-ANGLE                    = $AB ; AC
-SINE_OUTPUT              = $AD ; AE
-MINUS_SINE_OUTPUT        = $AF ; B0
-COSINE_OUTPUT            = $B1 ; B2
+ANGLE                    = $D2 ; D3
+SINE_OUTPUT              = $D4 ; D5
+MINUS_SINE_OUTPUT        = $D6 ; D7
+COSINE_OUTPUT            = $D8 ; D9
 ; FIXME: not used atm!
-MINUS_COSINE_OUTPUT      = $B3 ; B4
+MINUS_COSINE_OUTPUT      = $DA ; DB
 
-DOT_PRODUCT              = $B7 ; B8
-CURRENT_SUM_Z            = $B9 ; BA
+DOT_PRODUCT              = $DC ; DD
+CURRENT_SUM_Z            = $DE ; DF
 
-FRAME_BUFFER_INDEX       = $BB     ; 0 or 1: indicating which frame buffer is to be filled (for double buffering)
+FRAME_BUFFER_INDEX       = $E0     ; 0 or 1: indicating which frame buffer is to be filled (for double buffering)
 
-CURRENT_LINKED_LIST_ENTRY  = $BC
-PREVIOUS_LINKED_LIST_ENTRY = $BD
-LINKED_LIST_NEW_ENTRY      = $BE
+CURRENT_LINKED_LIST_ENTRY  = $E1
+PREVIOUS_LINKED_LIST_ENTRY = $E2
+LINKED_LIST_NEW_ENTRY      = $E3
 
-DELTA_ANGLE_X              = $C0 ; C1
-DELTA_ANGLE_Y_WINGS        = $C2 ; C3
-DELTA_ANGLE_Z              = $C4 ; C5
+DELTA_ANGLE_X              = $E4 ; E5
+DELTA_ANGLE_Y_WINGS        = $E6 ; E7
+DELTA_ANGLE_Z              = $E8 ; E9
 
-NR_OF_KBD_KEY_CODE_BYTES   = $C6     ; Required by keyboard.s
+NR_OF_KBD_KEY_CODE_BYTES   = $EA     ; Required by keyboard.s
 
-LIGHT_DIRECTION_3D_X       = $C7 ; C8
-LIGHT_DIRECTION_3D_Y       = $C9 ; CA
-LIGHT_DIRECTION_3D_Z       = $CB ; CC
+LIGHT_DIRECTION_3D_X       = $EB ; EC
+LIGHT_DIRECTION_3D_Y       = $ED ; EE
+LIGHT_DIRECTION_3D_Z       = $EF ; F0
 
 
-DEBUG_VALUE                = $D0
+DEBUG_VALUE                = $F1
 
 
 ; ---------- RAM addresses used during LOADING of SD files ------
