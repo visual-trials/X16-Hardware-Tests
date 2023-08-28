@@ -407,7 +407,11 @@ reset:
 
     jsr setup_vera_for_bitmap_and_tile_map
     .if(USE_DOUBLE_BUFFER)
-        lda #%00000001           ; Disable Layer 0 and 1, Enable VGA
+        lda #%00000000  ; DCSEL=0
+        sta VERA_CTRL
+        
+        lda VERA_DC_VIDEO
+        and #%10001111           ; Disable Layer 0 and 1 and sprites
         sta VERA_DC_VIDEO
     .endif
     jsr copy_petscii_charset
@@ -586,7 +590,9 @@ reset:
         .if(USE_DOUBLE_BUFFER)
             lda #%00000000  ; DCSEL=0
             sta VERA_CTRL
-            lda #%00010001           ; Only enable Layer 0, Enable VGA
+            
+            lda VERA_DC_VIDEO
+            ora #%00010000           ; Only enable Layer 0
             sta VERA_DC_VIDEO
         .endif
     
