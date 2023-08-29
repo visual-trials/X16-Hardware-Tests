@@ -175,6 +175,9 @@ PALLETE           = $D000
 PIXELS            = $D200
 TILEMAP           = $E200
 
+TILEMAP_ROM_BANK  = 25   ; Our tilemap starts at ROM Bank 25
+TILEDATA_ROM_BANK = 26   ; Our tiledata starts at ROM Bank 26
+
 
   .org $C000
 
@@ -1214,7 +1217,7 @@ copy_tiledata_to_high_vram_byte:
 copy_tiledata_to_high_vram:    
     
     ; Switching ROM BANK
-    lda #14               ; Our tiledata starts at ROM Bank 14
+    lda #TILEDATA_ROM_BANK
     sta ROM_BANK
 ; FIXME: remove nop!
     nop
@@ -1429,7 +1432,7 @@ copy_tilemap_to_high_vram:
     ; We copy a 128x128 tilemap to high VRAM
 
     ; Switching ROM BANK
-    lda #13               ; Our tilemap starts at ROM Bank 13
+    lda #TILEMAP_ROM_BANK
     sta ROM_BANK
 ; FIXME: remove nop!
     nop
@@ -1555,12 +1558,21 @@ copy_tables_to_banked_ram_byte:
 ; FIXME: this is UGLY!
 copy_tables_to_banked_ram:
 
-    ; We copy 14 tables to banked RAM, but we pack them so they are easily accessible
+    ; We copy 12*2=24 half-tables (12 full tables) to banked RAM, but we pack them so they are easily accessible
 
     lda #1               ; Our first tables starts at ROM Bank 1
     sta TABLE_ROM_BANK
     
-next_table_to_copy:    
+next_table_to_copy:  
+    ; We calculate the address (in Banked RAM) where we have to store this table
+    lda TABLE_ROM_BANK
+    sec
+    sbc #1               ; since the TABLE_ROM_BANK starts at 1, we substract one from it
+    ; Since each ROM BANK is really half a table we divide by 2
+    lsr
+    sta TMP1             ; We store it here for now
+
+  
     lda #<($C000)        ; Our source table starts at C000
     sta LOAD_ADDRESS
     lda #>($C000)
@@ -1570,9 +1582,7 @@ next_table_to_copy:
     sta STORE_ADDRESS
     clc
     lda #>($A000)
-    adc TABLE_ROM_BANK
-    sec
-    sbc #1               ; since the TABLE_ROM_BANK starts at 1, we substract one from it
+    adc TMP1
     sta STORE_ADDRESS+1
 
     ; Switching ROM BANK
@@ -1581,36 +1591,78 @@ next_table_to_copy:
 ; FIXME: remove nop!
     nop
 
-    ldx #0                             ; x = angle
-next_angle_to_copy_to_banked_ram:
-    ; Switching to RAM BANK x
-    stx RAM_BANK
-; FIXME: remove nop!
-    nop
+    lda TABLE_ROM_BANK
+    and #%00000001      ; check if its even or odd
+    bne copy_table_even_rom_bank
+
+        ; -- Odd rom bank: angles 0-127 --
+copy_table_odd_rom_bank:
+        ldx #0                             ; x = angle
+next_angle_to_copy_to_banked_ram_odd:
+        ; Switching to RAM BANK x
+        stx RAM_BANK
+    ; FIXME: remove nop!
+        nop
+        
+        ldy #0                             ; y = screen y-line value
+next_byte_to_copy_to_banked_ram_odd:
+        lda (LOAD_ADDRESS), y
+        sta (STORE_ADDRESS), y
+        iny
+        cpy #80
+        bne next_byte_to_copy_to_banked_ram_odd
+        
+        ; We increment LOAD_ADDRESS by 80 bytes to move to the next angle
+        clc
+        lda LOAD_ADDRESS
+        adc #80
+        sta LOAD_ADDRESS
+        lda LOAD_ADDRESS+1
+        adc #0
+        sta LOAD_ADDRESS+1
+        
+        inx
+        cpx #128
+        bne next_angle_to_copy_to_banked_ram_odd
+        
+        bra rom_bank_loaded
     
-    ldy #0                             ; y = screen y-line value
-next_byte_to_copy_to_banked_ram:
-    lda (LOAD_ADDRESS), y
-    sta (STORE_ADDRESS), y
-    iny
-    cpy #64
-    bne next_byte_to_copy_to_banked_ram
     
-    ; We increment LOAD_ADDRESS by 64 bytes to move to the next angle
-    clc
-    lda LOAD_ADDRESS
-    adc #64
-    sta LOAD_ADDRESS
-    lda LOAD_ADDRESS+1
-    adc #0
-    sta LOAD_ADDRESS+1
+        ; -- Even rom bank: angles 128-255 --
+copy_table_even_rom_bank:
+        ldx #128                             ; x = angle
+next_angle_to_copy_to_banked_ram_even:
+        ; Switching to RAM BANK x
+        stx RAM_BANK
+    ; FIXME: remove nop!
+        nop
+        
+        ldy #0                             ; y = screen y-line value
+next_byte_to_copy_to_banked_ram_even:
+        lda (LOAD_ADDRESS), y
+        sta (STORE_ADDRESS), y
+        iny
+        cpy #80
+        bne next_byte_to_copy_to_banked_ram_even
+        
+        ; We increment LOAD_ADDRESS by 80 bytes to move to the next angle
+        clc
+        lda LOAD_ADDRESS
+        adc #80
+        sta LOAD_ADDRESS
+        lda LOAD_ADDRESS+1
+        adc #0
+        sta LOAD_ADDRESS+1
+        
+        inx
+        bne next_angle_to_copy_to_banked_ram_even
     
-    inx
-    bne next_angle_to_copy_to_banked_ram
+    
+rom_bank_loaded:
 
     inc TABLE_ROM_BANK
     lda TABLE_ROM_BANK
-    cmp #15               ; we go from 1-14 so we need to stop at 15
+    cmp #25               ; we go from 1-24 so we need to stop at 25
     bne next_table_to_copy
 
     ; Switching back to ROM bank 0
@@ -2603,18 +2655,30 @@ irq:
     .word irq
     
     .if(USE_TABLE_FILES)
-    .binary "fx_tests/tables/x_subpixel_positions_in_map_low.bin"
-    .binary "fx_tests/tables/x_subpixel_positions_in_map_high.bin"
-    .binary "fx_tests/tables/y_subpixel_positions_in_map_low.bin"
-    .binary "fx_tests/tables/y_subpixel_positions_in_map_high.bin"
-    .binary "fx_tests/tables/x_pixel_positions_in_map_low.bin"
-    .binary "fx_tests/tables/x_pixel_positions_in_map_high.bin"
-    .binary "fx_tests/tables/y_pixel_positions_in_map_low.bin"
-    .binary "fx_tests/tables/y_pixel_positions_in_map_high.bin"
-    .binary "fx_tests/tables/x_sub_pixel_steps_low.bin"
-    .binary "fx_tests/tables/x_sub_pixel_steps_high.bin"
-    .binary "fx_tests/tables/y_sub_pixel_steps_low.bin"
-    .binary "fx_tests/tables/y_sub_pixel_steps_high.bin"
+    .binary "fx_tests/tables/x_subpixel_positions_in_map_low1.bin"
+    .binary "fx_tests/tables/x_subpixel_positions_in_map_low2.bin"
+    .binary "fx_tests/tables/x_subpixel_positions_in_map_high1.bin"
+    .binary "fx_tests/tables/x_subpixel_positions_in_map_high2.bin"
+    .binary "fx_tests/tables/y_subpixel_positions_in_map_low1.bin"
+    .binary "fx_tests/tables/y_subpixel_positions_in_map_low2.bin"
+    .binary "fx_tests/tables/y_subpixel_positions_in_map_high1.bin"
+    .binary "fx_tests/tables/y_subpixel_positions_in_map_high2.bin"
+    .binary "fx_tests/tables/x_pixel_positions_in_map_low1.bin"
+    .binary "fx_tests/tables/x_pixel_positions_in_map_low2.bin"
+    .binary "fx_tests/tables/x_pixel_positions_in_map_high1.bin"
+    .binary "fx_tests/tables/x_pixel_positions_in_map_high2.bin"
+    .binary "fx_tests/tables/y_pixel_positions_in_map_low1.bin"
+    .binary "fx_tests/tables/y_pixel_positions_in_map_low2.bin"
+    .binary "fx_tests/tables/y_pixel_positions_in_map_high1.bin"
+    .binary "fx_tests/tables/y_pixel_positions_in_map_high2.bin"
+    .binary "fx_tests/tables/x_sub_pixel_steps_low1.bin"
+    .binary "fx_tests/tables/x_sub_pixel_steps_low2.bin"
+    .binary "fx_tests/tables/x_sub_pixel_steps_high1.bin"
+    .binary "fx_tests/tables/x_sub_pixel_steps_high2.bin"
+    .binary "fx_tests/tables/y_sub_pixel_steps_low1.bin"
+    .binary "fx_tests/tables/y_sub_pixel_steps_low2.bin"
+    .binary "fx_tests/tables/y_sub_pixel_steps_high1.bin"
+    .binary "fx_tests/tables/y_sub_pixel_steps_high2.bin"
     .endif
     .if(!DO_NO_TILE_LOOKUP && USE_MARIO_MAP_AND_TILES && !DO_4BIT)
         .binary "fx_tests/textures/SnesMarioKart/mario_tile_map.bin"

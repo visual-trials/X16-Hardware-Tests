@@ -14,7 +14,7 @@ yellow_color = (200,200,20)
 purple_color = (200,0,200)
 
 do_draw_orig = True
-do_draw_sim = True
+do_draw_sim = False
 # FIXME: disable this to create tables!
 do_single_angle = False
 do_draw_border_lines = False
@@ -326,46 +326,106 @@ def run():
             all_angles_y_sub_pixel_steps_high += y_sub_pixel_steps_high
         
     if not do_single_angle:
-        tableFile = open("fx_tests/tables/x_subpixel_positions_in_map_low.bin", "wb")
-        tableFile.write(bytearray(all_angles_x_subpixel_positions_in_map_low))
+        half_index = (angle_max // 2) * (end_y-start_y) # We have nr angles times nr of rows on screen
+        filler_size = 16 * 1024 - half_index  # We need 16kB files (so we need a filler size)
+        filler = [0] * filler_size
+    
+        # FIXME: we do not want a filler added when loading these files from an SD card! (its better to fill in the assembler when including these files in a ROM)
+
+        # X subpixel positions Low
+        tableFile = open("fx_tests/tables/x_subpixel_positions_in_map_low1.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_subpixel_positions_in_map_low[:half_index]+filler))
         tableFile.close()
-        tableFile = open("fx_tests/tables/x_subpixel_positions_in_map_high.bin", "wb")
-        tableFile.write(bytearray(all_angles_x_subpixel_positions_in_map_high))
+        tableFile = open("fx_tests/tables/x_subpixel_positions_in_map_low2.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_subpixel_positions_in_map_low[half_index:]+filler))
         tableFile.close()
         
-        tableFile = open("fx_tests/tables/y_subpixel_positions_in_map_low.bin", "wb")
-        tableFile.write(bytearray(all_angles_y_subpixel_positions_in_map_low))
+        # X subpixel positions High
+        tableFile = open("fx_tests/tables/x_subpixel_positions_in_map_high1.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_subpixel_positions_in_map_high[:half_index]+filler))
         tableFile.close()
-        tableFile = open("fx_tests/tables/y_subpixel_positions_in_map_high.bin", "wb")
-        tableFile.write(bytearray(all_angles_y_subpixel_positions_in_map_high))
-        tableFile.close()
-
-        tableFile = open("fx_tests/tables/x_pixel_positions_in_map_low.bin", "wb")
-        tableFile.write(bytearray(all_angles_x_pixel_positions_in_map_low))
-        tableFile.close()
-        tableFile = open("fx_tests/tables/x_pixel_positions_in_map_high.bin", "wb")
-        tableFile.write(bytearray(all_angles_x_pixel_positions_in_map_high))
+        tableFile = open("fx_tests/tables/x_subpixel_positions_in_map_high2.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_subpixel_positions_in_map_high[half_index:]+filler))
         tableFile.close()
         
-        tableFile = open("fx_tests/tables/y_pixel_positions_in_map_low.bin", "wb")
-        tableFile.write(bytearray(all_angles_y_pixel_positions_in_map_low))
+        # Y subpixel positions Low
+        tableFile = open("fx_tests/tables/y_subpixel_positions_in_map_low1.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_subpixel_positions_in_map_low[:half_index]+filler))
         tableFile.close()
-        tableFile = open("fx_tests/tables/y_pixel_positions_in_map_high.bin", "wb")
-        tableFile.write(bytearray(all_angles_y_pixel_positions_in_map_high))
+        tableFile = open("fx_tests/tables/y_subpixel_positions_in_map_low2.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_subpixel_positions_in_map_low[half_index:]+filler))
+        tableFile.close()
+        
+        # Y subpixel positions High
+        tableFile = open("fx_tests/tables/y_subpixel_positions_in_map_high1.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_subpixel_positions_in_map_high[:half_index]+filler))
+        tableFile.close()
+        tableFile = open("fx_tests/tables/y_subpixel_positions_in_map_high2.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_subpixel_positions_in_map_high[half_index:]+filler))
         tableFile.close()
 
-        tableFile = open("fx_tests/tables/x_sub_pixel_steps_low.bin", "wb")
-        tableFile.write(bytearray(all_angles_x_sub_pixel_steps_low))
+        # X pixel positions Low
+        tableFile = open("fx_tests/tables/x_pixel_positions_in_map_low1.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_pixel_positions_in_map_low[:half_index]+filler))
         tableFile.close()
-        tableFile = open("fx_tests/tables/x_sub_pixel_steps_high.bin", "wb")
-        tableFile.write(bytearray(all_angles_x_sub_pixel_steps_high))
+        tableFile = open("fx_tests/tables/x_pixel_positions_in_map_low2.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_pixel_positions_in_map_low[half_index:]+filler))
+        tableFile.close()
+        
+        # X pixel positions High
+        tableFile = open("fx_tests/tables/x_pixel_positions_in_map_high1.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_pixel_positions_in_map_high[:half_index]+filler))
+        tableFile.close()
+        tableFile = open("fx_tests/tables/x_pixel_positions_in_map_high2.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_pixel_positions_in_map_high[half_index:]+filler))
+        tableFile.close()
+        
+        # Y pixel positions Low
+        tableFile = open("fx_tests/tables/y_pixel_positions_in_map_low1.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_pixel_positions_in_map_low[:half_index]+filler))
+        tableFile.close()
+        tableFile = open("fx_tests/tables/y_pixel_positions_in_map_low2.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_pixel_positions_in_map_low[half_index:]+filler))
+        tableFile.close()
+        
+        # Y pixel positions High
+        tableFile = open("fx_tests/tables/y_pixel_positions_in_map_high1.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_pixel_positions_in_map_high[:half_index]+filler))
+        tableFile.close()
+        tableFile = open("fx_tests/tables/y_pixel_positions_in_map_high2.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_pixel_positions_in_map_high[half_index:]+filler))
         tableFile.close()
 
-        tableFile = open("fx_tests/tables/y_sub_pixel_steps_low.bin", "wb")
-        tableFile.write(bytearray(all_angles_y_sub_pixel_steps_low))
+        # X subpixel steps Low
+        tableFile = open("fx_tests/tables/x_sub_pixel_steps_low1.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_sub_pixel_steps_low[:half_index]+filler))
         tableFile.close()
-        tableFile = open("fx_tests/tables/y_sub_pixel_steps_high.bin", "wb")
-        tableFile.write(bytearray(all_angles_y_sub_pixel_steps_high))
+        tableFile = open("fx_tests/tables/x_sub_pixel_steps_low2.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_sub_pixel_steps_low[half_index:]+filler))
+        tableFile.close()
+        
+        # X subpixel steps High
+        tableFile = open("fx_tests/tables/x_sub_pixel_steps_high1.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_sub_pixel_steps_high[:half_index]+filler))
+        tableFile.close()
+        tableFile = open("fx_tests/tables/x_sub_pixel_steps_high2.bin", "wb")
+        tableFile.write(bytearray(all_angles_x_sub_pixel_steps_high[half_index:]+filler))
+        tableFile.close()
+
+        # Y subpixel steps Low
+        tableFile = open("fx_tests/tables/y_sub_pixel_steps_low1.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_sub_pixel_steps_low[:half_index]+filler))
+        tableFile.close()
+        tableFile = open("fx_tests/tables/y_sub_pixel_steps_low2.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_sub_pixel_steps_low[half_index:]+filler))
+        tableFile.close()
+        
+        # Y subpixel steps High
+        tableFile = open("fx_tests/tables/y_sub_pixel_steps_high1.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_sub_pixel_steps_high[:half_index]+filler))
+        tableFile.close()
+        tableFile = open("fx_tests/tables/y_sub_pixel_steps_high2.bin", "wb")
+        tableFile.write(bytearray(all_angles_y_sub_pixel_steps_high[half_index:]+filler))
         tableFile.close()
         
     running = True
