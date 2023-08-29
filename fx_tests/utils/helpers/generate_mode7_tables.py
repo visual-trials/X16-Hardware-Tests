@@ -16,7 +16,7 @@ purple_color = (200,0,200)
 do_draw_orig = True
 do_draw_sim = False
 # FIXME: disable this to create tables!
-do_single_angle = True
+do_single_angle = False
 do_draw_border_lines = False
 do_clip = False
 
@@ -130,8 +130,9 @@ def run():
 #        scaling = 80  # = height?
         scaling = 20
 #        scaling = 64  # = height?
-        start_y = 32 - 16
-        end_y = 112 - 16
+# FIXME: we should let start_y = 0 and end_y = 80 and INSTEAD is the appropiate *horizon*!
+        start_y = 32 - 16 - 12 
+        end_y = 112 - 16 - 12 
 #        end_y = 96 - 16
         for y in range(start_y, end_y):
     #    for y in range(16, 80):
@@ -147,8 +148,8 @@ def run():
 # FOV = half_width??
 # FOV = half_width??
 # FOV = half_width??
-#                fov = 96
-                fov = half_width
+                fov = 256
+#                fov = half_width
                 
                 if do_single_angle:
                     angle = math.pi * -0.07

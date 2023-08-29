@@ -288,17 +288,17 @@ test_speed_of_tiled_perspective:
         jsr COPY_TABLES_TO_BANKED_RAM
         
 ; FIXME: we need an init_world routine!
-        lda #0
+        lda #$D0
         sta WORLD_X_POSITION
-        lda #0
+        lda #$FF
         sta WORLD_X_POSITION+1
         
-        lda #192
+        lda #100
         sta WORLD_Y_POSITION
         lda #0
         sta WORLD_Y_POSITION+1
         
-        lda #20
+        lda #0
 ;        lda #210
 ;        lda #60
         sta VIEWING_ANGLE
