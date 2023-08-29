@@ -80,11 +80,11 @@ MAPDATA_VRAM_ADDRESS = $17000   ; should be aligned to 1kB
 TILEDATA_VRAM_ADDRESS = $18000  ; should be aligned to 1kB
     .endif
 
-DESTINATION_PICTURE_POS_X = 64
-DESTINATION_PICTURE_POS_Y = 65
+DESTINATION_PICTURE_POS_X = 32
+DESTINATION_PICTURE_POS_Y = 30
 
-DESTINATION_PICTURE_WIDTH = 192
-DESTINATION_PICTURE_HEIGHT = 64
+DESTINATION_PICTURE_WIDTH = 256
+DESTINATION_PICTURE_HEIGHT = 80
 
 ; Mode7 projection: 
 ;    https://www.coranac.com/tonc/text/mode7.htm
@@ -149,6 +149,7 @@ WORLD_Y_POSITION          = $52 ; 53
 AFFINE_SETTINGS           = $60
 
 ; RAM addresses
+; FIXME: is there enough space for COPY_ROW_CODE?
 COPY_ROW_CODE               = $7800
 COPY_TABLES_TO_BANKED_RAM   = $8000
 COPY_TILEMAP_TO_HIGH_VRAM   = $8100  ; TODO: this can probably re-use the other copier memory
@@ -352,11 +353,13 @@ wait_a_bit_2:
         sta CURSOR_Y
 
         if (DO_4BIT)
+; FIXME: we now draw 256x80 pixels!
             lda #<tiled_perspective_192x64_4bpp_message
             sta TEXT_TO_PRINT
             lda #>tiled_perspective_192x64_4bpp_message
             sta TEXT_TO_PRINT + 1
         .else
+; FIXME: we now draw 256x80 pixels!
             lda #<tiled_perspective_192x64_8bpp_message
             sta TEXT_TO_PRINT
             lda #>tiled_perspective_192x64_8bpp_message
@@ -673,7 +676,7 @@ tiled_perspective_copy_next_row_1:
     sta $9F2A                ; Y subpixel increment [8:1]
     
 
-    ; Copy one row of 192 pixels
+    ; Copy one row of 256 pixels
     jsr COPY_ROW_CODE
     
     ; We increment our VERA_ADDR_TO with NR_OF_BYTES_PER_LINE
@@ -687,7 +690,7 @@ tiled_perspective_copy_next_row_1:
 
     inx
 ; FIXME: this is a bad name! We are not doing textures anymore!
-    cpx #DESTINATION_PICTURE_HEIGHT     ; we do 64 rows
+    cpx #DESTINATION_PICTURE_HEIGHT     ; we do 80 rows
     beq done_tiled_perspective_copy
 
     jmp tiled_perspective_copy_next_row_1
@@ -919,7 +922,7 @@ repetitive_copy_next_row_1:
     sta $9F2C
     
     
-    ; Copy one row of 192 pixels
+    ; Copy one row of 256 pixels
     jsr COPY_ROW_CODE
     
     ; We increment our VERA_ADDR_TO with NR_OF_BYTES_PER_LINE
@@ -932,7 +935,7 @@ repetitive_copy_next_row_1:
     sta VERA_ADDR_ZP_TO+1
 
     inx
-    cpx #DESTINATION_PICTURE_HEIGHT     ; we do 64 rows
+    cpx #DESTINATION_PICTURE_HEIGHT     ; we do 80 rows
     bne repetitive_copy_next_row_1
     
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
@@ -1081,12 +1084,12 @@ next_copy_instruction:
     inx
     .if (USE_CACHE_FOR_WRITING)
         .if(DO_4BIT)
-            cpx #DESTINATION_PICTURE_WIDTH/8   ; 24*8=192 copy pixels written to VERA (due to diagonal)
+            cpx #DESTINATION_PICTURE_WIDTH/8   ; 32*8=256 copy pixels written to VERA
         .else
-            cpx #DESTINATION_PICTURE_WIDTH/4   ; 48*4=192 copy pixels written to VERA (due to diagonal)
+            cpx #DESTINATION_PICTURE_WIDTH/4   ; 64*4=256 copy pixels written to VERA
         .endif
     .else
-        cpx #DESTINATION_PICTURE_WIDTH     ; 192 copy pixels written to VERA (due to diagonal)
+        cpx #DESTINATION_PICTURE_WIDTH     ; 256 copy pixels written to VERA
     .endif
     beq copy_instruction_end
     jmp next_copy_instruction
