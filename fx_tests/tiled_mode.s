@@ -9,7 +9,7 @@ DO_NO_TILE_LOOKUP = 0
 USE_MARIO_MAP_AND_TILES = 1
 DO_CLIP = 1
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
-MOVE_XY_POSITION = 1
+MOVE_XY_POSITION = 0
 TURN_AROUND = 0
 MOVE_SLOWLY = 0
 DEBUG_LEDS = 1
@@ -287,13 +287,19 @@ test_speed_of_tiled_perspective:
         jsr copy_table_copier_to_ram
         jsr COPY_TABLES_TO_BANKED_RAM
         
+; FIXME: we need an init_world routine!
         lda #0
         sta WORLD_X_POSITION
+        lda #0
         sta WORLD_X_POSITION+1
+        
+        lda #192
         sta WORLD_Y_POSITION
+        lda #0
         sta WORLD_Y_POSITION+1
         
-        lda #210
+        lda #20
+;        lda #210
 ;        lda #60
         sta VIEWING_ANGLE
 move_or_turn_around:
@@ -307,20 +313,20 @@ move_or_turn_around:
         .endif
         
         .if(MOVE_XY_POSITION)
-            sec
+            clc
             lda WORLD_X_POSITION
-            sbc #1
+            adc #1
             sta WORLD_X_POSITION
             lda WORLD_X_POSITION+1
-            sbc #0
+            adc #0
             sta WORLD_X_POSITION+1
             
-            sec
+            clc
             lda WORLD_Y_POSITION
-            sbc #1
+            adc #1
             sta WORLD_Y_POSITION
             lda WORLD_Y_POSITION+1
-            sbc #0
+            adc #0
             sta WORLD_Y_POSITION+1
         .endif
 
@@ -604,19 +610,15 @@ tiled_perspective_copy_next_row_1:
 
     .if(USE_TABLE_FILES)
         lda X_PIXEL_POSITIONS_IN_MAP_LOW, x
-        .if(MOVE_XY_POSITION)
-            clc
-            adc WORLD_X_POSITION
-        .endif
+        clc
+        adc WORLD_X_POSITION
     .else
         lda x_pixel_positions_in_map_low, x
     .endif
     sta $9F29                ; X pixel position low [7:0]
     .if(USE_TABLE_FILES)
         lda X_PIXEL_POSITIONS_IN_MAP_HIGH, x
-        .if(MOVE_XY_POSITION)
-            adc WORLD_X_POSITION+1
-        .endif
+        adc WORLD_X_POSITION+1
     .else
         lda x_pixel_positions_in_map_high, x
     .endif
@@ -630,19 +632,15 @@ tiled_perspective_copy_next_row_1:
     
     .if(USE_TABLE_FILES)
         lda Y_PIXEL_POSITIONS_IN_MAP_LOW, x
-        .if(MOVE_XY_POSITION)
-            clc
-            adc WORLD_Y_POSITION
-        .endif
+        clc
+        adc WORLD_Y_POSITION
     .else
         lda y_pixel_positions_in_map_low, x
     .endif
     sta $9F2B                ; Y pixel position low [7:0]
     .if(USE_TABLE_FILES)
         lda Y_PIXEL_POSITIONS_IN_MAP_HIGH, x
-        .if(MOVE_XY_POSITION)
-            adc WORLD_Y_POSITION+1
-        .endif
+        adc WORLD_Y_POSITION+1
     .else
         lda y_pixel_positions_in_map_high, x
     .endif

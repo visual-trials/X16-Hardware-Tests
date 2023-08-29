@@ -16,7 +16,7 @@ purple_color = (200,0,200)
 do_draw_orig = True
 do_draw_sim = False
 # FIXME: disable this to create tables!
-do_single_angle = False
+do_single_angle = True
 do_draw_border_lines = False
 do_clip = False
 
@@ -127,7 +127,8 @@ def run():
         left_margin = (screen_width - width) // 2
 
 #        scaling = 96
-        scaling = 80  # = height?
+#        scaling = 80  # = height?
+        scaling = 20
 #        scaling = 64  # = height?
         start_y = 32 - 16
         end_y = 112 - 16
