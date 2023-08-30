@@ -123,3 +123,8 @@ copy .\fx_tests\tables\y_sub_pixel_steps_low1.bin            .\fx_tests\SD\TBL\P
 copy .\fx_tests\tables\y_sub_pixel_steps_low2.bin            .\fx_tests\SD\TBL\PERS-V.BIN
 copy .\fx_tests\tables\y_sub_pixel_steps_high1.bin           .\fx_tests\SD\TBL\PERS-W.BIN
 copy .\fx_tests\tables\y_sub_pixel_steps_high2.bin           .\fx_tests\SD\TBL\PERS-X.BIN
+
+echo Copying: MARIO KART map and tiles
+
+copy .\fx_tests\textures\SnesMarioKart\mario_tile_map.bin         .\fx_tests\SD\TBL\MARIO-MAP.BIN
+copy .\fx_tests\textures\SnesMarioKart\mario_tile_pixel_data.bin  .\fx_tests\SD\TBL\MARIO-TILES.BIN

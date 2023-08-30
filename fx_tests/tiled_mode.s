@@ -323,16 +323,14 @@ reset:
                 jsr copy_tiledata_copier_to_ram
                 jsr COPY_TILEDATA_TO_HIGH_VRAM
             .else
-;FIXME! 
-;                jsr copy_tiledata_to_high_vram
+                jsr copy_tiledata_to_high_vram
             .endif
         
             .ifndef CREATE_PRG
                 jsr copy_tilemap_copier_to_ram
                 jsr COPY_TILEMAP_TO_HIGH_VRAM
             .else
-;FIXME! 
-;                jsr copy_tilemap_to_high_vram
+                jsr copy_tilemap_to_high_vram
             .endif
             
             jsr copy_mario_on_kart_pixels_to_high_vram
@@ -1806,11 +1804,36 @@ setup_mario_on_kart_sprite:
     
     .ifdef CREATE_PRG
         
-; FIXME: load file!
+mario_tiles_filename:      .byte    "TBL/MARIO-TILES.BIN" 
+end_mario_tiles_filename:
+
+load_mario_tiles_table:
+
+        lda #(end_mario_tiles_filename-mario_tiles_filename) ; Length of filename
+        ldx #<mario_tiles_filename      ; Low byte of Fname address
+        ldy #>mario_tiles_filename      ; High byte of Fname address
+        jsr SETNAM
+     
+        lda #1            ; Logical file number
+        ldx #8            ; Device 8 = sd card
+        ldy #2            ; 0=ignore address in bin file (2 first bytes)
+                          ; 1=use address in bin file
+                          ; 2=?use address in bin file? (and dont add first 2 bytes?)
+        jsr SETLFS
+     
+        lda #0
+        ldx #<SOURCE_TABLE_ADDRESS
+        ldy #>SOURCE_TABLE_ADDRESS
+        jsr LOAD
+        bcc mario_tiles_table_file_loaded
+; FIXME: do proper error handling!
+        stp
+        
+mario_tiles_table_file_loaded:
+
+        rts
         
     .else
-
-    
     
 copy_tiledata_copier_to_ram:
 
@@ -1829,15 +1852,19 @@ copy_tiledata_to_high_vram_byte:
 
 copy_tiledata_to_high_vram:    
     
-    ; Switching ROM BANK
-    lda #TILEDATA_ROM_BANK
-    sta ROM_BANK
+    .ifndef CREATE_PRG
+        ; Switching ROM BANK
+        lda #TILEDATA_ROM_BANK
+        sta ROM_BANK
 ; FIXME: remove nop!
-    nop
+        nop
+    .else
+        jsr load_mario_tiles_table
+    .endif
     
-    lda #<($C000)        ; Our source table starts at C000
+    lda #<SOURCE_TABLE_ADDRESS
     sta LOAD_ADDRESS
-    lda #>($C000)
+    lda #>SOURCE_TABLE_ADDRESS
     sta LOAD_ADDRESS+1
 
     ; For now copying to TILEDATA_VRAM_ADDRESS
@@ -1877,11 +1904,13 @@ next_horizontal_pixel_high_vram:
     cpx #TEXTURE_HEIGHT
     bne next_pixel_row_high_vram
     
-    ; Switching back to ROM bank 0
-    lda #$00
-    sta ROM_BANK
+    .ifndef CREATE_PRG
+        ; Switching back to ROM bank 0
+        lda #$00
+        sta ROM_BANK
 ; FIXME: remove nop!
-    nop
+        nop
+    .endif
     
     rts
 end_of_copy_tiledata_to_high_vram:
@@ -2029,8 +2058,35 @@ next_horizontal_tile_pixel_high_vram:
     
         .ifdef CREATE_PRG
         
-; FIXME: load file!
+mario_map_filename:      .byte    "TBL/MARIO-MAP.BIN" 
+end_mario_map_filename:
+
+load_mario_map_table:
+
+            lda #(end_mario_map_filename-mario_map_filename) ; Length of filename
+            ldx #<mario_map_filename      ; Low byte of Fname address
+            ldy #>mario_map_filename      ; High byte of Fname address
+            jsr SETNAM
+         
+            lda #1            ; Logical file number
+            ldx #8            ; Device 8 = sd card
+            ldy #2            ; 0=ignore address in bin file (2 first bytes)
+                              ; 1=use address in bin file
+                              ; 2=?use address in bin file? (and dont add first 2 bytes?)
+            jsr SETLFS
+         
+            lda #0
+            ldx #<SOURCE_TABLE_ADDRESS
+            ldy #>SOURCE_TABLE_ADDRESS
+            jsr LOAD
+            bcc mario_map_table_file_loaded
+; FIXME: do proper error handling!
+            stp
         
+mario_map_table_file_loaded:
+
+            rts
+
         .else
 
 copy_tilemap_copier_to_ram:
@@ -2052,15 +2108,19 @@ copy_tilemap_to_high_vram:
     
     ; We copy a 128x128 tilemap to high VRAM
 
-    ; Switching ROM BANK
-    lda #TILEMAP_ROM_BANK
-    sta ROM_BANK
+    .ifndef CREATE_PRG
+        ; Switching ROM BANK
+        lda #TILEMAP_ROM_BANK
+        sta ROM_BANK
 ; FIXME: remove nop!
-    nop
+        nop
+    .else
+        jsr load_mario_map_table
+    .endif
     
-    lda #<($C000)        ; Our source table starts at C000
+    lda #<SOURCE_TABLE_ADDRESS
     sta LOAD_ADDRESS
-    lda #>($C000)
+    lda #>SOURCE_TABLE_ADDRESS
     sta LOAD_ADDRESS+1
 
     
@@ -2102,11 +2162,13 @@ next_horizontal_tile_high_vram:
     bne next_tile_row_high_vram
     
     
-    ; Switching back to ROM bank 0
-    lda #$00
-    sta ROM_BANK
+    .ifndef CREATE_PRG
+        ; Switching back to ROM bank 0
+        lda #$00
+        sta ROM_BANK
 ; FIXME: remove nop!
-    nop
+        nop
+    .endif
     
     rts
 end_of_copy_tilemap_to_high_vram:
@@ -2165,7 +2227,7 @@ next_horizontal_tile_high_vram:
 pers_filename:      .byte    "TBL/PERS-A.BIN" 
 end_pers_filename:
 
-; This will load a DIV table using the TABLE_ROM_BANK (which starts at 1)
+; This will load a PERS table using the TABLE_ROM_BANK (which starts at 1)
 load_perspective_table:
 
         clc
