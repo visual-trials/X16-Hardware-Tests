@@ -150,8 +150,11 @@ VIEWING_ANGLE             = $45
 TILE_X                    = $46
 TILE_Y                    = $47
 
-WORLD_X_POSITION          = $50 ; 51
-WORLD_Y_POSITION          = $52 ; 53
+CAMERA_WORLD_X_POSITION   = $50 ; 51
+CAMERA_WORLD_Y_POSITION   = $52 ; 53
+
+PLAYER_WORLD_X_POSITION   = $54 ; 55
+PLAYER_WORLD_Y_POSITION   = $56 ; 57
 
 AFFINE_SETTINGS           = $60
 
@@ -309,14 +312,14 @@ draw_overview_map:
     ; The camera position should be in the middle of the map (X = 512) and back in the Y-direction (Y = -422)
 
     lda #0
-    sta WORLD_X_POSITION
+    sta CAMERA_WORLD_X_POSITION
     lda #2
-    sta WORLD_X_POSITION+1
+    sta CAMERA_WORLD_X_POSITION+1
     
     lda #<(-422)
-    sta WORLD_Y_POSITION
+    sta CAMERA_WORLD_Y_POSITION
     lda #>(-422)
-    sta WORLD_Y_POSITION+1
+    sta CAMERA_WORLD_Y_POSITION+1
     
     ; FIXME: set variable that we have to use a SINGLE/STATIC shot (not the TABLE FILES!)
     
@@ -335,14 +338,15 @@ test_speed_of_tiled_perspective:
     ; -- Initial world position --
     
     lda #0
-    sta WORLD_X_POSITION
+    sta PLAYER_WORLD_X_POSITION
     lda #0
-    sta WORLD_X_POSITION+1
+    sta PLAYER_WORLD_X_POSITION+1
     
     lda #0
-    sta WORLD_Y_POSITION
+    sta PLAYER_WORLD_Y_POSITION
     lda #0
-    sta WORLD_Y_POSITION+1
+    sta PLAYER_WORLD_Y_POSITION+1
+    
     
     .if(USE_TABLE_FILES)
     
@@ -353,6 +357,21 @@ test_speed_of_tiled_perspective:
 move_or_turn_around:
         lda VIEWING_ANGLE
         sta RAM_BANK
+        
+
+; FIXME: calculate the CAMERA position from the PLAYER position + VIEWING_ANGLE!
+        
+        lda PLAYER_WORLD_X_POSITION
+        sta CAMERA_WORLD_X_POSITION
+        lda PLAYER_WORLD_X_POSITION+1
+        sta CAMERA_WORLD_X_POSITION+1
+        
+        lda PLAYER_WORLD_Y_POSITION
+        sta CAMERA_WORLD_Y_POSITION
+        lda PLAYER_WORLD_Y_POSITION+1
+        sta CAMERA_WORLD_Y_POSITION+1
+        
+        
 
         ; FIXME: set variable that we have to use a DYNAMIC shot (using the TABLE FILES!)
         
@@ -364,20 +383,20 @@ move_or_turn_around:
         
         .if(MOVE_XY_POSITION)
             clc
-            lda WORLD_X_POSITION
+            lda CAMERA_WORLD_X_POSITION
             adc #1
-            sta WORLD_X_POSITION
-            lda WORLD_X_POSITION+1
+            sta CAMERA_WORLD_X_POSITION
+            lda CAMERA_WORLD_X_POSITION+1
             adc #0
-            sta WORLD_X_POSITION+1
+            sta CAMERA_WORLD_X_POSITION+1
             
             clc
-            lda WORLD_Y_POSITION
+            lda CAMERA_WORLD_Y_POSITION
             adc #1
-            sta WORLD_Y_POSITION
-            lda WORLD_Y_POSITION+1
+            sta CAMERA_WORLD_Y_POSITION
+            lda CAMERA_WORLD_Y_POSITION+1
             adc #0
-            sta WORLD_Y_POSITION+1
+            sta CAMERA_WORLD_Y_POSITION+1
         .endif
 
         .if(MOVE_SLOWLY)
@@ -396,6 +415,16 @@ wait_a_bit_2:
         
         bra move_or_turn_around
     .else
+        lda PLAYER_WORLD_X_POSITION
+        sta CAMERA_WORLD_X_POSITION
+        lda PLAYER_WORLD_X_POSITION+1
+        sta CAMERA_WORLD_X_POSITION+1
+        
+        lda PLAYER_WORLD_Y_POSITION
+        sta CAMERA_WORLD_Y_POSITION
+        lda PLAYER_WORLD_Y_POSITION+1
+        sta CAMERA_WORLD_Y_POSITION+1
+        
         jsr start_timer
         jsr tiled_perspective_fast
         jsr stop_timer
@@ -673,14 +702,14 @@ tiled_perspective_copy_next_row_1:
             lda x_pixel_positions_in_map_low, x
         .endif
         clc
-        adc WORLD_X_POSITION
+        adc CAMERA_WORLD_X_POSITION
         sta VERA_FX_X_POS_L       ; X pixel position low [7:0]
         .if(USE_TABLE_FILES)
             lda X_PIXEL_POSITIONS_IN_MAP_HIGH, x
         .else
             lda x_pixel_positions_in_map_high, x
         .endif
-        adc WORLD_X_POSITION+1
+        adc CAMERA_WORLD_X_POSITION+1
     ; FIXME: and #%00000111
         .if(USE_TABLE_FILES)
             ora X_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
@@ -695,14 +724,14 @@ tiled_perspective_copy_next_row_1:
             lda y_pixel_positions_in_map_low, x
         .endif
         clc
-        adc WORLD_Y_POSITION
+        adc CAMERA_WORLD_Y_POSITION
         sta VERA_FX_Y_POS_L        ; Y pixel position low [7:0]
         .if(USE_TABLE_FILES)
             lda Y_PIXEL_POSITIONS_IN_MAP_HIGH, x
         .else
             lda y_pixel_positions_in_map_high, x
         .endif
-        adc WORLD_Y_POSITION+1
+        adc CAMERA_WORLD_Y_POSITION+1
     ; FIXME: and #%00000111
         .if(USE_TABLE_FILES)
             ora Y_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
@@ -757,20 +786,20 @@ setup_increment_and_positions_for_overview_map:
 
         lda x_pixel_positions_in_map_low, x
         clc
-        adc WORLD_X_POSITION
+        adc CAMERA_WORLD_X_POSITION
         sta VERA_FX_X_POS_L      ; X pixel position low [7:0]
         lda x_pixel_positions_in_map_high, x
-        adc WORLD_X_POSITION+1
+        adc CAMERA_WORLD_X_POSITION+1
     ; FIXME: and #%00000111
         ora x_subpixel_positions_in_map_low, x
         sta VERA_FX_X_POS_H      ; X subpixel position[0], X pixel position high [10:8]
         
         lda y_pixel_positions_in_map_low, x
         clc
-        adc WORLD_Y_POSITION
+        adc CAMERA_WORLD_Y_POSITION
         sta VERA_FX_Y_POS_L      ; Y pixel position low [7:0]
         lda y_pixel_positions_in_map_high, x
-        adc WORLD_Y_POSITION+1
+        adc CAMERA_WORLD_Y_POSITION+1
     ; FIXME: and #%00000111
         ora y_subpixel_positions_in_map_low, x
         ora #%01000000           ; Reset cache byte index = 1
