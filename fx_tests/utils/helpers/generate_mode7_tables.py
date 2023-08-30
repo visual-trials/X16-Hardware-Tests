@@ -135,9 +135,9 @@ def run():
             # angle = math.pi * -0.07
             # angle = math.pi * 0.05
             
-            horizon = 100
-            fov = 300
-            scaling = 780
+            horizon = 200
+            fov = 600
+            scaling = 1230
             
             
         else:
