@@ -1594,7 +1594,7 @@ next_kart_packed_color:
     lda mario_on_kart_palette, y
     sta VERA_DATA0
     iny
-    cpy #13                      ; FIXME: hardcoded amount of colors 
+    cpy #13*2                    ; FIXME: hardcoded amount of colors 
     bne next_kart_packed_color
 
     rts
@@ -3213,18 +3213,18 @@ mario_on_kart_pixels:
 
 mario_on_kart_palette:
   .byte $f0, $0f  ; dummy color (yellow) = transparant
-  .byte $00, $00
-  .byte $00, $0f
-  .byte $00, $0a
-  .byte $a8, $0e
-  .byte $75, $0a
-  .byte $77, $07
-  .byte $ee, $0c
-  .byte $66, $04
-  .byte $44, $02
-  .byte $22, $00
-  .byte $8f, $00
-  .byte $0e, $00
+  .byte $00, $00 ; #01
+  .byte $00, $0f ; #02
+  .byte $00, $0a ; #03
+  .byte $a8, $0e ; #04
+  .byte $75, $0a ; #05
+  .byte $77, $07 ; #06
+  .byte $ee, $0c ; #07
+  .byte $66, $04 ; #08
+  .byte $44, $02 ; #09
+  .byte $22, $00 ; #0a
+  .byte $8f, $00 ; #0b
+  .byte $0e, $00 ; #0c
 
     
     ; ======== PETSCII CHARSET =======
