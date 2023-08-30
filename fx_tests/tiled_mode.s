@@ -184,9 +184,9 @@ Y_SUB_PIXEL_STEPS_HIGH                 = $AB00
 
 
 ; ROM addresses
-PALLETE           = $D000
-PIXELS            = $D200
-TILEMAP           = $E200
+PALLETE           = $E000
+PIXELS            = $E200
+TILEMAP           = $E800
 
     .if(USE_TABLE_FILES)
 TILEMAP_ROM_BANK  = 25   ; Our tilemap starts at ROM Bank 25
@@ -350,7 +350,7 @@ test_speed_of_tiled_perspective:
     
     .if(USE_TABLE_FILES)
     
-        lda #128-7
+        lda #256-32
 ;        lda #210
 ;        lda #60
         sta VIEWING_ANGLE
@@ -361,18 +361,44 @@ move_or_turn_around:
 
 ; FIXME: calculate the CAMERA position from the PLAYER position + VIEWING_ANGLE!
         
-        lda PLAYER_WORLD_X_POSITION
-        sta CAMERA_WORLD_X_POSITION
-        lda PLAYER_WORLD_X_POSITION+1
-        sta CAMERA_WORLD_X_POSITION+1
+        .if(1)
+            ldx VIEWING_ANGLE
+            
+            ; Ycam = Yplayer - (cos(angle)*72)
+            ; Xcam = Xplayer + (sin(angle)*72)
+            ; Note: our cosine_values and sine_values have a max of 72!
         
-        lda PLAYER_WORLD_Y_POSITION
-        sta CAMERA_WORLD_Y_POSITION
-        lda PLAYER_WORLD_Y_POSITION+1
-        sta CAMERA_WORLD_Y_POSITION+1
+            sec
+            lda PLAYER_WORLD_Y_POSITION
+            sbc cosine_values_low, x
+            sta CAMERA_WORLD_Y_POSITION
+            lda PLAYER_WORLD_Y_POSITION+1
+            sbc cosine_values_high, x
+            sta CAMERA_WORLD_Y_POSITION+1
+            
+            clc
+            lda PLAYER_WORLD_X_POSITION
+            adc sine_values_low, x
+            sta CAMERA_WORLD_X_POSITION
+            lda PLAYER_WORLD_X_POSITION+1
+            adc sine_values_high, x
+            sta CAMERA_WORLD_X_POSITION+1
+            
+        .else
+            ; Not camera adjusting here
+            
+            lda PLAYER_WORLD_X_POSITION
+            sta CAMERA_WORLD_X_POSITION
+            lda PLAYER_WORLD_X_POSITION+1
+            sta CAMERA_WORLD_X_POSITION+1
+            
+            lda PLAYER_WORLD_Y_POSITION
+            sta CAMERA_WORLD_Y_POSITION
+            lda PLAYER_WORLD_Y_POSITION+1
+            sta CAMERA_WORLD_Y_POSITION+1
         
+        .endif
         
-
         ; FIXME: set variable that we have to use a DYNAMIC shot (using the TABLE FILES!)
         
         jsr tiled_perspective_fast
@@ -1823,6 +1849,23 @@ end_of_copy_tables_to_banked_ram:
     
     
     
+; Python script to generate sine and cosine bytes: for CAMERA displacement (and also for directional movement)
+;   import math
+;   cycle=256
+;   ampl=72   # -72 to +72
+;   [(int(math.sin(float(i)/cycle*2.0*math.pi)*ampl) % 256) for i in range(cycle)]
+;   [(int(math.sin(float(i)/cycle*2.0*math.pi)*ampl) // 256) for i in range(cycle)]
+;   [(int(math.cos(float(i)/cycle*2.0*math.pi)*ampl) % 256) for i in range(cycle)]
+;   [(int(math.cos(float(i)/cycle*2.0*math.pi)*ampl) // 256) for i in range(cycle)]
+    
+sine_values_low:
+    .byte 0, 1, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 20, 22, 24, 25, 27, 29, 30, 32, 33, 35, 37, 38, 40, 41, 42, 44, 45, 47, 48, 49, 50, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 65, 66, 67, 67, 68, 68, 69, 69, 70, 70, 70, 71, 71, 71, 71, 71, 71, 72, 71, 71, 71, 71, 71, 71, 70, 70, 70, 69, 69, 68, 68, 67, 67, 66, 65, 65, 64, 63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 50, 49, 48, 47, 45, 44, 42, 41, 40, 38, 37, 35, 33, 32, 30, 29, 27, 25, 24, 22, 20, 19, 17, 15, 14, 12, 10, 8, 7, 5, 3, 1, 0, 255, 253, 251, 249, 248, 246, 244, 242, 241, 239, 237, 236, 234, 232, 231, 229, 227, 226, 224, 223, 221, 219, 218, 216, 215, 214, 212, 211, 209, 208, 207, 206, 204, 203, 202, 201, 200, 199, 198, 197, 196, 195, 194, 193, 192, 191, 191, 190, 189, 189, 188, 188, 187, 187, 186, 186, 186, 185, 185, 185, 185, 185, 185, 184, 185, 185, 185, 185, 185, 185, 186, 186, 186, 187, 187, 188, 188, 189, 189, 190, 191, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 206, 207, 208, 209, 211, 212, 214, 215, 216, 218, 219, 221, 223, 224, 226, 227, 229, 231, 232, 234, 236, 237, 239, 241, 242, 244, 246, 248, 249, 251, 253, 255
+sine_values_high:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+cosine_values_low:
+    .byte 72, 71, 71, 71, 71, 71, 71, 70, 70, 70, 69, 69, 68, 68, 67, 67, 66, 65, 65, 64, 63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 50, 49, 48, 47, 45, 44, 42, 41, 40, 38, 37, 35, 33, 32, 30, 29, 27, 25, 24, 22, 20, 19, 17, 15, 14, 12, 10, 8, 7, 5, 3, 1, 0, 255, 253, 251, 249, 248, 246, 244, 242, 241, 239, 237, 236, 234, 232, 231, 229, 227, 226, 224, 223, 221, 219, 218, 216, 215, 214, 212, 211, 209, 208, 207, 206, 204, 203, 202, 201, 200, 199, 198, 197, 196, 195, 194, 193, 192, 191, 191, 190, 189, 189, 188, 188, 187, 187, 186, 186, 186, 185, 185, 185, 185, 185, 185, 184, 185, 185, 185, 185, 185, 185, 186, 186, 186, 187, 187, 188, 188, 189, 189, 190, 191, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 206, 207, 208, 209, 211, 212, 214, 215, 216, 218, 219, 221, 223, 224, 226, 227, 229, 231, 232, 234, 236, 237, 239, 241, 242, 244, 246, 248, 249, 251, 253, 255, 0, 1, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 20, 22, 24, 25, 27, 29, 30, 32, 33, 35, 37, 38, 40, 41, 42, 44, 45, 47, 48, 49, 50, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 65, 66, 67, 67, 68, 68, 69, 69, 70, 70, 70, 71, 71, 71, 71, 71, 71
+cosine_values_high:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
     
     
@@ -1845,7 +1888,7 @@ irq:
     
     
     
-  .org $D000
+  .org PALLETE
   
   .if(DO_NO_TILE_LOOKUP)
   
@@ -2413,7 +2456,7 @@ irq:
       .endif
   .endif
 
-  .org $D200
+  .org PIXELS
 
   .if(DO_NO_TILE_LOOKUP)
   
@@ -2667,7 +2710,7 @@ irq:
   .endif
 
   ; manual TILEMAP
-  .org $E200
+  .org TILEMAP
 ;  .byte 9, 1, 2, 3
 ;  .byte 3, 2, 1, 0
 ;  .byte 5, 4, 5, 4
