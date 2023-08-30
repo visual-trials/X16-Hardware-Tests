@@ -13,11 +13,13 @@ USE_MARIO_MAP_AND_TILES = 1
 ; FIXME: turn on CLIPPING!
 DO_CLIP = 1
 
+PLAYER_FOREWARD_SPEED = 8
 
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 0
-TURN_AROUND = 1
+TURN_AROUND = 0
 MOVE_SLOWLY = 0
+USE_KEYBOARD_INPUT = 1
 DEBUG_LEDS = 0
 
     .if(DO_NO_TILE_LOOKUP)
@@ -139,26 +141,53 @@ VERA_ADDR_ZP_TO           = $2D ; 2E
 BANK_TESTING              = $32   
 BAD_VALUE                 = $3A
 
-CODE_ADDRESS              = $3D ; 3E
+CODE_ADDRESS              = $3B ; 3C
 
-LOAD_ADDRESS              = $40 ; 41
-STORE_ADDRESS             = $42 ; 43
+LOAD_ADDRESS              = $3D ; 3E
+STORE_ADDRESS             = $3F ; 40
 
-TABLE_ROM_BANK            = $44
-VIEWING_ANGLE             = $45
+TABLE_ROM_BANK            = $41
+VIEWING_ANGLE             = $42
 
-TILE_X                    = $46
-TILE_Y                    = $47
+TILE_X                    = $43
+TILE_Y                    = $44
 
-CAMERA_WORLD_X_POSITION   = $50 ; 51
-CAMERA_WORLD_Y_POSITION   = $52 ; 53
+; Used only by (slow) 16-bit multiplier (multiply_16bits)
+MULTIPLIER                = $47 ; 48
+MULTIPLICAND              = $49 ; 4A
+PRODUCT                   = $4B ; 4C ; 4D ; 4E
 
-PLAYER_WORLD_X_POSITION   = $54 ; 55
-PLAYER_WORLD_Y_POSITION   = $56 ; 57
+; Used by the (slow) 24-bit divider (divide_24bits)
+DIVIDEND                  = $4F ; 50 ; 51  ; the thing you want to divide (e.g. 100 /) . This will also the result after the division
+DIVISOR                   = $52 ; 53 ; 54  ; the thing you divide by (e.g. / 10)
+REMAINDER                 = $55 ; 56 ; 57
 
-AFFINE_SETTINGS           = $60
 
-DO_DRAW_OVERVIEW_MAP      = $61
+CAMERA_WORLD_X_POSITION   = $58 ; 59
+CAMERA_WORLD_Y_POSITION   = $5A ; 5B
+
+PLAYER_WORLD_X_POSITION   = $5C ; 5D
+PLAYER_WORLD_X_SUBPOS     = $5E
+PLAYER_WORLD_Y_POSITION   = $5F ; 60
+PLAYER_WORLD_Y_SUBPOS     = $61
+
+
+AFFINE_SETTINGS           = $62
+
+DO_DRAW_OVERVIEW_MAP      = $63
+
+NR_OF_KBD_KEY_CODE_BYTES  = $64     ; Required by keyboard.s
+
+DELTA_X                   = $65 ; 66
+DELTA_X_SUB               = $67
+DELTA_Y                   = $68 ; 69
+DELTA_Y_SUB               = $6A
+
+
+
+KEYBOARD_KEY_CODE_BUFFER = $76E0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
+KEYBOARD_STATE           = $7700   ; 128 bytes (state for each key of the keyboard)
+KEYBOARD_EVENTS          = $7780   ; 128 bytes (event for each key of the keyboard)
 
 ; RAM addresses
 ; FIXME: is there enough space for COPY_ROW_CODE?
@@ -228,6 +257,7 @@ reset:
     
     ; FIXME: we sometimes HANG here!! (green light, with randomly looking bitmap)
     jsr init_cursor
+    jsr init_keyboard
     jsr init_timer
 
     lda #5
@@ -338,15 +368,19 @@ test_speed_of_tiled_perspective:
     ; -- Initial world position --
     
     lda #0
-    sta PLAYER_WORLD_X_POSITION
+    sta PLAYER_WORLD_X_SUBPOS
     lda #0
+    sta PLAYER_WORLD_X_POSITION
+    lda #2
     sta PLAYER_WORLD_X_POSITION+1
     
     lda #0
-    sta PLAYER_WORLD_Y_POSITION
+    sta PLAYER_WORLD_Y_SUBPOS
     lda #0
+    sta PLAYER_WORLD_Y_POSITION
+    lda #2
     sta PLAYER_WORLD_Y_POSITION+1
-    
+
     
     .if(USE_TABLE_FILES)
     
@@ -355,9 +389,149 @@ test_speed_of_tiled_perspective:
 ;        lda #60
         sta VIEWING_ANGLE
 move_or_turn_around:
+
+        jsr get_user_input
+
+
+        ; -- Update world --
+
+        .if(USE_KEYBOARD_INPUT)
+
+            ; Our default velocity is 0
+            stz DELTA_X_SUB
+            stz DELTA_X
+            stz DELTA_X+1
+            
+            stz DELTA_Y_SUB
+            stz DELTA_Y
+            stz DELTA_Y+1
+
+            ; -- Left arrow key --
+            ldx #KEY_CODE_LEFT_ARROW
+            lda KEYBOARD_STATE, x
+            beq left_arrow_key_down_handled
+
+            ; FIXME: implement a better turning technique!
+            dec VIEWING_ANGLE
+left_arrow_key_down_handled:
+
+            ; -- Right arrow key --
+            ldx #KEY_CODE_RIGHT_ARROW
+            lda KEYBOARD_STATE, x
+            beq right_arrow_key_down_handled
+            
+            ; FIXME: implement a better turning technique!
+            inc VIEWING_ANGLE
+right_arrow_key_down_handled:
+
+            ; -- Up arrow key --
+            ldx #KEY_CODE_UP_ARROW
+            lda KEYBOARD_STATE, x
+            beq up_arrow_key_down_handled
+            
+            ; - Forward movement -
+            ; Ymove = +(cos(angle)*72)/256 * PLAYER_FOREWARD_SPEED
+            ; Xmove = -(sin(angle)*72)/256 * PLAYER_FOREWARD_SPEED
+            ; Note: our cosine_values and sine_values have a max of 72!
+        
+            ldx VIEWING_ANGLE
+            
+            ; +cos(angle)*72/256 * PLAYER_FOREWARD_SPEED
+
+            lda cosine_values_low, x
+            sta MULTIPLICAND
+            lda cosine_values_high, x
+            sta MULTIPLICAND+1
+    
+            lda #<PLAYER_FOREWARD_SPEED
+            sta MULTIPLIER
+            lda #>PLAYER_FOREWARD_SPEED
+            sta MULTIPLIER+1
+
+            jsr multiply_16bits_signed
+            
+            lda PRODUCT
+            sta DELTA_Y_SUB
+            lda PRODUCT+1
+            sta DELTA_Y
+            lda PRODUCT+2
+            sta DELTA_Y+1
+            
+            ; 0-sin(angle)*72/256 * PLAYER_FOREWARD_SPEED
+            
+            lda sine_values_low, x
+            sta MULTIPLICAND
+            lda sine_values_high, x
+            sta MULTIPLICAND+1
+    
+            lda #<PLAYER_FOREWARD_SPEED
+            sta MULTIPLIER
+            lda #>PLAYER_FOREWARD_SPEED
+            sta MULTIPLIER+1
+
+            jsr multiply_16bits_signed
+            
+            sec
+            lda #0
+            sbc PRODUCT
+            sta DELTA_X_SUB
+            lda #0
+            sbc PRODUCT+1
+            sta DELTA_X
+            lda #0
+            sbc PRODUCT+2
+            sta DELTA_X+1
+            
+            
+up_arrow_key_down_handled:
+
+            ; -- Down arrow key --
+            ldx #KEY_CODE_DOWN_ARROW
+            lda KEYBOARD_STATE, x
+            beq down_arrow_key_down_handled
+            
+            ; FIXME: what should we do here?
+            
+            ;lda #<(-Y_SPEED)
+            ;sta DELTA_X
+            ;lda #>(-Y_SPEED)
+            ;sta DELTA_X+1
+down_arrow_key_down_handled:
+
+        .else
+            ; FIXME: implement auto movement!
+        .endif
+    
+    
+        clc
+        lda PLAYER_WORLD_X_SUBPOS
+        adc DELTA_X_SUB
+        sta PLAYER_WORLD_X_SUBPOS
+        lda PLAYER_WORLD_X_POSITION
+        adc DELTA_X
+        sta PLAYER_WORLD_X_POSITION
+        lda PLAYER_WORLD_X_POSITION+1
+        adc DELTA_X+1
+        sta PLAYER_WORLD_X_POSITION+1
+        
+        clc
+        lda PLAYER_WORLD_Y_SUBPOS
+        adc DELTA_Y_SUB
+        sta PLAYER_WORLD_Y_SUBPOS
+        lda PLAYER_WORLD_Y_POSITION
+        adc DELTA_Y
+        sta PLAYER_WORLD_Y_POSITION
+        lda PLAYER_WORLD_Y_POSITION+1
+        adc DELTA_Y+1
+        sta PLAYER_WORLD_Y_POSITION+1
+
+    
+        ; -- Render world --
+    
         lda VIEWING_ANGLE
         sta RAM_BANK
-        
+
+
 
         .if(1)
             ; Calculate the CAMERA position from the PLAYER position + VIEWING_ANGLE
@@ -367,6 +541,10 @@ move_or_turn_around:
             ; Ycam = Yplayer - (cos(angle)*72)
             ; Xcam = Xplayer + (sin(angle)*72)
             ; Note: our cosine_values and sine_values have a max of 72!
+            
+            
+            ; FIXME: we should probably also put the sub-position into the subpixel position of VERA! (more precise/smoother)
+            ; FIXME: if we do that we also have to make the cosine/sine values more precise!
         
             sec
             lda PLAYER_WORLD_Y_POSITION
@@ -439,7 +617,7 @@ wait_a_bit_2:
             bne wait_a_bit_1
         .endif
         
-        bra move_or_turn_around
+        jmp move_or_turn_around
     .else
         lda PLAYER_WORLD_X_POSITION
         sta CAMERA_WORLD_X_POSITION
@@ -507,6 +685,16 @@ wait_a_bit_2:
         jsr print_time_elapsed
     
     .endif
+
+    rts
+
+    
+get_user_input:
+
+    ; FIXME: SPEED: clearing *all* keyboard events costs time...
+    jsr clear_keyboard_events   ; before retrieving the key codes, we clear all previous events
+    jsr retrieve_keyboard_key_codes
+    jsr update_keyboard_state   ; this also records all keyboard events
 
     rts
     
@@ -1873,8 +2061,11 @@ cosine_values_high:
     
     .include utils/x16.s
     .include utils/utils.s
+    .include utils/i2c.s
+    .include utils/keyboard.s
     .include utils/timing.s
     .include utils/setup_vera_for_bitmap_and_tilemap.s
+    .include fx_tests/utils/math.s
 
     ; ======== NMI / IRQ =======
 nmi:

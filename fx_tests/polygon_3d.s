@@ -102,7 +102,7 @@ TIMING_COUNTER            = $13 ; 14
 TIME_ELAPSED_MS           = $15
 TIME_ELAPSED_SUB_MS       = $16 ; one nibble of sub-milliseconds
 
-; Used only by (slow) 16-bit multiplier (multply_16bits)
+; Used only by (slow) 16-bit multiplier (multiply_16bits)
 MULTIPLIER                = $17 ; 18
 MULTIPLICAND              = $19 ; 1A
 PRODUCT                   = $1B ; 1C ; 1D ; 1E
@@ -1357,7 +1357,7 @@ MACRO_rotate_cos_minus_sin .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TR
         lda \TRIANGLES_3D_POINT_A+MAX_NR_OF_TRIANGLES, x
         sta MULTIPLICAND+1
 
-        jsr multply_16bits_signed
+        jsr multiply_16bits_signed
         
         ; TODO: rename this temp variable
         lda PRODUCT+1
@@ -1404,7 +1404,7 @@ MACRO_rotate_cos_minus_sin .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TR
         lda \TRIANGLES_3D_POINT_B+MAX_NR_OF_TRIANGLES, x
         sta MULTIPLICAND+1
 
-        jsr multply_16bits_signed
+        jsr multiply_16bits_signed
         
         ; TODO: rename this temp variable
         sec
@@ -1451,7 +1451,7 @@ MACRO_rotate_sin_plus_cos .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TRI
         lda \TRIANGLES_3D_POINT_A+MAX_NR_OF_TRIANGLES, x
         sta MULTIPLICAND+1
 
-        jsr multply_16bits_signed
+        jsr multiply_16bits_signed
         
         ; TODO: rename this temp variable
         lda PRODUCT+1
@@ -1498,7 +1498,7 @@ MACRO_rotate_sin_plus_cos .macro TRIANGLES_3D_POINT_A, TRIANGLES_3D_POINT_B, TRI
         lda \TRIANGLES_3D_POINT_B+MAX_NR_OF_TRIANGLES, x
         sta MULTIPLICAND+1
 
-        jsr multply_16bits_signed
+        jsr multiply_16bits_signed
         
         ; TODO: rename this temp variable
         clc
@@ -1623,7 +1623,7 @@ MACRO_divide_by_z .macro TRIANGLES_3D_POINT_X_OR_Y, TRIANGLES_3D_POINT_Z, OUTPUT
 
             ; -- X (or Y) * 1 / Z
             
-            jsr multply_16bits_signed
+            jsr multiply_16bits_signed
             
             lda PRODUCT+2
             sta \OUTPUT_TRIANGLES_3D_POINT_X_OR_Y+MAX_NR_OF_TRIANGLES,x
@@ -1734,7 +1734,7 @@ MACRO_calculate_dot_product .macro TRIANGLES_3D_POINTA_X, TRIANGLES_3D_POINTA_Y,
         lda \TRIANGLES_3D_POINTN_X+MAX_NR_OF_TRIANGLES, x
         sta MULTIPLICAND+1
 
-        jsr multply_16bits_signed
+        jsr multiply_16bits_signed
 
         clc
         lda DOT_PRODUCT
@@ -1773,7 +1773,7 @@ MACRO_calculate_dot_product .macro TRIANGLES_3D_POINTA_X, TRIANGLES_3D_POINTA_Y,
         lda \TRIANGLES_3D_POINTN_Y+MAX_NR_OF_TRIANGLES, x
         sta MULTIPLICAND+1
 
-        jsr multply_16bits_signed
+        jsr multiply_16bits_signed
 
         clc
         lda DOT_PRODUCT
@@ -1821,7 +1821,7 @@ MACRO_calculate_dot_product .macro TRIANGLES_3D_POINTA_X, TRIANGLES_3D_POINTA_Y,
         lda \TRIANGLES_3D_POINTN_Z+MAX_NR_OF_TRIANGLES, x
         sta MULTIPLICAND+1
 
-        jsr multply_16bits_signed
+        jsr multiply_16bits_signed
 
         clc
         lda DOT_PRODUCT
@@ -1874,7 +1874,7 @@ MACRO_calculate_dot_product_for_light .macro TRIANGLES_3D_POINTN_X, TRIANGLES_3D
         lda \TRIANGLES_3D_POINTN_X+MAX_NR_OF_TRIANGLES, x
         sta MULTIPLICAND+1
 
-        jsr multply_16bits_signed
+        jsr multiply_16bits_signed
 
         clc
         lda DOT_PRODUCT
@@ -1913,7 +1913,7 @@ MACRO_calculate_dot_product_for_light .macro TRIANGLES_3D_POINTN_X, TRIANGLES_3D
         lda \TRIANGLES_3D_POINTN_Y+MAX_NR_OF_TRIANGLES, x
         sta MULTIPLICAND+1
 
-        jsr multply_16bits_signed
+        jsr multiply_16bits_signed
 
         clc
         lda DOT_PRODUCT
@@ -1961,7 +1961,7 @@ MACRO_calculate_dot_product_for_light .macro TRIANGLES_3D_POINTN_X, TRIANGLES_3D
         lda \TRIANGLES_3D_POINTN_Z+MAX_NR_OF_TRIANGLES, x
         sta MULTIPLICAND+1
 
-        jsr multply_16bits_signed
+        jsr multiply_16bits_signed
 
         clc
         lda DOT_PRODUCT
@@ -3984,6 +3984,7 @@ left_down_right_keys_data:
     .include utils/keyboard.s
     .include utils/timing.s
     .include utils/setup_vera_for_bitmap_and_tilemap.s
+    .include fx_tests/utils/math.s
     .include fx_tests/utils/fx_polygon_fill.s
     .include fx_tests/utils/fx_polygon_fill_jump_tables.s
     .if(!DO_4BIT)

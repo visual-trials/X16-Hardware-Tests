@@ -143,7 +143,7 @@ TIMING_COUNTER            = $14 ; 15
 TIME_ELAPSED_MS           = $16
 TIME_ELAPSED_SUB_MS       = $17 ; one nibble of sub-milliseconds
 
-; Used only by (slow) 16-bit multiplier (multply_16bits)
+; Used only by (slow) 16-bit multiplier (multiply_16bits)
 MULTIPLIER                = $18 ; 19
 MULTIPLICAND              = $1A ; 1B
 PRODUCT                   = $1C ; 1D ; 1E ; 1F
@@ -2691,6 +2691,7 @@ triangle_data:
     .include utils/utils.s
     .include utils/timing.s
     .include utils/setup_vera_for_bitmap_and_tilemap.s
+    .include fx_tests/utils/math.s
     .include fx_tests/utils/fx_polygon_fill.s
     .include fx_tests/utils/fx_polygon_fill_jump_tables.s
     .if(!DO_4BIT)
