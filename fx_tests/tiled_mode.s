@@ -359,9 +359,9 @@ move_or_turn_around:
         sta RAM_BANK
         
 
-; FIXME: calculate the CAMERA position from the PLAYER position + VIEWING_ANGLE!
-        
         .if(1)
+            ; Calculate the CAMERA position from the PLAYER position + VIEWING_ANGLE
+                    
             ldx VIEWING_ANGLE
             
             ; Ycam = Yplayer - (cos(angle)*72)
