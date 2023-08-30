@@ -13,7 +13,8 @@ USE_MARIO_MAP_AND_TILES = 1
 ; FIXME: turn on CLIPPING!
 DO_CLIP = 1
 
-PLAYER_FOREWARD_SPEED = 8
+PLAYER_FORWARD_SPEED = 8
+PLAYER_BACKWARD_SPEED = 4
 
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 0
@@ -445,22 +446,22 @@ right_arrow_key_down_handled:
             beq up_arrow_key_down_handled
             
             ; - Forward movement -
-            ; Ymove = +(cos(angle)*72)/256 * PLAYER_FOREWARD_SPEED
-            ; Xmove = -(sin(angle)*72)/256 * PLAYER_FOREWARD_SPEED
+            ; Ymove = +(cos(angle)*72)/256 * PLAYER_FORWARD_SPEED
+            ; Xmove = -(sin(angle)*72)/256 * PLAYER_FORWARD_SPEED
             ; Note: our cosine_values and sine_values have a max of 72!
         
             ldx VIEWING_ANGLE
             
-            ; +cos(angle)*72/256 * PLAYER_FOREWARD_SPEED
+            ; +cos(angle)*72/256 * PLAYER_FORWARD_SPEED
 
             lda cosine_values_low, x
             sta MULTIPLICAND
             lda cosine_values_high, x
             sta MULTIPLICAND+1
     
-            lda #<PLAYER_FOREWARD_SPEED
+            lda #<PLAYER_FORWARD_SPEED
             sta MULTIPLIER
-            lda #>PLAYER_FOREWARD_SPEED
+            lda #>PLAYER_FORWARD_SPEED
             sta MULTIPLIER+1
 
             jsr multiply_16bits_signed
@@ -472,16 +473,16 @@ right_arrow_key_down_handled:
             lda PRODUCT+2
             sta DELTA_Y+1
             
-            ; 0-sin(angle)*72/256 * PLAYER_FOREWARD_SPEED
+            ; 0-sin(angle)*72/256 * PLAYER_FORWARD_SPEED
             
             lda sine_values_low, x
             sta MULTIPLICAND
             lda sine_values_high, x
             sta MULTIPLICAND+1
     
-            lda #<PLAYER_FOREWARD_SPEED
+            lda #<PLAYER_FORWARD_SPEED
             sta MULTIPLIER
-            lda #>PLAYER_FOREWARD_SPEED
+            lda #>PLAYER_FORWARD_SPEED
             sta MULTIPLIER+1
 
             jsr multiply_16bits_signed
@@ -505,12 +506,59 @@ up_arrow_key_down_handled:
             lda KEYBOARD_STATE, x
             beq down_arrow_key_down_handled
             
-            ; FIXME: what should we do here?
+            ; - Backward movement -
+            ; Ymove = -(cos(angle)*72)/256 * PLAYER_BACKWARD_SPEED
+            ; Xmove = +(sin(angle)*72)/256 * PLAYER_BACKWARD_SPEED
+            ; Note: our cosine_values and sine_values have a max of 72!
+        
+            ldx VIEWING_ANGLE
             
-            ;lda #<(-Y_SPEED)
-            ;sta DELTA_X
-            ;lda #>(-Y_SPEED)
-            ;sta DELTA_X+1
+            ; -cos(angle)*72/256 * PLAYER_BACKWARD_SPEED
+
+            lda cosine_values_low, x
+            sta MULTIPLICAND
+            lda cosine_values_high, x
+            sta MULTIPLICAND+1
+    
+            lda #<PLAYER_BACKWARD_SPEED
+            sta MULTIPLIER
+            lda #>PLAYER_BACKWARD_SPEED
+            sta MULTIPLIER+1
+
+            jsr multiply_16bits_signed
+            
+            sec
+            lda #0
+            sbc PRODUCT
+            sta DELTA_Y_SUB
+            lda #0
+            sbc PRODUCT+1
+            sta DELTA_Y
+            lda #0
+            sbc PRODUCT+2
+            sta DELTA_Y+1
+            
+            ; 0-sin(angle)*72/256 * PLAYER_BACKWARD_SPEED
+            
+            lda sine_values_low, x
+            sta MULTIPLICAND
+            lda sine_values_high, x
+            sta MULTIPLICAND+1
+    
+            lda #<PLAYER_BACKWARD_SPEED
+            sta MULTIPLIER
+            lda #>PLAYER_BACKWARD_SPEED
+            sta MULTIPLIER+1
+
+            jsr multiply_16bits_signed
+            
+            lda PRODUCT
+            sta DELTA_X_SUB
+            lda PRODUCT+1
+            sta DELTA_X
+            lda PRODUCT+2
+            sta DELTA_X+1
+            
 down_arrow_key_down_handled:
 
         .else
