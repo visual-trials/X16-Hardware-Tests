@@ -222,9 +222,9 @@ Y_SUB_PIXEL_STEPS_HIGH                 = $AB00
 
 
 ; ROM addresses
-PALLETE           = $E000
-PIXELS            = $E200
-TILEMAP           = $E800
+;PALLETE           = $E000
+;PIXELS            = $E200
+;TILEMAP           = $E800
 
     .if(USE_TABLE_FILES)
 TILEMAP_ROM_BANK  = 25   ; Our tilemap starts at ROM Bank 25
@@ -2288,8 +2288,8 @@ irq:
     rti
     
     
-    
-  .org PALLETE
+PALLETE:
+;  .org PALLETE
   
   .if(DO_NO_TILE_LOOKUP)
   
@@ -2857,7 +2857,8 @@ irq:
       .endif
   .endif
 
-  .org PIXELS
+PIXELS:
+;  .org PIXELS
 
   .if(DO_NO_TILE_LOOKUP)
   
@@ -3110,8 +3111,10 @@ irq:
     
   .endif
 
+TILEMAP:
+  
   ; manual TILEMAP
-  .org TILEMAP
+;  .org TILEMAP
 ;  .byte 9, 1, 2, 3
 ;  .byte 3, 2, 1, 0
 ;  .byte 5, 4, 5, 4
