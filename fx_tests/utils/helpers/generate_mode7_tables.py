@@ -166,8 +166,9 @@ def run():
                 sx_rotated = sx * math.cos(angle) - sy * math.sin(angle)
                 sy_rotated = sx * math.sin(angle) + sy * math.cos(angle)            
                 
-                sx_rotated += 17 * 8 / scaling
-                sy_rotated += 17 * 8 / scaling
+                # FIXME: REMOVE Not changing the camera position anymore
+                #sx_rotated += 17 * 8 / scaling
+                #sy_rotated += 17 * 8 / scaling
                 
                 # When we calculated the second pixel of a row, we know the increment between the first and second pixel
                 if (x == -(half_width-1)):
