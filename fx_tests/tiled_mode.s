@@ -16,7 +16,7 @@ DO_CLIP = 1
 
 DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 0
-TURN_AROUND = 0
+TURN_AROUND = 1
 MOVE_SLOWLY = 0
 DEBUG_LEDS = 0
 
@@ -333,16 +333,14 @@ test_speed_of_tiled_perspective:
 
     ; -- Initial world position --
     
-    lda #32+20
-;    lda #$D0
+    lda #0
     sta WORLD_X_POSITION
-    lda #3
-;    lda #$FF
+    lda #0
     sta WORLD_X_POSITION+1
     
-    lda #97
+    lda #0
     sta WORLD_Y_POSITION
-    lda #2
+    lda #0
     sta WORLD_Y_POSITION+1
     
     .if(USE_TABLE_FILES)
@@ -551,7 +549,7 @@ setup_vram_done:
     .else
         ora #%00000000  ; 0 for Repeat
     .endif
-    sta $9F2A
+    sta VERA_FX_TILEBASE
     
     lda #(MAPDATA_VRAM_ADDRESS >> 9)
     and #$FC   ; only the 6 highest bits of the address can be set
@@ -569,7 +567,7 @@ NON TILE LOOK MODE DOESNT EXIST ANYMORE
             .endif
         .endif
     .endif
-    sta $9F2B
+    sta VERA_FX_MAPBASE
     
     .if(DO_NO_TILE_LOOKUP)
 ; FIXME: there is no more mode without tile lookup!
@@ -584,7 +582,7 @@ NON TILE LOOK MODE DOESNT EXIST ANYMORE
     .if(USE_CACHE_FOR_WRITING)
         ora #%01000000  ; blit write = 1
     .endif
-    sta $9F29
+    sta VERA_FX_CTRL
     
     
 ;    lda #%00000110           ; DCSEL=3, ADDRSEL=0
@@ -592,13 +590,13 @@ NON TILE LOOK MODE DOESNT EXIST ANYMORE
     
 ; FIXME: why are we setting the increment here??
 ;    lda #0                   ; X increment low
-;    sta $9F29
+;    sta VERA_FX_X_INCR_L
 ;    lda #%00000101           ; 00, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
-;    sta $9F2A
+;    sta VERA_FX_X_INCR_H
 ;    lda #00                  ; Y increment low
-;    sta $9F2B
+;    sta VERA_FX_Y_INCR_L
 ;    lda #%00000100           ; 00, Y decr, Y subpixel increment exponent = 001, Y increment high = 00 
-;    sta $9F2C
+;    sta VERA_FX_Y_INCR_H
 
     ldx #0
     
@@ -638,7 +636,7 @@ tiled_perspective_copy_next_row_1:
         .else
             lda x_sub_pixel_steps_low, x
         .endif
-        sta $9F29                ; X increment low
+        sta VERA_FX_X_INCR_L          ; X increment low
         
         .if(USE_TABLE_FILES)
             lda X_SUB_PIXEL_STEPS_HIGH, x
@@ -646,14 +644,14 @@ tiled_perspective_copy_next_row_1:
             lda x_sub_pixel_steps_high, x
         .endif
         ; Note: the x32 is packed into the table-data
-        sta $9F2A
+        sta VERA_FX_X_INCR_H
         
         .if(USE_TABLE_FILES)
             lda Y_SUB_PIXEL_STEPS_LOW, x
         .else
             lda y_sub_pixel_steps_low, x
         .endif
-        sta $9F2B
+        sta VERA_FX_Y_INCR_L
         
         .if(USE_TABLE_FILES)
             lda Y_SUB_PIXEL_STEPS_HIGH, x
@@ -661,7 +659,7 @@ tiled_perspective_copy_next_row_1:
             lda y_sub_pixel_steps_high, x
         .endif
         ; Note: the x32 is packed into the table-data
-        sta $9F2C
+        sta VERA_FX_Y_INCR_H
             
         ; Setting the position
         
@@ -675,7 +673,7 @@ tiled_perspective_copy_next_row_1:
         .endif
         clc
         adc WORLD_X_POSITION
-        sta $9F29                ; X pixel position low [7:0]
+        sta VERA_FX_X_POS_L       ; X pixel position low [7:0]
         .if(USE_TABLE_FILES)
             lda X_PIXEL_POSITIONS_IN_MAP_HIGH, x
         .else
@@ -688,7 +686,7 @@ tiled_perspective_copy_next_row_1:
         .else
             ora x_subpixel_positions_in_map_low, x
         .endif
-        sta $9F2A                ; X subpixel position[0], X pixel position high [10:8]
+        sta VERA_FX_X_POS_H        ; X subpixel position[0], X pixel position high [10:8]
         
         .if(USE_TABLE_FILES)
             lda Y_PIXEL_POSITIONS_IN_MAP_LOW, x
@@ -697,7 +695,7 @@ tiled_perspective_copy_next_row_1:
         .endif
         clc
         adc WORLD_Y_POSITION
-        sta $9F2B                ; Y pixel position low [7:0]
+        sta VERA_FX_Y_POS_L        ; Y pixel position low [7:0]
         .if(USE_TABLE_FILES)
             lda Y_PIXEL_POSITIONS_IN_MAP_HIGH, x
         .else
@@ -711,7 +709,7 @@ tiled_perspective_copy_next_row_1:
             ora y_subpixel_positions_in_map_low, x
         .endif
         ora #%01000000           ; Reset cache byte index = 1
-        sta $9F2C                ; Y subpixel position[0], Reset cache byte index = 1, Y pixel position high [10:8]
+        sta VERA_FX_Y_POS_H      ; Y subpixel position[0], Reset cache byte index = 1, Y pixel position high [10:8]
         
         
         ; Setting the sub position
@@ -724,32 +722,32 @@ tiled_perspective_copy_next_row_1:
         .else
             lda x_subpixel_positions_in_map_high, x
         .endif
-        sta $9F29                ; X subpixel increment [8:1]
+        sta VERA_FX_X_POS_S      ; X subpixel increment [8:1]
         
         .if(USE_TABLE_FILES)
             lda Y_SUBPIXEL_POSITIONS_IN_MAP_HIGH, x
         .else
             lda y_subpixel_positions_in_map_high, x
         .endif
-        sta $9F2A                ; Y subpixel increment [8:1]
+        sta VERA_FX_Y_POS_S      ; Y subpixel increment [8:1]
     
         bra done_setting_up_increments_and_positions
     
 setup_increment_and_positions_for_overview_map:
         ; We now set the increments
         lda x_sub_pixel_steps_low, x
-        sta $9F29                ; X increment low
+        sta VERA_FX_X_INCR_L     ; X increment low
         
         lda x_sub_pixel_steps_high, x
         ; Note: the x32 is packed into the table-data
-        sta $9F2A
+        sta VERA_FX_X_INCR_H
         
         lda y_sub_pixel_steps_low, x
-        sta $9F2B
+        sta VERA_FX_Y_INCR_L
         
         lda y_sub_pixel_steps_high, x
         ; Note: the x32 is packed into the table-data
-        sta $9F2C
+        sta VERA_FX_Y_INCR_H
             
         ; Setting the position
         
@@ -759,27 +757,23 @@ setup_increment_and_positions_for_overview_map:
         lda x_pixel_positions_in_map_low, x
         clc
         adc WORLD_X_POSITION
-        sta $9F29                ; X pixel position low [7:0]
+        sta VERA_FX_X_POS_L      ; X pixel position low [7:0]
         lda x_pixel_positions_in_map_high, x
         adc WORLD_X_POSITION+1
     ; FIXME: and #%00000111
         ora x_subpixel_positions_in_map_low, x
-        sta $9F2A                ; X subpixel position[0], X pixel position high [10:8]
+        sta VERA_FX_X_POS_H      ; X subpixel position[0], X pixel position high [10:8]
         
         lda y_pixel_positions_in_map_low, x
         clc
         adc WORLD_Y_POSITION
-        sta $9F2B                ; Y pixel position low [7:0]
+        sta VERA_FX_Y_POS_L      ; Y pixel position low [7:0]
         lda y_pixel_positions_in_map_high, x
         adc WORLD_Y_POSITION+1
     ; FIXME: and #%00000111
-        .if(USE_TABLE_FILES)
-            ora Y_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
-        .else
-            ora y_subpixel_positions_in_map_low, x
-        .endif
+        ora y_subpixel_positions_in_map_low, x
         ora #%01000000           ; Reset cache byte index = 1
-        sta $9F2C                ; Y subpixel position[0], Reset cache byte index = 1, Y pixel position high [10:8]
+        sta VERA_FX_Y_POS_H      ; Y subpixel position[0], Reset cache byte index = 1, Y pixel position high [10:8]
         
         
         ; Setting the sub position
@@ -788,10 +782,10 @@ setup_increment_and_positions_for_overview_map:
         sta VERA_CTRL
         
         lda x_subpixel_positions_in_map_high, x
-        sta $9F29                ; X subpixel increment [8:1]
+        sta VERA_FX_X_POS_S      ; X subpixel increment [8:1]
         
         lda y_subpixel_positions_in_map_high, x
-        sta $9F2A                ; Y subpixel increment [8:1]
+        sta VERA_FX_Y_POS_S      ; Y subpixel increment [8:1]
         
 done_setting_up_increments_and_positions:
 
@@ -819,7 +813,7 @@ done_tiled_perspective_copy:
     sta VERA_CTRL
     
     lda #%00000000  ; cache fill enabled = 0, blit write = 0, 8-bit mode, normal addr1-mode
-    sta $9F29
+    sta VERA_FX_CTRL
     
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
@@ -949,7 +943,7 @@ flat_tiles_fast:
     .else
         ora #%00000000  ; 0 for Repeat
     .endif
-    sta $9F2A
+    sta VERA_FX_TILEBASE
     
     lda #(MAPDATA_VRAM_ADDRESS >> 9)
     and #$FC   ; only the 6 highest bits of the address can be set
@@ -967,7 +961,7 @@ NON TILE LOOK MODE DOESNT EXIST ANYMORE
             .endif
         .endif
     .endif
-    sta $9F2B
+    sta VERA_FX_MAPBASE
     
     .if(DO_NO_TILE_LOOKUP)
 ; FIXME: there is no more mode without tile lookup!
@@ -982,20 +976,20 @@ NON TILE LOOK MODE DOESNT EXIST ANYMORE
     .if(USE_CACHE_FOR_WRITING)
         ora #%01000000  ; blit write = 1
     .endif
-    sta $9F29
+    sta VERA_FX_CTRL
     
     
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
     
     lda #0                   ; X increment low = 0
-    sta $9F29
+    sta VERA_FX_X_INCR_L
     lda #%00000010           ; X increment high = 10b
-    sta $9F2A
+    sta VERA_FX_X_INCR_H
     lda #00                  ; Y increment low = 0
-    sta $9F2B
+    sta VERA_FX_Y_INCR_L
     lda #%00000000           ; Y increment high = 0
-    sta $9F2C
+    sta VERA_FX_Y_INCR_H
 
     ldx #0
     
@@ -1026,19 +1020,19 @@ repetitive_copy_next_row_1:
     sta VERA_CTRL
     
     lda #0                   ; X pixel position low [7:0]
-    sta $9F29
+    sta VERA_FX_X_POS_L
     lda #0                   ; X subpixel position[0] = 0, X pixel position high [10:8]
-    sta $9F2A
+    sta VERA_FX_X_POS_H
 ;        lda #0                   ; Y pixel position low [7:0]
-;        sta $9F2B
+;        sta VERA_FX_Y_POS_L
 ; FIXME: We directly put register x in the x pixel position low atm
     txa
 ;    clc
 ;    adc #4
-    sta $9F2B
+    sta VERA_FX_Y_POS_L
 ;        lda #0                   ; Y pixel position high [10:8] = 0
     lda #%01000000           ; Y subpixel position[0] = 0, Reset cache byte index = 1, Y pixel position high [10:8] = 0
-    sta $9F2C
+    sta VERA_FX_Y_POS_H
     
     
     ; Copy one row of 256 pixels
@@ -1061,7 +1055,7 @@ repetitive_copy_next_row_1:
     sta VERA_CTRL
     
     lda #%00000000  ; cache fill enabled = 0, blit write = 0, 8-bit mode, normal addr1-mode
-    sta $9F29
+    sta VERA_FX_CTRL
     
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
