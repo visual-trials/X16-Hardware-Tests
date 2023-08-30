@@ -1,7 +1,7 @@
 
 USE_CACHE_FOR_WRITING = 1
 DO_4BIT = 0
-USE_TABLE_FILES = 0
+USE_TABLE_FILES = 1
 ; FIXME: there is no more non-tile-lookup mode!
 ; FIXME: there is no more non-tile-lookup mode!
 ; FIXME: there is no more non-tile-lookup mode!
@@ -87,7 +87,8 @@ TILEDATA_VRAM_ADDRESS = $18000  ; should be aligned to 1kB
     .endif
 
 DESTINATION_PICTURE_POS_X = 32
-DESTINATION_PICTURE_POS_Y = 30
+DESTINATION_PICTURE_POS_Y = 24
+DESTINATION_SND_PICTURE_POS_Y = 124
 
 DESTINATION_PICTURE_WIDTH = 256
 DESTINATION_PICTURE_HEIGHT = 80
@@ -153,6 +154,8 @@ WORLD_X_POSITION          = $50 ; 51
 WORLD_Y_POSITION          = $52 ; 53
 
 AFFINE_SETTINGS           = $60
+
+DO_DRAW_OVERVIEW_MAP      = $61
 
 ; RAM addresses
 ; FIXME: is there enough space for COPY_ROW_CODE?
@@ -267,9 +270,12 @@ reset:
             jsr COPY_TABLES_TO_BANKED_RAM
         .endif
         
+        lda #1
+        sta DO_DRAW_OVERVIEW_MAP
         jsr draw_overview_map
-; FIXME!
-;        jsr test_speed_of_tiled_perspective
+        
+        stz DO_DRAW_OVERVIEW_MAP
+        jsr test_speed_of_tiled_perspective
     .else    
         ; Test speed of flat tiles draws
         jsr test_speed_of_flat_tiles
@@ -313,8 +319,6 @@ draw_overview_map:
     
     ; FIXME: set variable that we have to use a SINGLE/STATIC shot (not the TABLE FILES!)
     
-    ; FIXME: set variable where (on screen) the overview map should be drawn!
-
     
     jsr tiled_perspective_fast
 
@@ -519,10 +523,19 @@ tiled_perspective_fast:
         lda #>(DESTINATION_PICTURE_POS_X/2+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
         sta VERA_ADDR_ZP_TO+1
     .else
+        lda DO_DRAW_OVERVIEW_MAP
+        beq setup_vram_for_dynamic_draw
+        lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_SND_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
+        sta VERA_ADDR_ZP_TO
+        lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_SND_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
+        sta VERA_ADDR_ZP_TO+1
+        bra setup_vram_done
+setup_vram_for_dynamic_draw:    
         lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
         sta VERA_ADDR_ZP_TO
         lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*NR_OF_BYTES_PER_LINE)
         sta VERA_ADDR_ZP_TO+1
+setup_vram_done:
     .endif
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
@@ -616,108 +629,171 @@ tiled_perspective_copy_next_row_1:
     ; lda #%00000110           ; DCSEL=3, ADDRSEL=0
     ; sta VERA_CTRL
     
+    lda DO_DRAW_OVERVIEW_MAP
+    bne setup_increment_and_positions_for_overview_map
     
-    ; We now set the increments
-    .if(USE_TABLE_FILES)
-        lda X_SUB_PIXEL_STEPS_LOW, x
-    .else
-        lda x_sub_pixel_steps_low, x
-    .endif
-    sta $9F29                ; X increment low
-    
-    .if(USE_TABLE_FILES)
-        lda X_SUB_PIXEL_STEPS_HIGH, x
-    .else
-        lda x_sub_pixel_steps_high, x
-    .endif
-    ; Note: the x32 is packed into the table-data
-    sta $9F2A
-    
-    .if(USE_TABLE_FILES)
-        lda Y_SUB_PIXEL_STEPS_LOW, x
-    .else
-        lda y_sub_pixel_steps_low, x
-    .endif
-    sta $9F2B
-    
-    .if(USE_TABLE_FILES)
-        lda Y_SUB_PIXEL_STEPS_HIGH, x
-    .else
-        lda y_sub_pixel_steps_high, x
-    .endif
-    ; Note: the x32 is packed into the table-data
-    sta $9F2C
+        ; We now set the increments
+        .if(USE_TABLE_FILES)
+            lda X_SUB_PIXEL_STEPS_LOW, x
+        .else
+            lda x_sub_pixel_steps_low, x
+        .endif
+        sta $9F29                ; X increment low
         
-    ; Setting the position
-    
-    lda #%00001001           ; DCSEL=4, ADDRSEL=1
-    sta VERA_CTRL
+        .if(USE_TABLE_FILES)
+            lda X_SUB_PIXEL_STEPS_HIGH, x
+        .else
+            lda x_sub_pixel_steps_high, x
+        .endif
+        ; Note: the x32 is packed into the table-data
+        sta $9F2A
+        
+        .if(USE_TABLE_FILES)
+            lda Y_SUB_PIXEL_STEPS_LOW, x
+        .else
+            lda y_sub_pixel_steps_low, x
+        .endif
+        sta $9F2B
+        
+        .if(USE_TABLE_FILES)
+            lda Y_SUB_PIXEL_STEPS_HIGH, x
+        .else
+            lda y_sub_pixel_steps_high, x
+        .endif
+        ; Note: the x32 is packed into the table-data
+        sta $9F2C
+            
+        ; Setting the position
+        
+        lda #%00001001           ; DCSEL=4, ADDRSEL=1
+        sta VERA_CTRL
 
-    .if(USE_TABLE_FILES)
-        lda X_PIXEL_POSITIONS_IN_MAP_LOW, x
-    .else
+        .if(USE_TABLE_FILES)
+            lda X_PIXEL_POSITIONS_IN_MAP_LOW, x
+        .else
+            lda x_pixel_positions_in_map_low, x
+        .endif
+        clc
+        adc WORLD_X_POSITION
+        sta $9F29                ; X pixel position low [7:0]
+        .if(USE_TABLE_FILES)
+            lda X_PIXEL_POSITIONS_IN_MAP_HIGH, x
+        .else
+            lda x_pixel_positions_in_map_high, x
+        .endif
+        adc WORLD_X_POSITION+1
+    ; FIXME: and #%00000111
+        .if(USE_TABLE_FILES)
+            ora X_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
+        .else
+            ora x_subpixel_positions_in_map_low, x
+        .endif
+        sta $9F2A                ; X subpixel position[0], X pixel position high [10:8]
+        
+        .if(USE_TABLE_FILES)
+            lda Y_PIXEL_POSITIONS_IN_MAP_LOW, x
+        .else
+            lda y_pixel_positions_in_map_low, x
+        .endif
+        clc
+        adc WORLD_Y_POSITION
+        sta $9F2B                ; Y pixel position low [7:0]
+        .if(USE_TABLE_FILES)
+            lda Y_PIXEL_POSITIONS_IN_MAP_HIGH, x
+        .else
+            lda y_pixel_positions_in_map_high, x
+        .endif
+        adc WORLD_Y_POSITION+1
+    ; FIXME: and #%00000111
+        .if(USE_TABLE_FILES)
+            ora Y_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
+        .else
+            ora y_subpixel_positions_in_map_low, x
+        .endif
+        ora #%01000000           ; Reset cache byte index = 1
+        sta $9F2C                ; Y subpixel position[0], Reset cache byte index = 1, Y pixel position high [10:8]
+        
+        
+        ; Setting the sub position
+        
+        lda #%00001011           ; DCSEL=5, ADDRSEL=1
+        sta VERA_CTRL
+        
+        .if(USE_TABLE_FILES)
+            lda X_SUBPIXEL_POSITIONS_IN_MAP_HIGH, x
+        .else
+            lda x_subpixel_positions_in_map_high, x
+        .endif
+        sta $9F29                ; X subpixel increment [8:1]
+        
+        .if(USE_TABLE_FILES)
+            lda Y_SUBPIXEL_POSITIONS_IN_MAP_HIGH, x
+        .else
+            lda y_subpixel_positions_in_map_high, x
+        .endif
+        sta $9F2A                ; Y subpixel increment [8:1]
+    
+        bra done_setting_up_increments_and_positions
+    
+setup_increment_and_positions_for_overview_map:
+        ; We now set the increments
+        lda x_sub_pixel_steps_low, x
+        sta $9F29                ; X increment low
+        
+        lda x_sub_pixel_steps_high, x
+        ; Note: the x32 is packed into the table-data
+        sta $9F2A
+        
+        lda y_sub_pixel_steps_low, x
+        sta $9F2B
+        
+        lda y_sub_pixel_steps_high, x
+        ; Note: the x32 is packed into the table-data
+        sta $9F2C
+            
+        ; Setting the position
+        
+        lda #%00001001           ; DCSEL=4, ADDRSEL=1
+        sta VERA_CTRL
+
         lda x_pixel_positions_in_map_low, x
-    .endif
-    clc
-    adc WORLD_X_POSITION
-    sta $9F29                ; X pixel position low [7:0]
-    .if(USE_TABLE_FILES)
-        lda X_PIXEL_POSITIONS_IN_MAP_HIGH, x
-    .else
+        clc
+        adc WORLD_X_POSITION
+        sta $9F29                ; X pixel position low [7:0]
         lda x_pixel_positions_in_map_high, x
-    .endif
-    adc WORLD_X_POSITION+1
-; FIXME: and #%00000111
-    .if(USE_TABLE_FILES)
-        ora X_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
-    .else
+        adc WORLD_X_POSITION+1
+    ; FIXME: and #%00000111
         ora x_subpixel_positions_in_map_low, x
-    .endif
-    sta $9F2A                ; X subpixel position[0], X pixel position high [10:8]
-    
-    .if(USE_TABLE_FILES)
-        lda Y_PIXEL_POSITIONS_IN_MAP_LOW, x
-    .else
+        sta $9F2A                ; X subpixel position[0], X pixel position high [10:8]
+        
         lda y_pixel_positions_in_map_low, x
-    .endif
-    clc
-    adc WORLD_Y_POSITION
-    sta $9F2B                ; Y pixel position low [7:0]
-    .if(USE_TABLE_FILES)
-        lda Y_PIXEL_POSITIONS_IN_MAP_HIGH, x
-    .else
+        clc
+        adc WORLD_Y_POSITION
+        sta $9F2B                ; Y pixel position low [7:0]
         lda y_pixel_positions_in_map_high, x
-    .endif
-    adc WORLD_Y_POSITION+1
-; FIXME: and #%00000111
-    .if(USE_TABLE_FILES)
-        ora Y_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
-    .else
-        ora y_subpixel_positions_in_map_low, x
-    .endif
-    ora #%01000000           ; Reset cache byte index = 1
-    sta $9F2C                ; Y subpixel position[0], Reset cache byte index = 1, Y pixel position high [10:8]
-    
-    
-    ; Setting the sub position
-    
-    lda #%00001011           ; DCSEL=5, ADDRSEL=1
-    sta VERA_CTRL
-    
-    .if(USE_TABLE_FILES)
-        lda X_SUBPIXEL_POSITIONS_IN_MAP_HIGH, x
-    .else
+        adc WORLD_Y_POSITION+1
+    ; FIXME: and #%00000111
+        .if(USE_TABLE_FILES)
+            ora Y_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
+        .else
+            ora y_subpixel_positions_in_map_low, x
+        .endif
+        ora #%01000000           ; Reset cache byte index = 1
+        sta $9F2C                ; Y subpixel position[0], Reset cache byte index = 1, Y pixel position high [10:8]
+        
+        
+        ; Setting the sub position
+        
+        lda #%00001011           ; DCSEL=5, ADDRSEL=1
+        sta VERA_CTRL
+        
         lda x_subpixel_positions_in_map_high, x
-    .endif
-    sta $9F29                ; X subpixel increment [8:1]
-    
-    .if(USE_TABLE_FILES)
-        lda Y_SUBPIXEL_POSITIONS_IN_MAP_HIGH, x
-    .else
+        sta $9F29                ; X subpixel increment [8:1]
+        
         lda y_subpixel_positions_in_map_high, x
-    .endif
-    sta $9F2A                ; Y subpixel increment [8:1]
-    
+        sta $9F2A                ; Y subpixel increment [8:1]
+        
+done_setting_up_increments_and_positions:
 
     ; Copy one row of 256 pixels
     jsr COPY_ROW_CODE
