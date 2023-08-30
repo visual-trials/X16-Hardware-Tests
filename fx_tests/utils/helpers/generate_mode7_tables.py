@@ -16,7 +16,7 @@ purple_color = (200,0,200)
 do_draw_orig = True
 do_draw_sim = False
 # FIXME: disable this to create tables!
-do_single_angle = False
+do_single_angle = True
 do_draw_border_lines = False
 do_clip = False
 
@@ -100,11 +100,14 @@ def run():
     all_angles_y_sub_pixel_steps_low = []
     all_angles_y_sub_pixel_steps_high = []
 
+    angle_start = 0
     angle_max = 256
     if do_single_angle:
+        angle_start = 0
         angle_max = 1 # This is a workaround/hack to make sure only one angle is drawn/generated
-    for angle_index in range(angle_max):
-
+        
+    for angle_index in range(angle_start, angle_max):
+    
         x_subpixel_positions_in_map_low = []
         x_subpixel_positions_in_map_high = []
         y_subpixel_positions_in_map_low = []
@@ -120,22 +123,31 @@ def run():
         y_sub_pixel_steps_low = []
         y_sub_pixel_steps_high = []
 
-        
         width = 256
-#        width = 192
         half_width = width // 2
         left_margin = (screen_width - width) // 2
 
-#        scaling = 96
-#        scaling = 80  # = height?
-        scaling = 20
-#        scaling = 64  # = height?
-# FIXME: we should let start_y = 0 and end_y = 80 and INSTEAD is the appropiate *horizon*!
-        start_y = 32 - 16 - 12 
-        end_y = 112 - 16 - 12 
-#        end_y = 96 - 16
+        start_y = 0
+        end_y = 80
+
+        if do_single_angle:
+            angle = math.pi * 0.0
+            # angle = math.pi * -0.07
+            # angle = math.pi * 0.05
+            
+            horizon = 100
+            fov = 300
+            scaling = 780
+            
+            
+        else:
+            horizon = 4
+            fov = 256
+            scaling = 20
+            angle = math.pi*2 * (angle_index / angle_max)
+
+        
         for y in range(start_y, end_y):
-    #    for y in range(16, 80):
     
             start_sx = None
             sx_rotated = None
@@ -143,21 +155,7 @@ def run():
             sub_pixel_increment_x = None
             sub_pixel_increment_y = None
             for x in range(-half_width, half_width):
-            
-                horizon = 0.001
-# FOV = half_width??
-# FOV = half_width??
-# FOV = half_width??
-                fov = 256
-#                fov = half_width
                 
-                if do_single_angle:
-                    angle = math.pi * -0.07
-                    # angle = math.pi * 0.05
-                    # angle = math.pi * 0.0
-                else:
-                    angle = math.pi*2 * (angle_index / angle_max)
-
                 px = x
                 py = fov
                 pz = y + horizon
@@ -186,7 +184,7 @@ def run():
                         pixel_color = black_color
                     else:
                         pixel_color = color_by_index[texture[int(sy_rotated * scaling) % map_pixel_height][int(sx_rotated * scaling) % map_pixel_width]]
-                    pygame.draw.rect(screen, pixel_color, pygame.Rect((x+half_width+ left_margin)*2, y*2, 2, 2))  # , width=border_width
+                    pygame.draw.rect(screen, pixel_color, pygame.Rect((x+half_width+ left_margin)*2, (y+16)*2, 2, 2))  # , width=border_width
                 
                 previous_sx_rotated = sx_rotated
                 previous_sy_rotated = sy_rotated

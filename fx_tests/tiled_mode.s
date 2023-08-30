@@ -1,7 +1,7 @@
 
 USE_CACHE_FOR_WRITING = 1
 DO_4BIT = 0
-USE_TABLE_FILES = 1
+USE_TABLE_FILES = 0
 ; FIXME: there is no more non-tile-lookup mode!
 ; FIXME: there is no more non-tile-lookup mode!
 ; FIXME: there is no more non-tile-lookup mode!
@@ -12,7 +12,7 @@ DRAW_TILED_PERSPECTIVE = 1  ; Otherwise FLAT tiles
 MOVE_XY_POSITION = 0
 TURN_AROUND = 0
 MOVE_SLOWLY = 0
-DEBUG_LEDS = 1
+DEBUG_LEDS = 0
 
     .if(DO_NO_TILE_LOOKUP)
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
@@ -176,8 +176,13 @@ PALLETE           = $D000
 PIXELS            = $D200
 TILEMAP           = $E200
 
+    .if(USE_TABLE_FILES)
 TILEMAP_ROM_BANK  = 25   ; Our tilemap starts at ROM Bank 25
 TILEDATA_ROM_BANK = 26   ; Our tiledata starts at ROM Bank 26
+    .else
+TILEMAP_ROM_BANK  = 1   ; Our tilemap starts at ROM Bank 1
+TILEDATA_ROM_BANK = 2   ; Our tiledata starts at ROM Bank 2
+    .endif
 
 
   .org $C000
@@ -248,7 +253,17 @@ reset:
     
     .if(DRAW_TILED_PERSPECTIVE)
         ; Test speed of perspective style transformation
-        jsr test_speed_of_tiled_perspective
+        
+        jsr generate_copy_row_code
+        
+        .if(USE_TABLE_FILES)
+            jsr copy_table_copier_to_ram
+            jsr COPY_TABLES_TO_BANKED_RAM
+        .endif
+        
+        jsr draw_overview_map
+; FIXME!
+;        jsr test_speed_of_tiled_perspective
     .else    
         ; Test speed of flat tiles draws
         jsr test_speed_of_flat_tiles
@@ -275,29 +290,53 @@ output_debug_leds:
     .endif
     rts
 
+; ====================================== OVERVIEW MAP ========================================
+    
+draw_overview_map:
+
+    lda #128
+    sta WORLD_X_POSITION
+    lda #1
+    sta WORLD_X_POSITION+1
+    
+    lda #150
+    sta WORLD_Y_POSITION
+    lda #0
+    sta WORLD_Y_POSITION+1
     
     
+    ; FIXME: set variable that we have to use a SINGLE/STATIC shot (not the TABLE FILES!)
+    
+    ; FIXME: set variable where (on screen) the overview map should be drawn!
+
+    
+    jsr tiled_perspective_fast
+
+
+    rts
+    
+; ==================================== / OVERVIEW MAP ========================================
+
 ; ====================================== TILED PERSPECTIVE SPEED TEST ========================================
   
 test_speed_of_tiled_perspective:
 
-    jsr generate_copy_row_code
+    ; -- Initial world position --
+    
+    lda #128
+;    lda #$D0
+    sta WORLD_X_POSITION
+    lda #3
+;    lda #$FF
+    sta WORLD_X_POSITION+1
+    
+    lda #100
+    sta WORLD_Y_POSITION
+    lda #0
+    sta WORLD_Y_POSITION+1
     
     .if(USE_TABLE_FILES)
-        jsr copy_table_copier_to_ram
-        jsr COPY_TABLES_TO_BANKED_RAM
-        
-; FIXME: we need an init_world routine!
-        lda #$D0
-        sta WORLD_X_POSITION
-        lda #$FF
-        sta WORLD_X_POSITION+1
-        
-        lda #100
-        sta WORLD_Y_POSITION
-        lda #0
-        sta WORLD_Y_POSITION+1
-        
+    
         lda #0
 ;        lda #210
 ;        lda #60
@@ -306,6 +345,8 @@ move_or_turn_around:
         lda VIEWING_ANGLE
         sta RAM_BANK
 
+        ; FIXME: set variable that we have to use a DYNAMIC shot (using the TABLE FILES!)
+        
         jsr tiled_perspective_fast
 
         .if(TURN_AROUND)
@@ -355,20 +396,18 @@ wait_a_bit_2:
         
         lda #5
         sta CURSOR_X
-        lda #4
+        lda #2
         sta CURSOR_Y
 
         if (DO_4BIT)
-; FIXME: we now draw 256x80 pixels!
-            lda #<tiled_perspective_192x64_4bpp_message
+            lda #<tiled_perspective_256x80_4bpp_message
             sta TEXT_TO_PRINT
-            lda #>tiled_perspective_192x64_4bpp_message
+            lda #>tiled_perspective_256x80_4bpp_message
             sta TEXT_TO_PRINT + 1
         .else
-; FIXME: we now draw 256x80 pixels!
-            lda #<tiled_perspective_192x64_8bpp_message
+            lda #<tiled_perspective_256x80_8bpp_message
             sta TEXT_TO_PRINT
-            lda #>tiled_perspective_192x64_8bpp_message
+            lda #>tiled_perspective_256x80_8bpp_message
             sta TEXT_TO_PRINT + 1
         .endif
         
@@ -409,10 +448,10 @@ wait_a_bit_2:
     
 
 
-tiled_perspective_192x64_8bpp_message: 
-    .asciiz "Tiled perspective 192x64 (8bpp) "
-tiled_perspective_192x64_4bpp_message: 
-    .asciiz "Tiled perspective 192x64 (4bpp) "
+tiled_perspective_256x80_8bpp_message: 
+    .asciiz "Tiled perspective 256x80 (8bpp) "
+tiled_perspective_256x80_4bpp_message: 
+    .asciiz "Tiled perspective 256x80 (4bpp) "
 
     
 ; For tiled perspective we need to set the x and y coordinate within the tilemap for each pixel row on the screen. 
@@ -420,30 +459,30 @@ tiled_perspective_192x64_4bpp_message:
 ; We generated this using the python script (see same folder) and put the data here.
     
 x_subpixel_positions_in_map_low:
-    .byte 0,0,0,0,128,0,128,0,0,0,0,128,128,0,128,0,0,128,128,128,0,0,128,128,128,128,128,0,0,128,128,0,128,0,128,0,128,128,0,0,0,128,128,0,128,0,128,0,0,128,0,0,0,128,0,0,128,0,128,0,128,0,0,128
+    .byte 128,0,0,128,0,128,128,0,0,0,0,0,0,128,128,0,0,128,128,0,0,0,128,128,128,128,0,128,0,128,0,128,128,128,128,128,128,128,128,0,0,0,128,0,128,128,0,128,128,128,0,128,0,0,0,128,0,128,128,0,0,0,0,0,0,128,128,128,128,0,128,128,128,128,128,0,0,128,128,0
 x_subpixel_positions_in_map_high:
-    .byte 130,122,115,230,51,171,139,11,85,143,216,75,255,8,118,90,191,177,59,101,56,186,241,228,152,17,84,100,69,249,132,233,41,72,70,39,235,148,37,157,255,75,131,168,186,188,172,141,95,34,216,129,29,173,50,172,27,129,220,47,120,185,242,34
+    .byte 153,124,45,173,0,36,28,234,142,9,93,138,146,117,53,211,79,170,229,2,0,224,163,74,214,71,158,219,0,11,0,220,162,82,236,113,225,61,133,186,219,234,230,209,170,114,42,208,103,238,102,206,40,115,176,222,0,19,25,19,0,224,180,124,56,232,141,39,182,59,180,35,136,227,52,124,186,238,25,60
 y_subpixel_positions_in_map_low:
-    .byte 0,128,0,0,0,128,0,128,128,128,0,0,128,0,0,128,0,128,128,0,0,0,128,128,128,128,128,128,128,0,0,128,128,128,128,0,128,0,128,128,128,0,128,0,128,0,128,128,0,128,128,0,128,128,0,0,0,0,128,128,128,0,128,0
+    .byte 0,0,128,128,0,128,128,128,0,0,0,0,128,0,0,128,0,128,128,0,128,128,128,128,0,0,0,128,128,128,0,128,128,128,0,128,0,128,0,128,0,128,128,128,0,128,128,128,0,128,0,128,128,128,128,128,0,128,128,0,0,0,0,128,128,0,128,0,128,0,128,0,128,0,0,0,0,0,128,128
 y_subpixel_positions_in_map_high:
-    .byte 8,37,92,249,57,78,98,149,4,198,240,146,186,118,208,209,131,235,17,251,173,44,123,159,155,114,38,186,48,138,202,241,1,252,226,182,119,40,200,89,220,82,186,23,103,173,232,25,65,95,117,131,136,134,125,109,86,57,21,236,189,137,79,17
+    .byte 0,43,225,39,0,109,115,21,85,54,186,228,182,52,94,55,194,255,242,157,255,29,247,143,231,0,219,122,223,11,0,189,69,153,187,170,105,248,89,139,146,108,28,162,0,52,66,41,235,135,0,84,134,150,132,82,0,141,252,77,128,149,142,106,43,209,92,205,36,98,135,148,136,102,44,219,116,247,100,188
 x_pixel_positions_in_map_low:
-    .byte 189,216,240,5,25,42,58,73,86,98,109,120,129,139,147,155,162,169,176,182,188,193,198,203,208,213,217,221,225,228,232,235,239,242,245,248,250,253,0,2,4,7,9,11,13,15,17,19,21,23,24,26,28,29,31,32,34,35,36,38,39,40,41,43
+    .byte 161,171,181,190,200,209,218,226,235,244,252,4,12,20,28,35,43,50,57,65,72,78,85,92,98,105,111,117,124,130,136,141,147,153,158,164,169,175,180,185,190,195,200,205,210,215,220,224,229,233,238,242,247,251,255,3,8,12,16,20,24,27,31,35,39,42,46,50,53,57,60,64,67,70,74,77,80,83,87,90
 x_pixel_positions_in_map_high:
-    .byte 6,6,6,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 4,4,4,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6
 y_pixel_positions_in_map_low:
-    .byte 101,118,133,146,159,170,180,189,198,205,212,219,225,231,236,241,246,250,255,2,6,10,13,16,19,22,25,27,30,32,34,36,39,40,42,44,46,48,49,51,52,54,55,57,58,59,60,62,63,64,65,66,67,68,69,70,71,72,73,73,74,75,76,77
+    .byte 100,123,145,168,190,211,232,253,17,37,56,75,94,113,131,149,166,183,200,217,233,250,9,25,40,56,70,85,99,114,128,141,155,168,181,194,207,219,232,244,0,12,24,35,47,58,69,80,90,101,112,122,132,142,152,162,172,181,190,200,209,218,227,236,245,253,6,14,23,31,39,47,55,63,71,78,86,93,101,108
 y_pixel_positions_in_map_high:
-    .byte 7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 7,7,7,7,7,7,7,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3
 x_sub_pixel_steps_low:
-    .byte 206,88,240,147,62,242,173,110,52,255,205,160,118,78,41,7,231,201,172,145,120,96,73,51,31,11,249,231,214,198,183,168,154,140,127,115,102,91,80,69,59,49,39,30,20,12,3,251,243,235,228,221,214,207,200,194,188,182,176,170,164,159,153,148
+    .byte 153,114,75,37,255,219,183,148,113,79,46,13,237,206,175,144,114,85,56,27,255,228,201,174,148,122,97,72,48,23,255,232,209,186,164,142,120,99,77,57,36,16,252,232,213,194,175,156,138,120,102,84,67,50,33,16,255,239,223,207,192,176,161,146,131,116,101,87,73,59,45,31,17,4,247,234,221,208,195,183
 x_sub_pixel_steps_high:
-    .byte 7,7,6,6,6,5,5,5,5,4,4,4,4,4,4,4,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+    .byte 15,15,15,15,14,14,14,14,14,14,14,14,13,13,13,13,13,13,13,13,12,12,12,12,12,12,12,12,12,12,11,11,11,11,11,11,11,11,11,11,11,11,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,8,8,8,8,8,8
 y_sub_pixel_steps_low:
-    .byte 66,92,115,136,155,172,188,202,215,227,238,248,1,10,18,26,33,40,46,52,58,63,68,73,78,82,86,90,94,98,101,104,108,111,114,116,119,122,124,127,129,131,133,135,137,139,141,143,145,147,148,150,151,153,154,156,157,159,160,161,162,164,165,166
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 y_sub_pixel_steps_high:
-    .byte 126,126,126,126,126,126,126,126,126,126,126,126,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127,127
-   
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    
     
 tiled_perspective_fast:
 
@@ -610,18 +649,18 @@ tiled_perspective_copy_next_row_1:
 
     .if(USE_TABLE_FILES)
         lda X_PIXEL_POSITIONS_IN_MAP_LOW, x
-        clc
-        adc WORLD_X_POSITION
     .else
         lda x_pixel_positions_in_map_low, x
     .endif
+    clc
+    adc WORLD_X_POSITION
     sta $9F29                ; X pixel position low [7:0]
     .if(USE_TABLE_FILES)
         lda X_PIXEL_POSITIONS_IN_MAP_HIGH, x
-        adc WORLD_X_POSITION+1
     .else
         lda x_pixel_positions_in_map_high, x
     .endif
+    adc WORLD_X_POSITION+1
 ; FIXME: and #%00000111
     .if(USE_TABLE_FILES)
         ora X_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
@@ -632,18 +671,18 @@ tiled_perspective_copy_next_row_1:
     
     .if(USE_TABLE_FILES)
         lda Y_PIXEL_POSITIONS_IN_MAP_LOW, x
-        clc
-        adc WORLD_Y_POSITION
     .else
         lda y_pixel_positions_in_map_low, x
     .endif
+    clc
+    adc WORLD_Y_POSITION
     sta $9F2B                ; Y pixel position low [7:0]
     .if(USE_TABLE_FILES)
         lda Y_PIXEL_POSITIONS_IN_MAP_HIGH, x
-        adc WORLD_Y_POSITION+1
     .else
         lda y_pixel_positions_in_map_high, x
     .endif
+    adc WORLD_Y_POSITION+1
 ; FIXME: and #%00000111
     .if(USE_TABLE_FILES)
         ora Y_SUBPIXEL_POSITIONS_IN_MAP_LOW, x
@@ -2656,30 +2695,30 @@ irq:
     .word irq
     
     .if(USE_TABLE_FILES)
-    .binary "fx_tests/tables/x_subpixel_positions_in_map_low1.bin"
-    .binary "fx_tests/tables/x_subpixel_positions_in_map_low2.bin"
-    .binary "fx_tests/tables/x_subpixel_positions_in_map_high1.bin"
-    .binary "fx_tests/tables/x_subpixel_positions_in_map_high2.bin"
-    .binary "fx_tests/tables/y_subpixel_positions_in_map_low1.bin"
-    .binary "fx_tests/tables/y_subpixel_positions_in_map_low2.bin"
-    .binary "fx_tests/tables/y_subpixel_positions_in_map_high1.bin"
-    .binary "fx_tests/tables/y_subpixel_positions_in_map_high2.bin"
-    .binary "fx_tests/tables/x_pixel_positions_in_map_low1.bin"
-    .binary "fx_tests/tables/x_pixel_positions_in_map_low2.bin"
-    .binary "fx_tests/tables/x_pixel_positions_in_map_high1.bin"
-    .binary "fx_tests/tables/x_pixel_positions_in_map_high2.bin"
-    .binary "fx_tests/tables/y_pixel_positions_in_map_low1.bin"
-    .binary "fx_tests/tables/y_pixel_positions_in_map_low2.bin"
-    .binary "fx_tests/tables/y_pixel_positions_in_map_high1.bin"
-    .binary "fx_tests/tables/y_pixel_positions_in_map_high2.bin"
-    .binary "fx_tests/tables/x_sub_pixel_steps_low1.bin"
-    .binary "fx_tests/tables/x_sub_pixel_steps_low2.bin"
-    .binary "fx_tests/tables/x_sub_pixel_steps_high1.bin"
-    .binary "fx_tests/tables/x_sub_pixel_steps_high2.bin"
-    .binary "fx_tests/tables/y_sub_pixel_steps_low1.bin"
-    .binary "fx_tests/tables/y_sub_pixel_steps_low2.bin"
-    .binary "fx_tests/tables/y_sub_pixel_steps_high1.bin"
-    .binary "fx_tests/tables/y_sub_pixel_steps_high2.bin"
+        .binary "fx_tests/tables/x_subpixel_positions_in_map_low1.bin"
+        .binary "fx_tests/tables/x_subpixel_positions_in_map_low2.bin"
+        .binary "fx_tests/tables/x_subpixel_positions_in_map_high1.bin"
+        .binary "fx_tests/tables/x_subpixel_positions_in_map_high2.bin"
+        .binary "fx_tests/tables/y_subpixel_positions_in_map_low1.bin"
+        .binary "fx_tests/tables/y_subpixel_positions_in_map_low2.bin"
+        .binary "fx_tests/tables/y_subpixel_positions_in_map_high1.bin"
+        .binary "fx_tests/tables/y_subpixel_positions_in_map_high2.bin"
+        .binary "fx_tests/tables/x_pixel_positions_in_map_low1.bin"
+        .binary "fx_tests/tables/x_pixel_positions_in_map_low2.bin"
+        .binary "fx_tests/tables/x_pixel_positions_in_map_high1.bin"
+        .binary "fx_tests/tables/x_pixel_positions_in_map_high2.bin"
+        .binary "fx_tests/tables/y_pixel_positions_in_map_low1.bin"
+        .binary "fx_tests/tables/y_pixel_positions_in_map_low2.bin"
+        .binary "fx_tests/tables/y_pixel_positions_in_map_high1.bin"
+        .binary "fx_tests/tables/y_pixel_positions_in_map_high2.bin"
+        .binary "fx_tests/tables/x_sub_pixel_steps_low1.bin"
+        .binary "fx_tests/tables/x_sub_pixel_steps_low2.bin"
+        .binary "fx_tests/tables/x_sub_pixel_steps_high1.bin"
+        .binary "fx_tests/tables/x_sub_pixel_steps_high2.bin"
+        .binary "fx_tests/tables/y_sub_pixel_steps_low1.bin"
+        .binary "fx_tests/tables/y_sub_pixel_steps_low2.bin"
+        .binary "fx_tests/tables/y_sub_pixel_steps_high1.bin"
+        .binary "fx_tests/tables/y_sub_pixel_steps_high2.bin"
     .endif
     .if(!DO_NO_TILE_LOOKUP && USE_MARIO_MAP_AND_TILES && !DO_4BIT)
         .binary "fx_tests/textures/SnesMarioKart/mario_tile_map.bin"
