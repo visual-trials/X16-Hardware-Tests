@@ -193,6 +193,17 @@ DELTA_Y                   = $68 ; 69
 DELTA_Y_SUB               = $6A
 
 
+; ---------- RAM addresses used during LOADING of SD files ------
+    .ifndef CREATE_PRG
+SOURCE_TABLE_ADDRESS     = $C000
+    .else
+DOS_BANK0_BACKUP         = $5000  ; We use this part of memory to backup $B000-BF00 (used by DOS) to be able to load SD files
+SOURCE_TABLE_ADDRESS     = $5F00
+    .endif
+; ---------------------------------------------------------------
+
+; ------------ RAM addresses used during the DEMO ---------------
+
 
 KEYBOARD_KEY_CODE_BUFFER = $76E0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
 KEYBOARD_STATE           = $7700   ; 128 bytes (state for each key of the keyboard)
@@ -201,10 +212,14 @@ KEYBOARD_EVENTS          = $7780   ; 128 bytes (event for each key of the keyboa
 ; RAM addresses
 ; FIXME: is there enough space for COPY_ROW_CODE?
 COPY_ROW_CODE               = $7800
+    .ifndef CREATE_PRG
 COPY_TABLES_TO_BANKED_RAM   = $8000
 COPY_TILEMAP_TO_HIGH_VRAM   = $8100  ; TODO: this can probably re-use the other copier memory
 COPY_TILEDATA_TO_HIGH_VRAM  = $8200  ; TODO: this can probably re-use the other copier memory
+    .endif
 
+
+; === Banked RAM addresses ===
 
 
 X_SUBPIXEL_POSITIONS_IN_MAP_LOW        = $A000
@@ -219,6 +234,10 @@ X_SUB_PIXEL_STEPS_LOW                  = $A800
 X_SUB_PIXEL_STEPS_HIGH                 = $A900
 Y_SUB_PIXEL_STEPS_LOW                  = $AA00
 Y_SUB_PIXEL_STEPS_HIGH                 = $AB00
+
+BITMAP_TEXT              = $AC00
+BITMAP = BITMAP_TEXT
+
 
 
 ; ROM addresses
@@ -235,10 +254,14 @@ TILEDATA_ROM_BANK = 2   ; Our tiledata starts at ROM Bank 2
     .endif
 
 
-  .org $C000
+    .include utils/build_as_prg_or_rom.s
 
 reset:
 
+    .ifdef CREATE_PRG
+        .include fx_tests/utils/check_for_vera_fx_firmware.s
+    .endif
+    
     ; Disable interrupts 
     sei
     
@@ -287,12 +310,20 @@ reset:
         jsr copy_texture_pixels_as_tile_pixels_to_high_vram
     .else
         .if(USE_MARIO_MAP_AND_TILES)
-            ; We are copying a large tilemap and tiledata here, so we have to use a ROM bank
-            jsr copy_tiledata_copier_to_ram
-            jsr COPY_TILEDATA_TO_HIGH_VRAM
+            .ifndef CREATE_PRG
+                ; We are copying a large tilemap and tiledata here, so we have to use a ROM bank
+                jsr copy_tiledata_copier_to_ram
+                jsr COPY_TILEDATA_TO_HIGH_VRAM
+            .else
+FIXME!
+            .endif
         
-            jsr copy_tilemap_copier_to_ram
-            jsr COPY_TILEMAP_TO_HIGH_VRAM
+            .ifndef CREATE_PRG
+                jsr copy_tilemap_copier_to_ram
+                jsr COPY_TILEMAP_TO_HIGH_VRAM
+            .else
+FIXME!
+            .endif
             
             jsr copy_mario_on_kart_pixels_to_high_vram
             jsr copy_kart_palette
@@ -2357,15 +2388,17 @@ left_down_right_keys_data:
     .include utils/setup_vera_for_bitmap_and_tilemap.s
     .include fx_tests/utils/math.s
 
-    ; ======== NMI / IRQ =======
+    .ifndef CREATE_PRG
+        ; ======== NMI / IRQ =======
 nmi:
-    ; TODO: implement this
-    ; FIXME: ugly hack!
-    jmp reset
-    rti
+        ; TODO: implement this
+        ; FIXME: ugly hack!
+        jmp reset
+        rti
    
 irq:
-    rti
+        rti
+    .endif
     
     
 PALLETE:
@@ -3358,46 +3391,50 @@ mario_on_kart_palette:
   .byte $0e, $00 ; #0c
 
     
-    ; ======== PETSCII CHARSET =======
+    .ifndef CREATE_PRG
+        ; ======== PETSCII CHARSET =======
 
-    .org $F700
-    .include "utils/petscii.s"
-    
-    
+        .org $F700
+        .include "utils/petscii.s"
+        
+        
 
-    .org $fffa
-    .word nmi
-    .word reset
-    .word irq
-    
-    .if(USE_TABLE_FILES)
-        .binary "fx_tests/tables/x_subpixel_positions_in_map_low1.bin"
-        .binary "fx_tests/tables/x_subpixel_positions_in_map_low2.bin"
-        .binary "fx_tests/tables/x_subpixel_positions_in_map_high1.bin"
-        .binary "fx_tests/tables/x_subpixel_positions_in_map_high2.bin"
-        .binary "fx_tests/tables/y_subpixel_positions_in_map_low1.bin"
-        .binary "fx_tests/tables/y_subpixel_positions_in_map_low2.bin"
-        .binary "fx_tests/tables/y_subpixel_positions_in_map_high1.bin"
-        .binary "fx_tests/tables/y_subpixel_positions_in_map_high2.bin"
-        .binary "fx_tests/tables/x_pixel_positions_in_map_low1.bin"
-        .binary "fx_tests/tables/x_pixel_positions_in_map_low2.bin"
-        .binary "fx_tests/tables/x_pixel_positions_in_map_high1.bin"
-        .binary "fx_tests/tables/x_pixel_positions_in_map_high2.bin"
-        .binary "fx_tests/tables/y_pixel_positions_in_map_low1.bin"
-        .binary "fx_tests/tables/y_pixel_positions_in_map_low2.bin"
-        .binary "fx_tests/tables/y_pixel_positions_in_map_high1.bin"
-        .binary "fx_tests/tables/y_pixel_positions_in_map_high2.bin"
-        .binary "fx_tests/tables/x_sub_pixel_steps_low1.bin"
-        .binary "fx_tests/tables/x_sub_pixel_steps_low2.bin"
-        .binary "fx_tests/tables/x_sub_pixel_steps_high1.bin"
-        .binary "fx_tests/tables/x_sub_pixel_steps_high2.bin"
-        .binary "fx_tests/tables/y_sub_pixel_steps_low1.bin"
-        .binary "fx_tests/tables/y_sub_pixel_steps_low2.bin"
-        .binary "fx_tests/tables/y_sub_pixel_steps_high1.bin"
-        .binary "fx_tests/tables/y_sub_pixel_steps_high2.bin"
+        .org $fffa
+        .word nmi
+        .word reset
+        .word irq
     .endif
-    .if(!DO_NO_TILE_LOOKUP && USE_MARIO_MAP_AND_TILES && !DO_4BIT)
-        .binary "fx_tests/textures/SnesMarioKart/mario_tile_map.bin"
-        .binary "fx_tests/textures/SnesMarioKart/mario_tile_pixel_data.bin"  ; WARNING!! ONLY 11kB!!
+    
+    .ifndef CREATE_PRG
+        .if(USE_TABLE_FILES)
+            .binary "fx_tests/tables/x_subpixel_positions_in_map_low1.bin"
+            .binary "fx_tests/tables/x_subpixel_positions_in_map_low2.bin"
+            .binary "fx_tests/tables/x_subpixel_positions_in_map_high1.bin"
+            .binary "fx_tests/tables/x_subpixel_positions_in_map_high2.bin"
+            .binary "fx_tests/tables/y_subpixel_positions_in_map_low1.bin"
+            .binary "fx_tests/tables/y_subpixel_positions_in_map_low2.bin"
+            .binary "fx_tests/tables/y_subpixel_positions_in_map_high1.bin"
+            .binary "fx_tests/tables/y_subpixel_positions_in_map_high2.bin"
+            .binary "fx_tests/tables/x_pixel_positions_in_map_low1.bin"
+            .binary "fx_tests/tables/x_pixel_positions_in_map_low2.bin"
+            .binary "fx_tests/tables/x_pixel_positions_in_map_high1.bin"
+            .binary "fx_tests/tables/x_pixel_positions_in_map_high2.bin"
+            .binary "fx_tests/tables/y_pixel_positions_in_map_low1.bin"
+            .binary "fx_tests/tables/y_pixel_positions_in_map_low2.bin"
+            .binary "fx_tests/tables/y_pixel_positions_in_map_high1.bin"
+            .binary "fx_tests/tables/y_pixel_positions_in_map_high2.bin"
+            .binary "fx_tests/tables/x_sub_pixel_steps_low1.bin"
+            .binary "fx_tests/tables/x_sub_pixel_steps_low2.bin"
+            .binary "fx_tests/tables/x_sub_pixel_steps_high1.bin"
+            .binary "fx_tests/tables/x_sub_pixel_steps_high2.bin"
+            .binary "fx_tests/tables/y_sub_pixel_steps_low1.bin"
+            .binary "fx_tests/tables/y_sub_pixel_steps_low2.bin"
+            .binary "fx_tests/tables/y_sub_pixel_steps_high1.bin"
+            .binary "fx_tests/tables/y_sub_pixel_steps_high2.bin"
+        .endif
+        .if(!DO_NO_TILE_LOOKUP && USE_MARIO_MAP_AND_TILES && !DO_4BIT)
+            .binary "fx_tests/textures/SnesMarioKart/mario_tile_map.bin"
+            .binary "fx_tests/textures/SnesMarioKart/mario_tile_pixel_data.bin"  ; WARNING!! ONLY 11kB!!
+        .endif
     .endif
     
