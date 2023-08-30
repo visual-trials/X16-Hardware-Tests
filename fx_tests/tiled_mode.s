@@ -83,10 +83,15 @@ VSPACING = 10
     .if(USE_MARIO_MAP_AND_TILES && !DO_4BIT)
 MAPDATA_VRAM_ADDRESS = $13000   ; should be aligned to 1kB
 TILEDATA_VRAM_ADDRESS = $17000  ; should be aligned to 1kB
+KARTDATA_VRAM_ADDRESS = $12C00  ; right after the bitmap of 320x240 (32x24 pixels = 1024 pixels)
+KART_WIDTH = 32
+KART_HEIGHT = 24
     .else
 MAPDATA_VRAM_ADDRESS = $17000   ; should be aligned to 1kB
 TILEDATA_VRAM_ADDRESS = $18000  ; should be aligned to 1kB
     .endif
+
+
 
 DESTINATION_PICTURE_POS_X = 32
 DESTINATION_PICTURE_POS_Y = 24
@@ -94,6 +99,9 @@ DESTINATION_SND_PICTURE_POS_Y = 124
 
 DESTINATION_PICTURE_WIDTH = 256
 DESTINATION_PICTURE_HEIGHT = 80
+
+
+
 
 ; Mode7 projection: 
 ;    https://www.coranac.com/tonc/text/mode7.htm
@@ -284,6 +292,13 @@ reset:
         
             jsr copy_tilemap_copier_to_ram
             jsr COPY_TILEMAP_TO_HIGH_VRAM
+            
+            jsr copy_mario_on_kart_pixels_to_high_vram
+            jsr copy_kart_palette
+; FIXME: enable the sprite LATER!
+; FIXME: enable the sprite LATER!
+; FIXME: enable the sprite LATER!
+            jsr setup_mario_on_kart_sprite
         .else
             jsr copy_tiledata_to_high_vram
             jsr copy_tilemap_to_high_vram
@@ -1559,6 +1574,153 @@ next_packed_color2:
 
     
     .if(USE_MARIO_MAP_AND_TILES && !DO_4BIT)
+    
+    
+; IMPORTANT: this this be called *AFTER* copy_palette!
+copy_kart_palette:
+
+    ; Starting at palette VRAM address: at palette 200
+
+    lda #%00010001      ; setting bit 16 of vram address to 1, setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+
+    lda #<(VERA_PALETTE+208*2)
+    sta VERA_ADDR_LOW
+    lda #>(VERA_PALETTE+208*2)
+    sta VERA_ADDR_HIGH
+
+    ldy #0
+next_kart_packed_color:
+    lda mario_on_kart_palette, y
+    sta VERA_DATA0
+    iny
+    cpy #13                      ; FIXME: hardcoded amount of colors 
+    bne next_kart_packed_color
+
+    rts
+
+
+copy_mario_on_kart_pixels_to_high_vram:  
+
+    lda #<mario_on_kart_pixels
+    sta DATA_PTR_ZP
+    lda #>mario_on_kart_pixels
+    sta DATA_PTR_ZP+1 
+
+    ; TODO: we are ASSUMING here that KARTDATA_VRAM_ADDRESS has its bit16 set to 1!!
+    lda #%00010001      ; setting bit 16 of vram address to the highest bit in the tilebase (=1), setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+    lda #<(KARTDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_LOW
+    lda #>(KARTDATA_VRAM_ADDRESS)
+    sta VERA_ADDR_HIGH
+    
+    ldx #0
+next_kart_pixel_row_high_vram:  
+
+    ldy #0
+next_kart_horizontal_pixel_high_vram:
+    lda (DATA_PTR_ZP),y
+
+    sta VERA_DATA0
+
+    iny
+    cpy #KART_WIDTH
+    bne next_kart_horizontal_pixel_high_vram
+    inx
+    
+    ; Adding KART_WIDTH to the previous data address
+    clc
+    lda DATA_PTR_ZP
+    adc #KART_WIDTH
+    sta DATA_PTR_ZP
+    lda DATA_PTR_ZP+1
+    adc #0
+    sta DATA_PTR_ZP+1
+
+    cpx #KART_HEIGHT
+    bne next_kart_pixel_row_high_vram
+    
+    
+    ; Filling in the bottom with 00 pixels (to 32 pixel height)
+
+    ldx #0
+next_kart_zero_pixel_row_high_vram:  
+
+    ldy #0
+next_kart_zero_horizontal_pixel_high_vram:
+    stz VERA_DATA0
+
+    iny
+    cpy #KART_WIDTH
+    bne next_kart_zero_horizontal_pixel_high_vram
+    inx
+    
+    ; Adding KART_WIDTH to the previous data address
+    clc
+    lda DATA_PTR_ZP
+    adc #KART_WIDTH
+    sta DATA_PTR_ZP
+    lda DATA_PTR_ZP+1
+    adc #0
+    sta DATA_PTR_ZP+1
+
+    cpx #32-KART_HEIGHT
+    bne next_kart_zero_pixel_row_high_vram
+    
+    
+    rts
+
+
+setup_mario_on_kart_sprite:
+
+    lda #%00010001      ; setting bit 16 of vram address to 1, setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+
+    ; NOTE: we are using sprite #1 here (not #0)
+    lda #<(VERA_SPRITES+1*8)
+    sta VERA_ADDR_LOW
+    lda #>(VERA_SPRITES+1*8)
+    sta VERA_ADDR_HIGH
+    
+    ; Address (12:5)
+    lda #<(KARTDATA_VRAM_ADDRESS>>5)
+    sta VERA_DATA0
+
+    ; Mode,	-	, Address (16:13)
+    lda #<(KARTDATA_VRAM_ADDRESS>>13)
+    ora #%10000000 ; 8bpp
+    sta VERA_DATA0
+    
+    ; X (7:0)
+    lda #<(160-11)
+    sta VERA_DATA0
+    
+    ; X (9:8)
+    lda #0
+    sta VERA_DATA0
+
+    ; Y (7:0)
+    lda #<(70)
+    sta VERA_DATA0
+
+    ; X (9:8)
+    lda #0
+    sta VERA_DATA0
+    
+    ; Collision mask	Z-depth	V-flip	H-flip
+    lda #%00001100 ; z-depth = 3
+    sta VERA_DATA0
+
+    ; Sprite height,	Sprite width,	Palette offset
+    lda #%10101101 ; 32x32, 13*16 = 208 palette offset
+    sta VERA_DATA0
+    
+    
+    rts
+    
+    
+    
     
 copy_tiledata_copier_to_ram:
 
@@ -3020,6 +3182,49 @@ irq:
       .endif
     .endif
   .endif
+
+    ; Picture of Mario on Kart (22x24px) -> made 32x24 with 5px padding on the left and right
+    
+mario_on_kart_pixels:
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $0a, $0a, $0a, $0a, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $0a, $0a, $02, $02, $02, $02, $0a, $0a, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $0a, $02, $02, $02, $02, $02, $02, $02, $02, $0a, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $0a, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $0a, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $0a, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $0a, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $0a, $03, $03, $02, $02, $02, $02, $02, $02, $02, $02, $03, $03, $0a, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $0a, $04, $0a, $03, $03, $03, $03, $03, $03, $03, $03, $03, $03, $0a, $04, $0a, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $0a, $04, $04, $0a, $03, $03, $03, $03, $03, $03, $03, $03, $0a, $04, $04, $0a, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $0a, $05, $04, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $04, $05, $0a, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $0a, $05, $04, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $04, $05, $0a, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $0a, $05, $04, $0a, $0a, $0a, $0a, $0a, $0a, $04, $05, $0a, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $0a, $0a, $05, $05, $02, $02, $02, $02, $05, $05, $0a, $0a, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $0a, $02, $02, $0b, $0b, $02, $02, $02, $02, $0b, $0b, $02, $02, $0a, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $0a, $02, $02, $02, $0c, $0c, $0a, $0a, $0a, $0a, $0c, $0c, $02, $02, $02, $0a, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $0a, $03, $02, $03, $0c, $0a, $04, $04, $04, $04, $0a, $0c, $03, $02, $03, $0a, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $0a, $03, $0a, $0a, $04, $05, $05, $05, $05, $04, $0a, $0a, $03, $0a, $00, $00, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $00, $09, $09, $09, $09, $0a, $04, $05, $05, $05, $05, $05, $05, $04, $0a, $09, $09, $09, $09, $00, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $0a, $0a, $0a, $0a, $0c, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $0c, $0a, $0a, $0a, $0a, $00, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $0a, $08, $08, $08, $08, $0a, $0a, $07, $07, $07, $07, $07, $07, $07, $07, $0a, $0a, $08, $08, $08, $08, $0a, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $0a, $09, $09, $09, $09, $0a, $07, $0a, $06, $06, $06, $06, $06, $06, $0a, $07, $0a, $09, $09, $09, $09, $0a, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $0a, $0a, $0a, $0a, $0a, $0a, $07, $0a, $07, $07, $07, $07, $07, $07, $0a, $07, $0a, $0a, $0a, $0a, $0a, $0a, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $0a, $0a, $0a, $0a, $0a, $0a, $07, $0a, $01, $06, $06, $06, $06, $01, $0a, $07, $0a, $0a, $0a, $0a, $0a, $0a, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $0a, $0a, $0a, $0a, $0a, $0a, $03, $03, $07, $07, $07, $07, $07, $07, $03, $03, $0a, $0a, $0a, $0a, $0a, $0a, $00, $00, $00, $00, $00
+  .byte $00, $00, $00, $00, $00, $00, $0a, $0a, $0a, $0a, $00, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $0a, $00, $0a, $0a, $0a, $0a, $00, $00, $00, $00, $00, $00
+
+mario_on_kart_palette:
+  .byte $f0, $0f  ; dummy color (yellow) = transparant
+  .byte $00, $00
+  .byte $00, $0f
+  .byte $00, $0a
+  .byte $a8, $0e
+  .byte $75, $0a
+  .byte $77, $07
+  .byte $ee, $0c
+  .byte $66, $04
+  .byte $44, $02
+  .byte $22, $00
+  .byte $8f, $00
+  .byte $0e, $00
 
     
     ; ======== PETSCII CHARSET =======
