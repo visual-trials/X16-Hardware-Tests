@@ -333,21 +333,21 @@ test_speed_of_tiled_perspective:
 
     ; -- Initial world position --
     
-    lda #128
+    lda #32+20
 ;    lda #$D0
     sta WORLD_X_POSITION
     lda #3
 ;    lda #$FF
     sta WORLD_X_POSITION+1
     
-    lda #100
+    lda #97
     sta WORLD_Y_POSITION
-    lda #0
+    lda #2
     sta WORLD_Y_POSITION+1
     
     .if(USE_TABLE_FILES)
     
-        lda #0
+        lda #128-7
 ;        lda #210
 ;        lda #60
         sta VIEWING_ANGLE
