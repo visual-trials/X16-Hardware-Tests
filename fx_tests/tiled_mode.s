@@ -197,7 +197,6 @@ DELTA_Y_SUB               = $6A
     .ifndef CREATE_PRG
 SOURCE_TABLE_ADDRESS     = $C000
     .else
-DOS_BANK0_BACKUP         = $5000  ; We use this part of memory to backup $B000-BF00 (used by DOS) to be able to load SD files
 SOURCE_TABLE_ADDRESS     = $5F00
     .endif
 ; ---------------------------------------------------------------
@@ -205,9 +204,9 @@ SOURCE_TABLE_ADDRESS     = $5F00
 ; ------------ RAM addresses used during the DEMO ---------------
 
 
-KEYBOARD_KEY_CODE_BUFFER = $76E0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
-KEYBOARD_STATE           = $7700   ; 128 bytes (state for each key of the keyboard)
-KEYBOARD_EVENTS          = $7780   ; 128 bytes (event for each key of the keyboard)
+KEYBOARD_KEY_CODE_BUFFER = $5DE0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
+KEYBOARD_STATE           = $5E00   ; 128 bytes (state for each key of the keyboard)
+KEYBOARD_EVENTS          = $5E80   ; 128 bytes (event for each key of the keyboard)
 
 ; RAM addresses
 ; FIXME: is there enough space for COPY_ROW_CODE?
@@ -309,20 +308,31 @@ reset:
     .if(DO_NO_TILE_LOOKUP)
         jsr copy_texture_pixels_as_tile_pixels_to_high_vram
     .else
+        .if(USE_TABLE_FILES)
+            .ifndef CREATE_PRG
+                jsr copy_table_copier_to_ram
+                jsr COPY_TABLES_TO_BANKED_RAM
+            .else
+                jsr copy_tables_to_banked_ram
+            .endif
+        .endif
+        
         .if(USE_MARIO_MAP_AND_TILES)
             .ifndef CREATE_PRG
                 ; We are copying a large tilemap and tiledata here, so we have to use a ROM bank
                 jsr copy_tiledata_copier_to_ram
                 jsr COPY_TILEDATA_TO_HIGH_VRAM
             .else
-FIXME!
+;FIXME! 
+;                jsr copy_tiledata_to_high_vram
             .endif
         
             .ifndef CREATE_PRG
                 jsr copy_tilemap_copier_to_ram
                 jsr COPY_TILEMAP_TO_HIGH_VRAM
             .else
-FIXME!
+;FIXME! 
+;                jsr copy_tilemap_to_high_vram
             .endif
             
             jsr copy_mario_on_kart_pixels_to_high_vram
@@ -344,11 +354,6 @@ FIXME!
         ; Test speed of perspective style transformation
         
         jsr generate_copy_row_code
-        
-        .if(USE_TABLE_FILES)
-            jsr copy_table_copier_to_ram
-            jsr COPY_TABLES_TO_BANKED_RAM
-        .endif
         
         lda #1
         sta DO_DRAW_OVERVIEW_MAP
@@ -1799,21 +1804,28 @@ setup_mario_on_kart_sprite:
     rts
     
     
+    .ifdef CREATE_PRG
+        
+; FIXME: load file!
+        
+    .else
+
     
     
 copy_tiledata_copier_to_ram:
 
-    ; Copying copy_tiledata_to_high_vram -> COPY_TILEDATA_TO_HIGH_VRAM
-    
-    ldy #0
+        ; Copying copy_tiledata_to_high_vram -> COPY_TILEDATA_TO_HIGH_VRAM
+        
+        ldy #0
 copy_tiledata_to_high_vram_byte:
-    lda copy_tiledata_to_high_vram, y
-    sta COPY_TILEDATA_TO_HIGH_VRAM, y
-    iny 
-    cpy #(end_of_copy_tiledata_to_high_vram-copy_tiledata_to_high_vram)
-    bne copy_tiledata_to_high_vram_byte
+        lda copy_tiledata_to_high_vram, y
+        sta COPY_TILEDATA_TO_HIGH_VRAM, y
+        iny 
+        cpy #(end_of_copy_tiledata_to_high_vram-copy_tiledata_to_high_vram)
+        bne copy_tiledata_to_high_vram_byte
 
-    rts
+        rts
+    .endif
 
 copy_tiledata_to_high_vram:    
     
@@ -2014,19 +2026,27 @@ next_horizontal_tile_pixel_high_vram:
     
     .if(USE_MARIO_MAP_AND_TILES && !DO_4BIT)
     
+    
+        .ifdef CREATE_PRG
+        
+; FIXME: load file!
+        
+        .else
+
 copy_tilemap_copier_to_ram:
 
-    ; Copying copy_tilemap_to_high_vram -> COPY_TILEMAP_TO_HIGH_VRAM
-    
-    ldy #0
+            ; Copying copy_tilemap_to_high_vram -> COPY_TILEMAP_TO_HIGH_VRAM
+            
+            ldy #0
 copy_tilemap_to_high_vram_byte:
-    lda copy_tilemap_to_high_vram, y
-    sta COPY_TILEMAP_TO_HIGH_VRAM, y
-    iny 
-    cpy #(end_of_copy_tilemap_to_high_vram-copy_tilemap_to_high_vram)
-    bne copy_tilemap_to_high_vram_byte
+            lda copy_tilemap_to_high_vram, y
+            sta COPY_TILEMAP_TO_HIGH_VRAM, y
+            iny 
+            cpy #(end_of_copy_tilemap_to_high_vram-copy_tilemap_to_high_vram)
+            bne copy_tilemap_to_high_vram_byte
 
-    rts
+            rts
+        .endif
 
 copy_tilemap_to_high_vram:    
     
@@ -2140,21 +2160,67 @@ next_horizontal_tile_high_vram:
     .endif
     
     
+    .ifdef CREATE_PRG
+
+pers_filename:      .byte    "TBL/PERS-A.BIN" 
+end_pers_filename:
+
+; This will load a DIV table using the TABLE_ROM_BANK (which starts at 1)
+load_perspective_table:
+
+        clc
+        lda #'A'                  ; 'A' = $41
+        adc TABLE_ROM_BANK
+        
+        ; This is a bit a of HACK/WORKAROUD: we are subtracting again from TABLE_ROM_BANK (so it always starts with 1)
+        sec
+        sbc #1                    ; since the TABLE_ROM_BANK starts at 1, we substract 1 from it
+        
+        sta end_pers_filename-5 ; 5 characters from the end is the 'a'
+
+        lda #(end_pers_filename-pers_filename) ; Length of filename
+        ldx #<pers_filename      ; Low byte of Fname address
+        ldy #>pers_filename      ; High byte of Fname address
+        jsr SETNAM
+     
+        lda #1            ; Logical file number
+        ldx #8            ; Device 8 = sd card
+        ldy #2            ; 0=ignore address in bin file (2 first bytes)
+                          ; 1=use address in bin file
+                          ; 2=?use address in bin file? (and dont add first 2 bytes?)
+        jsr SETLFS
+     
+        lda #0
+        ldx #<SOURCE_TABLE_ADDRESS
+        ldy #>SOURCE_TABLE_ADDRESS
+        jsr LOAD
+        bcc perspective_table_file_loaded
+; FIXME: do proper error handling!
+        stp
+        lda TABLE_ROM_BANK
+        
+perspective_table_file_loaded:
+
+        rts
+
+    .else
     
 ; NOTE: we are now using ROM banks to contain tables. We need to copy those textures to Banked RAM, but have to run that copy-code in Fixed RAM.
 copy_table_copier_to_ram:
 
-    ; Copying copy_tables_to_banked_ram -> COPY_TABLES_TO_BANKED_RAM
-    
-    ldy #0
+        ; Copying copy_tables_to_banked_ram -> COPY_TABLES_TO_BANKED_RAM
+        
+        ldy #0
 copy_tables_to_banked_ram_byte:
-    lda copy_tables_to_banked_ram, y
-    sta COPY_TABLES_TO_BANKED_RAM, y
-    iny 
-    cpy #(end_of_copy_tables_to_banked_ram-copy_tables_to_banked_ram)
-    bne copy_tables_to_banked_ram_byte
+        lda copy_tables_to_banked_ram, y
+        sta COPY_TABLES_TO_BANKED_RAM, y
+        iny 
+        cpy #(end_of_copy_tables_to_banked_ram-copy_tables_to_banked_ram)
+        bne copy_tables_to_banked_ram_byte
 
-    rts
+        rts
+        
+    .endif
     
 ; FIXME: this is UGLY!
 copy_tables_to_banked_ram:
@@ -2174,9 +2240,9 @@ next_table_to_copy:
     sta TMP1             ; We store it here for now
 
   
-    lda #<($C000)        ; Our source table starts at C000
+    lda #<SOURCE_TABLE_ADDRESS
     sta LOAD_ADDRESS
-    lda #>($C000)
+    lda #>SOURCE_TABLE_ADDRESS
     sta LOAD_ADDRESS+1
 
     lda #<($A000)        ; We store at Ax00
@@ -2185,12 +2251,16 @@ next_table_to_copy:
     lda #>($A000)
     adc TMP1
     sta STORE_ADDRESS+1
-
-    ; Switching ROM BANK
-    lda TABLE_ROM_BANK
-    sta ROM_BANK
+    
+    .ifndef CREATE_PRG
+        ; Switching ROM BANK
+        lda TABLE_ROM_BANK
+        sta ROM_BANK
 ; FIXME: remove nop!
-    nop
+        nop
+    .else
+        jsr load_perspective_table
+    .endif
 
     lda TABLE_ROM_BANK
     and #%00000001      ; check if its even or odd
@@ -2266,11 +2336,13 @@ rom_bank_loaded:
     cmp #25               ; we go from 1-24 so we need to stop at 25
     bne next_table_to_copy
 
-    ; Switching back to ROM bank 0
-    lda #$00
-    sta ROM_BANK
+    .ifndef CREATE_PRG
+        ; Switching back to ROM bank 0
+        lda #$00
+        sta ROM_BANK
 ; FIXME: remove nop!
-    nop
+        nop
+    .endif
    
     rts
 end_of_copy_tables_to_banked_ram:
