@@ -23,6 +23,9 @@ MOVE_SLOWLY = 0
 USE_KEYBOARD_INPUT = 1
 DEBUG_LEDS = 0
 
+DRAW_BITMAP_TEXT = 1
+DRAW_CURSOR_KEYS = 1
+
     .if(DO_NO_TILE_LOOKUP)
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
 COLOR_TEXT  = $03       ; Background color = 0 (transparent), foreground color 3 (white in this palette)
@@ -148,12 +151,13 @@ VERA_ADDR_ZP_TO           = $2D ; 2E
 
 ; FIXME: these are leftovers of memory tests in the general hardware tester (needed by utils.s atm). We dont use them, but cant remove them right now
 BANK_TESTING              = $32   
-BAD_VALUE                 = $3A
+BAD_VALUE                 = $33
 
-CODE_ADDRESS              = $3B ; 3C
+CODE_ADDRESS              = $36 ; 37
 
-LOAD_ADDRESS              = $3D ; 3E
-STORE_ADDRESS             = $3F ; 40
+LOAD_ADDRESS              = $38 ; 39
+STORE_ADDRESS             = $3A ; 3B
+VRAM_ADDRESS              = $3C ; 3D ; 3E
 
 TABLE_ROM_BANK            = $41
 VIEWING_ANGLE             = $42
@@ -191,6 +195,15 @@ DELTA_X                   = $65 ; 66
 DELTA_X_SUB               = $67
 DELTA_Y                   = $68 ; 69
 DELTA_Y_SUB               = $6A
+
+BITMAP_RAM_BANK_START      = $78
+CHARACTER_INDEX_TO_DRAW    = $79
+BITMAP_TEXT_TO_DRAW        = $7A ; 7B
+BITMAP_TO_DRAW = BITMAP_TEXT_TO_DRAW
+BITMAP_TEXT_LENGTH         = $7C
+BITMAP_TEXT_LENGTH_PIXELS = BITMAP_TEXT_LENGTH
+BITMAP_WIDTH_PIXELS        = $7D
+BITMAP_HEIGHT_PIXELS       = $7E
 
 
 ; ---------- RAM addresses used during LOADING of SD files ------
@@ -344,6 +357,79 @@ reset:
             jsr copy_tilemap_to_high_vram
         .endif
     .endif
+    
+    
+; FIXME: is this the correct place?
+    .if(DRAW_BITMAP_TEXT)
+        ; -- FIRMWARE VERSION --
+    
+        jsr copy_vera_firmware_version
+        
+        lda #end_of_vera_firmware_version_text-vera_firmware_version_text
+        sta BITMAP_TEXT_LENGTH
+        
+        lda #<vera_firmware_version_text
+        sta BITMAP_TEXT_TO_DRAW
+        lda #>vera_firmware_version_text
+        sta BITMAP_TEXT_TO_DRAW+1
+        
+        lda #FIRMWARE_RAM_BANK_START
+        sta BITMAP_RAM_BANK_START
+        
+        jsr generate_text_as_bitmap_in_banked_ram
+        
+        ; -- DEMO TITLE --
+        
+        lda #end_of_demo_title_text-demo_title_text
+        sta BITMAP_TEXT_LENGTH
+        
+        lda #<demo_title_text
+        sta BITMAP_TEXT_TO_DRAW
+        lda #>demo_title_text
+        sta BITMAP_TEXT_TO_DRAW+1
+        
+        lda #DEMO_TITLE_RAM_BANK_START
+        sta BITMAP_RAM_BANK_START
+        
+        jsr generate_text_as_bitmap_in_banked_ram
+        
+    .endif
+    .if(DRAW_CURSOR_KEYS)
+    
+        lda #<left_down_right_keys_data
+        sta BITMAP_TO_DRAW
+        lda #>left_down_right_keys_data
+        sta BITMAP_TO_DRAW+1
+    
+        lda #LEFT_DOWN_RIGHT_KEY_RAM_BANK_START
+        sta BITMAP_RAM_BANK_START
+        
+        lda #LEFT_DOWN_RIGHT_KEY_HEIGHT_PIXELS
+        sta BITMAP_HEIGHT_PIXELS
+        
+        lda #LEFT_DOWN_RIGHT_KEY_WIDTH_PIXELS
+        sta BITMAP_WIDTH_PIXELS
+        
+        jsr copy_bitmap_to_banked_ram
+        
+        lda #<up_key_data
+        sta BITMAP_TO_DRAW
+        lda #>up_key_data
+        sta BITMAP_TO_DRAW+1
+        
+        lda #UP_KEY_RAM_BANK_START
+        sta BITMAP_RAM_BANK_START
+        
+        lda #UP_KEY_HEIGHT_PIXELS
+        sta BITMAP_HEIGHT_PIXELS
+        
+        lda #UP_KEY_WIDTH_PIXELS
+        sta BITMAP_WIDTH_PIXELS
+        
+        jsr copy_bitmap_to_banked_ram
+    
+    .endif
+    
     
     lda #6
     jsr output_debug_leds
@@ -674,9 +760,15 @@ down_arrow_key_down_handled:
         
         .endif
         
+
         ; FIXME: set variable that we have to use a DYNAMIC shot (using the TABLE FILES!)
         
         jsr tiled_perspective_fast
+
+        .if(DRAW_BITMAP_TEXT)
+            jsr draw_all_bitmap_texts
+            jsr draw_cursor_keys
+        .endif
 
         .if(TURN_AROUND)
             inc VIEWING_ANGLE
@@ -2411,6 +2503,77 @@ end_of_copy_tables_to_banked_ram:
     
     
     
+    ; --------------------------------- BITMAP TEXTS --------------------------------------
+    
+FIRMWARE_X_POS = 10
+FIRMWARE_Y_POS = 20
+FIRMWARE_RAM_BANK_START = 0
+vera_firmware_version_text:
+    .byte 22, 5, 18, 1, 0, 6, 9, 18, 13, 23, 1, 18, 5, 0, 22, 27, 37, 27, 37, 27 ; "VERA FIRMWARE V0.0.0"
+end_of_vera_firmware_version_text:
+
+DEMO_TITLE_X_POS = 10
+DEMO_TITLE_Y_POS = 10
+DEMO_TITLE_RAM_BANK_START = 10
+demo_title_text:
+    .byte 6, 24, 0, 4, 5, 13, 15, 38, 0, 39, 13, 1, 18, 9, 15, 0, 11, 1, 18, 20, 39 ; 'FX DEMO: "MARIO KART"'
+end_of_demo_title_text:
+
+    ; ------------------------------- / BITMAP TEXTS --------------------------------------
+
+
+    ; --------------------------------- BITMAPS --------------------------------------
+    
+; FIXME: this might be lower if less than 3 bitmap texts are drawn!
+LEFT_DOWN_RIGHT_KEY_RAM_BANK_START = 15
+LEFT_DOWN_RIGHT_KEY_Y_POS = 175
+LEFT_DOWN_RIGHT_KEY_X_POS = 260
+    
+UP_KEY_RAM_BANK_START = 15+13
+UP_KEY_Y_POS = 175-14
+UP_KEY_X_POS = 260+14
+
+    ; ------------------------------- / BITMAPS --------------------------------------
+
+    
+draw_all_bitmap_texts:
+
+    ; -- FIRMWARE VERSION --
+
+    lda #FIRMWARE_RAM_BANK_START
+    sta BITMAP_RAM_BANK_START
+    
+    lda #(end_of_vera_firmware_version_text-vera_firmware_version_text)*6
+    sta BITMAP_TEXT_LENGTH_PIXELS
+
+    lda #<(320*FIRMWARE_Y_POS+FIRMWARE_X_POS)
+    sta VRAM_ADDRESS
+    lda #>(320*FIRMWARE_Y_POS+FIRMWARE_X_POS)
+    sta VRAM_ADDRESS+1
+
+    jsr draw_bitmap_text_to_screen
+    
+    ; -- DEMO TITLE --
+
+    lda #DEMO_TITLE_RAM_BANK_START
+    sta BITMAP_RAM_BANK_START
+    
+    lda #(end_of_demo_title_text-demo_title_text)*6
+    sta BITMAP_TEXT_LENGTH_PIXELS
+
+    lda #<(320*DEMO_TITLE_Y_POS+DEMO_TITLE_X_POS)
+    sta VRAM_ADDRESS
+    lda #>(320*DEMO_TITLE_Y_POS+DEMO_TITLE_X_POS)
+    sta VRAM_ADDRESS+1
+
+    jsr draw_bitmap_text_to_screen
+
+    rts
+
+    
+
+    
+    
     
 ; Python script to generate sine and cosine bytes: for CAMERA displacement (and also for directional movement)
 ;   import math
@@ -2521,6 +2684,7 @@ left_down_right_keys_data:
     .include utils/timing.s
     .include utils/setup_vera_for_bitmap_and_tilemap.s
     .include fx_tests/utils/math.s
+    .include fx_tests/utils/demo.s
 
     .ifndef CREATE_PRG
         ; ======== NMI / IRQ =======
