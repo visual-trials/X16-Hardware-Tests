@@ -312,6 +312,104 @@ draw_bitmap_text_next_character_line:
     rts
     
     
+    .if(USE_POLYGON_FILLER_FOR_BITMAP)
+    
+draw_bitmap_to_screen_using_polygon_filler:
+
+; FIXME: SPEED this is setup each time this routine is called. 
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+
+    lda VRAM_ADDRESS
+    sta VERA_ADDR_LOW
+    lda VRAM_ADDRESS+1
+    sta VERA_ADDR_HIGH
+    lda #%11100000           ; Setting auto-increment value to 320 byte increment (=%1110)
+    ora VRAM_ADDRESS+2
+    sta VERA_ADDR_BANK
+
+    ; Entering *polygon fill mode* 
+    lda #%00000010           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, polygon filler mode 
+    sta VERA_FX_CTRL
+
+    ; Setting all increments to 0
+    
+    lda #%00000110           ; DCSEL=3, ADDRSEL=0
+    sta VERA_CTRL
+
+    stz VERA_FX_X_INCR_L
+    stz VERA_FX_X_INCR_H
+    stz VERA_FX_Y_INCR_L
+    stz VERA_FX_Y_INCR_H
+    
+    ; Setting the X-position
+    
+    lda #%00001001           ; DCSEL=4, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda BITMAP_X_POS
+    sta VERA_FX_X_POS_L      ; X (=X1) pixel position low [7:0]
+    sta VERA_FX_Y_POS_L      ; Y (=X2) pixel position low [7:0]
+    lda BITMAP_X_POS+1
+    sta VERA_FX_X_POS_H      ; X subpixel position[0] = 0, X (=X1) pixel position high [10:8]
+    sta VERA_FX_Y_POS_H      ; Y subpixel position[0] = 0, Y (=X2) pixel position high [10:8]
+
+    ; Setting auto-increment value to 1 byte increment for ADDR1
+    
+    lda #%00010000           
+    sta VERA_ADDR_BANK
+
+    ; Setup source bitmap data
+    
+    lda BITMAP_RAM_BANK_START
+    sta RAM_BANK
+    
+    lda #<BITMAP
+    sta LOAD_ADDRESS
+    lda #>BITMAP
+    sta LOAD_ADDRESS+1
+    
+    ; Setup for drawing pixels
+    
+    lda #%00001011           ; DCSEL=5, ADDRSEL=1
+    sta VERA_CTRL
+    
+    ; Draw rows of pixels
+    
+    ldx BITMAP_HEIGHT_PIXELS
+draw_bitmap_next_line:
+    
+    lda VERA_DATA1          ; This will do three things (inside of VERA): 
+                            ;   1) Increment the X1 and X2 positions.   -> they are 0, so nothing happens!
+                            ;   2) Calculate the fill_length value (= x2 - x1) -> we are not using it!
+                            ;   3) Set ADDR1 to ADDR0 + X1
+                            
+    ldy #0
+draw_bitmap_next_pixel:
+    lda (LOAD_ADDRESS),y
+    sta VERA_DATA1
+    iny
+    cpy BITMAP_WIDTH_PIXELS
+    bne draw_bitmap_next_pixel
+    
+    lda VERA_DATA0   ; this will increment ADDR0 with 320 bytes (= +1 vertically)
+    
+    inc RAM_BANK
+    
+    dex
+    bne draw_bitmap_next_line
+
+; FIXME: SPEED: can we remove this?
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00010000           ; Setting auto-increment value to 1 byte increment
+    sta VERA_ADDR_BANK
+
+    rts
+    
+    .else
+    
 draw_bitmap_to_screen:
 
 ; FIXME: SPEED this is setup each time this routine is called. 
@@ -371,6 +469,8 @@ draw_bitmap_next_pixel:
 
     rts
     
+    .endif
+    
 
 draw_cursor_keys:
 
@@ -385,12 +485,28 @@ draw_cursor_keys:
     lda #UP_KEY_WIDTH_PIXELS
     sta BITMAP_WIDTH_PIXELS
     
-    lda #<(320*UP_KEY_Y_POS+UP_KEY_X_POS)
-    sta VRAM_ADDRESS
-    lda #>(320*UP_KEY_Y_POS+UP_KEY_X_POS)
-    sta VRAM_ADDRESS+1
+    .if(USE_POLYGON_FILLER_FOR_BITMAP)
+        lda #<(320*UP_KEY_Y_POS)
+        sta VRAM_ADDRESS
+        lda #>(320*UP_KEY_Y_POS)
+        sta VRAM_ADDRESS+1
+        lda #((320*UP_KEY_Y_POS)>>16)
+        sta VRAM_ADDRESS+2
+        
+        lda #<UP_KEY_X_POS
+        sta BITMAP_X_POS
+        lda #>UP_KEY_X_POS
+        sta BITMAP_X_POS+1
     
-    jsr draw_bitmap_to_screen
+        jsr draw_bitmap_to_screen_using_polygon_filler
+    .else
+        lda #<(320*UP_KEY_Y_POS+UP_KEY_X_POS)
+        sta VRAM_ADDRESS
+        lda #>(320*UP_KEY_Y_POS+UP_KEY_X_POS)
+        sta VRAM_ADDRESS+1
+        
+        jsr draw_bitmap_to_screen
+    .endif
 
     ; -- LEFT, DOWN, RIGHT key --
 
@@ -403,12 +519,28 @@ draw_cursor_keys:
     lda #LEFT_DOWN_RIGHT_KEY_WIDTH_PIXELS
     sta BITMAP_WIDTH_PIXELS
     
-    lda #<(320*LEFT_DOWN_RIGHT_KEY_Y_POS+LEFT_DOWN_RIGHT_KEY_X_POS)
-    sta VRAM_ADDRESS
-    lda #>(320*LEFT_DOWN_RIGHT_KEY_Y_POS+LEFT_DOWN_RIGHT_KEY_X_POS)
-    sta VRAM_ADDRESS+1
+    .if(USE_POLYGON_FILLER_FOR_BITMAP)
+        lda #<(320*LEFT_DOWN_RIGHT_KEY_Y_POS)
+        sta VRAM_ADDRESS
+        lda #>(320*LEFT_DOWN_RIGHT_KEY_Y_POS)
+        sta VRAM_ADDRESS+1
+        lda #((320*LEFT_DOWN_RIGHT_KEY_Y_POS)>>16)
+        sta VRAM_ADDRESS+2
+        
+        lda #<LEFT_DOWN_RIGHT_KEY_X_POS
+        sta BITMAP_X_POS
+        lda #>LEFT_DOWN_RIGHT_KEY_X_POS
+        sta BITMAP_X_POS+1
     
-    jsr draw_bitmap_to_screen
+        jsr draw_bitmap_to_screen_using_polygon_filler
+    .else
+        lda #<(320*LEFT_DOWN_RIGHT_KEY_Y_POS+LEFT_DOWN_RIGHT_KEY_X_POS)
+        sta VRAM_ADDRESS
+        lda #>(320*LEFT_DOWN_RIGHT_KEY_Y_POS+LEFT_DOWN_RIGHT_KEY_X_POS)
+        sta VRAM_ADDRESS+1
+        
+        jsr draw_bitmap_to_screen
+    .endif
 
     rts
 

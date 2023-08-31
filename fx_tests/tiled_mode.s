@@ -25,6 +25,7 @@ DEBUG_LEDS = 0
 
 DRAW_BITMAP_TEXT = 1
 DRAW_CURSOR_KEYS = 1
+USE_POLYGON_FILLER_FOR_BITMAP = 1
 
     .if(DO_NO_TILE_LOOKUP)
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
@@ -99,7 +100,7 @@ TILEDATA_VRAM_ADDRESS = $18000  ; should be aligned to 1kB
 
 DESTINATION_PICTURE_POS_X = 32
 DESTINATION_PICTURE_POS_Y = 32
-DESTINATION_SND_PICTURE_POS_Y = 124
+DESTINATION_SND_PICTURE_POS_Y = 120
 
 DESTINATION_PICTURE_WIDTH = 256
 DESTINATION_PICTURE_HEIGHT = 80
@@ -196,14 +197,15 @@ DELTA_X_SUB               = $67
 DELTA_Y                   = $68 ; 69
 DELTA_Y_SUB               = $6A
 
-BITMAP_RAM_BANK_START      = $78
-CHARACTER_INDEX_TO_DRAW    = $79
-BITMAP_TEXT_TO_DRAW        = $7A ; 7B
+BITMAP_RAM_BANK_START      = $74
+CHARACTER_INDEX_TO_DRAW    = $75
+BITMAP_TEXT_TO_DRAW        = $76 ; 77
 BITMAP_TO_DRAW = BITMAP_TEXT_TO_DRAW
-BITMAP_TEXT_LENGTH         = $7C
+BITMAP_TEXT_LENGTH         = $78
 BITMAP_TEXT_LENGTH_PIXELS = BITMAP_TEXT_LENGTH
-BITMAP_WIDTH_PIXELS        = $7D
-BITMAP_HEIGHT_PIXELS       = $7E
+BITMAP_WIDTH_PIXELS        = $79
+BITMAP_HEIGHT_PIXELS       = $7A
+BITMAP_X_POS               = $7B ; 7C
 
 
 ; ---------- RAM addresses used during LOADING of SD files ------
@@ -506,14 +508,14 @@ test_speed_of_tiled_perspective:
     
     lda #0
     sta PLAYER_WORLD_X_SUBPOS
-    lda #0
+    lda #183
     sta PLAYER_WORLD_X_POSITION
-    lda #2
+    lda #3
     sta PLAYER_WORLD_X_POSITION+1
     
     lda #0
     sta PLAYER_WORLD_Y_SUBPOS
-    lda #0
+    lda #255
     sta PLAYER_WORLD_Y_POSITION
     lda #2
     sta PLAYER_WORLD_Y_POSITION+1
@@ -521,7 +523,8 @@ test_speed_of_tiled_perspective:
     
     .if(USE_TABLE_FILES)
     
-        lda #256-32
+        lda #128
+;        lda #256-32
 ;        lda #210
 ;        lda #60
         sta VIEWING_ANGLE
@@ -2530,15 +2533,15 @@ end_of_copy_tables_to_banked_ram:
     
     ; --------------------------------- BITMAP TEXTS --------------------------------------
     
-FIRMWARE_X_POS = 10
-FIRMWARE_Y_POS = 20
+FIRMWARE_X_POS = 100
+FIRMWARE_Y_POS = 19
 FIRMWARE_RAM_BANK_START = 0
 vera_firmware_version_text:
     .byte 22, 5, 18, 1, 0, 6, 9, 18, 13, 23, 1, 18, 5, 0, 22, 27, 37, 27, 37, 27 ; "VERA FIRMWARE V0.0.0"
 end_of_vera_firmware_version_text:
 
-DEMO_TITLE_X_POS = 10
-DEMO_TITLE_Y_POS = 10
+DEMO_TITLE_X_POS = 98
+DEMO_TITLE_Y_POS = 9
 DEMO_TITLE_RAM_BANK_START = 10
 demo_title_text:
     .byte 6, 24, 0, 4, 5, 13, 15, 38, 0, 39, 13, 1, 18, 9, 15, 0, 11, 1, 18, 20, 39 ; 'FX DEMO: "MARIO KART"'
@@ -2551,12 +2554,12 @@ end_of_demo_title_text:
     
 ; FIXME: this might be lower if less than 3 bitmap texts are drawn!
 LEFT_DOWN_RIGHT_KEY_RAM_BANK_START = 15
-LEFT_DOWN_RIGHT_KEY_Y_POS = 175
-LEFT_DOWN_RIGHT_KEY_X_POS = 260
+LEFT_DOWN_RIGHT_KEY_Y_POS = 219
+LEFT_DOWN_RIGHT_KEY_X_POS = 140
     
 UP_KEY_RAM_BANK_START = 15+13
-UP_KEY_Y_POS = 175-14
-UP_KEY_X_POS = 260+14
+UP_KEY_Y_POS = LEFT_DOWN_RIGHT_KEY_Y_POS-14
+UP_KEY_X_POS = LEFT_DOWN_RIGHT_KEY_X_POS+14
 
     ; ------------------------------- / BITMAPS --------------------------------------
 
