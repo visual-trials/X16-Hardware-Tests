@@ -63,6 +63,8 @@ vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\polygon_3d.s -wdc02 -D FXP
 
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\polygon_3d.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -D DIV=1 -o .\fx_tests\ROM\POLY3D-FXPOLY-SLP-JMP-DIV.ROM
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\polygon_3d.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -D DIV=1 -D CREATE_PRG -o .\fx_tests\SD\POLY3D-FXPOLY-SLP-JMP-DIV.PRG
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\polygon_3d.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -D DIV=1 -D CREATE_PRG -o .\fx_tests\SD\BUTTERFLY.PRG
+
 
 echo Building: Affine helper tests
 
