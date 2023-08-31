@@ -13,7 +13,7 @@ unique_12bit_colors = {}
 old_color_index_to_new_color_index = []
 
 old_color_index = 0
-new_color_index = 0
+new_color_index = 16  # We start at index 16!
 byte_index = 0
 nr_of_palette_bytes = 3*256
 palette_bytes = im.getpalette()
