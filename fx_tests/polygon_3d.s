@@ -19,8 +19,6 @@ USE_DIV_TABLES = DIV
 
 DO_BUTTERFLY = 1
 
-
-
 USE_FX_MULTIPLIER = 1
 
 DRAW_BITMAP_TEXT = 1
@@ -215,7 +213,10 @@ NR_OF_ENDING_PIXELS      = $B5
 GEN_START_X              = $B6
 GEN_FILL_LENGTH_LOW      = $B7
 GEN_FILL_LENGTH_IS_16_OR_MORE = $B8
+GEN_FILL_LENGTH_IS_8_OR_MORE = GEN_FILL_LENGTH_IS_16_OR_MORE
 GEN_LOANED_16_PIXELS     = $B9
+GEN_LOANED_8_PIXELS = GEN_LOANED_16_PIXELS
+
 GEN_FILL_LINE_CODE_INDEX = $BA
 
 TMP_POINT_X              = $BB ; BC
@@ -273,30 +274,67 @@ SOURCE_TABLE_ADDRESS     = $5F00
 
 ; ------------ RAM addresses used during the DEMO ---------------
 
-FILL_LENGTH_LOW_SOFT     = $4800
-FILL_LENGTH_HIGH_SOFT    = $4801
 
-KEYBOARD_STATE           = $4A00   ; 128 bytes (state for each key of the keyboard)
-KEYBOARD_EVENTS          = $4A80   ; 128 bytes (event for each key of the keyboard)
+; FIXME: the addresses below over OVERLAPPING the first CODE segment of this DEMO. But since we have data at the END of the code segment (that is loaded ONCE) we can get away with that!
 
-CLEAR_COLUMN_CODE        = $4B00   ; takes up to 02D0
-KEYBOARD_KEY_CODE_BUFFER = $4DE0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
+FILL_LENGTH_LOW_SOFT     = $45FE
+FILL_LENGTH_HIGH_SOFT    = $45FF
 
-FILL_LINE_START_JUMP     = $4E00
-FILL_LINE_START_CODE     = $4F00   ; 128 different (start of) fill line code patterns -> safe: takes $0D00 bytes
+KEYBOARD_STATE           = $4600   ; 128 bytes (state for each key of the keyboard)
+KEYBOARD_EVENTS          = $4680   ; 128 bytes (event for each key of the keyboard)
 
-; FIXME: can we put these jump tables closer to each other? Do they need to be aligned to 256 bytes? (they are 80 bytes each)
-; FIXME: IMPORTANT: we set the two lower bits of this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 4 tables should stay $100! AND the two lower bits should stay 00b!
-FILL_LINE_END_JUMP_0     = $5C00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0)
-FILL_LINE_END_JUMP_1     = $5D00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1)
-FILL_LINE_END_JUMP_2     = $5E00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2)
-FILL_LINE_END_JUMP_3     = $5F00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3)
+CLEAR_COLUMN_CODE        = $4700   ; takes up to 02D0
+KEYBOARD_KEY_CODE_BUFFER = $49E0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
 
-; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> MORE than 256 bytes!!
+FILL_LINE_START_JUMP     = $4A00
+FILL_LINE_START_CODE     = $4B00   ; 128 different (start of) fill line code patterns -> safe: takes $0D00 bytes
+
+    .if(!DO_4BIT)
+; 8-bit:
+; -- IMPORTANT: we set the *two* lower bits of (the HIGH byte of) this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 4 tables should be $100! AND bits 8 and 9 should be 00b! (for FILL_LINE_END_JUMP_0) --
+FILL_LINE_END_JUMP_0     = $5800   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0
+FILL_LINE_END_JUMP_1     = $5900   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1
+FILL_LINE_END_JUMP_2     = $5A00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2
+FILL_LINE_END_JUMP_3     = $5B00   ; 20 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3
+
+; FREE room here!
+
+    .endif
+    .if(DO_4BIT)
+; 4-bit (and 2-bit):
+; -- IMPORTANT: we set the *three* lower bits of (the HIGH byte of) this address in the code, using FILL_LINE_END_JUMP_0 as base. So the distance between the 8 tables should be $100! AND bits 8, 9 and 10 should be 000b! (for FILL_LINE_END_JUMP_0) --
+FILL_LINE_END_JUMP_0     = $5800   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_0
+FILL_LINE_END_JUMP_1     = $5900   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_1
+FILL_LINE_END_JUMP_2     = $5A00   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_2
+FILL_LINE_END_JUMP_3     = $5B00   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_3
+FILL_LINE_END_JUMP_4     = $5C00   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_4
+FILL_LINE_END_JUMP_5     = $5D00   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_5
+FILL_LINE_END_JUMP_6     = $5E00   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_6
+FILL_LINE_END_JUMP_7     = $5F00   ; 40 entries (* 4 bytes) of jumps into FILL_LINE_END_CODE_7
+    .endif
+
+    .if(!DO_4BIT)
+; 8-bit:
+; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> NO, MORE than 256 bytes!!
 FILL_LINE_END_CODE_0     = $6000   ; 3 (stz) * 80 (=320/4) = 240                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_END_CODE_1     = $6200   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_END_CODE_2     = $6400   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
 FILL_LINE_END_CODE_3     = $6600   ; 3 (stz) * 80 (=320/4) = 240 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+    .endif
+    .if(DO_4BIT)
+; 4-bit (and 2-bit):
+; FIXME: this now also contains END-POKE code! (which is not counted atm)
+; FIXME: can we put these code blocks closer to each other? Are they <= 256 bytes? -> YES??!
+FILL_LINE_END_CODE_0     = $6000   ; 3 (stz) * 40 (=320/8) = 120                      + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_1     = $6100   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_2     = $6200   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_3     = $6300   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_4     = $6400   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_5     = $6500   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_6     = $6600   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+FILL_LINE_END_CODE_7     = $6700   ; 3 (stz) * 40 (=320/8) = 120 + lda .. + sta DATA1 + lda DATA0 + lda DATA1 + dey + beq + ldx $9F2B + jmp (..,x) + rts/jmp?
+    .endif
+
 
 ; Triangle data is (easely) accessed through an single index (0-127)
 ; == IMPORTANT: we assume a *clockwise* ordering of the 3 points of a triangle! ==
@@ -421,7 +459,6 @@ reset:
     jsr copy_petscii_charset
     jsr clear_tilemap_screen
     jsr init_cursor
-    jsr init_keyboard
     jsr init_timer
 
     .ifdef CREATE_PRG
@@ -455,8 +492,9 @@ reset:
         .endif
     .endif
     
-; FIXME: is this the correct place?
     .if(DRAW_BITMAP_TEXT)
+        ; -- Note: we load this early on, since the source data will be overwritten later on --
+        
         ; -- FIRMWARE VERSION --
     
         jsr copy_vera_firmware_version
@@ -506,6 +544,7 @@ reset:
         
     .endif
     .if(DRAW_CURSOR_KEYS)
+        ; -- Note: we load this early on, since the source data will be overwritten later on --
     
         lda #<left_down_right_keys_data
         sta BITMAP_TO_DRAW
@@ -541,6 +580,23 @@ reset:
     
     .endif
 
+    .if(DO_SPEED_TEST)
+        ; -- Note: we load this early on, since the source data will be overwritten later on --
+        
+        jsr copy_palette_from_index_16
+        .if(DO_BUTTERFLY)
+            jsr copy_palette_from_index_128
+        .endif
+
+        jsr load_3d_triangle_data_into_ram
+    .endif
+
+
+    ; ----- We have loaded all data that had to be loaded ONCE, we can now use that RAM ----
+
+    ; Note: we can only run this after loading all data at the end of the CODE-segment
+    jsr init_keyboard
+    
     .if (USE_WRITE_CACHE)
         jsr generate_clear_column_code
         jsr clear_screen_fast_4_bytes
@@ -674,15 +730,6 @@ wait_1:
   
   
 test_speed_of_simple_3d_polygon_scene:
-
-    .if(1)
-        jsr copy_palette_from_index_16
-        .if(DO_BUTTERFLY)
-            jsr copy_palette_from_index_128
-        .endif
-    .endif
-
-    jsr load_3d_triangle_data_into_ram
 
     jsr start_timer
     
@@ -3118,7 +3165,7 @@ cosine_words:
     
     
     
-    
+    ; -- Note: the data below will be loaded/copied ONCE into (Banked) RAM so this RAM can be used later on --
     
     .if(0)
 NR_OF_TRIANGLES = 12
@@ -3531,9 +3578,9 @@ palette_data:
     ; dummy
 end_of_palette_data:
     .endif
-    
-    
-; FIXME! Put this somewhere else!
+
+
+    ; -- Note: the data below will be loaded/copied ONCE into (Banked) RAM so this RAM can be used later on --
     
 NR_OF_5X5_CHARACTERS = 40   ; whitespace, A-Z, 0-9, period (37), semicolon (38), quote (39)
 font_5x5_data:
@@ -3613,6 +3660,8 @@ left_down_right_keys_data:
     .byte $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01
     .byte $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $01, $00
     
+
+
     
 
     .ifndef CREATE_PRG
