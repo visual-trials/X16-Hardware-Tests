@@ -88,6 +88,13 @@ adjust_4bit_variables:
     stz LEFT_OVER_PIXELS+1
     stz LEFT_OVER_PIXELS
     
+    ; Special case: If the nr of ending pixels was 7 (meaning GEN_FILL_LENGTH_LOW= 0 and GEN_START_X = 7) we have to set the NR_OF_ENDING_PIXELS to 0
+    lda NR_OF_ENDING_PIXELS
+    cmp #7
+    bne left_over_pixels_is_ok
+    stz NR_OF_ENDING_PIXELS
+    
+    
 left_over_pixels_is_ok:    
     
     stz GEN_START_X_SET_TO_ZERO

@@ -3269,7 +3269,7 @@ cosine_words:
     
     ; -- Note: the data below will be loaded/copied ONCE into (Banked) RAM so this RAM can be used later on --
     
-    .if(1)
+    .if(0)
 NR_OF_TRIANGLES = 1
 triangle_3d_data:
 
@@ -3568,8 +3568,8 @@ end_of_palette_data_128:
 ; FIXME!    
 ; FIXME!    
 ; FIXME!    
-;    .if(!DO_BUTTERFLY)
-    .if(0)
+    .if(!DO_BUTTERFLY)
+;    .if(0)
 NR_OF_TRIANGLES = 106
 triangle_3d_data:
     ; Note: the normal is a normal point relative to 0.0 (with a length of $100)
