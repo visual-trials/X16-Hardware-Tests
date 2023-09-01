@@ -17,7 +17,7 @@ USE_JUMP_TABLE = JMP
 USE_DIV_TABLES = DIV
     .endif
 
-DO_BUTTERFLY = 1
+DO_BUTTERFLY = 0
 
 USE_FX_MULTIPLIER = 1
 
@@ -29,10 +29,11 @@ DRAW_CURSOR_KEYS = 1
 USE_POLYGON_FILLER_FOR_BITMAP = 0
 
 DO_SPEED_TEST = 1
-DO_4BIT = 0
-DO_2BIT = 0
+DO_4BIT = 1
+DO_2BIT = 1
+USE_DITHERING = 0
 KEEP_RUNNING = 1
-USE_LIGHT = 1
+USE_LIGHT = 0
 USE_KEYBOARD_INPUT = 1
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
@@ -51,15 +52,38 @@ USE_180_DEGREES_SLOPE_TABLE = USE_SLOPE_TABLES
 
 USE_Y_TO_ADDRESS_TABLE = 1
 
-    .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
-BACKGROUND_COLOR = 251  ; Nice purple
+
+    .if(DO_4BIT)
+        .if(DO_2BIT)
+            .if(USE_DITHERING)
+; FIXME
+            .else
+; FIXME
+            .endif
+NR_OF_BYTES_PER_LINE = 80
+            .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+BACKGROUND_COLOR = %0000000  ; Purple (originally Black, but pallete is changed)
+            .else
+BACKGROUND_COLOR = %11111111  ; Red
+            .endif
+        .else
+NR_OF_BYTES_PER_LINE = 160
+            .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+BACKGROUND_COLOR = $44  ; Purple
+            .else
+BACKGROUND_COLOR = $66  ; Blue 
+            .endif
+        .endif
     .else
+NR_OF_BYTES_PER_LINE = 320
+        .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
+BACKGROUND_COLOR = 251  ; Nice purple
+        .else
 BACKGROUND_COLOR = 06  ; Blue 
+        .endif
     .endif
 
-; FIXME: make this dependent on the 2/4/8 bit mode!    
-NR_OF_BYTES_PER_LINE = 320
-    
+
 COLOR_CHECK        = $05 ; Background color = 0, foreground color 5 (green)
 COLOR_CROSS        = $02 ; Background color = 0, foreground color 2 (red)
 
@@ -283,17 +307,15 @@ SOURCE_TABLE_ADDRESS     = $5F00
 
 ; FIXME: the addresses below over OVERLAPPING the first CODE segment of this DEMO. But since we have data at the END of the code segment (that is loaded ONCE) we can get away with that!
 
-FILL_LENGTH_LOW_SOFT     = $45FE
-FILL_LENGTH_HIGH_SOFT    = $45FF
+; FIXME: THIS IS DANGEROUSLY CLOSE TO THE END OF THE CODE (sine/cosine data)
+; FIXME: THIS IS DANGEROUSLY CLOSE TO THE END OF THE CODE (sine/cosine data)
+; FIXME: THIS IS DANGEROUSLY CLOSE TO THE END OF THE CODE (sine/cosine data)
 
-KEYBOARD_STATE           = $4600   ; 128 bytes (state for each key of the keyboard)
-KEYBOARD_EVENTS          = $4680   ; 128 bytes (event for each key of the keyboard)
+FILL_LENGTH_LOW_SOFT     = $3AFE
+FILL_LENGTH_HIGH_SOFT    = $3AFF
 
-CLEAR_COLUMN_CODE        = $4700   ; takes up to 02D0
-KEYBOARD_KEY_CODE_BUFFER = $49E0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
-
-FILL_LINE_START_JUMP     = $4A00
-FILL_LINE_START_CODE     = $4B00   ; 128 different (start of) fill line code patterns -> safe: takes $0D00 bytes
+FILL_LINE_START_JUMP     = $3B00
+FILL_LINE_START_CODE     = $3C00   ; 128 different (start of) fill line code patterns -> safe: takes $0D00 bytes (8bit) and $1Bxx (2bit)
 
     .if(!DO_4BIT)
 ; 8-bit:
@@ -405,9 +427,16 @@ Y_TO_ADDRESS_HIGH        = $9600
 Y_TO_ADDRESS_BANK        = $9700
 Y_TO_ADDRESS_BANK2       = $9800   ; Only use when double buffering
 
+
+KEYBOARD_STATE           = $9900   ; 128 bytes (state for each key of the keyboard)
+KEYBOARD_EVENTS          = $9980   ; 128 bytes (event for each key of the keyboard)
+
+CLEAR_COLUMN_CODE        = $9A00   ; takes up to 02D0
+KEYBOARD_KEY_CODE_BUFFER = $9CE0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
+
     .ifndef CREATE_PRG
-COPY_SLOPE_TABLES_TO_BANKED_RAM = $9900  ; TODO: is this smaller than 256 bytes?
-COPY_DIV_TABLES_TO_BANKED_RAM   = $9A00
+COPY_SLOPE_TABLES_TO_BANKED_RAM = $9D00  ; TODO: is this smaller than 256 bytes?
+COPY_DIV_TABLES_TO_BANKED_RAM   = $9E00
     .endif
 
 ; === Banked RAM addresses ===
@@ -454,6 +483,36 @@ reset:
     txs
 
     jsr setup_vera_for_bitmap_and_tile_map
+    
+    .if(DO_4BIT)
+        .if(DO_2BIT)
+            lda #%00010001           ; Setting bit 16 of vram address to the highest bit in the tilebase (=1), setting auto-increment value to 1
+            sta VERA_ADDR_BANK
+            
+            lda #$FA
+            sta VERA_ADDR_HIGH
+            lda #$00                 ; We overwrite color 0 here
+            sta VERA_ADDR_LOW
+
+            ; Nice purple
+            lda #$05                 ; gb
+            sta VERA_DATA0
+            lda #$05                 ; -r
+            sta VERA_DATA0
+            
+            ; VERA.layer0.config = (4 + 1) ; enable bitmap mode and color depth = 2bpp on layer 0
+            lda #(4+1)
+            sta VERA_L0_CONFIG
+        .else
+            .include utils/rom_only_change_palette_colors.s
+            
+            ; VERA.layer0.config = (4 + 2) ; enable bitmap mode and color depth = 4bpp on layer 0
+            lda #(4+2)
+            sta VERA_L0_CONFIG
+        .endif
+    .endif
+    
+    
     .if(USE_DOUBLE_BUFFER)
         lda #%00000000  ; DCSEL=0
         sta VERA_CTRL
@@ -585,14 +644,15 @@ reset:
         jsr copy_bitmap_to_banked_ram
     
     .endif
-
+    
     .if(DO_SPEED_TEST)
         ; -- Note: we load this early on, since the source data will be overwritten later on --
-        
-        jsr copy_palette_from_index_16
-        .if(DO_BUTTERFLY)
-            jsr copy_palette_from_index_128
-        .endif
+
+; FIXME!        
+;        jsr copy_palette_from_index_16
+;        .if(DO_BUTTERFLY)
+;            jsr copy_palette_from_index_128
+;        .endif
 
         jsr load_3d_triangle_data_into_ram
     .endif
@@ -2664,6 +2724,17 @@ clear_screen_fast_4_bytes:
     sta VERA_FX_CACHE_L      ; cache32[7:0]
     sta VERA_FX_CACHE_M      ; cache32[15:8]
     sta VERA_FX_CACHE_H      ; cache32[23:16]
+; FIXME! Adding a TEST column here! -> maybe make this conditional?
+;    .if(!DO_4BIT)
+;        and #%00000000       ; black 8-bit pixel
+;    .else
+;        .if(!DO_2BIT)
+;            and #%11110000   ; black 4-bit pixel
+;        .else
+;            and #%11111100
+;            ora #%00000010   ; red 2-bit pixel
+;        .endif
+;    .endif
     sta VERA_FX_CACHE_U      ; cache32[31:24]
 
     ; We setup blit writes
@@ -2682,12 +2753,21 @@ clear_screen_fast_4_bytes:
     
 clear_next_column_left_4_bytes:
 
-    .if(USE_DOUBLE_BUFFER)
+    .if(DO_4BIT)
+        .if(DO_2BIT)
+            lda #%11000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 80 bytes (=12=%1100)
+        .else
+            lda #%11010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 160 bytes (=13=%1101)
+        .endif
+    .else
         lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+    .endif
+    .if(USE_DOUBLE_BUFFER)
+;        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
         ora FRAME_BUFFER_INDEX   ; this is either $00 or $01
         sta VERA_ADDR_BANK
     .else
-        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
+;        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
         sta VERA_ADDR_BANK
     .endif
     lda #$00
@@ -2702,7 +2782,22 @@ clear_next_column_left_4_bytes:
     inx
     inx
     inx
+    .if(DO_4BIT)
+        .if(DO_2BIT)
+            cpx #80     ; We only do 80*4 2-bit columns
+        .else
+            cpx #160     ; We only do 160*2 4-bit columns
+        .endif
+    .else
+        cpx #0     ; We first do 256 8-bit columns, later we do the extra 64 columns
+    .endif
     bne clear_next_column_left_4_bytes
+    
+    .if(DO_4BIT)
+        ; In 4-bit mode we are done after clearing 160*2 4-bit columns
+        ; In 2-bit mode we are done after clearing 80*4 2-bit columns
+        rts
+    .endif
     
     ; Right part of the screen (64 columns)
 
@@ -3173,8 +3268,8 @@ cosine_words:
     
     ; -- Note: the data below will be loaded/copied ONCE into (Banked) RAM so this RAM can be used later on --
     
-    .if(0)
-NR_OF_TRIANGLES = 12
+    .if(1)
+NR_OF_TRIANGLES = 1
 triangle_3d_data:
 
 ; FIXME: should we do a NEGATIVE or a NEGATIVE Z for the NORMAL?
@@ -3467,8 +3562,11 @@ end_of_palette_data_128:
     .endif
     
     
-    
-    .if(!DO_BUTTERFLY)
+; FIXME!    
+; FIXME!    
+; FIXME!    
+;    .if(!DO_BUTTERFLY)
+    .if(0)
 NR_OF_TRIANGLES = 106
 triangle_3d_data:
     ; Note: the normal is a normal point relative to 0.0 (with a length of $100)
@@ -3700,27 +3798,52 @@ irq:
     .ifndef CREATE_PRG
         .if(USE_SLOPE_TABLES)
             .if(USE_POLYGON_FILLER)
-                .binary "fx_tests/tables/slopes_packed_column_0_low.bin"
-                .binary "fx_tests/tables/slopes_packed_column_0_high.bin"
-                .binary "fx_tests/tables/slopes_packed_column_1_low.bin"
-                .binary "fx_tests/tables/slopes_packed_column_1_high.bin"
-                .binary "fx_tests/tables/slopes_packed_column_2_low.bin"
-                .binary "fx_tests/tables/slopes_packed_column_2_high.bin"
-                .binary "fx_tests/tables/slopes_packed_column_3_low.bin"
-                .binary "fx_tests/tables/slopes_packed_column_3_high.bin"
-                .binary "fx_tests/tables/slopes_packed_column_4_low.bin"
-                .binary "fx_tests/tables/slopes_packed_column_4_high.bin"
-                .if(USE_180_DEGREES_SLOPE_TABLE)
-                    .binary "fx_tests/tables/slopes_negative_packed_column_0_low.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_0_high.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_1_low.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_1_high.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_2_low.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_2_high.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_3_low.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_3_high.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_4_low.bin"
-                    .binary "fx_tests/tables/slopes_negative_packed_column_4_high.bin"
+                .if(DO_4BIT && DO_2BIT)
+                    .binary "fx_tests/tables/slopes_packed_column_0_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_0_high_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_1_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_1_high_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_2_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_2_high_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_3_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_3_high_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_4_low_2bit.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_4_high_2bit.bin"
+                    .if(USE_180_DEGREES_SLOPE_TABLE)
+                        .binary "fx_tests/tables/slopes_negative_packed_column_0_low_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_0_high_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_1_low_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_1_high_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_2_low_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_2_high_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_3_low_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_3_high_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_4_low_2bit.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_4_high_2bit.bin"
+                    .endif
+                .else
+                    .binary "fx_tests/tables/slopes_packed_column_0_low.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_0_high.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_1_low.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_1_high.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_2_low.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_2_high.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_3_low.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_3_high.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_4_low.bin"
+                    .binary "fx_tests/tables/slopes_packed_column_4_high.bin"
+                    .if(USE_180_DEGREES_SLOPE_TABLE)
+                        .binary "fx_tests/tables/slopes_negative_packed_column_0_low.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_0_high.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_1_low.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_1_high.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_2_low.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_2_high.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_3_low.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_3_high.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_4_low.bin"
+                        .binary "fx_tests/tables/slopes_negative_packed_column_4_high.bin"
+                    .endif
                 .endif
             .else
                 ; FIXME: right now we include vhigh tables *TWICE*! The second time is a dummy include! (since we want all _low tables to be aligned with ROM_BANK % 4 == 1)
