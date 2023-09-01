@@ -158,7 +158,7 @@ MACRO_copy_point_y .macro TRIANGLES_POINT_Y, POINT_Y
 
     
 draw_all_triangles:
-
+                
     lda TRIANGLE_COUNT
     bne start_drawing_triangles
     ; When there are no triangles to draw, draw nothing
@@ -2644,8 +2644,13 @@ end_of_copy_div_tables_to_banked_ram:
 
     .ifdef CREATE_PRG
 
+        .if(DO_4BIT && DO_2BIT)
+slope_filename:      .byte    "TBL/SLP2-A.BIN" 
+end_slope_filename:
+        .else
 slope_filename:      .byte    "TBL/SLP-A.BIN" 
 end_slope_filename:
+        .endif
 
 ; This will load a slope table using the TABLE_ROM_BANK (which starts at 1)
 load_slope_table:

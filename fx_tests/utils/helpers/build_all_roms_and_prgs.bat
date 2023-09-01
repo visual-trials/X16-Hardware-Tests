@@ -72,7 +72,7 @@ vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\tiled_mode.s -wdc02 -o .\f
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\tiled_mode.s -wdc02 -D CREATE_PRG -o .\fx_tests\SD\MARIO-KART.PRG
 
 
-echo Copying: SLOPE tables (16kB each)
+echo Copying: SLOPE tables for 8bpp and 4bpp (16kB each)
 copy .\fx_tests\tables\slopes_packed_column_0_low.bin             .\fx_tests\SD\TBL\SLP-A.BIN
 copy .\fx_tests\tables\slopes_packed_column_0_high.bin            .\fx_tests\SD\TBL\SLP-B.BIN
 copy .\fx_tests\tables\slopes_packed_column_1_low.bin             .\fx_tests\SD\TBL\SLP-C.BIN
@@ -93,6 +93,29 @@ copy .\fx_tests\tables\slopes_negative_packed_column_3_low.bin    .\fx_tests\SD\
 copy .\fx_tests\tables\slopes_negative_packed_column_3_high.bin   .\fx_tests\SD\TBL\SLP-R.BIN
 copy .\fx_tests\tables\slopes_negative_packed_column_4_low.bin    .\fx_tests\SD\TBL\SLP-S.BIN
 copy .\fx_tests\tables\slopes_negative_packed_column_4_high.bin   .\fx_tests\SD\TBL\SLP-T.BIN
+
+echo Copying: SLOPE tables for 2bpp (16kB each)
+copy .\fx_tests\tables\slopes_packed_column_0_low_2bit.bin             .\fx_tests\SD\TBL\SLP2-A.BIN
+copy .\fx_tests\tables\slopes_packed_column_0_high_2bit.bin            .\fx_tests\SD\TBL\SLP2-B.BIN
+copy .\fx_tests\tables\slopes_packed_column_1_low_2bit.bin             .\fx_tests\SD\TBL\SLP2-C.BIN
+copy .\fx_tests\tables\slopes_packed_column_1_high_2bit.bin            .\fx_tests\SD\TBL\SLP2-D.BIN
+copy .\fx_tests\tables\slopes_packed_column_2_low_2bit.bin             .\fx_tests\SD\TBL\SLP2-E.BIN
+copy .\fx_tests\tables\slopes_packed_column_2_high_2bit.bin            .\fx_tests\SD\TBL\SLP2-F.BIN
+copy .\fx_tests\tables\slopes_packed_column_3_low_2bit.bin             .\fx_tests\SD\TBL\SLP2-G.BIN
+copy .\fx_tests\tables\slopes_packed_column_3_high_2bit.bin            .\fx_tests\SD\TBL\SLP2-H.BIN
+copy .\fx_tests\tables\slopes_packed_column_4_low_2bit.bin             .\fx_tests\SD\TBL\SLP2-I.BIN
+copy .\fx_tests\tables\slopes_packed_column_4_high_2bit.bin            .\fx_tests\SD\TBL\SLP2-J.BIN
+copy .\fx_tests\tables\slopes_negative_packed_column_0_low_2bit.bin    .\fx_tests\SD\TBL\SLP2-K.BIN
+copy .\fx_tests\tables\slopes_negative_packed_column_0_high_2bit.bin   .\fx_tests\SD\TBL\SLP2-L.BIN
+copy .\fx_tests\tables\slopes_negative_packed_column_1_low_2bit.bin    .\fx_tests\SD\TBL\SLP2-M.BIN
+copy .\fx_tests\tables\slopes_negative_packed_column_1_high_2bit.bin   .\fx_tests\SD\TBL\SLP2-N.BIN
+copy .\fx_tests\tables\slopes_negative_packed_column_2_low_2bit.bin    .\fx_tests\SD\TBL\SLP2-O.BIN
+copy .\fx_tests\tables\slopes_negative_packed_column_2_high_2bit.bin   .\fx_tests\SD\TBL\SLP2-P.BIN
+copy .\fx_tests\tables\slopes_negative_packed_column_3_low_2bit.bin    .\fx_tests\SD\TBL\SLP2-Q.BIN
+copy .\fx_tests\tables\slopes_negative_packed_column_3_high_2bit.bin   .\fx_tests\SD\TBL\SLP2-R.BIN
+copy .\fx_tests\tables\slopes_negative_packed_column_4_low_2bit.bin    .\fx_tests\SD\TBL\SLP2-S.BIN
+copy .\fx_tests\tables\slopes_negative_packed_column_4_high_2bit.bin   .\fx_tests\SD\TBL\SLP2-T.BIN
+
 
 echo Copying: DIVISION tables (16kB each)
 copy .\fx_tests\tables\div_pos_0_low.bin  .\fx_tests\SD\TBL\DIV-A.BIN
