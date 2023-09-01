@@ -179,8 +179,10 @@ RIGHT_POINT_Y            = $6A ; 6B
 BOTTOM_POINT_X           = TOP_POINT_X
 BOTTOM_POINT_Y           = TOP_POINT_Y
 TRIANGLE_COLOR           = $6C
-
-; FREE: $6D - $6F available
+TOP_POINT_X_SUB          = $6D ; for 2-bit mode only
+LEFT_POINT_X_SUB         = $6E ; for 2-bit mode only
+RIGHT_POINT_X_SUB        = $6F ; for 2-bit mode only
+BOTTOM_POINT_X_SUB       = TOP_POINT_X_SUB  ; for 2-bit mode only
 
 ; Used for calculating the slope between two points
 X_DISTANCE               = $70 ; 71
@@ -211,25 +213,29 @@ NR_OF_STARTING_PIXELS    = $B4
 NR_OF_ENDING_PIXELS      = $B5
 
 GEN_START_X              = $B6
-GEN_FILL_LENGTH_LOW      = $B7
-GEN_FILL_LENGTH_IS_16_OR_MORE = $B8
+GEN_START_X_ORG          = $B7 ; only for 2-bit mode
+GEN_START_X_SET_TO_ZERO  = $B8 ; only for 2-bit mode
+GEN_FILL_LENGTH_LOW      = $B9
+GEN_FILL_LENGTH_IS_16_OR_MORE = $BA
 GEN_FILL_LENGTH_IS_8_OR_MORE = GEN_FILL_LENGTH_IS_16_OR_MORE
-GEN_LOANED_16_PIXELS     = $B9
+GEN_LOANED_16_PIXELS     = $BB
 GEN_LOANED_8_PIXELS = GEN_LOANED_16_PIXELS
+GEN_START_X_SUB          = $BC ; only for 2-bit mode
+GEN_FILL_LINE_CODE_INDEX = $BD
+GEN_POKE_BYTE            = $BE ; only for 2-bit mode
 
-GEN_FILL_LINE_CODE_INDEX = $BA
 
-TMP_POINT_X              = $BB ; BC
-TMP_POINT_Y              = $BD ; BE
-TMP_POINT_Z              = $BF ; C0
+TMP_POINT_X              = $BF ; C0
+TMP_POINT_Y              = $C1 ; C2
+TMP_POINT_Z              = $C3 ; C4
 
-ANGLE_X                  = $C1 ; C2  ; number between 0 and 511
-ANGLE_Y_WINGS            = $C3 ; C4  ; number between 0 and 511
-ANGLE_Y_WINGS_INV        = $C5 ; C6  ; number between 0 and 511
-ANGLE_Z                  = $C7 ; C8  ; number between 0 and 511
+ANGLE_X                  = $C5 ; C6  ; number between 0 and 511
+ANGLE_Y_WINGS            = $C7 ; C8  ; number between 0 and 511
+ANGLE_Y_WINGS_INV        = $C9 ; CA  ; number between 0 and 511
+ANGLE_Z                  = $CB ; CC  ; number between 0 and 511
 
-WING_ANIMATION_INDEX     = $C9
-WING_ANIMATION_ACTIVE    = $CA
+WING_ANIMATION_INDEX     = $CD
+WING_ANIMATION_ACTIVE    = $CE
 
 TRANSLATE_Z              = $D0 ; D1
 
