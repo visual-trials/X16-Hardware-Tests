@@ -1126,16 +1126,16 @@ init_world:
     .endif
 
 ; FIXME!
-;    lda #$78
-    lda #200
+    lda #$CC
+;    lda #200
 ;    lda #0
     sta ANGLE_Z
     lda #0
     sta ANGLE_Z+1
 
 ; FIXME!
-;    lda #$C8
-    lda #200
+    lda #$D6
+;    lda #200
 ;    lda #0
     sta ANGLE_X
     lda #0
@@ -3269,8 +3269,8 @@ cosine_words:
     
     ; -- Note: the data below will be loaded/copied ONCE into (Banked) RAM so this RAM can be used later on --
     
-    .if(0)
-NR_OF_TRIANGLES = 12
+    .if(1)
+NR_OF_TRIANGLES = 1
 triangle_3d_data:
 
 ; FIXME: should we do a NEGATIVE or a NEGATIVE Z for the NORMAL?
@@ -3285,19 +3285,21 @@ triangle_3d_data:
 
     ;        x1,    y1,   z1,      x2,   y2,   z2,      x3,   y3,   z3,      xn,   yn,   zn,    cl
    ; SOUTH
-   .word       0, $100,    0,       0,    0,    0,    $100, $100,    0,       0,    0, $100,     1
-   .word    $100, $100,    0,       0,    0,    0,    $100,    0,    0,       0,    0, $100,     1
+;;;   .word       0, $100,    0,       0,    0,    0,    $100, $100,    0,       0,    0, $100,     1
+;;;   .word    $100, $100,    0,       0,    0,    0,    $100,    0,    0,       0,    0, $100,     1
 
    ; NORTH                                                     
-   .word    $100, $100, $100,    $100,    0, $100,       0, $100, $100,       0,    0,-$100,     3
-   .word       0, $100, $100,    $100,    0, $100,       0,    0, $100,       0,    0,-$100,     3
+;;;   .word    $100, $100, $100,    $100,    0, $100,       0, $100, $100,       0,    0,-$100,     3
+;;;   .word       0, $100, $100,    $100,    0, $100,       0,    0, $100,       0,    0,-$100,     3
 
    ; EAST                                                      
-   .word    $100, $100,    0,    $100,    0,    0,    $100, $100, $100,   -$100,    0,    0,     2
-   .word    $100, $100, $100,    $100,    0,    0,    $100,    0, $100,   -$100,    0,    0,     2
+;;;   .word    $100, $100,    0,    $100,    0,    0,    $100, $100, $100,   -$100,    0,    0,     2
+;;;   .word    $100, $100, $100,    $100,    0,    0,    $100,    0, $100,   -$100,    0,    0,     2
 
    ; WEST                                                      
-   .word       0, $100, $100,       0,    0, $100,       0, $100,    0,     $100,    0,    0,     4
+;FIXME!
+   .word       0, $100, $100,       0,    0, $100,       0, $100,    0,     $100,    0,    0,     %11111111
+;;;   .word       0, $100, $100,       0,    0, $100,       0, $100,    0,     $100,    0,    0,     4
    .word       0, $100,    0,       0,    0, $100,       0,    0,    0,    $100,    0,    0,     4
 
    ; TOP                                                       
@@ -3563,7 +3565,11 @@ end_of_palette_data_128:
     .endif
     
     
-    .if(!DO_BUTTERFLY)
+; FIXME!    
+; FIXME!    
+; FIXME!    
+;    .if(!DO_BUTTERFLY)
+    .if(0)
 NR_OF_TRIANGLES = 106
 triangle_3d_data:
     ; Note: the normal is a normal point relative to 0.0 (with a length of $100)
