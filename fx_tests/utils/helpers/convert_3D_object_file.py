@@ -112,7 +112,9 @@ def run():
             single_triangle_data.append(float_to_word(triangle_point["z"]))
         
         # FIXME: add color??
-        color_index += 1
+        # color_index += 1
+        # FIXME: for now base color if $10 (16)
+        color_index = 16
         single_triangle_data.append(color_index)
         
         print('    .word ' + ', '.join('$' + str(format(x,"04X")).ljust(4, ' ') for x in single_triangle_data))

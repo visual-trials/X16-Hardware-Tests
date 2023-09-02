@@ -232,12 +232,25 @@ draw_next_triangle:
         lda #%00001100           ; DCSEL=6, ADDRSEL=0
         sta VERA_CTRL
 
-        ; SPEED: we can skip this load if we use register y for setting up DCSEL=6
-        lda TRIANGLE_COLOR
-        sta VERA_FX_CACHE_L      ; cache32[7:0]
-        sta VERA_FX_CACHE_M      ; cache32[15:8]
-        sta VERA_FX_CACHE_H      ; cache32[23:16]
-        sta VERA_FX_CACHE_U      ; cache32[31:24]
+        .if(USE_DITHERING)
+            ; FIXME: we now assume TRIANGLE_COLOR has a base color of 16 ($10). Since dithering_colors starts at 0, we subtract 16 for now.
+            ldy TRIANGLE_COLOR
+            lda dithering_colors-16+0,y
+            sta VERA_FX_CACHE_L      ; cache32[7:0]
+            lda dithering_colors-16+16,y
+            sta VERA_FX_CACHE_M      ; cache32[15:8]
+            lda dithering_colors-16+32,y
+            sta VERA_FX_CACHE_H      ; cache32[23:16]
+            lda dithering_colors-16+48,y
+            sta VERA_FX_CACHE_U      ; cache32[31:24]
+        .else
+            ; SPEED: we can skip this load if we use register y for setting up DCSEL=6
+            lda TRIANGLE_COLOR
+            sta VERA_FX_CACHE_L      ; cache32[7:0]
+            sta VERA_FX_CACHE_M      ; cache32[15:8]
+            sta VERA_FX_CACHE_H      ; cache32[23:16]
+            sta VERA_FX_CACHE_U      ; cache32[31:24]
+        .endif
 
         ; FIXME: do we *need* to set this to DCSEL=2 here?
         lda #%00000100           ; DCSEL=2, ADDRSEL=0
