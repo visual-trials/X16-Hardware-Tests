@@ -179,6 +179,9 @@ start_drawing_triangles:
         .if(DO_4BIT)
             ora #%00000100           ; 4-bit mode = 1
         .endif
+        .if(USE_DITHERING)
+            ora #%00010000           ; one byte cache cycling = 1
+        .endif
         sta VERA_FX_CTRL
         
         .if(DO_4BIT && DO_2BIT)
@@ -243,6 +246,9 @@ draw_next_triangle:
             sta VERA_FX_CACHE_H      ; cache32[23:16]
             lda dithering_colors-16+48,y
             sta VERA_FX_CACHE_U      ; cache32[31:24]
+            
+; FIXME: we should set the cache-index to start-Y % 4 (to make sure two attaching triangles dont get a subtle shear/border line
+            
         .else
             ; SPEED: we can skip this load if we use register y for setting up DCSEL=6
             lda TRIANGLE_COLOR
