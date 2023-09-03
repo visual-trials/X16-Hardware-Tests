@@ -21,18 +21,18 @@ DO_BUTTERFLY = 0
 
 USE_FX_MULTIPLIER = 1
 
-DRAW_BITMAP_TEXT = 1
-DRAW_CURSOR_KEYS = 1
+DRAW_BITMAP_TEXT = 0
+DRAW_CURSOR_KEYS = 0
 ; FIXME: use this!
 ; FIXME: use this!
 ; FIXME: use this!
 USE_POLYGON_FILLER_FOR_BITMAP = 0
 
 DO_SPEED_TEST = 1
-DO_4BIT = 1
-DO_2BIT = 1
-USE_DITHERING = 1
-KEEP_RUNNING = 1
+DO_4BIT = 0
+DO_2BIT = 0
+USE_DITHERING = 0
+KEEP_RUNNING = 1  ; IMPORTANT: we cant show text AND do double buffering!
 USE_LIGHT = 1
 USE_KEYBOARD_INPUT = 1
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
@@ -674,11 +674,10 @@ reset:
     .if(DO_SPEED_TEST)
         ; -- Note: we load this early on, since the source data will be overwritten later on --
 
-; FIXME!        
-;        jsr copy_palette_from_index_16
-;        .if(DO_BUTTERFLY)
-;            jsr copy_palette_from_index_128
-;        .endif
+        .if(DO_BUTTERFLY)
+            jsr copy_palette_from_index_16
+            jsr copy_palette_from_index_128
+        .endif
 
         jsr load_3d_triangle_data_into_ram
     .endif
@@ -3360,7 +3359,6 @@ end_of_palette_data:
     .endif
     
     
-    
     .if(DO_BUTTERFLY)
 NR_OF_TRIANGLES = 72
 triangle_3d_data:
@@ -3606,7 +3604,6 @@ palette_data_128:
     .byte $54, $0f  ; palette index 175
 end_of_palette_data_128:
     .endif
-    
     
     .if(!DO_BUTTERFLY)
 NR_OF_TRIANGLES = 106
