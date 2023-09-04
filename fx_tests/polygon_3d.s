@@ -60,7 +60,9 @@ USE_Y_TO_ADDRESS_TABLE = 1
             .else
 ; FIXME
             .endif
-NR_OF_BYTES_PER_LINE = 80
+PIXELS_PER_LINE = 640
+BITS_PER_PIXEL = 2
+NR_OF_BYTES_PER_LINE = PIXELS_PER_LINE / 8 * BITS_PER_PIXEL
             .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
 BACKGROUND_COLOR = %0000000  ; Purple (originally Black, but pallete is changed)
             .else
@@ -529,6 +531,15 @@ reset:
             ; VERA.layer0.config = (4 + 1) ; enable bitmap mode and color depth = 2bpp on layer 0
             lda #(4+1)
             sta VERA_L0_CONFIG
+            
+            ; FIXME: we now forefully set TILEW to 640! We should use PIXELS_PER_LINE instead!
+            lda #%00000001
+            sta VERA_L0_TILEBASE
+            
+            lda #$80                 ; 1:1 scale
+            sta VERA_DC_HSCALE
+            sta VERA_DC_VSCALE      
+            
         .else
             .include utils/rom_only_change_palette_colors.s
             
@@ -1104,6 +1115,10 @@ switch_to_filling_low_vram_buffer:
     ; VERA.layer0.tilebase = ; set new tilebase for layer 0 (0x10000)
     ; NOTE: this also sets the TILE WIDTH to 320 px!!
     lda #($100 >> 1)
+    .if(DO_4BIT && DO_2BIT)
+        ; FIXME: we now forefully set TILEW to 640! We should use PIXELS_PER_LINE instead!
+        ora #%00000001
+    .endif
     sta VERA_L0_TILEBASE
 
 ;    lda TMP4
@@ -1124,6 +1139,10 @@ switch_to_filling_high_vram_buffer:
     ; VERA.layer0.tilebase = ; set new tilebase for layer 0 (0x00000)
     ; NOTE: this also sets the TILE WIDTH to 320 px!!
     lda #($000 >> 1)
+    .if(DO_4BIT && DO_2BIT)
+        ; FIXME: we now forefully set TILEW to 640! We should use PIXELS_PER_LINE instead!
+        ora #%00000001
+    .endif
     sta VERA_L0_TILEBASE
     
     rts

@@ -2229,7 +2229,7 @@ tmp_keep_moving_on:
         jsr do_the_jump_to_the_table
     
         ; We always increment ADDR0
-        lda VERA_DATA0   ; this will increment ADDR0 with 320 bytes (= +1 vertically)
+        lda VERA_DATA0   ; this will increment ADDR0 with BYTES_PER_LINE bytes (= +1 vertically)
         
         ; We check if we have reached the end, if so, we do *NOT* change ADDR1!
         dec NUMBER_OF_ROWS
@@ -2350,7 +2350,7 @@ polygon_fill_triangle_pixel_next_256_0:
 polygon_fill_triangle_row_done:
     
     ; We always increment ADDR0
-    lda VERA_DATA0   ; this will increment ADDR0 with 320 bytes (= +1 vertically)
+    lda VERA_DATA0   ; this will increment ADDR0 with BYTES_PER_LINE bytes (= +1 vertically)
     
     ; We check if we have reached the end, if so, we do *NOT* change ADDR1!
     dec NUMBER_OF_ROWS
@@ -2389,15 +2389,14 @@ generate_next_y_to_address_entry:
     adc #0
     sta VRAM_ADDRESS+2
     .if(USE_POLYGON_FILLER)
-    
-        .if(DO_4BIT)
-            .if(DO_2BIT)
-                ora #%11000000           ; For polygon filler helper: 80 byte increment (=%1100)
-            .else
-                ora #%11010000           ; For polygon filler helper: 160 byte increment (=%1101)
-            .endif
-        .else
+        .if(NR_OF_BYTES_PER_LINE == 320)
             ora #%11100000           ; For polygon filler helper: 320 byte increment (=%1110)
+        .endif
+        .if(NR_OF_BYTES_PER_LINE == 160)
+            ora #%11010000           ; For polygon filler helper: 160 byte increment (=%1101)
+        .endif
+        .if(NR_OF_BYTES_PER_LINE == 80)
+            ora #%11010000           ; For polygon filler helper: 160 byte increment (=%1101)
         .endif
     .else
         .if(DO_4BIT)
