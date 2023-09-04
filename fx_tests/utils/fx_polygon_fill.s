@@ -1003,9 +1003,10 @@ draw_triangle_with_single_top_point:
         sta VERA_CTRL
         
         .if(DO_4BIT)
-            ; We set the cache index [1:0] and cache nibble index to the TOP_POINT_Y[2:0], to make sure triangle of a quad with have *vertically aligned* dithering
+            ; We set the cache index [1:0] to the TOP_POINT_Y[1:0], to make sure triangle of a quad with have *vertically aligned* dithering
             lda TOP_POINT_Y
-            and #%00000111 
+            and #%00000011 
+            asl
             asl
             sta VERA_FX_MULT
         .else
@@ -1669,9 +1670,10 @@ draw_triangle_with_double_top_points:
         sta VERA_CTRL
         
         .if(DO_4BIT)
-            ; We set the cache index [1:0] and cache nibble index to the LEFT_POINT_Y[2:0], to make sure triangle of a quad with have *vertically aligned* dithering
+            ; We set the cache index [1:0] to the LEFT_POINT_Y[1:0], to make sure triangle of a quad with have *vertically aligned* dithering
             lda LEFT_POINT_Y
-            and #%00000111 
+            and #%00000011 
+            asl
             asl
             sta VERA_FX_MULT
         .else
