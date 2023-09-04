@@ -1202,13 +1202,16 @@ init_world:
     lda #0
     sta ANGLE_X+1
     
+
+; FIXME: this works for 320x199 and a cube
     .if(0)
     lda #$D8
     sta TRANSLATE_Z
     lda #$02
     sta TRANSLATE_Z+1
     .endif
-    
+
+; FIXME: this works for 320x199 and a spaceship/butterfly
     .if(1)
     lda #$D8
     sta TRANSLATE_Z
