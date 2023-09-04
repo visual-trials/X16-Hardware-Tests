@@ -1051,6 +1051,23 @@ draw_triangle_with_single_top_point:
 
     ; SPEED: cant we and use only 1 byte for Y? (since Y < 240 pixels)
     
+    .if(0)
+        stp
+        lda TOP_POINT_Y
+        lda TOP_POINT_Y+1
+        lda LEFT_POINT_Y
+        lda LEFT_POINT_Y+1
+        lda RIGHT_POINT_Y
+        lda RIGHT_POINT_Y+1
+        
+        lda TOP_POINT_X
+        lda TOP_POINT_X+1
+        lda LEFT_POINT_X
+        lda LEFT_POINT_X+1
+        lda RIGHT_POINT_X
+        lda RIGHT_POINT_X+1
+    .endif
+    
     .if(USE_DITHERING)
         lda #%00000100           ; DCSEL=2, ADDRSEL=0
         sta VERA_CTRL
@@ -1150,6 +1167,15 @@ slope_top_left_is_correctly_signed:
         
 slope_top_right_is_correctly_signed:
     .endif
+    
+    .if(0)
+        stp
+        lda SLOPE_TOP_LEFT
+        lda SLOPE_TOP_LEFT+1
+        
+        lda SLOPE_TOP_RIGHT
+        lda SLOPE_TOP_RIGHT+1
+    .endif
 
     ; ============== RIGHT POINT vs LEFT POINT ============
 
@@ -1161,6 +1187,11 @@ slope_top_right_is_correctly_signed:
         lda RIGHT_POINT_Y
         sbc LEFT_POINT_Y
         sta Y_DISTANCE_RIGHT_LEFT
+        .if(SCREEN_HEIGHT > 256)
+            lda RIGHT_POINT_Y+1
+            sbc LEFT_POINT_Y+1
+            sta Y_DISTANCE_RIGHT_LEFT+1
+        .endif
         bmi left_point_is_higher_in_y
     
 right_point_is_higher_in_y:
@@ -1182,6 +1213,11 @@ left_point_is_higher_in_y:
         lda #0
         sbc Y_DISTANCE_RIGHT_LEFT
         sta Y_DISTANCE_RIGHT_LEFT
+        .if(SCREEN_HEIGHT > 256)
+            lda #0
+            sbc Y_DISTANCE_RIGHT_LEFT+1
+            sta Y_DISTANCE_RIGHT_LEFT+1
+        .endif
         
         lda #1
         sta Y_DISTANCE_IS_NEGATED
@@ -1362,6 +1398,7 @@ y2address_is_setup_single_top:
 first_left_point_is_lower_in_y:
         
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
+; FIXME!: what if Y_DISTANCE_LEFT_TOP >= 256??
             ldy Y_DISTANCE_LEFT_TOP
  
             .if(!DO_4BIT)
@@ -1420,6 +1457,7 @@ first_left_point_is_lower_in_y:
             
 
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
+; FIXME!: what if Y_DISTANCE_RIGHT_LEFT >= 256??
             ldy Y_DISTANCE_RIGHT_LEFT
             beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
         .else
@@ -1493,6 +1531,7 @@ first_left_point_is_lower_in_y:
         bra done_drawing_polygon_part_single_top
 first_right_point_is_lower_in_y:
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
+; FIXME!: what if Y_DISTANCE_RIGHT_TOP >= 256??
             ldy Y_DISTANCE_RIGHT_TOP
             
             .if(!DO_4BIT)
@@ -1549,6 +1588,7 @@ first_right_point_is_lower_in_y:
         .endif
 
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
+; FIXME!: what if Y_DISTANCE_RIGHT_LEFT >= 256??
             ldy Y_DISTANCE_RIGHT_LEFT
             beq done_drawing_polygon_part_single_top   ; The left and right point are at the same y-coordinate, so there is nothing left to draw.
         .else
@@ -1952,6 +1992,7 @@ y2address_is_setup_double_top:
         sta VERA_FX_Y_INCR_H
     
         .if(USE_JUMP_TABLE && !TEST_JUMP_TABLE)
+; FIXME!: what if Y_DISTANCE_LEFT_TOP >= 256??
             ldy Y_DISTANCE_LEFT_TOP
             
             .if(!DO_4BIT)

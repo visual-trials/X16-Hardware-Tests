@@ -1202,6 +1202,13 @@ init_world:
     lda #0
     sta ANGLE_X+1
     
+; FIXME: this works for 640x398 and a cube
+    .if(1)
+    lda #$80
+    sta TRANSLATE_Z
+    lda #$06
+    sta TRANSLATE_Z+1
+    .endif
 
 ; FIXME: this works for 320x199 and a cube
     .if(0)
@@ -1212,7 +1219,7 @@ init_world:
     .endif
 
 ; FIXME: this works for 320x199 and a spaceship/butterfly
-    .if(1)
+    .if(0)
     lda #$D8
     sta TRANSLATE_Z
     lda #$08
