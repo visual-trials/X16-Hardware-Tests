@@ -258,9 +258,8 @@ draw_next_triangle:
             sta VERA_FX_CACHE_U      ; cache32[31:24]
         .endif
 
-        ; FIXME: do we *need* to set this to DCSEL=2 here?
-        lda #%00000100           ; DCSEL=2, ADDRSEL=0
-        sta VERA_CTRL
+        ; FIXME: do we need to set this to DCSEL=2 here? -> NO, right?
+        
     .endif
     
     ; -- Determining which point is/are top point(s) --
@@ -999,7 +998,22 @@ draw_triangle_with_single_top_point:
 
     ; SPEED: cant we and use only 1 byte for Y? (since Y < 240 pixels)
     
-
+    .if(USE_DITHERING)
+        lda #%00000100           ; DCSEL=2, ADDRSEL=0
+        sta VERA_CTRL
+        
+        .if(DO_4BIT)
+            ; We set the cache index [1:0] and cache nibble index to the TOP_POINT_Y[2:0], to make sure triangle of a quad with have *vertically aligned* dithering
+            lda TOP_POINT_Y
+            and #%00000111 
+            asl
+            sta VERA_FX_MULT
+        .else
+            ; in 8-bit mode we dont do dithering?
+        .endif
+        
+    .endif
+    
     ; ============== LEFT POINT vs TOP POINT ============
     
     .if(USE_POLYGON_FILLER && USE_SLOPE_TABLES && USE_180_DEGREES_SLOPE_TABLE)
@@ -1650,6 +1664,21 @@ draw_triangle_with_double_top_points:
 
     ; SPEED: cant we and use only 1 byte for Y? (since Y < 240 pixels)
     
+    .if(USE_DITHERING)
+        lda #%00000100           ; DCSEL=2, ADDRSEL=0
+        sta VERA_CTRL
+        
+        .if(DO_4BIT)
+            ; We set the cache index [1:0] and cache nibble index to the LEFT_POINT_Y[2:0], to make sure triangle of a quad with have *vertically aligned* dithering
+            lda LEFT_POINT_Y
+            and #%00000111 
+            asl
+            sta VERA_FX_MULT
+        .else
+            ; in 8-bit mode we dont do dithering?
+        .endif
+        
+    .endif
     
     ; ============== BOTTOM POINT vs LEFT POINT ============
     
