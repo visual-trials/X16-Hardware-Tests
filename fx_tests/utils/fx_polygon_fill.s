@@ -152,8 +152,10 @@ MACRO_copy_point_x .macro TRIANGLES_POINT_X, POINT_X
 MACRO_copy_point_y .macro TRIANGLES_POINT_Y, POINT_Y
     lda \TRIANGLES_POINT_Y, x
     sta \POINT_Y
-;    lda \TRIANGLES_POINT_Y+MAX_NR_OF_TRIANGLES, x
-;    sta \POINT_Y+1
+    .if(SCREEN_HEIGHT > 256)
+        lda \TRIANGLES_POINT_Y+MAX_NR_OF_TRIANGLES, x
+        sta \POINT_Y+1
+    .endif
 .endmacro
 
     
@@ -264,10 +266,12 @@ draw_next_triangle:
     
     ; -- Determining which point is/are top point(s) --
 
-;    lda TRIANGLES_POINT1_Y+MAX_NR_OF_TRIANGLES, x
-;    cmp TRIANGLES_POINT2_Y+MAX_NR_OF_TRIANGLES, x
-;    bcc point1_is_lower_in_y_than_point2
-;    bne point1_is_higher_in_y_than_point2
+    .if(SCREEN_HEIGHT > 256)
+        lda TRIANGLES_POINT1_Y+MAX_NR_OF_TRIANGLES, x
+        cmp TRIANGLES_POINT2_Y+MAX_NR_OF_TRIANGLES, x
+        bcc point1_is_lower_in_y_than_point2
+        bne point1_is_higher_in_y_than_point2
+    .endif
 
     lda TRIANGLES_POINT1_Y, x
     cmp TRIANGLES_POINT2_Y, x
@@ -277,10 +281,12 @@ draw_next_triangle:
     
 point1_is_lower_in_y_than_point2:
     
-;    lda TRIANGLES_POINT1_Y+MAX_NR_OF_TRIANGLES, x
-;    cmp TRIANGLES_POINT3_Y+MAX_NR_OF_TRIANGLES, x
-;    bcc pt1_lower_pt2_point1_is_lower_in_y_than_point3
-;    bne pt1_lower_pt2_point1_is_higher_in_y_than_point3
+    .if(SCREEN_HEIGHT > 256)
+        lda TRIANGLES_POINT1_Y+MAX_NR_OF_TRIANGLES, x
+        cmp TRIANGLES_POINT3_Y+MAX_NR_OF_TRIANGLES, x
+        bcc pt1_lower_pt2_point1_is_lower_in_y_than_point3
+        bne pt1_lower_pt2_point1_is_higher_in_y_than_point3
+    .endif
 
     lda TRIANGLES_POINT1_Y, x
     cmp TRIANGLES_POINT3_Y, x
@@ -306,10 +312,12 @@ pt1_lower_pt2_point1_is_the_same_in_y_as_point3:
     
 point1_is_higher_in_y_than_point2:
 
-;    lda TRIANGLES_POINT2_Y+MAX_NR_OF_TRIANGLES, x
-;    cmp TRIANGLES_POINT3_Y+MAX_NR_OF_TRIANGLES, x
-;    bcc pt1_higher_pt2_point2_is_lower_in_y_than_point3
-;    bne pt1_higher_pt2_point2_is_higher_in_y_than_point3
+    .if(SCREEN_HEIGHT > 256)
+        lda TRIANGLES_POINT2_Y+MAX_NR_OF_TRIANGLES, x
+        cmp TRIANGLES_POINT3_Y+MAX_NR_OF_TRIANGLES, x
+        bcc pt1_higher_pt2_point2_is_lower_in_y_than_point3
+        bne pt1_higher_pt2_point2_is_higher_in_y_than_point3
+    .endif
 
     lda TRIANGLES_POINT2_Y, x
     cmp TRIANGLES_POINT3_Y, x
@@ -335,10 +343,12 @@ pt1_higher_pt2_point2_is_the_same_in_y_as_point3:
     
 point1_is_the_same_in_y_as_point2:
 
-;    lda TRIANGLES_POINT1_Y+MAX_NR_OF_TRIANGLES, x
-;    cmp TRIANGLES_POINT3_Y+MAX_NR_OF_TRIANGLES, x
-;    bcc pt1_same_pt2_point1_is_lower_in_y_than_point3
-;    bne pt1_same_pt2_point1_is_higher_in_y_than_point3
+    .if(SCREEN_HEIGHT > 256)
+        lda TRIANGLES_POINT1_Y+MAX_NR_OF_TRIANGLES, x
+        cmp TRIANGLES_POINT3_Y+MAX_NR_OF_TRIANGLES, x
+        bcc pt1_same_pt2_point1_is_lower_in_y_than_point3
+        bne pt1_same_pt2_point1_is_higher_in_y_than_point3
+    .endif
 
     lda TRIANGLES_POINT1_Y, x
     cmp TRIANGLES_POINT3_Y, x
@@ -781,9 +791,11 @@ MACRO_subtract_y .macro POSITION_A, POSITION_B, DISTANCE
     lda \POSITION_A
     sbc \POSITION_B
     sta \DISTANCE
-;    lda \POSITION_A+1
-;    sbc \POSITION_B+1
-;    sta \DISTANCE+1
+    .if(SCREEN_HEIGHT > 256)
+        lda \POSITION_A+1
+        sbc \POSITION_B+1
+        sta \DISTANCE+1
+    .endif
 
 .endmacro
 
@@ -862,7 +874,25 @@ MACRO_copy_slope_to_soft_incr .macro SLOPE, SOFT_X_INCR, SOFT_X_INCR_SUB
 
 MACRO_set_address_using_y2address_table .macro POINT_Y
     
-    ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
+    .if(SCREEN_HEIGHT > 256)
+        ; If the y-coordinate can be more than 255 we have to look at the high byte
+        
+        ldx \POINT_Y+1
+        beq \@address_should_be_set_using_lower_y
+        
+        ldx \POINT_Y
+        lda Y_256_TO_ADDRESS_LOW, x
+        sta VERA_ADDR_LOW
+        lda Y_256_TO_ADDRESS_HIGH, x
+        sta VERA_ADDR_HIGH
+        lda Y_256_TO_ADDRESS_BANK, x     ; This will include the auto-increment of 320/160/80 byte
+        sta VERA_ADDR_BANK
+        
+        bra \@address_is_set_using_y
+
+\@address_should_be_set_using_lower_y:
+    .endif
+    
     ldx \POINT_Y
     
     lda Y_TO_ADDRESS_LOW, x
@@ -872,11 +902,32 @@ MACRO_set_address_using_y2address_table .macro POINT_Y
     lda Y_TO_ADDRESS_BANK, x     ; This will include the auto-increment of 320/160/80 byte
     sta VERA_ADDR_BANK
     
+\@address_is_set_using_y:
+
+    
 .endmacro
 
 MACRO_set_address_using_y2address_table2 .macro POINT_Y
     
-    ; TODO: we limit the y-coordinate to 1 byte (so max 255 right now)
+    .if(SCREEN_HEIGHT > 256)
+        ; If the y-coordinate can be more than 255 we have to look at the high byte
+        
+        ldx \POINT_Y+1
+        beq \@address_should_be_set_using_lower_y2
+        
+        ldx \POINT_Y
+        lda Y_256_TO_ADDRESS_LOW, x
+        sta VERA_ADDR_LOW
+        lda Y_256_TO_ADDRESS_HIGH, x
+        sta VERA_ADDR_HIGH
+        lda Y_256_TO_ADDRESS_BANK2, x     ; This will include the auto-increment of 320/160/80 byte
+        sta VERA_ADDR_BANK
+        
+        bra \@address_is_set_using_y2
+
+\@address_should_be_set_using_lower_y2:
+    .endif
+    
     ldx \POINT_Y
     
     lda Y_TO_ADDRESS_LOW, x
@@ -886,6 +937,8 @@ MACRO_set_address_using_y2address_table2 .macro POINT_Y
     lda Y_TO_ADDRESS_BANK2, x     ; This will include the auto-increment of 320/160/80 byte
     sta VERA_ADDR_BANK
     
+\@address_is_set_using_y2:
+
 .endmacro
 
 
@@ -2388,6 +2441,7 @@ generate_next_y_to_address_entry:
     lda VRAM_ADDRESS+2
     adc #0
     sta VRAM_ADDRESS+2
+    
     .if(USE_POLYGON_FILLER)
         .if(NR_OF_BYTES_PER_LINE == 320)
             ora #%11100000           ; For polygon filler helper: 320 byte increment (=%1110)
@@ -2412,9 +2466,53 @@ generate_next_y_to_address_entry:
     .endif
     
     iny
-    
-    cpy #240
     bne generate_next_y_to_address_entry
+    
+    .if(SCREEN_HEIGHT > 256)
+        ldy #0
+generate_next_y_256_to_address_entry:
+        clc
+        lda VRAM_ADDRESS
+        adc #<NR_OF_BYTES_PER_LINE
+        sta VRAM_ADDRESS
+        sta Y_256_TO_ADDRESS_LOW, y
+        
+        lda VRAM_ADDRESS+1
+        adc #>NR_OF_BYTES_PER_LINE
+        sta VRAM_ADDRESS+1
+        sta Y_256_TO_ADDRESS_HIGH, y
+        
+        lda VRAM_ADDRESS+2
+        adc #0
+        sta VRAM_ADDRESS+2
+        
+        .if(USE_POLYGON_FILLER)
+            .if(NR_OF_BYTES_PER_LINE == 320)
+                ora #%11100000           ; For polygon filler helper: 320 byte increment (=%1110)
+            .endif
+            .if(NR_OF_BYTES_PER_LINE == 160)
+                ora #%11010000           ; For polygon filler helper: 160 byte increment (=%1101)
+            .endif
+            .if(NR_OF_BYTES_PER_LINE == 80)
+                ora #%11010000           ; For polygon filler helper: 160 byte increment (=%1101)
+            .endif
+        .else
+            .if(DO_4BIT)
+                ora #%00000100           ; Without polygon filler helper: auto-increment = 1 nibble (0.5 byte) increment (=%0000 + nibble increment = 1)
+            .else
+                ora #%00010000           ; Without polygon filler helper: auto-increment = 1 byte increment (=%0001)
+            .endif
+        .endif
+        sta Y_256_TO_ADDRESS_BANK, y
+        .if(USE_DOUBLE_BUFFER)
+            ora #%00000001              ; We set bit16 to 1
+            sta Y_256_TO_ADDRESS_BANK2, y
+        .endif
+        
+        iny
+        bne generate_next_y_256_to_address_entry
+    .endif
+    
 
     rts
     

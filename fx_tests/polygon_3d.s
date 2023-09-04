@@ -104,8 +104,14 @@ TOP_MARGIN = 13
 LEFT_MARGIN = 16
 VSPACING = 10
 
+    ; FIXME: we should use PIXELS_PER_LINE instead here?
+    .if(DO_4BIT && DO_2BIT)
+SCREEN_WIDTH = 640
+SCREEN_HEIGHT = 400-2   ; FIXME: A minus 2 since we only have room (atm) for 2*199.7 lines! (we need to move the second buffer a little lower in vram)
+    .else
 SCREEN_WIDTH = 320
 SCREEN_HEIGHT = 200-1   ; FIXME: A minus 1 since we only have room (atm) for 199.7 lines! (we need to move the second buffer a little lower in vram)
+    .endif
 
 ; === Zero page addresses ===
 
@@ -427,19 +433,24 @@ TRIANGLES3_3D_POINTN_Y   = $9200 ; 9280
 TRIANGLES3_3D_POINTN_Z   = $9300 ; 9380
 TRIANGLES3_3D_SUM_Z      = $9400 ; 9480
 
-
 Y_TO_ADDRESS_LOW         = $9500
 Y_TO_ADDRESS_HIGH        = $9600
 Y_TO_ADDRESS_BANK        = $9700
 Y_TO_ADDRESS_BANK2       = $9800   ; Only use when double buffering
 
+    .if(SCREEN_HEIGHT > 256)
+Y_256_TO_ADDRESS_LOW     = $9900
+Y_256_TO_ADDRESS_HIGH    = $9A00
+Y_256_TO_ADDRESS_BANK    = $9B00
+Y_256_TO_ADDRESS_BANK2   = $9C00   ; Only use when double buffering
+    .endif
 
-KEYBOARD_STATE           = $9900   ; 128 bytes (state for each key of the keyboard)
-KEYBOARD_EVENTS          = $9980   ; 128 bytes (event for each key of the keyboard)
+; Note that Y_256_* tables have 512-480 = 32 bytes left of room. We are using those here.
+KEYBOARD_KEY_CODE_BUFFER = $9CE0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
 
-; FIXME: OLD 02D0
-CLEAR_256_BYTES_CODE     = $9D00   ; takes up to 00F0+rts (256 bytes to clear = 80 * stz = 80 * 3 bytes)
-KEYBOARD_KEY_CODE_BUFFER = $9E00   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
+KEYBOARD_STATE           = $9D00   ; 128 bytes (state for each key of the keyboard)
+KEYBOARD_EVENTS          = $9D80   ; 128 bytes (event for each key of the keyboard)
+CLEAR_256_BYTES_CODE     = $9E00   ; takes up to 00F0+rts (256 bytes to clear = 80 * stz = 80 * 3 bytes)
 
     .ifndef CREATE_PRG
 COPY_SLOPE_TABLES_TO_BANKED_RAM = $9D00  ; TODO: is this smaller than 256 bytes?
@@ -769,7 +780,8 @@ reset:
        
         lda #20
         sta VERA_DC_VSTART
-        lda #SCREEN_HEIGHT+20-1
+        ; FIXME: this 398 is HARDCODED here (this is not dependent on the nr of pixels you draw)
+        lda #398/2+20-1
         sta VERA_DC_VSTOP
     
         jsr test_speed_of_simple_3d_polygon_scene
