@@ -69,7 +69,9 @@ BACKGROUND_COLOR = %0000000  ; Purple (originally Black, but pallete is changed)
 BACKGROUND_COLOR = %11111111  ; Red
             .endif
         .else
-NR_OF_BYTES_PER_LINE = 160
+PIXELS_PER_LINE = 320
+BITS_PER_PIXEL = 4
+NR_OF_BYTES_PER_LINE = PIXELS_PER_LINE / 8 * BITS_PER_PIXEL
             .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
 BACKGROUND_COLOR = $44  ; Purple
             .else
@@ -77,7 +79,9 @@ BACKGROUND_COLOR = $66  ; Blue
             .endif
         .endif
     .else
-NR_OF_BYTES_PER_LINE = 320
+PIXELS_PER_LINE = 320
+BITS_PER_PIXEL = 8
+NR_OF_BYTES_PER_LINE = PIXELS_PER_LINE / 8 * BITS_PER_PIXEL
         .if (USE_POLYGON_FILLER || USE_WRITE_CACHE)
 BACKGROUND_COLOR = 251  ; Nice purple
         .else
@@ -433,8 +437,9 @@ Y_TO_ADDRESS_BANK2       = $9800   ; Only use when double buffering
 KEYBOARD_STATE           = $9900   ; 128 bytes (state for each key of the keyboard)
 KEYBOARD_EVENTS          = $9980   ; 128 bytes (event for each key of the keyboard)
 
-CLEAR_COLUMN_CODE        = $9A00   ; takes up to 02D0
-KEYBOARD_KEY_CODE_BUFFER = $9CE0   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
+; FIXME: OLD 02D0
+CLEAR_256_BYTES_CODE     = $9D00   ; takes up to 00F0+rts (256 bytes to clear = 80 * stz = 80 * 3 bytes)
+KEYBOARD_KEY_CODE_BUFFER = $9E00   ; 32 bytes (can be much less, since compact key codes are used now) -> used by keyboard.s
 
     .ifndef CREATE_PRG
 COPY_SLOPE_TABLES_TO_BANKED_RAM = $9D00  ; TODO: is this smaller than 256 bytes?
@@ -700,7 +705,7 @@ reset:
     jsr init_keyboard
     
     .if (USE_WRITE_CACHE)
-        jsr generate_clear_column_code
+        jsr generate_clear_256_bytes_code
         jsr clear_screen_fast_4_bytes
     .else
         jsr clear_screen_slow
@@ -2679,8 +2684,6 @@ vera_wr_fill_bitmap_once:
     
     ldy #SCREEN_HEIGHT/8
 vera_wr_fill_bitmap_col_once:
-; FIXME: now drawing a pattern!
-;    tya
     sta VERA_DATA0           ; store pixel
     sta VERA_DATA0           ; store pixel
     sta VERA_DATA0           ; store pixel
@@ -2693,14 +2696,25 @@ vera_wr_fill_bitmap_col_once:
     dey
     bne vera_wr_fill_bitmap_col_once
     
-    ; FIXME: workaround for SCREEN_HEIGHT = 199
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
+    .if(SCREEN_HEIGHT % 8 == 7)
+        ; Workaround for SCREEN_HEIGHT = 199
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+    .endif
+    .if(SCREEN_HEIGHT % 8 == 6)
+        ; Workaround for SCREEN_HEIGHT = 398
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+    .endif
     
     inx
     bne vera_wr_fill_bitmap_once
@@ -2727,8 +2741,6 @@ vera_wr_fill_bitmap_once2:
     
     ldy #SCREEN_HEIGHT/8
 vera_wr_fill_bitmap_col_once2:
-; FIXME: now drawing a pattern!
-;    tya
     sta VERA_DATA0           ; store pixel
     sta VERA_DATA0           ; store pixel
     sta VERA_DATA0           ; store pixel
@@ -2741,14 +2753,25 @@ vera_wr_fill_bitmap_col_once2:
     dey
     bne vera_wr_fill_bitmap_col_once2
     
-    ; FIXME: workaround for SCREEN_HEIGHT = 199
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
-    sta VERA_DATA0           ; store pixel
+    .if(SCREEN_HEIGHT % 8 == 7)
+        ; Workaround for SCREEN_HEIGHT = 199
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+    .endif
+    .if(SCREEN_HEIGHT % 8 == 6)
+        ; Workaround for SCREEN_HEIGHT = 398
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+        sta VERA_DATA0           ; store pixel
+    .endif
 
     inx
     cpx #64                  ; The right part of the screen is 320 - 256 = 64 pixels
@@ -2789,88 +2812,44 @@ clear_screen_fast_4_bytes:
 
     lda #%01000000           ; transparent writes = 0, blit write = 1, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
     sta VERA_FX_CTRL
-    
-    
-    ; Left part of the screen (256 columns)
 
-    
-    ldx #0
-    
-clear_next_column_left_4_bytes:
-
-    .if(DO_4BIT)
-        .if(DO_2BIT)
-            lda #%11000000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 80 bytes (=12=%1100)
-        .else
-            lda #%11010000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 160 bytes (=13=%1101)
-        .endif
-    .else
-        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
-    .endif
+    ; -- Set the starting VRAM address --
+    lda #%00110000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 4 bytes
     .if(USE_DOUBLE_BUFFER)
-;        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
         ora FRAME_BUFFER_INDEX   ; this is either $00 or $01
         sta VERA_ADDR_BANK
     .else
-;        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
         sta VERA_ADDR_BANK
     .endif
-    lda #$00
-    sta VERA_ADDR_HIGH
-    stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
+    stz VERA_ADDR_HIGH
+    stz VERA_ADDR_LOW
     
-    ; Color for clearing screen
-    lda #BACKGROUND_COLOR
-    jsr CLEAR_COLUMN_CODE
-    
-    inx
-    inx
-    inx
-    inx
-    .if(DO_4BIT)
-        .if(DO_2BIT)
-            cpx #80     ; We only do 80*4 2-bit columns
+    .if(PIXELS_PER_LINE == 640)
+        .if(DO_4BIT && DO_2BIT)
+            ; 640x398 * 0.25 byte / 256 = 248.75 iterations
+            ldx #249
         .else
-            cpx #160     ; We only do 160*2 4-bit columns
+            FIXME: not implemented right now
         .endif
     .else
-        cpx #0     ; We first do 256 8-bit columns, later we do the extra 64 columns
+        .if(!DO_4BIT)
+            ; 320x199 * 1 byte / 256 = 248.75 iterations
+            ldx #249
+        .else
+            .if(DO_2BIT)
+                FIXME: not implemented right now
+            .else
+                ; 320x199 * 0.5 byte / 240 = 124.375 iterations
+                ldx #125
+            .endif
+        .endif
+    
     .endif
-    bne clear_next_column_left_4_bytes
     
-    .if(DO_4BIT)
-        ; In 4-bit mode we are done after clearing 160*2 4-bit columns
-        ; In 2-bit mode we are done after clearing 80*4 2-bit columns
-        rts
-    .endif
-    
-    ; Right part of the screen (64 columns)
-
-    ldx #0
-
-clear_next_column_right_4_bytes:
-    .if(USE_DOUBLE_BUFFER)
-        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
-        ora FRAME_BUFFER_INDEX   ; this is either $00 or $01
-        sta VERA_ADDR_BANK
-    .else
-        lda #%11100000           ; Setting bit 16 of vram address to the highest bit (=0), setting auto-increment value to 320 bytes (=14=%1110)
-        sta VERA_ADDR_BANK
-    .endif
-    lda #$01
-    sta VERA_ADDR_HIGH
-    stx VERA_ADDR_LOW       ; We use x as the column number, so we set it as as the start byte of a column
-    
-    ; Color for clearing screen
-    lda #BACKGROUND_COLOR
-    jsr CLEAR_COLUMN_CODE
-    
-    inx
-    inx
-    inx
-    inx
-    cpx #64
-    bne clear_next_column_right_4_bytes
+clear_next_256_bytes:
+    jsr CLEAR_256_BYTES_CODE
+    dex
+    bne clear_next_256_bytes 
      
     lda #%00000000           ; transparent writes = 0, blit write = 0, cache fill enabled = 0, one byte cache cycling = 0, 16bit hop = 0, 4bit mode = 0, normal addr1 mode 
     sta VERA_FX_CTRL
@@ -2878,17 +2857,18 @@ clear_next_column_right_4_bytes:
     rts
     
     
-generate_clear_column_code:
+generate_clear_256_bytes_code:
 
-    lda #<CLEAR_COLUMN_CODE
+    lda #<CLEAR_256_BYTES_CODE
     sta CODE_ADDRESS
-    lda #>CLEAR_COLUMN_CODE
+    lda #>CLEAR_256_BYTES_CODE
     sta CODE_ADDRESS+1
     
     ldy #0                 ; generated code byte counter
-    
-    ldx #0                 ; counts nr of clear instructions
 
+    ; -- We generate 64 clear (stz) instructions --
+    
+    ldx #64                ; counts nr of clear instructions
 next_clear_instruction:
 
     ; -- stz VERA_DATA0 ($9F23)
@@ -2901,8 +2881,7 @@ next_clear_instruction:
     lda #$9F               ; $9F
     jsr add_code_byte
     
-    inx
-    cpx #SCREEN_HEIGHT     ; SCREEN_HEIGHT times clear pixels written to VERA
+    dex
     bne next_clear_instruction
 
     ; -- rts --
