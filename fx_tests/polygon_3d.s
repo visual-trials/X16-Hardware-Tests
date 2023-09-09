@@ -29,11 +29,11 @@ DRAW_CURSOR_KEYS = 0
 USE_POLYGON_FILLER_FOR_BITMAP = 0
 
 DO_SPEED_TEST = 1
-DO_4BIT = 1
-DO_2BIT = 1
-USE_DITHERING = 1
+DO_4BIT = 0
+DO_2BIT = 0
+USE_DITHERING = 0
 KEEP_RUNNING = 1  ; IMPORTANT: we cant show text AND do double buffering!
-USE_LIGHT = 1
+USE_LIGHT = 0
 USE_KEYBOARD_INPUT = 1
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
@@ -1202,8 +1202,8 @@ init_world:
     lda #0
     sta ANGLE_X+1
     
-; FIXME: this works for 640x398 and a cube
-    .if(1)
+; FIXME: this works for 640x398 and a ship?
+    .if(0)
     lda #$80
     sta TRANSLATE_Z
     lda #$06
@@ -1211,7 +1211,7 @@ init_world:
     .endif
 
 ; FIXME: this works for 320x199 and a cube
-    .if(0)
+    .if(1)
     lda #$D8
     sta TRANSLATE_Z
     lda #$02
@@ -3331,8 +3331,8 @@ dithering_colors:
     
     ; -- Note: the data below will be loaded/copied ONCE into (Banked) RAM so this RAM can be used later on --
     
-    .if(0)
-NR_OF_TRIANGLES = 1
+    .if(1)
+NR_OF_TRIANGLES = 12
 triangle_3d_data:
 
 ; FIXME: should we do a NEGATIVE or a NEGATIVE Z for the NORMAL?
@@ -3347,21 +3347,21 @@ triangle_3d_data:
 
     ;        x1,    y1,   z1,      x2,   y2,   z2,      x3,   y3,   z3,      xn,   yn,   zn,    cl
    ; SOUTH
-;;;   .word       0, $100,    0,       0,    0,    0,    $100, $100,    0,       0,    0, $100,     1
-;;;   .word    $100, $100,    0,       0,    0,    0,    $100,    0,    0,       0,    0, $100,     1
+   .word       0, $100,    0,       0,    0,    0,    $100, $100,    0,       0,    0, $100,     1
+   .word    $100, $100,    0,       0,    0,    0,    $100,    0,    0,       0,    0, $100,     1
 
    ; NORTH                                                     
-;;;   .word    $100, $100, $100,    $100,    0, $100,       0, $100, $100,       0,    0,-$100,     3
-;;;   .word       0, $100, $100,    $100,    0, $100,       0,    0, $100,       0,    0,-$100,     3
+   .word    $100, $100, $100,    $100,    0, $100,       0, $100, $100,       0,    0,-$100,     3
+   .word       0, $100, $100,    $100,    0, $100,       0,    0, $100,       0,    0,-$100,     3
 
    ; EAST                                                      
-;;;   .word    $100, $100,    0,    $100,    0,    0,    $100, $100, $100,   -$100,    0,    0,     2
-;;;   .word    $100, $100, $100,    $100,    0,    0,    $100,    0, $100,   -$100,    0,    0,     2
+   .word    $100, $100,    0,    $100,    0,    0,    $100, $100, $100,   -$100,    0,    0,     2
+   .word    $100, $100, $100,    $100,    0,    0,    $100,    0, $100,   -$100,    0,    0,     2
 
    ; WEST                                                      
 ;FIXME!
-   .word       0, $100, $100,       0,    0, $100,       0, $100,    0,     $100,    0,    0,     %11111111
-;;;   .word       0, $100, $100,       0,    0, $100,       0, $100,    0,     $100,    0,    0,     4
+;   .word       0, $100, $100,       0,    0, $100,       0, $100,    0,     $100,    0,    0,     %11111111
+   .word       0, $100, $100,       0,    0, $100,       0, $100,    0,     $100,    0,    0,     4
    .word       0, $100,    0,       0,    0, $100,       0,    0,    0,    $100,    0,    0,     4
 
    ; TOP                                                       
@@ -3625,7 +3625,8 @@ palette_data_128:
 end_of_palette_data_128:
     .endif
     
-    .if(!DO_BUTTERFLY)
+    .if(0)
+; FIXME!    .if(!DO_BUTTERFLY)
 NR_OF_TRIANGLES = 106
 triangle_3d_data:
     ; Note: the normal is a normal point relative to 0.0 (with a length of $100)
