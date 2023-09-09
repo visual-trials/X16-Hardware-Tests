@@ -3332,17 +3332,60 @@ dithering_colors:
     ; -- Note: the data below will be loaded/copied ONCE into (Banked) RAM so this RAM can be used later on --
     
     .if(1)
+NR_OF_NORMALS = 6
+NR_OF_POINTS = 8
 NR_OF_TRIANGLES = 12
+
+normals_3d_data:
+    ; Note: the normal is a normal point relative to 0.0 (with a length of $100)
+    ;       xn,    yn,    zn
+   .word       0,    0, $100  ; #0 - SOUTH
+   .word       0,    0,-$100  ; #1 - NORTH
+   .word   -$100,    0,    0  ; #2 - EAST
+   .word    $100,    0,    0  ; #3 - WEST
+   .word       0,-$100,    0  ; #4 - TOP
+   .word       0, $100,    0  ; #5 - BOTTOM
+   
+points_3d_data:
+    ;        x,     y,    z
+   .word       0, $100,    0  ; #0   
+   .word       0,    0,    0  ; #1
+   .word    $100, $100,    0  ; #2
+   .word    $100,    0,    0  ; #3
+   .word    $100, $100, $100  ; #4
+   .word    $100,    0, $100  ; #5
+   .word       0, $100, $100  ; #6
+   .word       0,    0, $100  ; #7
+
+triangles_3d_data:
+   ;         pt1,   pt2,   pt3,   n,    cl
+   
+   ; SOUTH
+   .byte      0,     1,     2,    0,    1   ; #0
+   .byte      2,     1,     3,    0,    1   ; #1
+
+   ; NORTH                                                     
+   .byte      4,     5,     6,    1,    3   ; #2
+   .byte      6,     5,     7,    1,    3   ; #3
+   
+   ; EAST                                                      
+   .byte      2,     3,     4,    2,    2   ; #4
+   .byte      4,     3,     5,    2,    2   ; #5
+   
+   ; WEST                                                      
+   .byte      6,     7,     0,    3,    4   ; #6
+   .byte      0,     7,     1,    3,    4   ; #7
+   
+   ; TOP                                                       
+   .byte      6,     0,     4,    4,    5   ; #8
+   .byte      4,     0,     2,    4,    5   ; #9
+   
+   ; BOTTOM                                                    
+   .byte      7,     5,     1,    5,    7   ; #10
+   .byte      1,     5,     3,    5,    7   ; #11
+   
 triangle_3d_data:
 
-; FIXME: should we do a NEGATIVE or a NEGATIVE Z for the NORMAL?
-    ; Note: the normal is a normal point relative to 0.0 (with a length of $100)
-    ;        x1,   y1,   z1,    x2,   y2,   z2,     x3,   y3,   z3,    xn,   yn,   zn,   cl
-;   .word      0,    0,    0,   $100,    0,    0,     0,  $100,    0,    0,    0, $100,   29
-;   .word   $100,    0,    0,   $100, $100,    0,     0,  $100,    0,    0,    0, $100,   13
-;   .word   $100,    0, $100,      0,    0, $100,     0,  $100, $100,    0,    0,-$100,   3   
-;   .word   $100, $100, $100,   $100,    0, $100,     0,  $100, $100,    0,    0,-$100,   2   
-   
 ; FIXME: the winding is exactly the OPPOSITE as javidx9!!! -> we may want to invert Z in the engine!
 
     ;        x1,    y1,   z1,      x2,   y2,   z2,      x3,   y3,   z3,      xn,   yn,   zn,    cl
