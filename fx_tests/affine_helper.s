@@ -1049,6 +1049,7 @@ copy_texture_pixels_as_tile_pixels_to_high_vram:
     ;        - VRAM address in tile = VRAM tile address + y[3:0]*TILE_WIDTH + x[3:0]
     ;                 this translates to : 0 00yy yyxx xxyy yxxx
     ;        - VRAM pixel address = VRAM tile base address + VRAM tile address + VRAM address in tile
+    ;        - We add ONE tile to this address (since tile 0 should be empty)
     ;     - read from texture
     ;     - write to VRAM
     ;     - inxcrement x
@@ -1111,6 +1112,16 @@ next_horizontal_pixel_tiled:
     ora PIXEL_ADDR_LOWER_Y
     ora PIXEL_ADDR_LOWER_X
     sta VERA_ADDR_ZP_PIXEL         ; .... .... xxyy yxxx
+    
+    ; -= Adding ONE tile to the address, since we dont want to use tile 0 =-
+    clc
+    lda VERA_ADDR_ZP_PIXEL
+    adc #%01000000                 ; + .... .... 01000000
+    sta VERA_ADDR_ZP_PIXEL
+    lda VERA_ADDR_ZP_PIXEL+1
+    adc #0
+    sta VERA_ADDR_ZP_PIXEL+1
+    
     
     ; Loading VRAM *pixel* address into VERA  
     ; FIXME: we are ASSUMING here that this VRAM ADDRESS has its bit16 set to 1!!
@@ -1584,9 +1595,9 @@ irq:
 tile_map_data:
 
 ; FIXME: do a PROPER TILEMAP!
-    .byte 1,2,3,4,5,6,7,8,9,10,11,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    .byte 16,17,18,19,20,21,22,23,24,25,26,27,28,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    .byte 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte  1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 17,18,19,20,21,22,23,24,25,26,27,28,29,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 33,34,35,36,37,38,39,40,41,42,43,44,45,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
     .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
     
     .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
