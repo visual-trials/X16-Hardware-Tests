@@ -91,8 +91,8 @@ There are two variants:
     - Using the polygon filler helper to setup the ADDR1 each line
     - Using the polygon filler fill-length codes as input to JUMP-tables (65C02 feature)
     
-TODO: add 4bpp variants
-TODO: add 2bpp variant + dithering
+**TODO**: add 4bpp variants
+**TODO**: add 2bpp variant + dithering
 
 Here are the PRG names and what their results should look like:
 
@@ -100,10 +100,6 @@ Here are the PRG names and what their results should look like:
 | ------------- | ------------- | ------------- | ------------- |
 | `POLYFILL-NOFXPOLY.PRG`  | <img src='screenshots/POLYFILL-NOFXPOLY.PRG.png' width='300'> | | A1 A3 |
 | `POLYFILL-FXPOLY-SLP-JMP.PRG`  | <img src='screenshots/POLYFILL-FXPOLY-SLP-JMP.PRG.png' width='300'> | | C1 C3 C4 P1 P2 P3.1 P4.1 P5 |
-
-
-
-
 
 
 
