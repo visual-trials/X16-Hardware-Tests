@@ -72,6 +72,32 @@ Here are the PRG names and what their results should look like:
 
 ## Polygon filler tests
 
+These tests use the polygon filler mode to **draw many polygons** to a bitmap. Essentially filling a rectangle with triangles.
+
+There are two variants: 
+  - Doing all the work on the CPU side (the old way) 
+    - Calculating the X1 and X2 coordinates for each line
+    - Setting the VRAM addresses each line
+  - Using as many FX features as possible
+    - Using the 32-bit cache to write multiple pixels at once
+    - Using nibble masking when writing the cache to VRAM (not all pixels will be written)
+    - Using the polygon filler helper to setup the ADDR1 each line
+    - Using the polygon filler fill-length codes as input to JUMP-tables (65C02 feature)
+    
+TODO: add 4bpp variants
+TODO: add 2bpp variant + dithering
+
+Here are the PRG names and what their results should look like:
+
+| PRG  | Screenshot Emulator | Screenshot HW | What this tests |
+| ------------- | ------------- | ------------- | ------------- |
+| `POLYFILL-NOFXPOLY.PRG`  | <img src='screenshots/POLYFILL-NOFXPOLY.PRG.png' width='300'> | |  |
+| `POLYFILL-FXPOLY-SLP-JMP.PRG`  | <img src='screenshots/POLYFILL-FXPOLY-SLP-JMP.PRG.png' width='300'> | | |
+
+
+
+
+
 
 
 ## Multiplier and accumulator tests
