@@ -24,8 +24,10 @@ Below is a complete list of the results of all the tests performed.
 | Code | Description | Result Emulator | Result HW |
 | ---- | ----------- | --------------- | --------- |
 |  A1  | Writing to VRAM 1 byte at the time still works | OK |  |
+|  A2  | Reading from VRAM 1 byte at the time still works | OK |  |
 |  C1  | Filling the 32-bit cache directly works | OK |  |
-|  C2  | Writing the 32-bit cache to VRAM (without multiplier or one-byte-cycling) works | OK |  |
+|  C2  | Filling the 32-bit cache (1 byte at the time) by reading from VRAM works | OK |  |
+|  C3  | Writing the full 32-bit cache to VRAM (without multiplier and one-byte-cycling) works | OK |  |
 
 ## Cache write tests
 
@@ -40,7 +42,7 @@ Here are the PRG names and what their results should look like:
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
 | `SINGLE-WRITE.PRG`  | <img src='screenshots/SINGLE-WRITE.PRG.png' width='300'> | | A1 |
-| `MULTI-WRITE.PRG`  | <img src='screenshots/MULTI-WRITE.PRG.png' width='300'> | | C1 C2 |
+| `MULTI-WRITE.PRG`  | <img src='screenshots/MULTI-WRITE.PRG.png' width='300'> | | C1 C3 |
 
 
 ## Cache read and write tests
@@ -55,8 +57,8 @@ Here are the PRG names and what their results should look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
-| `SINGLE-READWRITE.PRG`  | <img src='screenshots/SINGLE-READWRITE.PRG.png' width='300'> | | |
-| `MULTI-READWRITE.PRG`  | <img src='screenshots/MULTI-READWRITE.PRG.png' width='300'> | | |
+| `SINGLE-READWRITE.PRG`  | <img src='screenshots/SINGLE-READWRITE.PRG.png' width='300'> | | A1 A2 |
+| `MULTI-READWRITE.PRG`  | <img src='screenshots/MULTI-READWRITE.PRG.png' width='300'> | | C2 C3 |
 
 
 ## Line draw tests
