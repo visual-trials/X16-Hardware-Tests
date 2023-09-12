@@ -37,7 +37,7 @@ There are two variants:
 
 Here are the PRG names and what their results should look like:
 
-| PRG  | Screenshot | What this tests |
+| PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- |
 | `SINGLE-WRITE.PRG`  | <img src='screenshots/SINGLE-WRITE.PRG.png' width='300'> | A1 |
 | `MULTI-WRITE.PRG`  | <img src='screenshots/MULTI-WRITE.PRG.png' width='300'> | C1 C2 |
@@ -53,7 +53,7 @@ There are two variants:
 
 Here are the PRG names and what their results should look like:
 
-| PRG  | Screenshot |
+| PRG  | Screenshot Emulator | Screenshot HW |
 | ------------- | ------------- |
 | `SINGLE-READWRITE.PRG`  | <img src='screenshots/SINGLE-READWRITE.PRG.png' width='300'> |
 | `MULTI-READWRITE.PRG`  | <img src='screenshots/MULTI-READWRITE.PRG.png' width='300'> |
