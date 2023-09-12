@@ -1,10 +1,10 @@
 
 DO_ROTATE = 0  ; otherwise SHEAR
 
-USE_CACHE_FOR_WRITING = 1
+USE_CACHE_FOR_WRITING = 0
 USE_TRANSPARENT_WRITING = 1
 
-USE_EXAMPLE_CODE = 1
+USE_EXAMPLE_CODE = 0
 
     .if (1)
 BACKGROUND_COLOR = 4 ; nice purple (for example code)
@@ -153,17 +153,50 @@ reset:
     jsr clear_screen_slow
     jsr copy_palette
     jsr copy_texture_pixels_as_tile_pixels_to_high_vram
+
+
+; FIXME: copy a TILE MAP!
+; FIXME: copy a TILE MAP!
+; FIXME: copy a TILE MAP!
+    .if(!USE_EXAMPLE_CODE)
+; FIXME: put this in a SEPARATE routine!
+; FIXME: put this in a SEPARATE routine!
+; FIXME: put this in a SEPARATE routine!
+        ; -- Setting up the VRAM address for the map data --
+        lda #%00010000         ; increment 1 byte
+        ora #(VRAM_ADDR_MAP_DATA >> 16)
+        sta VERA_ADDR_BANK
+        lda #>VRAM_ADDR_MAP_DATA
+        sta VERA_ADDR_HIGH
+        lda #<VRAM_ADDR_MAP_DATA
+        sta VERA_ADDR_LOW
+        
+        ; -- Load tile indexes into VRAM (32x32 map) --
+        
+        lda #<tile_map_data
+        sta LOAD_ADDRESS
+        lda #>tile_map_data
+        sta LOAD_ADDRESS+1
+        
+        ldx #4
+next_eight_rows:
+        ldy #0
+next_tile_index:
+        lda (LOAD_ADDRESS), y
+        sta VERA_DATA0
+        iny
+        bne next_tile_index
+        inc LOAD_ADDRESS+1     ; we increment the address by 256 
+        dex
+        bne next_eight_rows
+    .endif
     
     ; Copy bitmap image to VRAM from ROM
     lda #<(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_TO
     lda #>(ORIGINAL_PICTURE_POS_X+ORIGINAL_PICTURE_POS_Y*320)
     sta VERA_ADDR_ZP_TO+1
-    
-; FIXME: we should copy the pixels to the TILEDATA_VRAM_ADDRESS!!
-    
     jsr copy_pixels
-    
     
     ; Test speed of affine transforming (shearing/rotating) the picture from VRAM (to CPU) to VRAM
     jsr test_speed_of_affine_transforming_bitmap_1_byte_per_pixel
@@ -173,7 +206,8 @@ loop:
   jmp loop
 
   
-  
+    .if(USE_EXAMPLE_CODE)
+    
 example_affine_helper:
 
 
@@ -255,16 +289,16 @@ next_tile_index:
     lda #(VRAM_ADDR_TILE_DATA >> 9)
     and #%11111100   ; only the 6 highest bits of the address can be set
     ora #%00000010   ; clip = 1
-    sta $9F2A
+    sta VERA_FX_TILEBASE
     
     lda #(VRAM_ADDR_MAP_DATA >> 9)
     and #%11111100   ; only the 6 highest bits of the address can be set
     ora #%00000010   ; Map size = 32x32 tiles
-    sta $9F2B
+    sta VERA_FX_MAPBASE
 
     ; -- turn on affine helper mode and transparent writes
     lda #%10000011  ; transparent writes = 1, affine helper mode
-    sta $9F29
+    sta VERA_FX_CTRL
     
     ; -- Set up x and y increments --
 
@@ -272,14 +306,14 @@ next_tile_index:
     sta VERA_CTRL
     
     lda #0        
-    sta $9F29
+    sta VERA_FX_X_INCR_L
     lda #%00000010           ; X increment high = 1.0 pixel to the right each step
-    sta $9F2A
+    sta VERA_FX_X_INCR_H
     lda #<(-40<<1)
-    sta $9F2B
+    sta VERA_FX_Y_INCR_L
     lda #>(-40<<1)           ; Y increment low = 40/256th of a pixel each step
     and #%01111111           ; increment is only 15 bits long
-    sta $9F2C
+    sta VERA_FX_Y_INCR_H
     
     ; We start to draw at the top-left position on screen
     stz VRAM_ADDR_DESTINATION
@@ -309,14 +343,14 @@ draw_next_row:
     sta VERA_CTRL
     
     lda #0                   ; X pixel position low [7:0]
-    sta $9F29
+    sta VERA_FX_X_POS_L
     lda #0                   ; X subpixel position[0] = 0, X pixel position high [10:8]
-    sta $9F2A
+    sta VERA_FX_X_POS_H
     
     txa                      ; we use register x (= destination y) as our y-position in the source
-    sta $9F2B
+    sta VERA_FX_Y_POS_L
     lda #%00000000           ; Y subpixel position[0] = 0, Y pixel position high [10:8] = 0
-    sta $9F2C
+    sta VERA_FX_Y_POS_H
     
     ldy #0
 draw_next_pixel:
@@ -347,13 +381,15 @@ draw_next_pixel:
     sta VERA_CTRL
     
     lda #%00000000          ; normal addr1-mode
-    sta $9F29
+    sta VERA_FX_CTRL
     
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
     
 
     rts
+    
+    .endif
   
   
 affine_transform_some_bytes:
@@ -486,32 +522,37 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     
     ; Setting base address and map size
     
+; FIXME! we should use VRAM_ADDR_TILE_DATA instead!
+;    lda #(VRAM_ADDR_TILE_DATA >> 9)
     lda #(TILEDATA_VRAM_ADDRESS >> 9)
-    and #$FC   ; only the 6 highest bits of the address can be set
-    .if(USE_TRANSPARENT_WRITING)
-        ora #%00000010  ; transparency enabled = 1
-    .endif
-    sta $9F2A
+    and #%11111100   ; only the 6 highest bits of the address can be set
+    ora #%00000010   ; clip = 1
+    sta VERA_FX_TILEBASE
 
-    lda #%10000001  ; Map size = 100 (16x16 map), cache byte index = 00, 0, cache increment mode = 0, cache fill enabled = 1
-    sta $9F2C
+; FIXME! we need to set VRAM_ADDR_MAP_DATA!!
+    lda #(VRAM_ADDR_MAP_DATA >> 9)
+; FIXME! we HAD a 16x16 map!!
+; FIXME! we HAD a 16x16 map!!
+; FIXME! we HAD a 16x16 map!!
+    ora #%00000010   ; Map size = 32x32 tiles
+    sta VERA_FX_MAPBASE
     
-    lda #%00000001  ; 1 for Clip
-    .if(USE_CACHE_FOR_WRITING)
-        ora #%00000010  ; blit write enabled = 1
+    lda #%00000011  ; affine helper mode
+    .if(USE_TRANSPARENT_WRITING)
+        ora #%10000010  ; transparency enabled = 1
     .endif
-    sta $9F2B
-    
-    lda #%00000100  ; 100 for no tile lookup
-    sta $9F29
+    .if(USE_CACHE_FOR_WRITING)
+        ora #%01000000  ; blit write enabled = 1
+    .endif
+    sta VERA_FX_CTRL
     
     jsr rotate_or_shear_bitmap_fast_1_byte_per_copy
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00000000  ; blit write enabled = 0
-    sta $9F2B
+    lda #%00000000  ; blit write enabled = 0, normal mode
+    sta VERA_FX_CTRL
     
     jsr stop_timer
 
@@ -607,31 +648,31 @@ rotate_or_shear_bitmap_fast_1_byte_per_copy:
     .if(DO_ROTATE)
         lda #COSINE_ROTATE       ; X increment low
         asl
-        sta $9F29
+        sta VERA_FX_X_INCR_L
         lda #0
         rol                      
                                  ; FIXME: **THIS IS DONE BELOW ALSO!!**
         and #%01111111            ; increment is only 15 bits long
-        sta $9F2A
+        sta VERA_FX_X_INCR_H
         lda #SINE_ROTATE
         asl
-        sta $9F2B                ; Y increment low
+        sta VERA_FX_Y_INCR_L      ; Y increment low
         lda #0
         rol
         and #%01111111            ; increment is only 15 bits long
-        sta $9F2C
+        sta VERA_FX_Y_INCR_H
     .else
         lda #0                   ; X increment low
-        sta $9F29
+        sta VERA_FX_X_INCR_L
         lda #%00000010           ; X increment high = 10
                                  ; FIXME: **THIS IS DONE BELOW ALSO!!**
         and #%01111111            ; increment is only 15 bits long
-        sta $9F2A
+        sta VERA_FX_X_INCR_H
         lda #<(-60<<1)            ; Y increment low
-        sta $9F2B                
+        sta VERA_FX_Y_INCR_L           
         lda #>(-60<<1)            ; Y increment high
         and #%01111111            ; increment is only 15 bits long
-        sta $9F2C
+        sta VERA_FX_Y_INCR_H
     .endif
 
     ldx #0
@@ -653,7 +694,11 @@ rotate_copy_next_row_1:
 ;    .endif
 ;    sta $9F2A
     
-    lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011) 
+    .if(USE_CACHE_FOR_WRITING)
+        lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011) 
+    .else
+        lda #%00010000           ; Setting auto-increment value to 1 byte increment (=%0001) 
+    .endif
     sta VERA_ADDR_BANK
     lda VERA_ADDR_ZP_TO+1
     sta VERA_ADDR_HIGH
@@ -669,46 +714,46 @@ rotate_copy_next_row_1:
 
     ; NOTE: we are setting 
     .if(DO_ROTATE)
+
+; FIXME: we cannot reset the subpixel position here anymore! (or the cache index)
+
         ; == ROTATE ==
     
         lda X_SUB_PIXEL+1
-        sta $9F29                ; X pixel position low [7:0]
+        sta VERA_FX_X_POS_L      ; X pixel position low [7:0]
         bpl x_pixel_pos_high_positive
         lda #%00000111           ; sign extending X pixel position (when negative)
         bra x_pixel_pos_high_correct
 x_pixel_pos_high_positive:
         lda #%00000000
 x_pixel_pos_high_correct:
-        sta $9F2A                ; X subpixel position[0] = 0, X pixel position high [10:8] = 000 or 111
+        sta VERA_FX_X_POS_H      ; X subpixel position[0] = 0, X pixel position high [10:8] = 000 or 111
     ; FIXME:
     ;    txa
     ; HALF SIZE:    asl
         lda Y_SUB_PIXEL+1
-        sta $9F2B                ; Y pixel position low [7:0]
+        sta VERA_FX_Y_POS_L      ; Y pixel position low [7:0]
         bpl y_pixel_pos_high_positive
-        lda #%01000111           ; sign extending X pixel position (when negative)
+        lda #%00000111           ; sign extending X pixel position (when negative)
         bra y_pixel_pos_high_correct
 y_pixel_pos_high_positive:
-        lda #%01100000
+        lda #%00000000
 y_pixel_pos_high_correct:
-; FIXME: we cannot reset the subpixel position this way anymore!
-; FIXME: we cannot reset the subpixel position this way anymore!
-; FIXME: we cannot reset the subpixel position this way anymore!
-        sta $9F2C                ; Y subpixel position[0] = 0, Reset cache byte index = 1, Reset subpixel position = 1, Y pixel position high [10:8] = 000 or 111
+        sta VERA_FX_Y_POS_H      ; Y subpixel position[0] = 0,  Y pixel position high [10:8] = 000 or 111
     .else
+    
+; FIXME: we cannot reset the subpixel position here anymore! (or the cache index)
+
         ; == SHEAR ==
     
         lda #0
-        sta $9F29                ; X pixel position low [7:0]
+        sta VERA_FX_X_POS_L      ; X pixel position low [7:0]
         lda #%00000000
-        sta $9F2A                ; X subpixel position[0] = 0, X pixel position high [10:8] = 000
+        sta VERA_FX_X_POS_H      ; X subpixel position[0] = 0, X pixel position high [10:8] = 000
         txa
-        sta $9F2B                ; Y pixel position low [7:0]
-        lda #%01100000
-; FIXME: we cannot reset the subpixel position this way anymore!
-; FIXME: we cannot reset the subpixel position this way anymore!
-; FIXME: we cannot reset the subpixel position this way anymore!
-        sta $9F2C                ; Y subpixel position[0] = 0, Reset cache byte index = 1, Reset subpixel position = 1, Y pixel position high [10:8] = 000
+        sta VERA_FX_Y_POS_L      ; Y pixel position low [7:0]
+        lda #%00000000
+        sta VERA_FX_Y_POS_H      ; Y subpixel position[0] = 0, Y pixel position high [10:8] = 000
     .endif
 
     ; Copy one row of 100 pixels
@@ -1532,6 +1577,55 @@ irq:
   .byte  $f8, $08, $f7, $02, $f7, $f8, $f8, $05, $f8, $f5, $f5, $07, $07, $03, $f7, $02, $02, $f7, $f8, $f8, $0d, $f3, $f9, $fa, $fa, $fa, $fb, $fb, $19, $19, $19, $17, $16, $17, $fa, $12, $15, $0d, $0b, $08, $0b, $0d, $0b, $08, $08, $0b, $06, $08, $0a, $0a, $08, $0b, $05, $07, $04, $04, $07, $05, $05, $03, $01, $04, $03, $04, $01, $04, $04, $05, $06, $05, $05, $04, $04, $05, $06, $05, $09, $05, $04, $05, $05, $05, $06, $09, $0b, $0a, $0b, $0a, $08, $08, $0a, $08, $07, $0a, $05, $03, $f7, $08, $07, $02
   .byte  $0c, $0c, $08, $07, $f3, $f8, $f7, $f3, $f9, $50, $07, $02, $07, $f3, $0a, $f3, $0c, $0d, $0c, $f9, $f9, $12, $fb, $1d, $fb, $fa, $19, $19, $15, $1d, $17, $53, $fb, $16, $16, $12, $15, $f9, $10, $10, $13, $10, $08, $10, $0d, $10, $0a, $0a, $08, $05, $0a, $0a, $05, $05, $07, $05, $08, $04, $0b, $0f, $0f, $09, $09, $09, $06, $06, $09, $03, $06, $06, $06, $06, $09, $09, $09, $0b, $09, $04, $0b, $0b, $09, $0b, $0f, $09, $0b, $13, $10, $11, $11, $11, $11, $11, $11, $10, $10, $0b, $0d, $0b, $0d, $0d
   .byte  $12, $fa, $f9, $0d, $0d, $0d, $f9, $17, $17, $fa, $0d, $12, $15, $f9, $10, $f9, $12, $12, $16, $15, $15, $19, $20, $fb, $fa, $fc, $1e, $1d, $18, $1d, $18, $fd, $5a, $17, $15, $17, $17, $16, $53, $16, $16, $15, $11, $16, $10, $15, $11, $10, $10, $13, $11, $11, $10, $13, $0f, $11, $13, $11, $0f, $0d, $0f, $11, $11, $10, $0f, $0f, $10, $0f, $09, $0b, $0f, $10, $11, $0f, $0f, $0f, $10, $0f, $10, $10, $14, $14, $11, $13, $16, $53, $14, $14, $16, $53, $53, $18, $20, $14, $14, $11, $13, $13, $16, $15
+    
+    
+    ; This is used for rotation and shearing
+    .if(!USE_EXAMPLE_CODE)
+tile_map_data:
+
+; FIXME: do a PROPER TILEMAP!
+    .byte 1,2,3,4,5,6,7,8,9,10,11,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 16,17,18,19,20,21,22,23,24,25,26,27,28,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    
+    .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    
+    .byte 3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    
+    .endif
+
     
     
     ; This is used for example code
