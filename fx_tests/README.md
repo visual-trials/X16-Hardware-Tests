@@ -24,7 +24,6 @@ Below is a complete list of the results of all the tests performed.
 | Code | Description | Result Emulator | Result HW |
 | ---- | ----------- | --------------- | --------- |
 |  A1  | Writing to VRAM 1 byte at the time still works | OK |  |
-| ---- | ----------- | --------------- | --------- |
 |  C1  | Filling the 32-bit cache directly works | OK |  |
 |  C2  | Writing the 32-bit cache to VRAM (without multiplier or one-byte-cycling) works | OK |  |
 
