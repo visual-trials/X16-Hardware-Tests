@@ -39,8 +39,8 @@ Here are the PRG names and what their results should look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- |
-| `SINGLE-WRITE.PRG`  | <img src='screenshots/SINGLE-WRITE.PRG.png' width='300'> | A1 |
-| `MULTI-WRITE.PRG`  | <img src='screenshots/MULTI-WRITE.PRG.png' width='300'> | C1 C2 |
+| `SINGLE-WRITE.PRG`  | <img src='screenshots/SINGLE-WRITE.PRG.png' width='300'> | | A1 |
+| `MULTI-WRITE.PRG`  | <img src='screenshots/MULTI-WRITE.PRG.png' width='300'> | | C1 C2 |
 
 
 ## Cache read and write tests
@@ -53,10 +53,10 @@ There are two variants:
 
 Here are the PRG names and what their results should look like:
 
-| PRG  | Screenshot Emulator | Screenshot HW |
-| ------------- | ------------- |
-| `SINGLE-READWRITE.PRG`  | <img src='screenshots/SINGLE-READWRITE.PRG.png' width='300'> |
-| `MULTI-READWRITE.PRG`  | <img src='screenshots/MULTI-READWRITE.PRG.png' width='300'> |
+| PRG  | Screenshot Emulator | Screenshot HW | What this tests |
+| ------------- | ------------- | ------------- | ------------- |
+| `SINGLE-READWRITE.PRG`  | <img src='screenshots/SINGLE-READWRITE.PRG.png' width='300'> | | |
+| `MULTI-READWRITE.PRG`  | <img src='screenshots/MULTI-READWRITE.PRG.png' width='300'> | | |
 
 
 ## Line draw tests
