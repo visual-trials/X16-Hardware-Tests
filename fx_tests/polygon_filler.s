@@ -16,8 +16,8 @@ USE_JUMP_TABLE = JMP
     .endif
     
 DO_SPEED_TEST = 1  ; ALSO change: TEST_JUMP_TABLE and USE_SOFT_FILL_LEN!
-DO_4BIT = 1
-DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
+DO_4BIT = 0
+DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
 DEBUG = 0
 
@@ -25,6 +25,7 @@ USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (
 
 ; When in polygon filler mode and slope tables turned on, its possible to use a 180 degrees slope table
 ; Right now this is always turned on when slope tables are turned on
+
 USE_180_DEGREES_SLOPE_TABLE = USE_SLOPE_TABLES
 
 USE_Y_TO_ADDRESS_TABLE = 1
@@ -44,6 +45,9 @@ BASE_X = 20
 BASE_Y = 50
 BX = BASE_X
 BY = BASE_Y
+
+SCREEN_WIDTH = 320
+SCREEN_HEIGHT = 240
 
     .if(DO_4BIT)
         .if(DO_2BIT)
@@ -270,10 +274,8 @@ FILL_LINE_START_CODE     = $3000   ; 128 different (start of) fill line code pat
     .ifndef CREATE_PRG
 SOURCE_TABLE_ADDRESS     = $C000
     .else
-; FIXME: we need to put this is the CORRECT location!
-; FIXME: we need to put this is the CORRECT location!
-; FIXME: we need to put this is the CORRECT location!
-SOURCE_TABLE_ADDRESS     = $5E00
+DOS_BANK0_BACKUP         = $5000  ; We use this part of memory to backup $B000-BF00 (used by DOS) to be able to load SD files
+SOURCE_TABLE_ADDRESS     = $5F00
     .endif
 
     .if(!DO_4BIT)
@@ -340,6 +342,8 @@ Y_TO_ADDRESS_BANK        = $8300
 COPY_SLOPE_TABLES_TO_BANKED_RAM   = $8400
 COPY_DIV_TABLES_TO_BANKED_RAM = $8500  ; NOT USED BY polygon filler!!
 
+; === Banked RAM addresses ===
+
     .if(USE_POLYGON_FILLER)
         .if(!USE_JUMP_TABLE)
 DRAW_ROW_64_CODE         = $AA00   ; When USE_POLYGON_FILLER is 1: A000-A9FF and B0600-BFFF are occucpied by the slope tables! (the latter by the 90-180 degrees slope tables)
@@ -402,6 +406,11 @@ reset:
     jsr init_timer
     
     jsr copy_palette_from_index_16
+    
+    .ifdef CREATE_PRG
+        ; We create a backup of the DOS variables in B000-BF00 of ram bank 0
+        jsr backup_bank0_B000_into_5000
+    .endif
 
     .if(USE_SLOPE_TABLES)
         .ifndef CREATE_PRG
@@ -422,7 +431,6 @@ reset:
     .else
         jsr clear_screen_slow
     .endif
-    
     .if(USE_UNROLLED_LOOP)
         .if(!USE_JUMP_TABLE)
             jsr generate_draw_row_64_code
@@ -2000,15 +2008,17 @@ clear_screen_fast_4_bytes:
     sta VERA_FX_CACHE_L      ; cache32[7:0]
     sta VERA_FX_CACHE_M      ; cache32[15:8]
     sta VERA_FX_CACHE_H      ; cache32[23:16]
-; FIXME! Adding a TEST column here! -> maybe make this conditional?
-    .if(!DO_4BIT)
-        and #%00000000       ; black 8-bit pixel
-    .else
-        .if(!DO_2BIT)
-            and #%11110000   ; black 4-bit pixel
+    .if(0)
+        ; Adding a TEST column here
+        .if(!DO_4BIT)
+            and #%00000000       ; black 8-bit pixel
         .else
-            and #%11111100
-            ora #%00000010   ; red 2-bit pixel
+            .if(!DO_2BIT)
+                and #%11110000   ; black 4-bit pixel
+            .else
+                and #%11111100
+                ora #%00000010   ; red 2-bit pixel
+            .endif
         .endif
     .endif
     sta VERA_FX_CACHE_U      ; cache32[31:24]

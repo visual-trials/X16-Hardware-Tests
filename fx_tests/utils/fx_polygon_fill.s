@@ -2563,14 +2563,18 @@ generate_next_y_256_to_address_entry:
     .ifdef CREATE_PRG
     
 ; We copy $B000-$BEFF (RAM Bank 0) into $5000-$5EFF
+
+DOS_BANK0_SOURCE = $B000
+DOS_BANK0_SOURCE_LEN = $0F00
+
 backup_bank0_B000_into_5000:
 
         lda #0
         sta RAM_BANK
         
-        lda #<($B000)
+        lda #<(DOS_BANK0_SOURCE)
         sta LOAD_ADDRESS
-        lda #>($B000)
+        lda #>(DOS_BANK0_SOURCE)
         sta LOAD_ADDRESS+1
         
         lda #<DOS_BANK0_BACKUP
@@ -2594,7 +2598,7 @@ backup_bank0_B000_into_5000_next_byte:
         inc STORE_ADDRESS+1
 
         inx
-        cpx #$0F  ; If we reach BF00/5F00 we stop
+        cpx #(>DOS_BANK0_SOURCE_LEN)  ; If we reach BF00/5F00 we stop
         bne backup_bank0_B000_into_5000_next_256_bytes
 
         rts
@@ -2614,9 +2618,9 @@ swap_bank0_B000_with_5000:
         lda #0
         sta RAM_BANK
         
-        lda #<($B000)
+        lda #<(DOS_BANK0_SOURCE)
         sta LOAD_ADDRESS
-        lda #>($B000)
+        lda #>(DOS_BANK0_SOURCE)
         sta LOAD_ADDRESS+1
         
         lda #<DOS_BANK0_BACKUP
@@ -2645,7 +2649,7 @@ swap_bank0_B000_with_5000_next_byte:
         inc STORE_ADDRESS+1
 
         inx
-        cpx #$0F  ; If we reach BF00/5F00 we stop
+        cpx #(>DOS_BANK0_SOURCE_LEN)  ; If we reach BF00/5F00 we stop
         bne swap_bank0_B000_with_5000_next_256_bytes
         
         pla
