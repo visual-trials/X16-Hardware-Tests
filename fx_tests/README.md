@@ -25,9 +25,16 @@ Below is a complete list of the results of all the tests performed.
 | ---- | ----------- | --------------- | --------- |
 |  A1  | Writing to VRAM 1 byte at the time still works | OK |  |
 |  A2  | Reading from VRAM 1 byte at the time still works | OK |  |
+|  A3  | Setting of VRAM addresses still works | OK |  |
 |  C1  | Filling the 32-bit cache directly works | OK |  |
 |  C2  | Filling the 32-bit cache (1 byte at the time) by reading from VRAM works | OK |  |
-|  C3  | Writing the full 32-bit cache to VRAM (without multiplier and one-byte-cycling) works | OK |  |
+|  C3  | Writing the full 32-bit cache to VRAM works | OK |  |
+|  C4  | Writing the nibble-masked 32-bit cache to VRAM works | OK |  |
+|  P1  | Polygon filler incrementers (X1 and X2) work | OK |  |
+|  P2  | Polygon filler (sub)pixel positions (X1 and X2) work | OK |  |
+|  P3.1  | Polygon filler setting ADDR1 = ADDR0 + X1 works (8bpp) | OK |  |
+|  P4.1  | Polygon filler reading fill length code works (8bpp) | OK |  |
+|  P5  | Polygon filler reset of (sub)pixel positions (X1 and X2) works | OK |  |
 
 ## Cache write tests
 
@@ -78,7 +85,7 @@ There are two variants:
   - Doing all the work on the CPU side (the old way) 
     - Calculating the X1 and X2 coordinates for each line
     - Setting the VRAM addresses each line
-  - Using as many FX features as possible
+  - Using as many FX features as possible (8bpp)
     - Using the 32-bit cache to write multiple pixels at once
     - Using nibble masking when writing the cache to VRAM (not all pixels will be written)
     - Using the polygon filler helper to setup the ADDR1 each line
@@ -91,8 +98,8 @@ Here are the PRG names and what their results should look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
-| `POLYFILL-NOFXPOLY.PRG`  | <img src='screenshots/POLYFILL-NOFXPOLY.PRG.png' width='300'> | |  |
-| `POLYFILL-FXPOLY-SLP-JMP.PRG`  | <img src='screenshots/POLYFILL-FXPOLY-SLP-JMP.PRG.png' width='300'> | | |
+| `POLYFILL-NOFXPOLY.PRG`  | <img src='screenshots/POLYFILL-NOFXPOLY.PRG.png' width='300'> | | A1 A3 |
+| `POLYFILL-FXPOLY-SLP-JMP.PRG`  | <img src='screenshots/POLYFILL-FXPOLY-SLP-JMP.PRG.png' width='300'> | | C1 C3 C4 P1 P2 P3.1 P4.1 P5 |
 
 
 
