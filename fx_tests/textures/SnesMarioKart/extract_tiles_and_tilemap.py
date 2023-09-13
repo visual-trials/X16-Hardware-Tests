@@ -1,8 +1,33 @@
 from PIL import Image
 import hashlib
 
+DO_MARIO_KART = 0 # otherwise do the 'other' one...
+PRINT_MAP_AS_ASM = 0  # otherwise write to BIN file
+PRINT_TILEDATA_AS_ASM = 0  # otherwise write to BIN file
+
+if (DO_MARIO_KART):
+    source_image_filename = "SuperMarioKartMapMushroomCup1_clean.png"
+    tile_map_filename = "mario_tile_map.bin"
+    tile_pixel_data_filename = "mario_tile_pixel_data.bin"
+    map_width = 128
+    map_height = 128
+else:
+    source_image_filename = "OtherImage_128x128px.png"
+    tile_map_filename = "other_tile_map.bin"
+    tile_pixel_data_filename = "other_tile_pixel_data.bin"
+    map_width = 16
+    map_height = 16
+    # FIXME: we want to have a 32x32 tile map, so we have to replacite the 16x16 four times!
+    #map_width = 32
+    #map_height = 32
+
+
 # creating a image object
-im = Image.open(r"SuperMarioKartMapMushroomCup1_clean.png")
+im = Image.open(source_image_filename)
+if(not DO_MARIO_KART):
+    # Workaround: the other png does not contain a palette (its RGB) so we convert it to having a palette
+    im2 = im.convert("P", palette=Image.ADAPTIVE, colors=256)
+    im = im2
 px = im.load()
 
 
@@ -42,13 +67,8 @@ while (byte_index < nr_of_palette_bytes):
     
     old_color_index += 1
     
-# print(new_colors)
-# print(old_color_index_to_new_color_index)
-    
     
 # Printing out asm for palette:
-
-# DEBUG: print(palette_bytes)
 
 palette_string = ""
 for new_color in new_colors:
@@ -72,23 +92,24 @@ unique_tiles = {}
 tile_map = []
 tiles_pixel_data = []
 
-# WORKAROUND: making sure tile 0 is a grass tile! (we use tile 0,127 for this)
-tile_pixels_as_string = ""
-tile_x = 0
-tile_y = 127
-tile_pixel_data = []
-for y_in_tile in range(8):
-    for x_in_tile in range(8):
-        new_pixel_color = old_color_index_to_new_color_index[px[tile_x*8+x_in_tile, tile_y*8+y_in_tile]]
-        tile_pixels_as_string += str(new_pixel_color)
-        tile_pixel_data.append(new_pixel_color)
-unique_tiles[tile_pixels_as_string] = tile_index
-tiles_pixel_data.append(tile_pixel_data)
-tile_index += 1
+if (DO_MARIO_KART):
+    # WORKAROUND: making sure tile 0 is a grass tile! (we use tile 0,127 for this)
+    tile_pixels_as_string = ""
+    tile_x = 0
+    tile_y = 127
+    tile_pixel_data = []
+    for y_in_tile in range(8):
+        for x_in_tile in range(8):
+            new_pixel_color = old_color_index_to_new_color_index[px[tile_x*8+x_in_tile, tile_y*8+y_in_tile]]
+            tile_pixels_as_string += str(new_pixel_color)
+            tile_pixel_data.append(new_pixel_color)
+    unique_tiles[tile_pixels_as_string] = tile_index
+    tiles_pixel_data.append(tile_pixel_data)
+    tile_index += 1
 
-for tile_y in range(128):
+for tile_y in range(map_height):
     tile_map.append([])
-    for tile_x in range(128):
+    for tile_x in range(map_width):
         tile_map[tile_y].append([])
         tile_pixels_as_string = ""
         tile_pixel_data = []
@@ -105,42 +126,45 @@ for tile_y in range(128):
             tile_map[tile_y][tile_x] = tile_index
             tile_index += 1
 
-# Printing out asm for tilemap:
+print(tile_map)
+
 tilemap_asm_string = ""
-mario_tile_map = []
-for tile_y in range(128):
+tile_map_flat = []
+for tile_y in range(map_height):
     tilemap_asm_string += "  .byte "
-    for tile_x in range(128):
+    for tile_x in range(map_width):
         tile_index = tile_map[tile_y][tile_x]
-        mario_tile_map.append(tile_index)
+        tile_map_flat.append(tile_index)
         tilemap_asm_string += "$" + format(tile_index,"02x") + ", "
     tilemap_asm_string += "\n"
+    
+if (PRINT_MAP_AS_ASM):
+    # Printing out asm for tilemap:
+    print(tilemap_asm_string)
+else:    
+    tableFile = open(tile_map_filename, "wb")
+    tableFile.write(bytearray(tile_map_flat))
+    tableFile.close()
+    print("tile map written to file: " + tile_map_filename)
 
-# print(tilemap_asm_string)
-
-tableFile = open("mario_tile_map.bin", "wb")
-tableFile.write(bytearray(mario_tile_map))
-tableFile.close()
-print("tile map written to file")
-
-# Printing out tile data:
 
 tiles_pixel_asm_string = ""
-mario_tile_pixel_data = []
+tile_pixel_data_flat = []
 for tile_pixel_data in tiles_pixel_data:
     tiles_pixel_asm_string += "  .byte "
     for tile_pixel in tile_pixel_data:
-        mario_tile_pixel_data.append(tile_pixel)
+        tile_pixel_data_flat.append(tile_pixel)
         tiles_pixel_asm_string += "$" + format(tile_pixel,"02x") + ", "
     tiles_pixel_asm_string += "\n"
-
-#print(tiles_pixel_asm_string)
-
-# FIXME: we might want to PAD this file until its 16kB long!
-tableFile = open("mario_tile_pixel_data.bin", "wb")
-tableFile.write(bytearray(mario_tile_pixel_data))
-tableFile.close()
-
-print("tile data written to file")
+    
+if (PRINT_TILEDATA_AS_ASM):
+    # Printing out tile data:
+    print(tiles_pixel_asm_string)
+else:
+    # FIXME: we might want to PAD this file until its 16kB long!
+    tableFile = open(tile_pixel_data_filename, "wb")
+    tableFile.write(bytearray(tile_pixel_data_flat))
+    tableFile.close()
+    print("tile data written to file: " + tile_pixel_data_filename)
 
 print("nr of unique tiles: " + str(len(unique_tiles.keys())))
