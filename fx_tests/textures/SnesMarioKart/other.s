@@ -70,6 +70,11 @@ VERA_ADDR_ZP_TO           = $34 ; 35 ; 36
 X_SUB_PIXEL               = $40 ; 41
 Y_SUB_PIXEL               = $42 ; 43
 
+ROTATION_ANGLE            = $50
+
+COSINE_OF_ANGLE           = $51 ; 52
+SINE_OF_ANGLE             = $53 ; 53
+
 ; === RAM addresses ===
 
 COPY_ROW_CODE               = $7800
@@ -274,11 +279,6 @@ setup_and_draw_rotated_tilemap:
     
     ; FIXME: HACK we are ASSUMING we never reach the second part of VRAM here! (VERA_ADDR_ZP_TO+2 is not used here!)
     
-    lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_TO
-    lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
-    sta VERA_ADDR_ZP_TO+1
-    
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
@@ -299,7 +299,19 @@ setup_and_draw_rotated_tilemap:
     ora #%01000000  ; blit write enabled = 1
     sta VERA_FX_CTRL
     
+    
+    lda #0
+    sta ROTATION_ANGLE
+    
+keep_rotating:
+    lda #<(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO
+    lda #>(DESTINATION_PICTURE_POS_X+DESTINATION_PICTURE_POS_Y*320)
+    sta VERA_ADDR_ZP_TO+1
+    
     jsr draw_rotated_tilemap
+    inc ROTATION_ANGLE
+    bra keep_rotating
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
@@ -311,17 +323,31 @@ setup_and_draw_rotated_tilemap:
     
     
 
+; Maybe do 15.2 degrees (as an example): 
+;   cos(15.2 degrees)*256 = 247.0  -> +247 = x_delta for row, -67  x_delta for column (start of row)
+;   sin(15.2 degrees)*256 = 67.1   -> +67  = y_delta for row, +247  x_delta for column (start or row)
+
 COSINE_ROTATE = 247
 SINE_ROTATE = 67
 
 draw_rotated_tilemap:
 
+
+    ldx ROTATION_ANGLE
+
+    lda cosine_values_low, x
+    sta COSINE_OF_ANGLE
+    lda cosine_values_high, x
+    sta COSINE_OF_ANGLE+1
+    
+    lda sine_values_low, x
+    sta SINE_OF_ANGLE
+    lda sine_values_high, x
+    sta SINE_OF_ANGLE+1
+    
+
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
-
-    ; Maybe do 15.2 degrees: 
-    ;   cos(15.2 degrees)*256 = 247.0  -> +247 = x_delta for row, -67  x_delta for column (start of row)
-    ;   sin(15.2 degrees)*256 = 67.1   -> +67  = y_delta for row, +247  x_delta for column (start or row)
 
     lda #128
     sta Y_SUB_PIXEL
@@ -333,17 +359,21 @@ draw_rotated_tilemap:
     lda #0
     sta X_SUB_PIXEL+1
     
-    lda #COSINE_ROTATE       ; X increment low
+    ;lda #COSINE_ROTATE       ; X increment low
+    lda COSINE_OF_ANGLE       ; X increment low
     asl
     sta VERA_FX_X_INCR_L
-    lda #0
+    ;lda #0
+    lda COSINE_OF_ANGLE+1
     rol                      
     and #%01111111            ; increment is only 15 bits long
     sta VERA_FX_X_INCR_H
-    lda #SINE_ROTATE
+    ;lda #SINE_ROTATE
+    lda SINE_OF_ANGLE
     asl
     sta VERA_FX_Y_INCR_L      ; Y increment low
-    lda #0
+    ;lda #0
+    lda SINE_OF_ANGLE+1
     rol
     and #%01111111            ; increment is only 15 bits long
     sta VERA_FX_Y_INCR_H
@@ -415,18 +445,22 @@ y_pixel_pos_high_correct:
 
     clc
     lda Y_SUB_PIXEL
-    adc #COSINE_ROTATE
+    ;adc #COSINE_ROTATE
+    adc COSINE_OF_ANGLE
     sta Y_SUB_PIXEL
     lda Y_SUB_PIXEL+1
-    adc #0
+    ;adc #0
+    adc COSINE_OF_ANGLE+1
     sta Y_SUB_PIXEL+1
     
     sec
     lda X_SUB_PIXEL
-    sbc #SINE_ROTATE
+    ;sbc #SINE_ROTATE
+    sbc SINE_OF_ANGLE
     sta X_SUB_PIXEL
     lda X_SUB_PIXEL+1
-    sbc #0
+    ;sbc #0
+    sbc SINE_OF_ANGLE+1
     sta X_SUB_PIXEL+1
     
     inx
@@ -527,6 +561,27 @@ add_code_byte:
     inc CODE_ADDRESS+1     ; increment high-byte of CODE_ADDRESS
 done_adding_code_byte:
     rts
+
+
+
+; Python script to generate sine and cosine bytes
+;   import math
+;   cycle=256
+;   ampl=256   # -256 ($FF.00) to +256 ($01.00)
+;   [(int(math.sin(float(i)/cycle*2.0*math.pi)*ampl) % 256) for i in range(cycle)]
+;   [(int(math.sin(float(i)/cycle*2.0*math.pi)*ampl) // 256) for i in range(cycle)]
+;   [(int(math.cos(float(i)/cycle*2.0*math.pi)*ampl) % 256) for i in range(cycle)]
+;   [(int(math.cos(float(i)/cycle*2.0*math.pi)*ampl) // 256) for i in range(cycle)]
+; Manually: replace -1 with 255!
+    
+sine_values_low:
+    .byte 0, 6, 12, 18, 25, 31, 37, 43, 49, 56, 62, 68, 74, 80, 86, 92, 97, 103, 109, 115, 120, 126, 131, 136, 142, 147, 152, 157, 162, 167, 171, 176, 181, 185, 189, 193, 197, 201, 205, 209, 212, 216, 219, 222, 225, 228, 231, 234, 236, 238, 241, 243, 244, 246, 248, 249, 251, 252, 253, 254, 254, 255, 255, 255, 0, 255, 255, 255, 254, 254, 253, 252, 251, 249, 248, 246, 244, 243, 241, 238, 236, 234, 231, 228, 225, 222, 219, 216, 212, 209, 205, 201, 197, 193, 189, 185, 181, 176, 171, 167, 162, 157, 152, 147, 142, 136, 131, 126, 120, 115, 109, 103, 97, 92, 86, 80, 74, 68, 62, 56, 49, 43, 37, 31, 25, 18, 12, 6, 0, 250, 244, 238, 231, 225, 219, 213, 207, 200, 194, 188, 182, 176, 170, 164, 159, 153, 147, 141, 136, 130, 125, 120, 114, 109, 104, 99, 94, 89, 85, 80, 75, 71, 67, 63, 59, 55, 51, 47, 44, 40, 37, 34, 31, 28, 25, 22, 20, 18, 15, 13, 12, 10, 8, 7, 5, 4, 3, 2, 2, 1, 1, 1, 0, 1, 1, 1, 2, 2, 3, 4, 5, 7, 8, 10, 12, 13, 15, 18, 20, 22, 25, 28, 31, 34, 37, 40, 44, 47, 51, 55, 59, 63, 67, 71, 75, 80, 85, 89, 94, 99, 104, 109, 114, 120, 125, 130, 136, 141, 147, 153, 159, 164, 170, 176, 182, 188, 194, 200, 207, 213, 219, 225, 231, 238, 244, 250
+sine_values_high:
+    .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255
+cosine_values_low:
+    .byte 0, 255, 255, 255, 254, 254, 253, 252, 251, 249, 248, 246, 244, 243, 241, 238, 236, 234, 231, 228, 225, 222, 219, 216, 212, 209, 205, 201, 197, 193, 189, 185, 181, 176, 171, 167, 162, 157, 152, 147, 142, 136, 131, 126, 120, 115, 109, 103, 97, 92, 86, 80, 74, 68, 62, 56, 49, 43, 37, 31, 25, 18, 12, 6, 0, 250, 244, 238, 231, 225, 219, 213, 207, 200, 194, 188, 182, 176, 170, 164, 159, 153, 147, 141, 136, 130, 125, 120, 114, 109, 104, 99, 94, 89, 85, 80, 75, 71, 67, 63, 59, 55, 51, 47, 44, 40, 37, 34, 31, 28, 25, 22, 20, 18, 15, 13, 12, 10, 8, 7, 5, 4, 3, 2, 2, 1, 1, 1, 0, 1, 1, 1, 2, 2, 3, 4, 5, 7, 8, 10, 12, 13, 15, 18, 20, 22, 25, 28, 31, 34, 37, 40, 44, 47, 51, 55, 59, 63, 67, 71, 75, 80, 85, 89, 94, 99, 104, 109, 114, 120, 125, 130, 136, 141, 147, 153, 159, 164, 170, 176, 182, 188, 194, 200, 207, 213, 219, 225, 231, 238, 244, 250, 0, 6, 12, 18, 25, 31, 37, 43, 49, 56, 62, 68, 74, 80, 86, 92, 97, 103, 109, 115, 120, 126, 131, 136, 142, 147, 152, 157, 162, 167, 171, 176, 181, 185, 189, 193, 197, 201, 205, 209, 212, 216, 219, 222, 225, 228, 231, 234, 236, 238, 241, 243, 244, 246, 248, 249, 251, 252, 253, 254, 254, 255, 255, 255
+cosine_values_high:
+    .byte 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 
 
