@@ -1,12 +1,12 @@
 
-DO_ROTATE = 0  ; otherwise SHEAR
+DO_ROTATE = 1  ; otherwise SHEAR
 
 USE_CACHE_FOR_WRITING = 0
 USE_TRANSPARENT_WRITING = 1
 
 USE_EXAMPLE_CODE = 0
 
-    .if (1)
+    .if (0)
 BACKGROUND_COLOR = 4 ; nice purple (for example code)
     .else
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
@@ -155,9 +155,6 @@ reset:
     jsr copy_texture_pixels_as_tile_pixels_to_high_vram
 
 
-; FIXME: copy a TILE MAP!
-; FIXME: copy a TILE MAP!
-; FIXME: copy a TILE MAP!
     .if(!USE_EXAMPLE_CODE)
 ; FIXME: put this in a SEPARATE routine!
 ; FIXME: put this in a SEPARATE routine!
@@ -529,11 +526,7 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
     ora #%00000010   ; clip = 1
     sta VERA_FX_TILEBASE
 
-; FIXME! we need to set VRAM_ADDR_MAP_DATA!!
     lda #(VRAM_ADDR_MAP_DATA >> 9)
-; FIXME! we HAD a 16x16 map!!
-; FIXME! we HAD a 16x16 map!!
-; FIXME! we HAD a 16x16 map!!
     ora #%00000010   ; Map size = 32x32 tiles
     sta VERA_FX_MAPBASE
     
@@ -715,7 +708,7 @@ rotate_copy_next_row_1:
     ; NOTE: we are setting 
     .if(DO_ROTATE)
 
-; FIXME: we cannot reset the subpixel position here anymore! (or the cache index)
+        ; TODO: we cannot reset the cache index here anymore. We ASSUME that we always start aligned with a 4-byte column
 
         ; == ROTATE ==
     
@@ -728,9 +721,7 @@ x_pixel_pos_high_positive:
         lda #%00000000
 x_pixel_pos_high_correct:
         sta VERA_FX_X_POS_H      ; X subpixel position[0] = 0, X pixel position high [10:8] = 000 or 111
-    ; FIXME:
-    ;    txa
-    ; HALF SIZE:    asl
+
         lda Y_SUB_PIXEL+1
         sta VERA_FX_Y_POS_L      ; Y pixel position low [7:0]
         bpl y_pixel_pos_high_positive
@@ -740,6 +731,17 @@ y_pixel_pos_high_positive:
         lda #%00000000
 y_pixel_pos_high_correct:
         sta VERA_FX_Y_POS_H      ; Y subpixel position[0] = 0,  Y pixel position high [10:8] = 000 or 111
+        
+        ; Setting the Subpixel X/Y positions
+        
+        lda #%00001010           ; DCSEL=5, ADDRSEL=0
+        sta VERA_CTRL
+        
+        lda X_SUB_PIXEL
+        sta VERA_FX_X_POS_S      ; X pixel position low [-1:-8]
+        lda Y_SUB_PIXEL
+        sta VERA_FX_Y_POS_S      ; Y pixel position low [-1:-8]
+        
     .else
     
 ; FIXME: we cannot reset the subpixel position here anymore! (or the cache index)
@@ -754,6 +756,17 @@ y_pixel_pos_high_correct:
         sta VERA_FX_Y_POS_L      ; Y pixel position low [7:0]
         lda #%00000000
         sta VERA_FX_Y_POS_H      ; Y subpixel position[0] = 0, Y pixel position high [10:8] = 000
+        
+        ; Setting the Subpixel X/Y positions
+        
+        lda #%00001010           ; DCSEL=5, ADDRSEL=0
+        sta VERA_CTRL
+        
+        lda #128
+        sta VERA_FX_X_POS_S      ; X pixel position low [-1:-8]
+        lda #128
+        sta VERA_FX_Y_POS_S      ; Y pixel position low [-1:-8]
+        
     .endif
 
     ; Copy one row of 100 pixels
