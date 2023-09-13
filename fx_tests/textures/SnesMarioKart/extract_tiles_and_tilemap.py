@@ -2,8 +2,8 @@ from PIL import Image
 import hashlib
 
 DO_MARIO_KART = 0 # otherwise do the 'other' one...
-PRINT_MAP_AS_ASM = 0  # otherwise write to BIN file
-PRINT_TILEDATA_AS_ASM = 0  # otherwise write to BIN file
+PRINT_MAP_AS_ASM = 1  # otherwise write to BIN file
+PRINT_TILEDATA_AS_ASM = 1  # otherwise write to BIN file
 
 if (DO_MARIO_KART):
     source_image_filename = "SuperMarioKartMapMushroomCup1_clean.png"
@@ -125,8 +125,6 @@ for tile_y in range(map_height):
             tiles_pixel_data.append(tile_pixel_data)
             tile_map[tile_y][tile_x] = tile_index
             tile_index += 1
-
-print(tile_map)
 
 tilemap_asm_string = ""
 tile_map_flat = []
