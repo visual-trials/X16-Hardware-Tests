@@ -1,7 +1,7 @@
 
 DO_ROTATE = 1  ; otherwise SHEAR
 
-USE_CACHE_FOR_WRITING = 0
+USE_CACHE_FOR_WRITING = 1
 USE_TRANSPARENT_WRITING = 1
 
 USE_EXAMPLE_CODE = 0
@@ -535,6 +535,7 @@ test_speed_of_affine_transforming_bitmap_1_byte_per_pixel:
         ora #%10000010  ; transparency enabled = 1
     .endif
     .if(USE_CACHE_FOR_WRITING)
+        ora #%00100000  ; cache fill enabled = 1
         ora #%01000000  ; blit write enabled = 1
     .endif
     sta VERA_FX_CTRL
@@ -644,7 +645,6 @@ rotate_or_shear_bitmap_fast_1_byte_per_copy:
         sta VERA_FX_X_INCR_L
         lda #0
         rol                      
-                                 ; FIXME: **THIS IS DONE BELOW ALSO!!**
         and #%01111111            ; increment is only 15 bits long
         sta VERA_FX_X_INCR_H
         lda #SINE_ROTATE
@@ -658,7 +658,6 @@ rotate_or_shear_bitmap_fast_1_byte_per_copy:
         lda #0                   ; X increment low
         sta VERA_FX_X_INCR_L
         lda #%00000010           ; X increment high = 10
-                                 ; FIXME: **THIS IS DONE BELOW ALSO!!**
         and #%01111111            ; increment is only 15 bits long
         sta VERA_FX_X_INCR_H
         lda #<(-60<<1)            ; Y increment low
@@ -674,19 +673,6 @@ rotate_copy_next_row_1:
     lda #%00000110           ; DCSEL=3, ADDRSEL=0
     sta VERA_CTRL
 
-    ; FIXME: we are resetting the subpixel positions here, but this is kinda awkward! 
-    ; FIXME: we do a subpixel RESET here, BUT should do a SET of the subpixel positions here (which is more precise)
-    ; FIXME: **IT DONE ABOVE ALSO!!**
-; FIXME!
-; FIXME!
-; FIXME!
-;    .if(DO_ROTATE)
-;        lda #%10000100           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
-;    .else
-;        lda #%10000101           ; reset subpixel position = 1, 0, X decr = 0, X subpixel increment exponent = 001, X increment high = 01
-;    .endif
-;    sta $9F2A
-    
     .if(USE_CACHE_FOR_WRITING)
         lda #%00110000           ; Setting auto-increment value to 4 byte increment (=%0011) 
     .else
@@ -703,12 +689,9 @@ rotate_copy_next_row_1:
     lda #%00001001           ; DCSEL=4, ADDRSEL=1
     sta VERA_CTRL
     
-    ; FIXME: we should probably set the subpixel positions! (for more precision)
+    ; TODO: we cannot reset the cache index here anymore. We ASSUME that we always start aligned with a 4-byte column!
 
-    ; NOTE: we are setting 
     .if(DO_ROTATE)
-
-        ; TODO: we cannot reset the cache index here anymore. We ASSUME that we always start aligned with a 4-byte column
 
         ; == ROTATE ==
     
@@ -744,8 +727,6 @@ y_pixel_pos_high_correct:
         
     .else
     
-; FIXME: we cannot reset the subpixel position here anymore! (or the cache index)
-
         ; == SHEAR ==
     
         lda #0
