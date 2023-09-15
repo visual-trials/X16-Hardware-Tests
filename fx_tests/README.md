@@ -19,9 +19,9 @@ Alternatively you can use a .rom file (inside the ROM folder) to run these tests
 
 ## Test results
 
-Each test result (see below) has its own code, which starts with a specific character to group them together. These are the test groups:
+Each test result (see below) has its own code, which starts with a specific letter to group them together. These are the test groups:
 
-| Code | Meaning |
+| Group | Meaning |
 | ---- | ------- |
 |   A  | Affine helper |
 |   B  | Backwards compatibility |
