@@ -104,6 +104,9 @@ vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\mult_acc.s -wdc02 -D CREAT
 
 echo Building: Perspecive/mode7 engine tests
 
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\tiled_mode.s -wdc02 -D FLAT_4BPP -o .\fx_tests\ROM\AFF_FLAT_4BPP.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\tiled_mode.s -wdc02 -D FLAT_4BPP -D CREATE_PRG -o .\fx_tests\SD\AFF_FLAT_4BPP.PRG
+
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\tiled_mode.s -wdc02 -o .\fx_tests\ROM\MARIO-KART.ROM
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\tiled_mode.s -wdc02 -D CREATE_PRG -o .\fx_tests\SD\MARIO-KART.PRG
 

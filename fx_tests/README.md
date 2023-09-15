@@ -86,8 +86,6 @@ These are the variants:
   - Drawing the new way (8bpp): with the use of the line draw helper
   - Drawing the new way (4bpp): with the use of the line draw helper
 
-**TODO**: add variant where we READ during a line draw!
-
 Here are the PRG names and what their results look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
@@ -120,7 +118,7 @@ Here are the PRG names and what their results look like:
 | `AFF_SHEAR-NOCACHE.PRG`  | <img src='screenshots/AFF_SHEAR-NOCACHE.PRG.png' width='300'> | <img src='screenshots/AFF_SHEAR-NOCACHE-HW.PRG.png' width='300'> | A1 A2 A3 A4 A5.1 A6 A7 B1 B2 O1.1 |
 | `AFF_ROTATION-CACHE.PRG`  | <img src='screenshots/AFF_ROTATION-CACHE.PRG.png' width='300'> | <img src='screenshots/AFF_ROTATION-CACHE-HW.PRG.png' width='300'> | A1 A2 A3 A4 A5.1 A6 A7 C2.1 C3 C5.1 |
 | `AFF_ROTATION-NOCACHE.PRG`  | <img src='screenshots/AFF_ROTATION-NOCACHE.PRG.png' width='300'> | <img src='screenshots/AFF_ROTATION-NOCACHE-HW.PRG.png' width='300'> | A1 A2 A3 A4 A5.1 A6 A7 B1 B2 O1.1 |
-
+| `AFF_FLAT_4BPP.PRG`  | <img src='screenshots/AFF_FLAT_4BPP.PRG.png' width='300'> | <img src='screenshots/AFF_FLAT_4BPP-HW.PRG.png' width='300'> | A1 A2 A3 A4 A5.2 A6 A7 C2.2 C3 |
 
 
 ## Polygon filler tests
@@ -178,14 +176,6 @@ Here are the PRG names and what their results look like:
 | `MULTACC.PRG`  | <img src='screenshots/MULTACC.PRG.png' width='300'>| <img src='screenshots/MULTACC-HW.PRG.png' width='300'> | C1 C3 M1 M2 M3 M4 M5 M6 M7 M8 M9 |
 
 
-## Tiled Perspective (integrated) tests 
-
-
-
-## Polygon 3D Engine (integrated) tests
-
-
-
 
 # Test results
 
@@ -199,6 +189,7 @@ Below is a complete list of the results of all the tests performed:
 |  A3  | Setting the X/Y coordinate in a tilemap works | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
 |  A4  | Setting the X/Y increment for a tilemap works | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
 |  A5.1  | Reading bytes from the FX tilemap works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
+|  A5.2  | Reading nibbles from the FX tilemap works (4bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
 |  A6  | Incrementing the X/Y coordinate after a read works | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
 |  A7  | Clipping a tilemap works (pixels form tile 0 are read) | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
 |  B1  | Writing to VRAM 1 byte at the time still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
@@ -206,6 +197,7 @@ Below is a complete list of the results of all the tests performed:
 |  B3  | Setting of VRAM addresses still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
 |  C1  | Filling the 32-bit cache directly works | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
 |  C2.1  | Filling the 32-bit cache (1 byte at the time: 8bpp) by reading from VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
+|  C2.2  | Filling the 32-bit cache (1 nibble at the time: 4bpp) by reading from VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
 |  C3  | Writing the full 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
 |  C4  | Writing the nibble-masked 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
 |  C5.1  | Transparent writes work with 32-bit cache (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> | <p align="center"><img src='screenshots/ok.png' width='30'></p> |
