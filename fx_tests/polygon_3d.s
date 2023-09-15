@@ -17,23 +17,31 @@ USE_JUMP_TABLE = JMP
 USE_DIV_TABLES = DIV
     .endif
 
-DO_BUTTERFLY = 0
+    .ifdef BUTTERFLY
+DO_BUTTERFLY = 1
 
-USE_FX_MULTIPLIER = 1
-
-DRAW_BITMAP_TEXT = 0
-DRAW_CURSOR_KEYS = 0
+DRAW_BITMAP_TEXT = 1
+DRAW_CURSOR_KEYS = 1
 ; FIXME: use this!
 ; FIXME: use this!
 ; FIXME: use this!
 USE_POLYGON_FILLER_FOR_BITMAP = 0
+    .else
+DO_BUTTERFLY = 0
+
+DRAW_BITMAP_TEXT = 0
+DRAW_CURSOR_KEYS = 0
+USE_POLYGON_FILLER_FOR_BITMAP = 0
+    .endif
+
+USE_FX_MULTIPLIER = 1
 
 DO_SPEED_TEST = 1
 DO_4BIT = 0
 DO_2BIT = 0
 USE_DITHERING = 0
 KEEP_RUNNING = 1  ; IMPORTANT: we cant show text AND do double buffering!
-USE_LIGHT = 0
+USE_LIGHT = 1
 USE_KEYBOARD_INPUT = 1
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
@@ -1187,16 +1195,16 @@ init_world:
     .endif
 
 ; FIXME!
-    lda #$CC
-;    lda #200
+;    lda #$CC
+    lda #200
 ;    lda #0
     sta ANGLE_Z
     lda #0
     sta ANGLE_Z+1
 
 ; FIXME!
-    lda #$D6
-;    lda #200
+;    lda #$D6
+    lda #200
 ;    lda #0
     sta ANGLE_X
     lda #0
@@ -1211,7 +1219,7 @@ init_world:
     .endif
 
 ; FIXME: this works for 320x199 and a cube
-    .if(1)
+    .if(0)
     lda #$D8
     sta TRANSLATE_Z
     lda #$02
@@ -1219,7 +1227,7 @@ init_world:
     .endif
 
 ; FIXME: this works for 320x199 and a spaceship/butterfly
-    .if(0)
+    .if(1)
     lda #$D8
     sta TRANSLATE_Z
     lda #$08
@@ -3331,7 +3339,10 @@ dithering_colors:
     
     ; -- Note: the data below will be loaded/copied ONCE into (Banked) RAM so this RAM can be used later on --
     
-    .if(1)
+    .if(0)
+; FIXME: THIS IS NEW AND MEANT FOR THE NEW ENGINE!
+; FIXME: THIS IS NEW AND MEANT FOR THE NEW ENGINE!
+; FIXME: THIS IS NEW AND MEANT FOR THE NEW ENGINE!
 NR_OF_NORMALS = 6
 NR_OF_POINTS = 8
 NR_OF_TRIANGLES = 12
@@ -3356,6 +3367,10 @@ points_3d_data:
    .word    $100,    0, $100  ; #5
    .word       0, $100, $100  ; #6
    .word       0,    0, $100  ; #7
+   
+   .endif
+
+   .if(0)
 
 triangles_3d_data:
    ;         pt1,   pt2,   pt3,   n,    cl
@@ -3668,8 +3683,7 @@ palette_data_128:
 end_of_palette_data_128:
     .endif
     
-    .if(0)
-; FIXME!    .if(!DO_BUTTERFLY)
+    .if(!DO_BUTTERFLY)
 NR_OF_TRIANGLES = 106
 triangle_3d_data:
     ; Note: the normal is a normal point relative to 0.0 (with a length of $100)
