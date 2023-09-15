@@ -138,9 +138,9 @@ This is what the tests are doing:
     - Using the polygon filler fill-length codes as input to JUMP-tables (65C02 feature)
 
 There are three sub-variants of the latter: 
-    - 8bpp polygons
-    - 4bpp polygons
-    - 2bpp polygons (with dithering)
+  - 8bpp polygons
+  - 4bpp polygons
+  - 2bpp polygons (with dithering)
     
 Here are the PRG names and what their results look like:
 
