@@ -32,6 +32,7 @@ These start with a specific letter to group them together. These are the test gr
 |   A  | Affine helper |
 |   B  | Backwards compatibility |
 |   C  | 32-bit Cache |
+|   L  | Line draw helper |
 |   O  | Other features |
 |   P  | Polygon filler helper |
 
@@ -45,7 +46,7 @@ There are two variants:
   - writing one byte a time (the old way) 
   - writing four bytes at the same time (using the 32-bit cache)
 
-Here are the PRG names and what their results should look like:
+Here are the PRG names and what their results look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
@@ -61,7 +62,7 @@ There are two variants:
   - reading and writing one byte a time (the old way) 
   - reading one and writing four bytes at the same time (using the 32-bit cache)
 
-Here are the PRG names and what their results should look like:
+Here are the PRG names and what their results look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
@@ -71,7 +72,25 @@ Here are the PRG names and what their results should look like:
 
 ## Line draw tests
 
+These tests use the line draw helper mode to draw diagonal lines.
 
+This is what both variants do: 
+  - Set the start address somewhere in a bitmap (of the screen)
+  - Set the increment (per Bresenham's algo)
+  - Start writing bytes to ADDR1
+
+These are the variants:
+  - Drawing the old way (8bpp): without the use of the line draw helper
+  - Drawing the new way (8bpp): with the use of the line draw helper
+  - Drawing the new way (4bpp): with the use of the line draw helper
+
+Here are the PRG names and what their results look like:
+
+| PRG  | Screenshot Emulator | Screenshot HW | What this tests |
+| ------------- | ------------- | ------------- | ------------- |
+| `LINE_8BPP-NOFX.PRG`  | <img src='screenshots/LINE_8BPP-NOFX.PRG.png' width='300'> | | ... |
+| `LINE_8BPP-FX.PRG`  | <img src='screenshots/LINE_8BPP-FX.PRG.png' width='300'> | | ... |
+| `LINE_4BPP-FX.PRG`  | <img src='screenshots/LINE_4BPP-FX.PRG.png' width='300'> | | ... |
 
 
 ## Affine helper tests
@@ -89,7 +108,7 @@ This is what both variants do:
     
 **TODO**: add 4bpp variant
 
-Here are the PRG names and what their results should look like:
+Here are the PRG names and what their results look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
@@ -117,7 +136,7 @@ There are two variants:
 **TODO**: add 4bpp variants
 **TODO**: add 2bpp variant + dithering
 
-Here are the PRG names and what their results should look like:
+Here are the PRG names and what their results look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |

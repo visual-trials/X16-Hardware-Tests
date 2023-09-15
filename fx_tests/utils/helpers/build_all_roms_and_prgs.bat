@@ -22,6 +22,14 @@ vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\multibyte_blits.s -wdc02 -
 
 echo Building: Line draw tests
 
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\line_draw.s -wdc02 -D FOURBIT=0 -D FXLINE=0 -o .\fx_tests\ROM\LINE_8BPP-NOFX.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\line_draw.s -wdc02 -D FOURBIT=0 -D FXLINE=0 -D CREATE_PRG -o .\fx_tests\SD\LINE_8BPP-NOFX.PRG
+
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\line_draw.s -wdc02 -D FOURBIT=0 -D FXLINE=1 -o .\fx_tests\ROM\LINE_8BPP-FX.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\line_draw.s -wdc02 -D FOURBIT=0 -D FXLINE=1 -D CREATE_PRG -o .\fx_tests\SD\LINE_8BPP-FX.PRG
+
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\line_draw.s -wdc02 -D FOURBIT=1 -D FXLINE=1 -o .\fx_tests\ROM\LINE_4BPP-FX.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\line_draw.s -wdc02 -D FOURBIT=1 -D FXLINE=1 -D CREATE_PRG -o .\fx_tests\SD\LINE_4BPP-FX.PRG
 
 echo Building: Polygon filler tests
 

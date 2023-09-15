@@ -1,9 +1,18 @@
 
-DO_SPEED_TEST = 1
+
+    .ifdef DEFAULT
+; These are the *default* settings. When not defining DEFAULT from the commandline, these will all have to be set from the commandline.
 USE_LINE_DRAW_HELPER = 1
 DO_4BIT = 1
+    .else
+; When not defining DEFAULT from the commandline, these (shift names) will all have to be set from the commandline.    
+USE_LINE_DRAW_HELPER = FXLINE
+DO_4BIT = FOURBIT
+    .endif
 
-CLEAR_SCREEN_FAST = 0
+DO_SPEED_TEST = 1
+
+CLEAR_SCREEN_FAST = 1
 
     .if (USE_LINE_DRAW_HELPER)
         .if(DO_4BIT)
@@ -81,7 +90,7 @@ LINE_DRAW_240_CODE    = $8000
 LINE_DRAW_64_CODE     = $8400
 
 
-  .org $C000
+    .include utils/build_as_prg_or_rom.s
 
 reset:
 
@@ -850,22 +859,24 @@ vera_wr_fill_bitmap_col_once2:
     .include utils/timing.s
     .include utils/setup_vera_for_bitmap_and_tilemap.s
 
-    ; ======== PETSCII CHARSET =======
+    .ifndef CREATE_PRG
+        ; ======== PETSCII CHARSET =======
 
-    .org $F700
-    .include "utils/petscii.s"
-    
-    ; ======== NMI / IRQ =======
+        .org $F700
+        .include "utils/petscii.s"
+        
+        ; ======== NMI / IRQ =======
 nmi:
-    ; TODO: implement this
-    ; FIXME: ugly hack!
-    jmp reset
-    rti
+        ; TODO: implement this
+        ; FIXME: ugly hack!
+        jmp reset
+        rti
    
 irq:
-    rti
+        rti
 
-    .org $fffa
-    .word nmi
-    .word reset
-    .word irq
+        .org $fffa
+        .word nmi
+        .word reset
+        .word irq
+    .endif
