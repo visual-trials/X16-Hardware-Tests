@@ -14,8 +14,8 @@ USE_TRANSPARENT_WRITING = 1
 
 USE_EXAMPLE_CODE = 0
 
-    .if (0)
-BACKGROUND_COLOR = 4 ; nice purple (for example code)
+    .if (!USE_CACHE_FOR_WRITING)
+BACKGROUND_COLOR = 20
     .else
 BACKGROUND_COLOR = 240  ; 240 = Purple in this palette
     .endif

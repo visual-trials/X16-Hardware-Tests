@@ -32,6 +32,7 @@ These start with a specific letter to group them together. These are the test gr
 |   A  | Affine helper |
 |   B  | Backwards compatibility |
 |   C  | 32-bit Cache |
+|   O  | Other features |
 |   P  | Polygon filler helper |
 
 In the last section called *"Test results"* all test results (their code and their description) are put together in one table showing what does (or does not) work on what type of machine/emulator.
@@ -93,7 +94,9 @@ Here are the PRG names and what their results should look like:
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
 | `AFF_SHEAR-CACHE.PRG`  | <img src='screenshots/AFF_SHEAR-CACHE.PRG.png' width='300'> | | A1 A2 A3 A4 A5.1 A6 A7 C2.1 C3 C5.1 |
+| `AFF_SHEAR-NOCACHE.PRG`  | <img src='screenshots/AFF_SHEAR-NOCACHE.PRG.png' width='300'> | | A1 A2 A3 A4 A5.1 A6 A7 B1 B2 O1.1 |
 | `AFF_ROTATION-CACHE.PRG`  | <img src='screenshots/AFF_ROTATION-CACHE.PRG.png' width='300'> | | A1 A2 A3 A4 A5.1 A6 A7 C2.1 C3 C5.1 |
+| `AFF_ROTATION-NOCACHE.PRG`  | <img src='screenshots/AFF_ROTATION-NOCACHE.PRG.png' width='300'> | | A1 A2 A3 A4 A5.1 A6 A7 B1 B2 O1.1 |
 
 
 
@@ -158,7 +161,8 @@ Below is a complete list of the results of all the tests performed:
 |  C2.1  | Filling the 32-bit cache (1 byte at the time: 8bpp) by reading from VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  C3  | Writing the full 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  C4  | Writing the nibble-masked 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  C5.1  | Transparent writes work (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  C5.1  | Transparent writes work with 32-bit cache (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  O1.1  | Transparent writes work (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P1  | Polygon filler incrementers (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P2  | Polygon filler (sub)pixel positions (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P3.1  | Polygon filler setting ADDR1 = ADDR0 + X1 works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
