@@ -24,17 +24,17 @@ Below is a complete list of the results of all the tests performed.
 | Code | Description | Result Emulator | Result HW |
 | ---- | ----------- | --------------- | --------- |
 |  A1  | Writing to VRAM 1 byte at the time still works | <img src='screenshots/ok.png' width='30'> |  |
-|  A2  | Reading from VRAM 1 byte at the time still works | OK |  |
-|  A3  | Setting of VRAM addresses still works | OK |  |
-|  C1  | Filling the 32-bit cache directly works | OK |  |
-|  C2  | Filling the 32-bit cache (1 byte at the time) by reading from VRAM works | OK |  |
-|  C3  | Writing the full 32-bit cache to VRAM works | OK |  |
-|  C4  | Writing the nibble-masked 32-bit cache to VRAM works | OK |  |
-|  P1  | Polygon filler incrementers (X1 and X2) work | OK |  |
-|  P2  | Polygon filler (sub)pixel positions (X1 and X2) work | OK |  |
-|  P3.1  | Polygon filler setting ADDR1 = ADDR0 + X1 works (8bpp) | OK |  |
-|  P4.1  | Polygon filler reading fill length code works (8bpp) | OK |  |
-|  P5  | Polygon filler reset of (sub)pixel positions (X1 and X2) works | OK |  |
+|  A2  | Reading from VRAM 1 byte at the time still works | <img src='screenshots/not_ok.png' width='30'> |  |
+|  A3  | Setting of VRAM addresses still works | <img src='screenshots/ok.png' width='30'> |  |
+|  C1  | Filling the 32-bit cache directly works | <img src='screenshots/ok.png' width='30'> |  |
+|  C2  | Filling the 32-bit cache (1 byte at the time) by reading from VRAM works | <img src='screenshots/ok.png' width='30'> |  |
+|  C3  | Writing the full 32-bit cache to VRAM works | <img src='screenshots/ok.png' width='30'> |  |
+|  C4  | Writing the nibble-masked 32-bit cache to VRAM works | <img src='screenshots/ok.png' width='30'> |  |
+|  P1  | Polygon filler incrementers (X1 and X2) work | <img src='screenshots/ok.png' width='30'> |  |
+|  P2  | Polygon filler (sub)pixel positions (X1 and X2) work | <img src='screenshots/ok.png' width='30'> |  |
+|  P3.1  | Polygon filler setting ADDR1 = ADDR0 + X1 works (8bpp) | <img src='screenshots/ok.png' width='30'> |  |
+|  P4.1  | Polygon filler reading fill length code works (8bpp) | <img src='screenshots/ok.png' width='30'> |  |
+|  P5  | Polygon filler reset of (sub)pixel positions (X1 and X2) works | <img src='screenshots/ok.png' width='30'> |  |
 
 ## Cache write tests
 
