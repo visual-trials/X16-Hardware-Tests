@@ -37,7 +37,7 @@ These start with a specific letter to group them together. These are the test gr
 |   O  | Other features |
 |   P  | Polygon filler helper |
 
-In the last section called *"Test results"* ([link here](#test-results)) all test results (their code and their description) are put together in one table showing what does (or does not) work on what type of machine/emulator.
+In the last section called *"Test results"* ([click link here](#test-results)) all test results (their code and their description) are put together in one table showing what does (or does not) work on what type of machine/emulator.
 
 ## Cache write tests
 
