@@ -33,6 +33,7 @@ These start with a specific letter to group them together. These are the test gr
 |   B  | Backwards compatibility |
 |   C  | 32-bit Cache |
 |   L  | Line draw helper |
+|   M  | Multiplier and accumulator |
 |   O  | Other features |
 |   P  | Polygon filler helper |
 
@@ -171,7 +172,7 @@ Here are the PRG names and what their results look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
-| `MULTACC.PRG`  | <img src='screenshots/MULTACC.PRG.png' width='300'>| | ... |
+| `MULTACC.PRG`  | <img src='screenshots/MULTACC.PRG.png' width='300'>| | C1 C3 M1 M2 M3 M4 M5 M6 M7 M8 M9 |
 
 
 ## Tiled Perspective (integrated) tests 
@@ -186,6 +187,7 @@ Here are the PRG names and what their results look like:
 # Test results
 
 Below is a complete list of the results of all the tests performed:
+
 
 | Code | Description | Result Emulator | Result HW |
 | ---- | ----------- | --------------- | --------- |
@@ -209,6 +211,15 @@ Below is a complete list of the results of all the tests performed:
 |  L3.1  | Writing a pixel (8bpp) works and increments the X-coordinate and also ADDR1  | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  L3.2  | Writing a pixel (4bpp) works and increments the X-coordinate and also ADDR1 (one *nibble*) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  L4  | When X-coordinate is overflown ADDR0-address increment is *also added* to ADDR1 | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  M1  | Resetting the accumulator works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  M2  | Multiplying two positive numbers works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  M2  | Multiplying with negative numbers works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  M4  | Multiplication result can be written to VRAM | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  M5  | Multiplication result can be added to the accumulator | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  M6  | Multiplication result can be subtracted to the accumulator | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  M7  | A series of multiplications and accumulations can be achieved | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  M8  | Reset of accumulation can be triggered by reading from FX_ACCUM_RESET register | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  M9  | Accumulation can be triggered by reading from FX_ACCUM register | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  O1.1  | Transparent writes work (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  O2  | Setting of the nibble address bit (4bpp) works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  O3  | Setting of the nibble decrement/increment bit (4bpp) works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
