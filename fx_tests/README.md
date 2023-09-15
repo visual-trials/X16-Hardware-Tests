@@ -17,9 +17,16 @@ Do a `LOAD "<THE FILENAME.PRG>"` to load a specific test program and `RUN` to ex
 
 Alternatively you can use a .rom file (inside the ROM folder) to run these tests as a ROM.
 
-## Test results
 
-Each test result (see below) has its own code, which starts with a specific letter to group them together. These are the test groups:
+# Test programs
+
+In the following sections several test programs will be described and screenshots will be included for each run on a machine or emulator.
+
+These test programs test something specific: either an old or a new feature of VERA. Basicly, if things are working, something has been proven to work on that machine or emulator.
+
+What they actually tested is mentioned in the column *"What this tests"*. This column will contain test result codes.
+
+These start with a specific letter to group them together. These are the test groups:
 
 | Group | Meaning |
 | ---- | ------- |
@@ -28,24 +35,7 @@ Each test result (see below) has its own code, which starts with a specific lett
 |   C  | 32-bit Cache |
 |   P  | Polygon filler helper |
 
-Below is a complete list of the results of all the tests performed:
-
-| Code | Description | Result Emulator | Result HW |
-| ---- | ----------- | --------------- | --------- |
-|  B1  | Writing to VRAM 1 byte at the time still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  B2  | Reading from VRAM 1 byte at the time still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  B3  | Setting of VRAM addresses still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  C1  | Filling the 32-bit cache directly works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  C2  | Filling the 32-bit cache (1 byte at the time) by reading from VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  C3  | Writing the full 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  C4  | Writing the nibble-masked 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  P1  | Polygon filler incrementers (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  P2  | Polygon filler (sub)pixel positions (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  P3.1  | Polygon filler setting ADDR1 = ADDR0 + X1 works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  P4.1  | Polygon filler reading fill length code works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  P5  | Polygon filler reset of (sub)pixel positions (X1 and X2) works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-
-
+In the last section called *"Test results"* all test results are put together in one table showing what does (or does not) work on what type of machine/emulator.
 
 ## Cache write tests
 
@@ -145,5 +135,25 @@ Here are the PRG names and what their results should look like:
 ## Polygon 3D Engine (integrated) tests
 
 
+
+
+# Test results
+
+Below is a complete list of the results of all the tests performed:
+
+| Code | Description | Result Emulator | Result HW |
+| ---- | ----------- | --------------- | --------- |
+|  B1  | Writing to VRAM 1 byte at the time still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  B2  | Reading from VRAM 1 byte at the time still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  B3  | Setting of VRAM addresses still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  C1  | Filling the 32-bit cache directly works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  C2  | Filling the 32-bit cache (1 byte at the time) by reading from VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  C3  | Writing the full 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  C4  | Writing the nibble-masked 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  P1  | Polygon filler incrementers (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  P2  | Polygon filler (sub)pixel positions (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  P3.1  | Polygon filler setting ADDR1 = ADDR0 + X1 works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  P4.1  | Polygon filler reading fill length code works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  P5  | Polygon filler reset of (sub)pixel positions (X1 and X2) works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 
 
