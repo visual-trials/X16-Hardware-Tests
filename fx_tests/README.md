@@ -17,14 +17,13 @@ Do a `LOAD "<THE FILENAME.PRG>"` to load a specific test program and `RUN` to ex
 
 Alternatively you can use a .rom file (inside the ROM folder) to run these tests as a ROM.
 
-
-# Test programs
+# Test codes
 
 In the following sections several test programs will be described and screenshots will be included for each run on a machine or emulator.
 
 These test programs test something specific: either an old or a new feature of VERA. Basicly, if things are working, something has been proven to work on that machine or emulator.
 
-What they actually tested is mentioned in the column *"What this tests"*. This column will contain test result codes.
+What they actually tested is mentioned in the column *"What this tests"*. This column will contain test (result) codes.
 
 These start with a specific letter to group them together. These are the test groups:
 
@@ -35,7 +34,7 @@ These start with a specific letter to group them together. These are the test gr
 |   C  | 32-bit Cache |
 |   P  | Polygon filler helper |
 
-In the last section called *"Test results"* all test results are put together in one table showing what does (or does not) work on what type of machine/emulator.
+In the last section called *"Test results"* all test results (their code and their description) are put together in one table showing what does (or does not) work on what type of machine/emulator.
 
 ## Cache write tests
 
