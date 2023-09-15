@@ -19,7 +19,7 @@ Alternatively you can use a .rom file (inside the ROM folder) to run these tests
 
 ## Test results
 
-Below is a complete list of the results of all the tests performed.
+Below is a complete list of the results of all the tests performed:
 
 | Code | Description | Result Emulator | Result HW |
 | ---- | ----------- | --------------- | --------- |
@@ -35,6 +35,17 @@ Below is a complete list of the results of all the tests performed.
 |  P3.1  | Polygon filler setting ADDR1 = ADDR0 + X1 works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P4.1  | Polygon filler reading fill length code works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P5  | Polygon filler reset of (sub)pixel positions (X1 and X2) works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+
+Each test result (see above) has its own code, start with a character. This is their meaning:
+
+| Code | Meaning |
+| ---- | ------- |
+|   A  | Affine helper |
+|   B  | Backwards compatibility |
+|   C  | 32-bit Cache |
+|   P  | Polygon filler helper |
+
+
 
 ## Cache write tests
 
