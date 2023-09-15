@@ -17,11 +17,11 @@ Do a `LOAD "<THE FILENAME.PRG>"` to load a specific test program and `RUN` to ex
 
 Alternatively you can use a .rom file (inside the ROM folder) to run these tests as a ROM.
 
-# Test codes
+# Features to test
 
 In the following sections several test programs will be described and screenshots will be included for each run on a machine or emulator.
 
-These test programs test something specific: either an old or a new feature of VERA. Basicly, if things are working, something has been proven to work on that machine or emulator.
+These test programs test something specific: either an **old or a new feature** of VERA. Basicly, if things are working, something has been proven to work on that machine or emulator.
 
 What they actually tested is mentioned in the column *"What this tests"*. This column will contain test (result) codes.
 
