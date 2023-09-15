@@ -74,24 +74,27 @@ Here are the PRG names and what their results look like:
 
 These tests use the line draw helper mode to draw diagonal lines.
 
-This is what both variants do: 
+This is done (when the line draw helper is used): 
   - Set the start address somewhere in a bitmap (of the screen)
   - Set the increment (per Bresenham's algo)
-  - Start writing bytes to ADDR1
+  - Write many bytes to ADDR1 until a border of the screen is reached
+  - Iterate the above using different angles
 
 These are the variants:
   - Drawing the old way (8bpp): without the use of the line draw helper
   - Drawing the new way (8bpp): with the use of the line draw helper
   - Drawing the new way (4bpp): with the use of the line draw helper
 
+**TODO**: add variant where we READ during a line draw!
+
 Here are the PRG names and what their results look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
-| `LINE_8BPP-NOFX.PRG`  | <img src='screenshots/LINE_8BPP-NOFX.PRG.png' width='300'> | | ... |
-| `LINE_8BPP-FX.PRG`  | <img src='screenshots/LINE_8BPP-FX.PRG.png' width='300'> | | ... |
-| `LINE_4BPP-FX.PRG`  | <img src='screenshots/LINE_4BPP-FX.PRG.png' width='300'> | | ... |
-
+| `LINE_8BPP-NOFX.PRG`  | <img src='screenshots/LINE_8BPP-NOFX.PRG.png' width='300'> | | B1 B3 |
+| `LINE_8BPP-FX.PRG`  | <img src='screenshots/LINE_8BPP-FX.PRG.png' width='300'> | | B3 L1 L2 L3.1 L4 |
+| `LINE_4BPP-FX.PRG`  | <img src='screenshots/LINE_4BPP-FX.PRG.png' width='300'> | | B3 L1 L2 L3.2 L4 O2 O3 |
+ 
 
 ## Affine helper tests
 
@@ -162,8 +165,6 @@ Here are the PRG names and what their results look like:
 
 Below is a complete list of the results of all the tests performed:
 
-
-
 | Code | Description | Result Emulator | Result HW |
 | ---- | ----------- | --------------- | --------- |
 |  A1  | Setting the FX tilemap base address works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
@@ -181,7 +182,14 @@ Below is a complete list of the results of all the tests performed:
 |  C3  | Writing the full 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  C4  | Writing the nibble-masked 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  C5.1  | Transparent writes work with 32-bit cache (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  L1  | Resetting the X coordinate (overflow bit) of line draw helper works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  L2  | Setting the X-increment of line draw helper works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  L3.1  | Writing a pixel (8bpp) works and increments the X-coordinate and also ADDR1  | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  L3.2  | Writing a pixel (4bpp) works and increments the X-coordinate and also ADDR1 (one *nibble*) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  L4  | When X-coordinate is overflown ADDR0-address increment is *also added* to ADDR1 | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  O1.1  | Transparent writes work (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  O2  | Setting of the nibble address bit (4bpp) works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  O3  | Setting of the nibble decrement/increment bit (4bpp) works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P1  | Polygon filler incrementers (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P2  | Polygon filler (sub)pixel positions (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P3.1  | Polygon filler setting ADDR1 = ADDR0 + X1 works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
