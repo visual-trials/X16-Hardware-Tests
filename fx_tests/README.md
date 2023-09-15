@@ -230,7 +230,7 @@ Below is a complete list of the results of all the tests performed:
 |  P1  | Polygon filler incrementers (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P2  | Polygon filler (sub)pixel positions (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P3.1  | Polygon filler setting ADDR1 = ADDR0 + X1 works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  P3.2  | Polygon filler setting ADDR1 = ADDR0 + X1 / 2 works (4bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  P3.2  | Polygon filler setting ADDR1 = ADDR0 + X1 / 2 works + nibble address bit (4bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P4.1  | Polygon filler reading fill length code works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P4.2  | Polygon filler reading fill length code works (4bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P4.3  | Polygon filler reading fill length code works (2bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
