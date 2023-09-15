@@ -32,9 +32,9 @@ Below is a complete list of the results of all the tests performed:
 
 | Code | Description | Result Emulator | Result HW |
 | ---- | ----------- | --------------- | --------- |
-|  A1  | Writing to VRAM 1 byte at the time still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  A2  | Reading from VRAM 1 byte at the time still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  A3  | Setting of VRAM addresses still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  B1  | Writing to VRAM 1 byte at the time still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  B2  | Reading from VRAM 1 byte at the time still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  B3  | Setting of VRAM addresses still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  C1  | Filling the 32-bit cache directly works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  C2  | Filling the 32-bit cache (1 byte at the time) by reading from VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  C3  | Writing the full 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
@@ -59,7 +59,7 @@ Here are the PRG names and what their results should look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
-| `SINGLE-WRITE.PRG`  | <img src='screenshots/SINGLE-WRITE.PRG.png' width='300'> | | A1 |
+| `SINGLE-WRITE.PRG`  | <img src='screenshots/SINGLE-WRITE.PRG.png' width='300'> | | B1 |
 | `MULTI-WRITE.PRG`  | <img src='screenshots/MULTI-WRITE.PRG.png' width='300'> | | C1 C3 |
 
 
@@ -75,7 +75,7 @@ Here are the PRG names and what their results should look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
-| `SINGLE-READWRITE.PRG`  | <img src='screenshots/SINGLE-READWRITE.PRG.png' width='300'> | | A1 A2 |
+| `SINGLE-READWRITE.PRG`  | <img src='screenshots/SINGLE-READWRITE.PRG.png' width='300'> | | B1 B2 |
 | `MULTI-READWRITE.PRG`  | <img src='screenshots/MULTI-READWRITE.PRG.png' width='300'> | | C2 C3 |
 
 
@@ -129,7 +129,7 @@ Here are the PRG names and what their results should look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
-| `POLYFILL-NOFXPOLY.PRG`  | <img src='screenshots/POLYFILL-NOFXPOLY.PRG.png' width='300'> | | A1 A3 |
+| `POLYFILL-NOFXPOLY.PRG`  | <img src='screenshots/POLYFILL-NOFXPOLY.PRG.png' width='300'> | | B1 B3 |
 | `POLYFILL-FXPOLY-SLP-JMP.PRG`  | <img src='screenshots/POLYFILL-FXPOLY-SLP-JMP.PRG.png' width='300'> | | C1 C3 C4 P1 P2 P3.1 P4.1 P5 |
 
 
