@@ -172,7 +172,7 @@ Here are the PRG names and what their results look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
-| `MULTACC.PRG`  | <img src='screenshots/MULTACC.PRG.png' width='300'><img src='screenshots/not_ok.png' width='30'> | | ... |
+| `MULTACC.PRG`  | <img src='screenshots/MULTACC.PRG.png' width='300'><img src='screenshots/not_ok.png' width='100'> | | ... |
 
 
 ## Tiled Perspective (integrated) tests 
