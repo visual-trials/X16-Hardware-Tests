@@ -69,6 +69,20 @@ vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\polygon_3d.s -wdc02 -D FXP
 
 echo Building: Affine helper tests
 
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\affine_helper.s -wdc02 -D ROTATE=1 -D CACHE=0 -o .\fx_tests\ROM\AFF_ROTATION-NOCACHE.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\affine_helper.s -wdc02 -D ROTATE=1 -D CACHE=0 -D CREATE_PRG -o .\fx_tests\SD\AFF_ROTATION-NOCACHE.PRG
+
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\affine_helper.s -wdc02 -D ROTATE=1 -D CACHE=1 -o .\fx_tests\ROM\AFF_ROTATION-CACHE.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\affine_helper.s -wdc02 -D ROTATE=1 -D CACHE=1 -D CREATE_PRG -o .\fx_tests\SD\AFF_ROTATION-CACHE.PRG
+
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\affine_helper.s -wdc02 -D ROTATE=0 -D CACHE=0 -o .\fx_tests\ROM\AFF_SHEAR-NOCACHE.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\affine_helper.s -wdc02 -D ROTATE=0 -D CACHE=0 -D CREATE_PRG -o .\fx_tests\SD\AFF_SHEAR-NOCACHE.PRG
+
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\affine_helper.s -wdc02 -D ROTATE=0 -D CACHE=1 -o .\fx_tests\ROM\AFF_SHEAR-CACHE.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\affine_helper.s -wdc02 -D ROTATE=0 -D CACHE=1 -D CREATE_PRG -o .\fx_tests\SD\AFF_SHEAR-CACHE.PRG
+
+echo Building: Perspecive/mode7 engine tests
+
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\tiled_mode.s -wdc02 -o .\fx_tests\ROM\MARIO-KART.ROM
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\tiled_mode.s -wdc02 -D CREATE_PRG -o .\fx_tests\SD\MARIO-KART.PRG
 

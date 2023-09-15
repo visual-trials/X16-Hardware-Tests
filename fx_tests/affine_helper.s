@@ -1,7 +1,15 @@
 
-DO_ROTATE = 1  ; otherwise SHEAR
 
+    .ifdef DEFAULT
+; These are the *default* settings. When not defining DEFAULT from the commandline, these will all have to be set from the commandline.
 USE_CACHE_FOR_WRITING = 1
+DO_ROTATE = 1  ; otherwise SHEAR
+    .else
+; When not defining DEFAULT from the commandline, these (shift names) will all have to be set from the commandline.    
+USE_CACHE_FOR_WRITING = CACHE
+DO_ROTATE = ROTATE
+    .endif
+
 USE_TRANSPARENT_WRITING = 1
 
 USE_EXAMPLE_CODE = 0
@@ -100,12 +108,8 @@ TILEDATA_VRAM_ADDRESS     = $13000 ; right behind the 320x240 bitmap layer (whic
 VRAM_ADDR_TILE_DATA       = $13000
 VRAM_ADDR_MAP_DATA        = $17000
 
-; ROM addresses
-PALLETE           = $CC00
-PIXELS            = $D000
 
-
-  .org $C000
+    .include utils/build_as_prg_or_rom.s
 
 reset:
 
@@ -1246,7 +1250,7 @@ irq:
     
     
     
-  .org $CC00
+PALLETE:
 
   .byte $fe, $0f   ; HACK: we are not using this color, since its the transparent color. We are using color $01 instead of $00.
   .byte $ee, $0f
@@ -1507,7 +1511,7 @@ irq:
   
 
 
-  .org $D000
+PIXELS:
 
   .byte  $f1, $f1, $f1, $f1, $f1, $f1, $fe, $ff, $ff, $fe, $30, $fe, $ff, $30, $30, $30, $30, $30, $2d, $30, $29, $2d, $29, $29, $29, $29, $29, $27, $29, $29, $27, $29, $29, $29, $29, $29, $27, $26, $24, $24, $24, $21, $24, $24, $1e, $1c, $1c, $1c, $18, $1c, $18, $1c, $1c, $1c, $18, $1c, $1f, $21, $21, $21, $21, $21, $24, $24, $24, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $26, $26, $26, $26, $26, $26, $26, $26, $65, $65, $65, $65, $65, $64, $61, $60, $90, $90, $90, $90, $90, $8b, $8b, $88
   .byte  $f1, $f1, $e3, $f1, $f1, $fe, $fe, $ff, $ff, $ff, $fe, $30, $fe, $30, $30, $30, $30, $30, $30, $30, $2d, $2d, $29, $29, $29, $29, $29, $29, $27, $29, $27, $29, $29, $2d, $29, $29, $27, $27, $26, $24, $24, $24, $24, $24, $21, $1e, $1c, $1e, $1c, $1c, $1c, $1c, $1c, $1c, $1c, $1c, $21, $21, $21, $21, $21, $21, $24, $27, $24, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $27, $26, $27, $26, $26, $26, $65, $65, $63, $65, $63, $66, $63, $64, $60, $60, $90, $90, $90, $90, $90, $8f, $8f
@@ -1683,14 +1687,16 @@ tile_map_data:
     .endif
 
     
-    ; ======== PETSCII CHARSET =======
+    .ifndef CREATE_PRG
+        ; ======== PETSCII CHARSET =======
 
-    .org $F700
-    .include "utils/petscii.s"
-    
-    
+        .org $F700
+        .include "utils/petscii.s"
+        
+        
 
-    .org $fffa
-    .word nmi
-    .word reset
-    .word irq
+        .org $fffa
+        .word nmi
+        .word reset
+        .word irq
+    .endif

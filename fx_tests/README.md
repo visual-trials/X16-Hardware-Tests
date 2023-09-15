@@ -75,6 +75,26 @@ Here are the PRG names and what their results should look like:
 
 ## Affine helper tests
 
+These tests use the affine helper mode to **rotate or shear** a bitmap. Any kind of affine transformation (like scaling and flipping) are actually possible this way.
+
+This is what both variants do: 
+  - Copying a tilemap and tiledata to VRAM, effectively containing the source image
+  - Setting the initial X and Y cooridinate to a starting point in the (tiled) source image 
+  - Setting the X/Y increment for step in the source miage
+  - Drawing a line to the destination, by doing this for each pixel:
+    - Read a source pixel (this automatically increments X and Y (in the source) to the next position)
+    - Write a source pixel to the destination
+  - Set the starting point the next line (for rotation this is slightly more work on the CPU side)
+    
+**TODO**: add 4bpp variant
+
+Here are the PRG names and what their results should look like:
+
+| PRG  | Screenshot Emulator | Screenshot HW | What this tests |
+| ------------- | ------------- | ------------- | ------------- |
+| `AFF_SHEAR-CACHE.PRG`  | <img src='screenshots/AFF_SHEAR-CACHE.PRG.png' width='300'> | | ... |
+| `AFF_ROTATION-CACHE.PRG`  | <img src='screenshots/AFF_ROTATION-CACHE.PRG.png' width='300'> | | ... |
+
 
 
 ## Polygon filler tests
