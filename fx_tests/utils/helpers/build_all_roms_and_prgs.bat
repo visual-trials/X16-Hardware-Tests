@@ -89,6 +89,13 @@ vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\affine_helper.s -wdc02 -D 
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\affine_helper.s -wdc02 -D ROTATE=0 -D CACHE=1 -o .\fx_tests\ROM\AFF_SHEAR-CACHE.ROM
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\affine_helper.s -wdc02 -D ROTATE=0 -D CACHE=1 -D CREATE_PRG -o .\fx_tests\SD\AFF_SHEAR-CACHE.PRG
 
+
+echo Building: Multiplier/accumulator  tests
+
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\mult_acc.s -wdc02 -o .\fx_tests\ROM\MULTACC.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\mult_acc.s -wdc02 -D CREATE_PRG -o .\fx_tests\SD\MULTACC.PRG
+
+
 echo Building: Perspecive/mode7 engine tests
 
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\tiled_mode.s -wdc02 -o .\fx_tests\ROM\MARIO-KART.ROM

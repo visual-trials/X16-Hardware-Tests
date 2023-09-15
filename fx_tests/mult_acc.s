@@ -87,7 +87,7 @@ BAD_VALUE                 = $5A
 ; ROM addresses
 
 
-  .org $C000
+    .include utils/build_as_prg_or_rom.s
 
 reset:
 
@@ -1137,25 +1137,27 @@ vera_wr_fill_bitmap_col_once2:
     .include utils/timing.s
     .include utils/setup_vera_for_bitmap_and_tilemap.s
 
-    ; ======== NMI / IRQ =======
+    .ifndef CREATE_PRG
+        ; ======== NMI / IRQ =======
 nmi:
-    ; TODO: implement this
-    ; FIXME: ugly hack!
-    jmp reset
-    rti
+        ; TODO: implement this
+        ; FIXME: ugly hack!
+        jmp reset
+        rti
    
 irq:
-    rti
-    
-    ; ======== PETSCII CHARSET =======
+        rti
+        
+        ; ======== PETSCII CHARSET =======
 
-    .org $F700
-    .include "utils/petscii.s"
-    
-    
+        .org $F700
+        .include "utils/petscii.s"
+        
+        
 
-    .org $fffa
-    .word nmi
-    .word reset
-    .word irq
-    
+        .org $fffa
+        .word nmi
+        .word reset
+        .word irq
+    .endif
+        

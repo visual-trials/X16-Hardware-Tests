@@ -150,6 +150,29 @@ Here are the PRG names and what their results look like:
 
 ## Multiplier and accumulator tests
 
+These tests 16x16bit signed multiplier and accumulator. It starts simple, but builds up to more complex examples.
+
+Here are the calculation being performed in this test program:
+
+```
+C: $0002 (2) S: $F4C3 (-2877)
+
+X1: $0003 (3) Y1: $0123 (291)
+X2: $0007 (7) Y2: $FFF3 (-13)
+
+X1, C = $00020003
+X1 * C = $00000006 (2 * 3 = 6)
+X2 * S = $FFFFB155 (7 * -2877 = -20139)
+X1 * C + Y1 * S = $FFF339AF (3 * 2 + 291 * -2877 = -837201)
+X2 * S - Y2 * C = $FFFFB16F ( (7 * -2877) - (-13 * 2) = -20113)
+EMU IS WRONG: X2 * S - Y2 * C = $FFFFB13B ( (7 * -2877) - (-13 * 2) = -20165)
+```
+
+Here are the PRG names and what their results look like:
+
+| PRG  | Screenshot Emulator | Screenshot HW | What this tests |
+| ------------- | ------------- | ------------- | ------------- |
+| `MULTACC.PRG`  | <img src='screenshots/MULTACC.PRG.png' width='300'><img src='screenshots/not_ok.png' width='30'> | | ... |
 
 
 ## Tiled Perspective (integrated) tests 
