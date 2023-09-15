@@ -165,14 +165,13 @@ X1 * C = $00000006 (2 * 3 = 6)
 X2 * S = $FFFFB155 (7 * -2877 = -20139)
 X1 * C + Y1 * S = $FFF339AF (3 * 2 + 291 * -2877 = -837201)
 X2 * S - Y2 * C = $FFFFB16F ( (7 * -2877) - (-13 * 2) = -20113)
-EMU IS WRONG: X2 * S - Y2 * C = $FFFFB13B ( (7 * -2877) - (-13 * 2) = -20165)
 ```
 
 Here are the PRG names and what their results look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
-| `MULTACC.PRG`  | <img src='screenshots/MULTACC.PRG.png' width='300'><img src='screenshots/not_ok.png' width='100'> | | ... |
+| `MULTACC.PRG`  | <img src='screenshots/MULTACC.PRG.png' width='300'>| | ... |
 
 
 ## Tiled Perspective (integrated) tests 

@@ -360,7 +360,7 @@ passthrough_of_c_and_x1:
     
     lda #%00000000           ; Multiplier NOT enabled
     sta MULTIPLIER_STATE
-    sta $9F2C
+    sta VERA_FX_MULT
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -409,7 +409,7 @@ multiply_c_and_x1:
     
     lda #%00010000           ; multiplier enabled = 1, cache index  = 0
     sta MULTIPLIER_STATE
-    sta $9F2C
+    sta VERA_FX_MULT
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -460,7 +460,7 @@ multiply_s_and_x2:
     lda #%00010000           ; multiplier enabled = 1, cache index  = 0
     sta MULTIPLIER_STATE
     ora #%10000000           ; reset accumulator = 1
-    sta $9F2C
+    sta VERA_FX_MULT
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X2>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -514,7 +514,7 @@ x1_times_c_plus_y1_times_s:
     lda #%00010000           ; multiplier enabled = 1, cache index  = 0
     sta MULTIPLIER_STATE
     ora #%10000000           ; reset accumulator = 1
-    sta $9F2C
+    sta VERA_FX_MULT
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_X1>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -541,12 +541,12 @@ x1_times_c_plus_y1_times_s:
     sta MULTIPLIER_STATE
 ; We are testing whether we can accumulate by doing a read from cache32[15:8] instead
 ;    ora #%01000000           ; accumulate = 1
-    sta $9F2C
+    sta VERA_FX_MULT
     
     lda #%00001100           ; DCSEL=6, ADDRSEL=0
     sta VERA_CTRL
 
-    lda $9F2A                ; reading from cache32[15:8] will accumulate
+    lda VERA_FX_ACCUM        ; reading from cache32[15:8] will accumulate
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
@@ -604,12 +604,12 @@ x2_times_s_minus_y2_times_c:
     sta MULTIPLIER_STATE
 ; We are testing whether we can reset the accumulator by doing a read from cache32[7:0] instead
 ;    ora #%10000000           ; reset accumulator = 1
-    sta $9F2C
+    sta VERA_FX_MULT
 
     lda #%00001100           ; DCSEL=6, ADDRSEL=0
     sta VERA_CTRL
 
-    lda $9F29                ; reading from cache32[7:0] will reset the accumulator
+    lda VERA_FX_ACCUM_RESET  ; reading from cache32[7:0] will reset the accumulator
 
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
@@ -637,14 +637,15 @@ x2_times_s_minus_y2_times_c:
     
     lda #%00010000           ; multiplier enabled = 1, cache index  = 0
     sta MULTIPLIER_STATE
+; FIXME! We should accumulate by reading from VERA_FX_ACCUM INSTEAD!
     ora #%01000000           ; accumulate = 1
-    sta $9F2C
+    sta VERA_FX_MULT
     
 ; FIXME: a switch to subtracting will immidiatly have an effect, which means the cant do an accumulate and *then* do the switch to subtracting in one write! So we first do an accumulate, then switch to subtracting
     lda #%00010000           ; multiplier enabled = 1, cache index  = 0
-    sta MULTIPLIER_STATE
     ora #%00100000           ; add or sub = 1
-    sta $9F2C
+    sta MULTIPLIER_STATE
+    sta VERA_FX_MULT
     
     lda #(VRAM_ADDR_SAMPLE_VALUE_Y2>>16)
     sta VERA_ADDR_LOW_OPERAND+2
@@ -702,12 +703,12 @@ load_low_operand_into_cache:
     sta VERA_ADDR_LOW
 
     lda #%00100000           ; cache write enabled = 0, cache fill enabled = 1
-    sta $9F29
+    sta VERA_FX_CTRL
     
     ; We set cache byte index to 0 here
     lda #%00000000           ; 0000, cache byte index = 00, cache nibble index = 0, cache increment mode = 0
     ora MULTIPLIER_STATE
-    sta $9F2C
+    sta VERA_FX_MULT
     
     ; Loading the 16-bit value into the cache32
     lda VERA_DATA1
@@ -732,12 +733,12 @@ load_high_operand_into_cache:
     sta VERA_ADDR_LOW
 
     lda #%00100000           ; cache write enabled = 0, cache fill enabled = 1
-    sta $9F29
+    sta VERA_FX_CTRL
     
     ; We set cache byte index to 2 here
     lda #%00001000           ; 0000, cache byte index = 10, cache nibble index = 0, cache increment mode = 0
     ora MULTIPLIER_STATE
-    sta $9F2C
+    sta VERA_FX_MULT
     
     ; Loading the 16-bit value into the cache32
     lda VERA_DATA1
@@ -756,7 +757,7 @@ write_mult_acc_result_into_vram:
     
     ; SLOW: dont do this each time we write the cache to VRAM!
     lda #%01000000           ; blit write enabled = 1
-    sta $9F29
+    sta VERA_FX_CTRL
     
     ; Writing cache to vram 
     
@@ -772,7 +773,7 @@ write_mult_acc_result_into_vram:
     
     ; SLOW: dont do this each time we write the cache to VRAM!
     lda #%00000000           ; blit write enabled = 0
-    sta $9F29
+    sta VERA_FX_CTRL
     
     rts
     
@@ -960,11 +961,11 @@ HACK_test_8x8_multiplier:
     sta VERA_CTRL
     
 ; -- output1[7:0] --
-    lda $9F29
+    lda VERA_FX_CACHE_L
     sta VALUE
     
 ; -- output1[15:8] --
-    lda $9F2A
+    lda VERA_FX_CACHE_M
     sta VALUE+1
     
     lda VALUE+1
@@ -1016,11 +1017,11 @@ HACK_test_8x8_multiplier:
     sta VERA_CTRL
     
 ; -- output2[7:0] --
-    lda $9F2B
+    lda VERA_FX_CACHE_H
     sta VALUE
     
 ; -- output2[15:8] --
-    lda $9F2C
+    lda VERA_FX_CACHE_U
     sta VALUE+1
     
     lda VALUE+1
