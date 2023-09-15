@@ -149,7 +149,7 @@ Here are the PRG names and what their results look like:
 | `POLYFILL-NOFXPOLY.PRG`  | <img src='screenshots/POLYFILL-NOFXPOLY.PRG.png' width='300'> | | B1 B3 |
 | `POLYFILL-FXPOLY-SLP-JMP.PRG`  | <img src='screenshots/POLYFILL-FXPOLY-SLP-JMP.PRG.png' width='300'> | | C1 C3 C4 P1 P2 P3.1 P4.1 P5 |
 | `POLYFILL-FXPOLY-SLP-JMP-4BIT.PRG`  | <img src='screenshots/POLYFILL-FXPOLY-SLP-JMP-4BIT.PRG.png' width='300'> | | C1 C3 C4 P1 P2 P3.2 P4.2 P5 |
-| `POLYFILL-FXPOLY-SLP-JMP-2BIT.PRG`  | <img src='screenshots/POLYFILL-FXPOLY-SLP-JMP-2BIT.PRG.png' width='300'> | | C1 C3 C4 C6 P1 P2 P3.3 P4.3 P5 P6 |
+| `POLYFILL-FXPOLY-SLP-JMP-2BIT.PRG`  | <img src='screenshots/POLYFILL-FXPOLY-SLP-JMP-2BIT.PRG.png' width='300'> | | C1 C3 C4 C6 P1 P2 P3.2 P4.3 P5 P6 |
 
 
 ## Multiplier and accumulator tests
@@ -230,11 +230,10 @@ Below is a complete list of the results of all the tests performed:
 |  P1  | Polygon filler incrementers (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P2  | Polygon filler (sub)pixel positions (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P3.1  | Polygon filler setting ADDR1 = ADDR0 + X1 works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  P3.2  | Polygon filler setting ADDR1 = ADDR0 + X1 works (4bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  P3.3  | Polygon filler setting ADDR1 = ADDR0 + X1 works (2bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  P3.2  | Polygon filler setting ADDR1 = ADDR0 + X1 / 2 works (4bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P4.1  | Polygon filler reading fill length code works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P4.2  | Polygon filler reading fill length code works (4bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  P4.3  | Polygon filler reading fill length code works (4bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  P4.3  | Polygon filler reading fill length code works (2bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P5  | Polygon filler reset of (sub)pixel positions (X1 and X2) works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P6  | The special 'poke'-mode (2bpp) works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 
