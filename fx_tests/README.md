@@ -92,8 +92,8 @@ Here are the PRG names and what their results should look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
-| `AFF_SHEAR-CACHE.PRG`  | <img src='screenshots/AFF_SHEAR-CACHE.PRG.png' width='300'> | | A1 A2 A3 A4 A5.1 A6 A7 C2.1 C5.1 |
-| `AFF_ROTATION-CACHE.PRG`  | <img src='screenshots/AFF_ROTATION-CACHE.PRG.png' width='300'> | | A1 A2 A3 A4 A5.1 A6 A7 C2.1 C5.1 |
+| `AFF_SHEAR-CACHE.PRG`  | <img src='screenshots/AFF_SHEAR-CACHE.PRG.png' width='300'> | | A1 A2 A3 A4 A5.1 A6 A7 C2.1 C3 C5.1 |
+| `AFF_ROTATION-CACHE.PRG`  | <img src='screenshots/AFF_ROTATION-CACHE.PRG.png' width='300'> | | A1 A2 A3 A4 A5.1 A6 A7 C2.1 C3 C5.1 |
 
 
 
