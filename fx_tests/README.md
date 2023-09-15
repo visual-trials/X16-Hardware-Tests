@@ -92,8 +92,8 @@ Here are the PRG names and what their results should look like:
 
 | PRG  | Screenshot Emulator | Screenshot HW | What this tests |
 | ------------- | ------------- | ------------- | ------------- |
-| `AFF_SHEAR-CACHE.PRG`  | <img src='screenshots/AFF_SHEAR-CACHE.PRG.png' width='300'> | | ... |
-| `AFF_ROTATION-CACHE.PRG`  | <img src='screenshots/AFF_ROTATION-CACHE.PRG.png' width='300'> | | ... |
+| `AFF_SHEAR-CACHE.PRG`  | <img src='screenshots/AFF_SHEAR-CACHE.PRG.png' width='300'> | | A1 A2 A3 A4 A5.1 A6 A7 C2.1 C5.1 |
+| `AFF_ROTATION-CACHE.PRG`  | <img src='screenshots/AFF_ROTATION-CACHE.PRG.png' width='300'> | | A1 A2 A3 A4 A5.1 A6 A7 C2.1 C5.1 |
 
 
 
@@ -140,15 +140,25 @@ Here are the PRG names and what their results should look like:
 
 Below is a complete list of the results of all the tests performed:
 
+
+
 | Code | Description | Result Emulator | Result HW |
 | ---- | ----------- | --------------- | --------- |
+|  A1  | Setting the FX tilemap base address works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  A2  | Setting the FX tiledata base address works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  A3  | Setting the X/Y coordinate in a tilemap works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  A4  | Setting the X/Y increment for a tilemap works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  A5.1  | Reading bytes from the FX tilemap works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  A6  | Incrementing the X/Y coordinate after a read works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  A7  | Clipping a tilemap works (pixels form tile 0 are read) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  B1  | Writing to VRAM 1 byte at the time still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  B2  | Reading from VRAM 1 byte at the time still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  B3  | Setting of VRAM addresses still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  C1  | Filling the 32-bit cache directly works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
-|  C2  | Filling the 32-bit cache (1 byte at the time) by reading from VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  C2.1  | Filling the 32-bit cache (1 byte at the time: 8bpp) by reading from VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  C3  | Writing the full 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  C4  | Writing the nibble-masked 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  C5.1  | Transparent writes work (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P1  | Polygon filler incrementers (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P2  | Polygon filler (sub)pixel positions (X1 and X2) work | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  P3.1  | Polygon filler setting ADDR1 = ADDR0 + X1 works (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
