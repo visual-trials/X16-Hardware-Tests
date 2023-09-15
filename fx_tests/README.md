@@ -23,7 +23,7 @@ Below is a complete list of the results of all the tests performed.
 
 | Code | Description | Result Emulator | Result HW |
 | ---- | ----------- | --------------- | --------- |
-|  A1  | Writing to VRAM 1 byte at the time still works | <img src='screenshots/ok.png' width='30'> |  |
+|  A1  | Writing to VRAM 1 byte at the time still works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  A2  | Reading from VRAM 1 byte at the time still works | <img src='screenshots/ok.png' width='30'> |  |
 |  A3  | Setting of VRAM addresses still works | <img src='screenshots/ok.png' width='30'> |  |
 |  C1  | Filling the 32-bit cache directly works | <img src='screenshots/ok.png' width='30'> |  |
