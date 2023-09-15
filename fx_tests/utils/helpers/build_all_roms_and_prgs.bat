@@ -54,6 +54,12 @@ vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\polygon_filler.s -wdc02 -D
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\polygon_filler.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -o .\fx_tests\ROM\POLYFILL-FXPOLY-SLP-JMP.ROM
 vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\polygon_filler.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -D CREATE_PRG -o .\fx_tests\SD\POLYFILL-FXPOLY-SLP-JMP.PRG
 
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\polygon_filler.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -D FOURBIT -o .\fx_tests\ROM\POLYFILL-FXPOLY-SLP-JMP-4BIT.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\polygon_filler.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -D FOURBIT -D CREATE_PRG -o .\fx_tests\SD\POLYFILL-FXPOLY-SLP-JMP-4BIT.PRG
+
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\polygon_filler.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -D TWOBIT -o .\fx_tests\ROM\POLYFILL-FXPOLY-SLP-JMP-2BIT.ROM
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\polygon_filler.s -wdc02 -D FXPOLY=1 -D UNR=1 -D SLP=1 -D JMP=1 -D TWOBIT -D CREATE_PRG -o .\fx_tests\SD\POLYFILL-FXPOLY-SLP-JMP-2BIT.PRG
+
 echo Building: Polygon 3D tests
 
 REM .\vasm6502_oldstyle.exe -Fbin -dotdir .\fx_tests\polygon_3d.s -wdc02 -D DEFAULT -o .\fx_tests\polygon_3d.rom

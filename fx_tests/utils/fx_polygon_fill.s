@@ -2491,7 +2491,7 @@ generate_next_y_to_address_entry:
             ora #%11010000           ; For polygon filler helper: 160 byte increment (=%1101)
         .endif
         .if(NR_OF_BYTES_PER_LINE == 80)
-            ora #%11010000           ; For polygon filler helper: 160 byte increment (=%1101)
+            ora #%11000000           ; For polygon filler helper: 80 byte increment (=%1100)
         .endif
     .else
         .if(DO_4BIT)
@@ -2535,7 +2535,7 @@ generate_next_y_256_to_address_entry:
                 ora #%11010000           ; For polygon filler helper: 160 byte increment (=%1101)
             .endif
             .if(NR_OF_BYTES_PER_LINE == 80)
-                ora #%11010000           ; For polygon filler helper: 160 byte increment (=%1101)
+                ora #%11000000           ; For polygon filler helper: 80 byte increment (=%1100)
             .endif
         .else
             .if(DO_4BIT)

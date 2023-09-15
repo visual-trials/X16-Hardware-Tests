@@ -15,10 +15,41 @@ USE_UNROLLED_LOOP = UNR
 USE_JUMP_TABLE = JMP
     .endif
     
+    .ifdef TESTJUMP
+DO_SPEED_TEST = 0  ; ALSO change: TEST_JUMP_TABLE and USE_SOFT_FILL_LEN!
+TEST_JUMP_TABLE = 1 ; This turns off the iteration in-between the jump-table calls
+
+; This setting is used in the routine test_fill_length_jump_table. -> turn this OFF when using the jump tables otherwise! (it changes the jump table code!)
+USE_SOFT_FILL_LEN = 1 ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
+
+    .else
 DO_SPEED_TEST = 1  ; ALSO change: TEST_JUMP_TABLE and USE_SOFT_FILL_LEN!
+TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
+
+; This setting is used in the routine test_fill_length_jump_table. -> turn this OFF when using the jump tables otherwise! (it changes the jump table code!)
+USE_SOFT_FILL_LEN = 0 ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
+    .endif
+    
+    .ifdef FOURBIT
+DO_4BIT = 1
+DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
+USE_DITHERING = 0
+    .endif
+    
+    .ifdef TWOBIT
+DO_4BIT = 1
+DO_2BIT = 1   ; Should only be used when DO_4BIT is 1!
+USE_DITHERING = 1
+    .endif
+    
+    .ifndef FOURBIT
+        .ifndef TWOBIT
 DO_4BIT = 0
 DO_2BIT = 0   ; Should only be used when DO_4BIT is 1!
 USE_DITHERING = 0
+        .endif
+    .endif
+    
 DEBUG = 0
 
 USE_WRITE_CACHE = USE_JUMP_TABLE ; TODO: do we want to separate these options? (they are now always the same)
@@ -31,11 +62,6 @@ USE_180_DEGREES_SLOPE_TABLE = USE_SLOPE_TABLES
 USE_Y_TO_ADDRESS_TABLE = 1
 
 USE_DOUBLE_BUFFER = 0   ; Note: this is not setup in this program!
-
-TEST_JUMP_TABLE = 0 ; This turns off the iteration in-between the jump-table calls
-
-; This setting is used in the routine test_fill_length_jump_table. -> turn this OFF when using the jump tables otherwise! (it changes the jump table code!)
-USE_SOFT_FILL_LEN = 0 ; This turns off reading from 9F2B and 9F2C (for fill length data) and instead reads from USE_SOFT_FILL_LEN-variables
 
     
 COLOR_CHECK        = $05 ; Background color = 0, foreground color 5 (green)
@@ -2238,6 +2264,12 @@ load_next_triangle:
     
     lda (LOAD_ADDRESS), y
     iny
+    .if(DO_4BIT && DO_2BIT && USE_DITHERING)
+        ; FIXME: workaround: our colors go beyond the number of available dithered colors, so we truncate to max 16 colors
+        ; FIXME: we ALSO have to ADD 16 to the number (because the draw_all_triangles assumes we have a base of 16!)
+        and #$0F
+        ora #$10
+    .endif
     sta TRIANGLES_COLOR, x
     
     clc
@@ -2251,10 +2283,33 @@ load_next_triangle:
     inx
     
     cpx #NR_OF_TRIANGLES
-    bne load_next_triangle
+    beq done_loading_triangles
+    jmp load_next_triangle
+    
+done_loading_triangles:
 
     rts
     
+
+    .if(USE_DITHERING)
+    ; FIXME: where to put this?
+
+dithering_colors:    
+
+    ; Pattern of 5 colors (which is repeated 3 times):
+    ; %LLLL, %HLHL, %HLHL, %HLHL, %HLHL, 
+    ; %LLLL, %LLLL, %LHLH, %LHHH, %HHHH, 
+    ; %LLLL, %LLHL, %HLHL, %HLHL, %HLHH, 
+    ; %LLLL, %LLLL, %LHLL, %HHLH, %HHHH, 
+
+    ;         0    ,     1    ,     2    ,     3    ,     4    ,     5    ,     6    ,     7    ,     8    ,     9    ,     A    ,     B    ,     C    ,     D    ,     E    ,     F
+    .byte %00000000, %01000100, %01000100, %01000100, %01000100, %01010101, %10011001, %10011001, %10011001, %10011001, %10101010, %11101110, %11101110, %11101110, %11101110, %11111111
+    .byte %00000000, %00000000, %00010001, %00010101, %01010101, %01010101, %01010101, %01100110, %01101010, %10101010, %10101010, %10101010, %10111011, %10111111, %11111111, %11111111
+    .byte %00000000, %00000100, %01000100, %01000100, %01000101, %01010101, %01011001, %10011001, %10011001, %10011010, %10101010, %10101110, %11101110, %11101110, %11101111, %11111111
+    .byte %00000000, %00000000, %00010000, %01010001, %01010101, %01010101, %01010101, %01100101, %10100110, %10101010, %10101010, %10101010, %10111010, %11111011, %11111111, %11111111
+    
+    .endif
+   
     
     .if(0)
 ; FIXME!
