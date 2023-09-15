@@ -149,7 +149,7 @@ Here are the PRG names and what their results look like:
 | `POLYFILL-NOFXPOLY.PRG`  | <img src='screenshots/POLYFILL-NOFXPOLY.PRG.png' width='300'> | | B1 B3 |
 | `POLYFILL-FXPOLY-SLP-JMP.PRG`  | <img src='screenshots/POLYFILL-FXPOLY-SLP-JMP.PRG.png' width='300'> | | C1 C3 C4 P1 P2 P3.1 P4.1 P5 |
 | `POLYFILL-FXPOLY-SLP-JMP-4BIT.PRG`  | <img src='screenshots/POLYFILL-FXPOLY-SLP-JMP-4BIT.PRG.png' width='300'> | | C1 C3 C4 P1 P2 P3.2 P4.2 P5 |
-| `POLYFILL-FXPOLY-SLP-JMP-2BIT.PRG`  | <img src='screenshots/POLYFILL-FXPOLY-SLP-JMP-2BIT.PRG.png' width='300'> | | C1 C3 C4 P1 P2 P3.3 P4.3 P5 P6 |
+| `POLYFILL-FXPOLY-SLP-JMP-2BIT.PRG`  | <img src='screenshots/POLYFILL-FXPOLY-SLP-JMP-2BIT.PRG.png' width='300'> | | C1 C3 C4 C6 P1 P2 P3.3 P4.3 P5 P6 |
 
 
 ## Multiplier and accumulator tests
@@ -209,6 +209,7 @@ Below is a complete list of the results of all the tests performed:
 |  C3  | Writing the full 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  C4  | Writing the nibble-masked 32-bit cache to VRAM works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  C5.1  | Transparent writes work with 32-bit cache (8bpp) | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
+|  C6  | One byte cache cycling works with 32-bit cache | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  L1  | Resetting the X coordinate (overflow bit) of line draw helper works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  L2  | Setting the X-increment of line draw helper works | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
 |  L3.1  | Writing a pixel (8bpp) works and increments the X-coordinate and also ADDR1  | <p align="center"><img src='screenshots/ok.png' width='30'></p> |  |
