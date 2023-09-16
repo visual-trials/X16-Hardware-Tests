@@ -108,7 +108,6 @@ This is what both variants do:
     - Write a source pixel to the destination
   - Set the starting point the next line (for rotation this is slightly more work on the CPU side)
     
-**TODO**: add 4bpp variant
 
 Here are the PRG names and what their results look like:
 
