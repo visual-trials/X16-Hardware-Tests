@@ -10,6 +10,7 @@
     ; Clear tilemap screen
     .include "utils/rom_only_clear_tilemap_screen.s"
     
+    
 ; --- This is printing the title
     
 print_title:
@@ -53,6 +54,8 @@ title_message:
 done_print_title_message:
     
     
+    .ifndef CREATE_PRG
+    
 ; --- This is printing the Fixed RAM header
     
 print_fixed_ram_header:
@@ -91,4 +94,6 @@ fixed_ram_char_convert_done:
     jmp print_fixed_ram_message
     
 done_print_fixed_ram_message:
+
+    .endif
     

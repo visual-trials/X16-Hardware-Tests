@@ -35,6 +35,7 @@ NR_OF_UNIQUE_RAM_BANKS    = $18 ; 19
 BAD_VALUE                 = $1A
 
 SD_DUMP_ADDR              = $1C ; 1D
+SD_USE_AUTOTX             = $1E
 
 TIMING_COUNTER            = $20 ; 21
 COUNTER_IS_RUNNING        = $22
@@ -46,11 +47,13 @@ YM_STRECH_READING_FROM_YM = $27 ; 28
     
 ; Some RAM address locations we use
 IRQ_RAM_ADDRES = $8F00
-MBR_SLOW_L     = $9000
-MBR_SLOW_H     = $9100
-MBR_FAST_L     = $9200
-MBR_FAST_H     = $9300
-ROM_TEST_CODE  = $9400
+MBR_L          = $9000
+MBR_H          = $9100
+MBR_SLOW_L     = $9200
+MBR_SLOW_H     = $9300
+MBR_FAST_L     = $9400
+MBR_FAST_H     = $9500
+ROM_TEST_CODE  = $9600
 
 
     .include utils/build_as_prg_or_rom.s
@@ -82,7 +85,11 @@ reset:
     lda #(MARGIN+INDENT_SIZE)
     sta INDENTATION
     sta CURSOR_X
-    lda #5          ; We already printed a title, a header and one line when testing Zero page and stack memory
+    .ifndef CREATE_PRG
+        lda #5          ; We already printed a title, a header and one line when testing Zero page and stack memory
+    .else
+        lda #2
+    .endif
     sta CURSOR_Y
 
     ; === Fixed RAM ===
@@ -110,31 +117,33 @@ reset:
 
     ; FIXME: there is something VERY WEIRD: when I put the VERA Video code BEFORE the VERA SD code the pcm speed test will fail!
 
-    ; === VERA Audio ===
-    jsr print_vera_audio_header
-    
-    ; Use PCM FIFO buffer to measure CPU speed
-    jsr measure_cpu_speed_using_pcm
-    
-    ; --> TODO: play a (generated) simple sound using PCM
-    
-    ; Play a sound using the PSG
-    jsr test_psg
-    
-    ; --> TODO: add a test that check whether the AFLOW-interrupt is working!
-    
-    ; === VERA Video ===
-    jsr print_vera_video_header
-    
-    ; Test VRAM (read/write)
-    jsr test_vram
+    .ifndef CREATE_PRG
+        ; === VERA Audio ===
+        jsr print_vera_audio_header
+        
+        ; Use PCM FIFO buffer to measure CPU speed
+        jsr measure_cpu_speed_using_pcm
+        
+        ; --> TODO: play a (generated) simple sound using PCM
+        
+        ; Play a sound using the PSG
+        jsr test_psg
+        
+        ; --> TODO: add a test that check whether the AFLOW-interrupt is working!
+        
+        ; === VERA Video ===
+        jsr print_vera_video_header
+        
+        ; Test VRAM (read/write)
+        jsr test_vram
 
-    ; Use V-sync irqs to measure CPU speed
-    jsr measure_cpu_speed_using_vsync
-    
-    ; --> TODO: add a test showing the sprites working!
-    
-    ; --> TODO: add a test showing the line interrupts working!
+        ; Use V-sync irqs to measure CPU speed
+        jsr measure_cpu_speed_using_vsync
+        
+        ; --> TODO: add a test showing the sprites working!
+        
+        ; --> TODO: add a test showing the line interrupts working!
+    .endif
     
     ; === VERA SD ===
     jsr print_vera_sd_header
@@ -154,63 +163,116 @@ reset:
     jsr vera_check_block_addressing_mode
     bcc done_with_sd_checks   ; If card does not support block addrssing mode so we do not proceed with SD Card tests
     
+; FIXME!
+    stz SD_USE_AUTOTX
+    
     ; Reading the MBR in slow speed
     jsr vera_read_sector
+    jsr copy_mbr_to_slow_mbr
     
     ; Reading the MBR in fast speed
+    
+; FIXME!
+    lda #1
+    sta SD_USE_AUTOTX
+
 	lda #SPI_CHIP_SELECT_AND_FAST
 	sta VERA_SPI_CTRL
     jsr vera_read_sector
+    jsr copy_mbr_to_fast_mbr
     
     ; bcc show_differences   ; We could not read a sector so we do not proceed with SD Card tests
 
     ; Show results:
-    ; jsr print_mbr
+    .if(1)
+        inc CURSOR_Y
+        inc CURSOR_Y
+        inc CURSOR_Y
+    
+        ; - Results MBR slow -
+        
+        lda INDENTATION
+        sta TMP3
+        
+        lda CURSOR_Y
+        sta TMP2
+        
+        lda INDENTATION
+        sta CURSOR_X
+        jsr setup_cursor
+
+        jsr print_mbr_slow
+
+        ; - Results MBR fast -
+        
+        clc
+        lda INDENTATION
+        adc #40
+        sta INDENTATION
+        sta CURSOR_X
+        
+        lda TMP2
+        sta CURSOR_Y
+        jsr setup_cursor
+        
+        jsr print_mbr_fast
+        
+        lda TMP3
+        sta INDENTATION
+    .endif
     
 done_with_sd_checks:
 
-    ; === VIA ===
-    jsr print_via_header
+    .ifndef CREATE_PRG
+        ; === VIA ===
+        jsr print_via_header
+        
+        ; We are writing to and reading from latch 1 of VIA #1
+        jsr test_writing_and_reading_via1_latch_1
+        
+        ; We are trying to determine the CPU clock speed based on the counter 1 of VIA #1
+        jsr test_via1_counter1_speed
+        
+        ; We are writing to and reading from latch 1 of VIA #2
+        jsr test_writing_and_reading_via2_latch_1
+        
+        ; We are trying to determine the CPU clock speed based on the counter 1 of VIA #2
+        jsr test_via2_counter1_speed
     
-    ; We are writing to and reading from latch 1 of VIA #1
-    jsr test_writing_and_reading_via1_latch_1
+        ; === SMC ===
+        ; FIXME: Maybe only do the SMC tests if VIA1 has no errors?
+        jsr print_smc_header
+        
+        ; We are echoing towards the SMC
+        jsr test_echoing_towards_smc
+        
+        ; We are trying to receive keyboard keycode from the SMC
+        jsr test_receiving_keyboard_keycode_smc
+    .endif
     
-    ; We are trying to determine the CPU clock speed based on the counter 1 of VIA #1
-    jsr test_via1_counter1_speed
+    .if(0)
+        ; TODO: we dont want to mess with the SRAM by default
     
-    ; We are writing to and reading from latch 1 of VIA #2
-    jsr test_writing_and_reading_via2_latch_1
-    
-    ; We are trying to determine the CPU clock speed based on the counter 1 of VIA #2
-    jsr test_via2_counter1_speed
-    
-    ; === SMC ===
-    ; FIXME: Maybe only do the SMC tests if VIA1 has no errors?
-    jsr print_smc_header
-    
-    ; We are echoing towards the SMC
-    jsr test_echoing_towards_smc
-    
-    ; We are trying to receive keyboard keycode from the SMC
-    jsr test_receiving_keyboard_keycode_smc
-    
-    ; === RTC ===
-    ; FIXME: Maybe only do the RTC tests if VIA1 has no errors?
-    jsr print_rtc_header
-    
-    ; We are writing and reading from the SRAM of the RTC
-    jsr test_rtc_sram
+        ; === RTC ===
+        ; FIXME: Maybe only do the RTC tests if VIA1 has no errors?
+        jsr print_rtc_header
+        
+        ; We are writing and reading from the SRAM of the RTC
+        jsr test_rtc_sram
+    .endif
 
-    ; === YM2151 ===
-    jsr print_ym_header
-    
-    ; Do a very simple check if the YM gives a busy flag after writing to it
-    jsr ym_busy_flag_test
-    
-    ; Test whether there is a clock stretch when accessing the YM
-    jsr test_ym_clock_strech
-    
-    ; --> TODO: add a test generating an interrupt using a YM-counter (see https://discord.com/channels/547559626024157184/547560914744901644/995079548502822982 )
+    .ifndef CREATE_PRG
+        ; === YM2151 ===
+        jsr print_ym_header
+        
+        ; Do a very simple check if the YM gives a busy flag after writing to it
+        jsr ym_busy_flag_test
+        
+        ; Test whether there is a clock stretch when accessing the YM
+        jsr test_ym_clock_strech
+        
+        ; --> TODO: add a test generating an interrupt using a YM-counter (see https://discord.com/channels/547559626024157184/547560914744901644/995079548502822982 )
+    .endif
     
 loop:
     ; TODO: wait for (keyboard) input

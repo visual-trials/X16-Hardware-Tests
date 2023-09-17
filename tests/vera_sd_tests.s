@@ -211,10 +211,10 @@ command8_success:
     bne command8_not_in_idle_state
     
     ; Retrieve the additional 4 bytes of the R7 response
-	jsr spi_read_byte
-	jsr spi_read_byte
-	jsr spi_read_byte
-	jsr spi_read_byte
+    jsr spi_read_byte
+    jsr spi_read_byte
+    jsr spi_read_byte
+    jsr spi_read_byte
     
     ; FIXME: shouldnt we do something with those 4 bytes? (look at schematic)
 
@@ -405,12 +405,12 @@ command58_success:
     bne command58_in_idle_state
 
     ; Retrieve the additional 4 bytes of the R3 response
-	jsr spi_read_byte
-	and #$40	       ; Check if this card supports block addressing mode (bit 30)
-	beq command58_does_not_support_block_addressing
-	jsr spi_read_byte
-	jsr spi_read_byte
-	jsr spi_read_byte
+    jsr spi_read_byte
+    and #$40           ; Check if this card supports block addressing mode (bit 30)
+    beq command58_does_not_support_block_addressing
+    jsr spi_read_byte
+    jsr spi_read_byte
+    jsr spi_read_byte
     
 
     lda #COLOR_OK
@@ -512,20 +512,29 @@ command17_success:
 
     ; We got our byte of response. We check if the SD Card is not in an IDLE state (which is expected)
     cmp #%0000000   ; NOT in IDLE state! (we initialized earlier, so we should NOT be in IDLE state anymore!)
-    bne command17_in_idle_state
+    beq command17_not_in_idle_state
 
-	; Wait for start of data packet
-	ldx #0
+command17_in_idle_state:
+    ; The reponse says we are in an IDLE state, which means there is an error
+    ldx #17 ; command number to print
+    jsr print_spi_cmd_error
+    
+    jmp done_reading_sector_do_not_proceed
+    
+command17_not_in_idle_state:
+    
+    ; Wait for start of data packet
+    ldx #0
 wait_for_data_packet_start_256:
-	ldy #0
+    ldy #0
 wait_for_data_packet_start_1:
     jsr spi_read_byte
-	cmp #%11111110    ; Data token for CMD17
-	beq start_reading_sector_data
-	dey
-	bne wait_for_data_packet_start_1
-	dex
-	bne wait_for_data_packet_start_256
+    cmp #%11111110    ; Data token for CMD17
+    beq start_reading_sector_data
+    dey
+    bne wait_for_data_packet_start_1
+    dex
+    bne wait_for_data_packet_start_256
     
     jmp wait_for_data_packet_start_timeout
     
@@ -533,31 +542,110 @@ start_reading_sector_data:
 
     ; Retrieve the additional 512 bytes 
     
+    lda SD_USE_AUTOTX
+    bne read_autotx_read_sector
+    
+    
 read_slow_read_sector:
     ldx #0
 reading_sector_byte_L:
-	jsr spi_read_byte
-    sta MBR_SLOW_L, x
+    jsr spi_read_byte
+    sta MBR_L, x
     inx
     bne reading_sector_byte_L
     
     ldx #0
 reading_sector_byte_H:
-	jsr spi_read_byte
-    sta MBR_SLOW_H, x
+    jsr spi_read_byte
+    sta MBR_H, x
     inx
     bne reading_sector_byte_H
     
     ; Read the 2 CRC bytes
-	jsr spi_read_byte
+    jsr spi_read_byte
+    jsr spi_read_byte_measure ; We are measuring the speed of this last read
+    
+    jmp read_sector_check_mbr
+    
+read_autotx_read_sector:
+
+    lda VERA_SPI_CTRL
+    ora #%00000100       ; AUTOTX bit = 1
+    sta VERA_SPI_CTRL
+    
+    
+    ; Start first read transfer
+    lda VERA_SPI_DATA    ; Auto-tx
+    ldy #0                ; 2
+
+    ; Efficiently read first 256 bytes (hide SPI transfer time)
+    ldy #0                ; 2
+reading_sector_8_bytes_L:
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 0, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 1, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 2, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 3, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 4, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 5, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 6, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 7, y    ; 5
+    tya                ; 2
+    clc                ; 2
+    adc #8                ; 2
+    tay                ; 2
+    bne reading_sector_8_bytes_L  ; 2+1
+
+    ; Efficiently read second 256 bytes (hide SPI transfer time)
+reading_sector_8_bytes_H:
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 0, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 1, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 2, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 3, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 4, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 5, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 6, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 7, y    ; 5
+    tya                ; 2
+    clc                ; 2
+    adc #8                ; 2
+    tay                ; 2
+    bne reading_sector_8_bytes_H  ; 2+1
+
+    ; Disable auto-tx mode
+    lda VERA_SPI_CTRL
+    and #%11111011     ; AUTOTX bit = 1
+    sta VERA_SPI_CTRL
+
+    ; Next read is now already done (first CRC byte), read second CRC byte
+    jsr spi_read_byte
     jsr spi_read_byte_measure ; We are measuring the speed of this last read
 
+
+
+read_sector_check_mbr:
+
     ; The last two bytes of the MBR should always be $55AA
-    lda MBR_SLOW_H+254
+    lda MBR_H+254
     cmp #$55
     bne mbr_malformed
     
-    lda MBR_SLOW_H+255
+    lda MBR_H+255
     cmp #$AA
     bne mbr_malformed
 
@@ -588,14 +676,6 @@ mbr_malformed:
     
     jsr print_text_zero
 
-    jmp done_reading_sector_do_not_proceed
-    
-    
-command17_in_idle_state:
-    ; The reponse says we are in an IDLE state, which means there is an error
-    ldx #17 ; command number to print
-    jsr print_spi_cmd_error
-    
     jmp done_reading_sector_do_not_proceed
     
 wait_for_data_packet_start_timeout:
@@ -630,6 +710,44 @@ done_reading_sector_proceed:
     sec
     rts
     
+    
+copy_mbr_to_slow_mbr:
+    
+    ldx #0
+copy_slow_sector_byte_L:
+    lda MBR_L, x
+    sta MBR_SLOW_L, x
+    inx
+    bne copy_slow_sector_byte_L
+    
+    ldx #0
+copy_slow_sector_byte_H:
+    lda MBR_H, x
+    sta MBR_SLOW_H, x
+    inx
+    bne copy_slow_sector_byte_H
+    
+    rts
+
+copy_mbr_to_fast_mbr:
+    
+    ldx #0
+copy_fast_sector_byte_L:
+    lda MBR_L, x
+    sta MBR_FAST_L, x
+    inx
+    bne copy_fast_sector_byte_L
+    
+    ldx #0
+copy_fast_sector_byte_H:
+    lda MBR_H, x
+    sta MBR_FAST_H, x
+    inx
+    bne copy_fast_sector_byte_H
+    
+    rts
+    
+
     
 print_number_of_loops:
     ; Printing the number of loops 
@@ -675,7 +793,7 @@ print_mbr_slow:
     
     lda INDENTATION
     sta CURSOR_X
-    sta CURSOR_Y
+;    sta CURSOR_Y
     jsr setup_cursor
 
     lda #<MBR_SLOW_L
@@ -745,12 +863,6 @@ print_mbr_fast:
     lda #COLOR_NORMAL
     sta TEXT_COLOR
     
-    lda INDENTATION
-    adc #40
-    sta CURSOR_X
-    sta CURSOR_Y
-    jsr setup_cursor
-
     lda #<MBR_FAST_L
     sta SD_DUMP_ADDR
     lda #>MBR_FAST_L
@@ -810,6 +922,11 @@ printing_sector_fast_1_H:
     cpx #16
     bne printing_sector_fast_16_H
 
+    sec
+    lda INDENTATION
+    sbc #40
+    sta INDENTATION
+    
     rts
     
     
