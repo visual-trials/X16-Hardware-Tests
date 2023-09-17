@@ -45,15 +45,15 @@ YM_STRECH_DOING_NOTHING   = $25 ; 26
 YM_STRECH_READING_FROM_YM = $27 ; 28
     
 ; Some RAM address locations we use
-IRQ_RAM_ADDRES = $1000
-MBR_SLOW_L     = $2000
-MBR_SLOW_H     = $2100
-MBR_FAST_L     = $2200
-MBR_FAST_H     = $2300
-ROM_TEST_CODE  = $4000
+IRQ_RAM_ADDRES = $8F00
+MBR_SLOW_L     = $9000
+MBR_SLOW_H     = $9100
+MBR_FAST_L     = $9200
+MBR_FAST_H     = $9300
+ROM_TEST_CODE  = $9400
 
 
-    .org $C000
+    .include utils/build_as_prg_or_rom.s
 
 reset:
     ; === Important: we start running using ROM only here, so there is no RAN/stack usage initially (no jsr, rts, or vars) ===
@@ -67,8 +67,10 @@ reset:
     ; Setup initial (rom only) screen and title
     .include "utils/rom_only_setup_screen.s"
 
-    ; Test Zero Page and Stack RAM once
-    .include "tests/rom_only_test_zp_and_stack_ram_once.s"
+    .ifndef CREATE_PRG
+        ; Test Zero Page and Stack RAM once
+        .include "tests/rom_only_test_zp_and_stack_ram_once.s"
+    .endif
     
     ; === Zero page and stack memory checks out OK, we can now use it ===
 
@@ -86,23 +88,25 @@ reset:
     ; === Fixed RAM ===
     ; Note: We already printed the header in rom-only mode
 
-    ; Test Fixed RAM
-    jsr test_fixed_ram
+    .ifndef CREATE_PRG
+        ; Test Fixed RAM
+        jsr test_fixed_ram
     
-    ; === Banked RAM ===
-    jsr print_banked_ram_header
-    
-    ; Measure the amount of banked RAM
-    jsr determine_nr_of_ram_banks
-    
-    ; Based on the number of unique ram banks, we check those ram banks (every byte in it)
-    jsr test_banked_ram 
-    
-    ; === Banked ROM ===
-    jsr print_banked_rom_header
-    
-    ; We filled all ROM banks with incrementing numbers and check these with a program in RAM
-    jsr test_rom_banks
+        ; === Banked RAM ===
+        jsr print_banked_ram_header
+        
+        ; Measure the amount of banked RAM
+        jsr determine_nr_of_ram_banks
+        
+        ; Based on the number of unique ram banks, we check those ram banks (every byte in it)
+        jsr test_banked_ram 
+        
+        ; === Banked ROM ===
+        jsr print_banked_rom_header
+        
+        ; We filled all ROM banks with incrementing numbers and check these with a program in RAM
+        jsr test_rom_banks
+    .endif
 
     ; FIXME: there is something VERY WEIRD: when I put the VERA Video code BEFORE the VERA SD code the pcm speed test will fail!
 
@@ -230,59 +234,63 @@ loop:
     .include tests/rtc_tests.s
     .include tests/ym_tests.s
   
-    ; ======== PETSCII CHARSET =======
+    .ifndef CREATE_PRG
+    
+        ; ======== PETSCII CHARSET =======
 
-    .org $F700
-    .include "utils/petscii.s"
+        .org $F700
+        .include "utils/petscii.s"
 
-    ; ======== NMI / IRQ =======
+        ; ======== NMI / IRQ =======
 nmi:
-    ; TODO: implement this
-    ; FIXME: ugly hack!
-    jmp reset
-    rti
+        ; TODO: implement this
+        ; FIXME: ugly hack!
+        jmp reset
+        rti
    
 irq:
-    ; Right now we also jump to a certain RAM adress where we copy our irq handling code (which may vary)
-    jmp IRQ_RAM_ADDRES
+        ; Right now we also jump to a certain RAM adress where we copy our irq handling code (which may vary)
+        jmp IRQ_RAM_ADDRES
 
 
-    .org $fffa
-    .word nmi
-    .word reset
-    .word irq
+        .org $fffa
+        .word nmi
+        .word reset
+        .word irq
 
-    ; 31 ROM banks filled entirely with their own bank index
+        ; 31 ROM banks filled entirely with their own bank index
+        
+        .fill 16384, $01
+        .fill 16384, $02
+        .fill 16384, $03
+        .fill 16384, $04
+        .fill 16384, $05
+        .fill 16384, $06
+        .fill 16384, $07
+        .fill 16384, $08
+        .fill 16384, $09
+        .fill 16384, $0A
+        .fill 16384, $0B
+        .fill 16384, $0C
+        .fill 16384, $0D
+        .fill 16384, $0E
+        .fill 16384, $0F
+
+        .fill 16384, $10
+        .fill 16384, $11
+        .fill 16384, $12
+        .fill 16384, $13
+        .fill 16384, $14
+        .fill 16384, $15
+        .fill 16384, $16
+        .fill 16384, $17
+        .fill 16384, $18
+        .fill 16384, $19
+        .fill 16384, $1A
+        .fill 16384, $1B
+        .fill 16384, $1C
+        .fill 16384, $1D
+        .fill 16384, $1E
+        .fill 16384, $1F
     
-    .fill 16384, $01
-    .fill 16384, $02
-    .fill 16384, $03
-    .fill 16384, $04
-    .fill 16384, $05
-    .fill 16384, $06
-    .fill 16384, $07
-    .fill 16384, $08
-    .fill 16384, $09
-    .fill 16384, $0A
-    .fill 16384, $0B
-    .fill 16384, $0C
-    .fill 16384, $0D
-    .fill 16384, $0E
-    .fill 16384, $0F
-
-    .fill 16384, $10
-    .fill 16384, $11
-    .fill 16384, $12
-    .fill 16384, $13
-    .fill 16384, $14
-    .fill 16384, $15
-    .fill 16384, $16
-    .fill 16384, $17
-    .fill 16384, $18
-    .fill 16384, $19
-    .fill 16384, $1A
-    .fill 16384, $1B
-    .fill 16384, $1C
-    .fill 16384, $1D
-    .fill 16384, $1E
-    .fill 16384, $1F
+    .endif

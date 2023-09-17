@@ -1,3 +1,13 @@
+    .ifdef CREATE_PRG
+petscii_0 = $C000
+petscii_1 = $C100
+petscii_2 = $C200
+petscii_3 = $C300
+petscii_4 = $C400
+petscii_5 = $C500
+petscii_6 = $C600
+petscii_7 = $C700
+    .endif
 
     ; -- Copy petscii charset to VRAM at $1F000-$1F7FF
     
@@ -8,6 +18,18 @@
     sta VERA_ADDR_HIGH
     lda #$00
     sta VERA_ADDR_LOW
+    
+    .ifdef CREATE_PRG
+        ; We are assuming this code runs in Fixed RAM, so we can savely switch ROM banks
+        
+        ; We remember the ROM bank we are in right now
+        lda ROM_BANK
+        pha
+        
+        ; We are switching to ROM bank 6 since the PETSCII charset is located there
+        lda #6
+        sta ROM_BANK
+    .endif
     
     ldy #0
 copy_petscii_0:

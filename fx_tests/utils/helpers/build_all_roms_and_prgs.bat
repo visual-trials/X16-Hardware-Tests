@@ -1,5 +1,10 @@
 @echo off
 
+echo Building: X16 Hardware tester
+
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\x16_hardware_tester.s -wdc02 -o .\x16_hardware_tester.rom
+vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\x16_hardware_tester.s -wdc02 -D CREATE_PRG -o .\X16HWTESTER.PRG
+
 echo Building: Cache write tests
 
 REM .\vasm6502_oldstyle.exe -Fbin -dotdir .\fx_tests\multibyte_writes.s -wdc02 -D DEFAULT -o .\fx_tests\multibyte_writes.rom
