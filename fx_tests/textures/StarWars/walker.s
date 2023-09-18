@@ -3,6 +3,9 @@
 ; To build: ./vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\textures\StarWars\walker.s -wdc02 -D CREATE_PRG -o .\fx_tests\textures\StarWars\WALKER.PRG
 ; To run (from StarWars dir) : C:\x16emu_win-r44\x16emu.exe -prg .\WALKER.PRG -run -sdcard .\walker_sdcard.img
 
+; FIXME: REMOVE THIS!
+IS_EMULATOR = 1
+
 BACKGROUND_COLOR = $00 ; black
 
 TOP_MARGIN = 2
@@ -43,7 +46,10 @@ CODE_ADDRESS              = $32 ; 33
 
 VERA_ADDR_ZP_TO           = $34 ; 35 ; 36
 
-SECTOR_NUMBER             = $37
+SECTOR_NUMBER             = $37 ; 38 ; 39 ; 3A
+SECTOR_NUMBER_IN_FRAME    = $3B
+
+FRAME_NUMBER              = $3C ; 3D
 
 
 
@@ -63,6 +69,7 @@ MBR_FAST_H     = $9500
 ; === Other constants ===
 
 NR_OF_SECTORS_TO_COPY = 136*320 / 512 ; Note (320x136 resolution): 136 * 320 = 170 * 256 = 85 * 512 bytes (1 sector = 512 bytes)
+NUMBER_OF_FRAMES = 72
 
 
     .include utils/build_as_prg_or_rom.s
@@ -93,6 +100,13 @@ start:
     jsr generate_copy_sector_code
 
 
+    .if(1)
+        lda VERA_DC_VIDEO
+        ; ora #%00010000           ; Enable Layer 0 
+        and #%10011111           ; Disable Layer 1 and sprites
+        sta VERA_DC_VIDEO
+    .endif
+
     ; === VERA SD ===
     jsr print_vera_sd_header
     
@@ -111,16 +125,35 @@ start:
     jsr vera_check_block_addressing_mode
     bcc done_with_sd_checks   ; If card does not support block addrssing mode so we do not proceed with SD Card tests
  
+ 
+ start_movie:
+     stz SECTOR_NUMBER
+     stz SECTOR_NUMBER+1
+     stz SECTOR_NUMBER+2
+     stz SECTOR_NUMBER+3
+
 ; FIXME! 
 ; FIXME! 
 ; FIXME! 
-;    lda #1
-    lda #0
+    lda #1
+;    lda #0
     sta SD_USE_AUTOTX
 	lda #SPI_CHIP_SELECT_AND_FAST
 	sta VERA_SPI_CTRL
     
+    lda #<NUMBER_OF_FRAMES
+    sta FRAME_NUMBER
+    lda #>NUMBER_OF_FRAMES
+    sta FRAME_NUMBER+1
+next_frame:
+
     jsr load_and_draw_frame
+    
+; FIXME: we need to be able to do more than 256 frames!
+    dec FRAME_NUMBER
+    bne next_frame
+    
+    jmp start_movie
     
 
 done_with_sd_checks:
@@ -171,6 +204,9 @@ setup_screen_borders:
     lda #136+52-1
     sta VERA_DC_VSTOP
     
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
     rts
     
     
@@ -217,13 +253,13 @@ walker_spi_send_command17:
     ; Command 17 has four bytes of argument, so sending four bytes with their as argument
     
     ; FIXME: allow for choice of sector!
-    lda #0
+    lda SECTOR_NUMBER+3
     jsr spi_write_byte
-    lda #0
+    lda SECTOR_NUMBER+2
     jsr spi_write_byte
-    lda #0
+    lda SECTOR_NUMBER+1
     jsr spi_write_byte
-    lda #0
+    lda SECTOR_NUMBER
     jsr spi_write_byte
     
     ; Command 17 requires no CRC. So we send 0
@@ -337,7 +373,12 @@ walker_reading_sector_byte_H:
 walker_read_autotx_read_sector:
 
     lda VERA_SPI_CTRL
-    ora #%00000100       ; AUTOTX bit = 1
+; FIXME: EMULATOR BIT!!
+    .if(IS_EMULATOR)
+        ora #%00001000       ; AUTOTX bit = 1
+    .else
+        ora #%00000100       ; AUTOTX bit = 1
+    .endif
     sta VERA_SPI_CTRL
     
     
@@ -357,21 +398,21 @@ walker_read_autotx_read_sector:
     ldy #0                ; 2
 walker_reading_sector_8_bytes_L:
     lda VERA_SPI_DATA            ; 4
-    sta MBR_L + 0, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_L + 1, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_L + 2, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_L + 3, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_L + 4, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_L + 5, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_L + 6, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_L + 7, y    ; 5
+    sta VERA_DATA0               ; 4
     tya                ; 2
     clc                ; 2
     adc #8                ; 2
@@ -381,21 +422,21 @@ walker_reading_sector_8_bytes_L:
     ; Efficiently read second 256 bytes (hide SPI transfer time)
 walker_reading_sector_8_bytes_H:
     lda VERA_SPI_DATA            ; 4
-    sta MBR_H + 0, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_H + 1, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_H + 2, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_H + 3, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_H + 4, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_H + 5, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_H + 6, y    ; 5
+    sta VERA_DATA0               ; 4
     lda VERA_SPI_DATA            ; 4
-    sta MBR_H + 7, y    ; 5
+    sta VERA_DATA0               ; 4
     tya                ; 2
     clc                ; 2
     adc #8                ; 2
@@ -404,7 +445,12 @@ walker_reading_sector_8_bytes_H:
 
     ; Disable auto-tx mode
     lda VERA_SPI_CTRL
-    and #%11111011     ; AUTOTX bit = 1
+; FIXME: EMULATOR BIT!!
+    .if(IS_EMULATOR)
+        and #%11110111     ; AUTOTX bit = 1
+    .else
+        and #%11111011     ; AUTOTX bit = 1
+    .endif
     sta VERA_SPI_CTRL
 
     ; Next read is now already done (first CRC byte), read second CRC byte
@@ -413,27 +459,30 @@ walker_reading_sector_8_bytes_H:
 
 
 walker_read_sector_check_mbr:
+    
+; FIXME: REMOVE!
+    .if(0)
+        ; The last two bytes of the MBR should always be $55AA
+        lda MBR_H+254
+        cmp #$55
+        bne walker_mbr_malformed
+        
+        lda MBR_H+255
+        cmp #$AA
+        bne walker_mbr_malformed
 
-    ; The last two bytes of the MBR should always be $55AA
-    lda MBR_H+254
-    cmp #$55
-    bne walker_mbr_malformed
-    
-    lda MBR_H+255
-    cmp #$AA
-    bne walker_mbr_malformed
-
-    lda #COLOR_OK
-    sta TEXT_COLOR
-    
-    lda #<ok_message
-    sta TEXT_TO_PRINT
-    lda #>ok_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
-    
-    jsr print_number_of_loops
+        lda #COLOR_OK
+        sta TEXT_COLOR
+        
+        lda #<ok_message
+        sta TEXT_TO_PRINT
+        lda #>ok_message
+        sta TEXT_TO_PRINT + 1
+        
+        jsr print_text_zero
+        
+        jsr print_number_of_loops
+    .endif
     
     jmp walker_done_reading_sector_proceed
     
@@ -496,19 +545,26 @@ load_and_draw_frame:
     lda #%00010000      ; setting bit 16 of vram address to 0, setting auto-increment value to 1
     sta VERA_ADDR_BANK
     
+    lda #NR_OF_SECTORS_TO_COPY
+    sta SECTOR_NUMBER_IN_FRAME
     
-    stz SECTOR_NUMBER
 next_sector_to_copy:
 
     ; FIXME: setup for loading the NEXT! sector
     jsr walker_vera_read_sector
 
-    ; SPEED: we can make this a bit quicker by counting DOWN
     inc SECTOR_NUMBER
-    lda SECTOR_NUMBER
-    cmp #NR_OF_SECTORS_TO_COPY
-    bne next_sector_to_copy
+    bne sector_number_is_incremented
+    inc SECTOR_NUMBER+1
+    bne sector_number_is_incremented
+    inc SECTOR_NUMBER+2
+    bne sector_number_is_incremented
+    inc SECTOR_NUMBER+3
+    bne sector_number_is_incremented
     
+sector_number_is_incremented:
+    dec SECTOR_NUMBER_IN_FRAME
+    bne next_sector_to_copy
 
 
     rts
