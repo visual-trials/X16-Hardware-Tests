@@ -4,7 +4,9 @@
 ; To run (from StarWars dir) : C:\x16emu_win-r44\x16emu.exe -prg .\WALKER.PRG -run -sdcard .\walker_sdcard.img
 
 ; FIXME: REMOVE THIS!
-IS_EMULATOR = 1
+IS_EMULATOR = 0
+DO_PRINT = 0
+DO_BORDER_COLOR = 1
 
 BACKGROUND_COLOR = $00 ; black
 
@@ -51,6 +53,7 @@ SECTOR_NUMBER_IN_FRAME    = $3B
 
 FRAME_NUMBER              = $3C ; 3D
 
+BORDER_COLOR              = $3E
 
 
 ; === RAM addresses ===
@@ -100,11 +103,16 @@ start:
     jsr generate_copy_sector_code
 
 
-    .if(1)
+    .if(!DO_PRINT)
         lda VERA_DC_VIDEO
         ; ora #%00010000           ; Enable Layer 0 
         and #%10011111           ; Disable Layer 1 and sprites
         sta VERA_DC_VIDEO
+    .endif
+    
+    .if(DO_BORDER_COLOR)
+        lda BORDER_COLOR
+        sta VERA_DC_BORDER
     .endif
 
     ; === VERA SD ===
@@ -165,33 +173,6 @@ infinite_loop:
     rts
     
     
-; FIXME: NOT USED!
-setup_vera_for_layer0_bitmap:
-
-    lda VERA_DC_VIDEO
-    ora #%00010000           ; Enable Layer 0 
-    and #%10011111           ; Disable Layer 1 and sprites
-    sta VERA_DC_VIDEO
-
-    lda #$40                 ; 2:1 scale (320 x 240 pixels on screen)
-    sta VERA_DC_HSCALE
-    sta VERA_DC_VSCALE
-    
-    ; -- Setup Layer 0 --
-    
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0
-    sta VERA_CTRL
-    
-    ; Enable bitmap mode and color depth = 8bpp on layer 0
-    lda #(4+3)
-    sta VERA_L0_CONFIG
-
-    ; Set layer0 tilebase to 0x00000 and tile width to 320 px
-    lda #0
-    sta VERA_L0_TILEBASE
-    
-    rts
-
 setup_screen_borders:
 
     ; Setting VSTART/VSTOP so that we have 200 rows on screen (320x200 pixels on screen)
@@ -266,6 +247,7 @@ walker_spi_send_command17:
     lda #0
     jsr spi_write_byte
 
+
     ; We wait for a response (which should be R1 + data bytes)
     ldx #20                   ; TODO: how many retries do we want to do?
 walker_spi_wait_command17:
@@ -298,16 +280,18 @@ walker_vera_read_sector:
     bcs walker_command17_success
 walker_command17_timed_out:
     
-    ; If carry is unset, we timed out. We print 'Timeout' as an error
-    lda #COLOR_ERROR
-    sta TEXT_COLOR
-    
-    lda #<vera_sd_timeout_message
-    sta TEXT_TO_PRINT
-    lda #>vera_sd_timeout_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
+    .if(DO_PRINT)
+        ; If carry is unset, we timed out. We print 'Timeout' as an error
+        lda #COLOR_ERROR
+        sta TEXT_COLOR
+        
+        lda #<vera_sd_timeout_message
+        sta TEXT_TO_PRINT
+        lda #>vera_sd_timeout_message
+        sta TEXT_TO_PRINT + 1
+        
+        jsr print_text_zero
+    .endif
 
     jmp walker_done_reading_sector_do_not_proceed
     
@@ -318,9 +302,11 @@ walker_command17_success:
     beq walker_command17_not_in_idle_state
 
 walker_command17_in_idle_state:
-    ; The reponse says we are in an IDLE state, which means there is an error
-    ldx #17 ; command number to print
-    jsr print_spi_cmd_error
+    .if(DO_PRINT)
+        ; The reponse says we are in an IDLE state, which means there is an error
+        ldx #17 ; command number to print
+        jsr print_spi_cmd_error
+    .endif
     
     jmp walker_done_reading_sector_do_not_proceed
     
@@ -336,6 +322,11 @@ walker_wait_for_data_packet_start_1:
     beq walker_start_reading_sector_data
     dey
     bne walker_wait_for_data_packet_start_1
+    .if(DO_BORDER_COLOR)
+        inc BORDER_COLOR
+        lda BORDER_COLOR
+        sta VERA_DC_BORDER
+    .endif
     dex
     bne walker_wait_for_data_packet_start_256
     
@@ -471,48 +462,54 @@ walker_read_sector_check_mbr:
         cmp #$AA
         bne walker_mbr_malformed
 
-        lda #COLOR_OK
-        sta TEXT_COLOR
-        
-        lda #<ok_message
-        sta TEXT_TO_PRINT
-        lda #>ok_message
-        sta TEXT_TO_PRINT + 1
-        
-        jsr print_text_zero
-        
-        jsr print_number_of_loops
+        .if(DO_PRINT)
+            lda #COLOR_OK
+            sta TEXT_COLOR
+            
+            lda #<ok_message
+            sta TEXT_TO_PRINT
+            lda #>ok_message
+            sta TEXT_TO_PRINT + 1
+            
+            jsr print_text_zero
+            
+            jsr print_number_of_loops
+        .endif
     .endif
     
     jmp walker_done_reading_sector_proceed
     
 walker_mbr_malformed:
 
-    ; The MBR is not correctly formed
-    lda #COLOR_ERROR
-    sta TEXT_COLOR
-    
-    lda #<vera_sd_malformed_msb
-    sta TEXT_TO_PRINT
-    lda #>vera_sd_malformed_msb
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
+    .if(DO_PRINT)
+        ; The MBR is not correctly formed
+        lda #COLOR_ERROR
+        sta TEXT_COLOR
+        
+        lda #<vera_sd_malformed_msb
+        sta TEXT_TO_PRINT
+        lda #>vera_sd_malformed_msb
+        sta TEXT_TO_PRINT + 1
+        
+        jsr print_text_zero
+    .endif
 
     jmp walker_done_reading_sector_do_not_proceed
     
 walker_wait_for_data_packet_start_timeout:
     
-    ; If carry is unset, we timed out. We print 'Timeout' as an error
-    lda #COLOR_ERROR
-    sta TEXT_COLOR
-    
-    lda #<vera_sd_timeout_message
-    sta TEXT_TO_PRINT
-    lda #>vera_sd_timeout_message
-    sta TEXT_TO_PRINT + 1
-    
-    jsr print_text_zero
+    .if(DO_PRINT)
+        ; If carry is unset, we timed out. We print 'Timeout' as an error
+        lda #COLOR_ERROR
+        sta TEXT_COLOR
+        
+        lda #<vera_sd_timeout_message
+        sta TEXT_TO_PRINT
+        lda #>vera_sd_timeout_message
+        sta TEXT_TO_PRINT + 1
+        
+        jsr print_text_zero
+    .endif
 
     jmp walker_done_reading_sector_do_not_proceed
     
@@ -523,6 +520,11 @@ walker_done_reading_sector_do_not_proceed:
     ; We unselect the card
     lda #SPI_CHIP_DESELECT_AND_SLOW
     sta VERA_SPI_CTRL
+    
+    .if(DO_BORDER_COLOR)
+        lda #2   ; green!
+        sta VERA_DC_BORDER
+    .endif
 
     ; TODO: Can we further 'POWER OFF' the card?
     clc
@@ -662,15 +664,24 @@ done_adding_code_byte:
 ; FIXME: all this DATA is included as asm text right now, but should be *loaded* from SD instead!
 
 palette_data:
-  .byte $66, $05
-  .byte $68, $06
-  .byte $88, $06
-  .byte $88, $07
-  .byte $8a, $07
-  .byte $8a, $08
+  .byte $66, $05 ; #1
+  .if(0)
+      .byte $F0, $00 ; #2
+      .byte $0F, $00 ; #3
+      .byte $00, $0F ; #4
+      .byte $FF, $00 ; #5
+      .byte $F0, $F0 ; #6
+  .else
+      .byte $68, $06
+      .byte $88, $06
+      .byte $88, $07
+      .byte $8a, $07
+      .byte $8a, $08
+  .endif
   .byte $aa, $08
   .byte $aa, $09
-  .byte $ac, $09
+  
+  .byte $ac, $09 ; #9
   .byte $ac, $0a
   .byte $cc, $0a
   .byte $cc, $0b
@@ -678,7 +689,8 @@ palette_data:
   .byte $ce, $0c
   .byte $ee, $0d
   .byte $ee, $0e
-  .byte $24, $02
+  
+  .byte $24, $02 ; #17
   .byte $24, $03
   .byte $44, $05
   .byte $46, $05
@@ -686,7 +698,8 @@ palette_data:
   .byte $88, $09
   .byte $88, $08
   .byte $44, $04
-  .byte $22, $03
+  
+  .byte $22, $03 ; #25
   .byte $44, $03
   .byte $42, $02
   .byte $42, $03
@@ -694,7 +707,8 @@ palette_data:
   .byte $22, $01
   .byte $66, $07
   .byte $64, $05
-  .byte $00, $01
+  
+  .byte $00, $01 ; #33
   .byte $00, $00
   .byte $68, $05
   .byte $ac, $08
@@ -702,7 +716,8 @@ palette_data:
   .byte $ee, $0f
   .byte $8c, $09
   .byte $26, $02
-  .byte $02, $00
+  
+  .byte $02, $00 ; #41
   .byte $44, $02
   .byte $8a, $06
   .byte $8c, $08
