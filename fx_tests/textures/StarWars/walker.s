@@ -5,8 +5,8 @@
 
 BACKGROUND_COLOR = $00 ; black
 
-TOP_MARGIN = 13
-LEFT_MARGIN = 16
+TOP_MARGIN = 2
+LEFT_MARGIN = 0
 VSPACING = 10
 
 
@@ -35,6 +35,9 @@ INDENTATION               = $0C
 BYTE_TO_PRINT             = $0D
 DECIMAL_STRING            = $0E ; 0F ; 10
 
+SD_DUMP_ADDR              = $1C ; 1D
+SD_USE_AUTOTX             = $1E
+
 LOAD_ADDRESS              = $30 ; 31
 CODE_ADDRESS              = $32 ; 33
 
@@ -43,9 +46,19 @@ VERA_ADDR_ZP_TO           = $34 ; 35 ; 36
 SECTOR_NUMBER             = $37
 
 
+
 ; === RAM addresses ===
 
 COPY_SECTOR_CODE               = $7800
+
+; FIXME: we are NOT USING THESE! (but they are required for vera_sd_tests.s)
+MBR_L          = $9000
+MBR_H          = $9100
+MBR_SLOW_L     = $9200
+MBR_SLOW_H     = $9300
+MBR_FAST_L     = $9400
+MBR_FAST_H     = $9500
+
 
 ; === Other constants ===
 
@@ -56,23 +69,61 @@ NR_OF_SECTORS_TO_COPY = 136*320 / 512 ; Note (320x136 resolution): 136 * 320 = 1
 
 start:
 
-    jsr setup_vera_for_layer0_bitmap
+    ; Disable interrupts 
+    sei
+    
+    ; Setup stack
+    ldx #$ff
+    txs
+
+    lda #0
+    sta INDENTATION
+    sta CURSOR_X
+    sta CURSOR_Y
+
+
+    jsr setup_vera_for_bitmap_and_tile_map
+    jsr setup_screen_borders
+    jsr copy_petscii_charset
+    jsr clear_tilemap_screen
+    jsr init_cursor
 
     jsr copy_palette_from_index_1
 
     jsr generate_copy_sector_code
 
-    ; FIXME: Setup the SD card
-    ; FIXME: Setup the SD card
-    ; FIXME: Setup the SD card
-;    jsr setup_sd_card_for_reading
 
+    ; === VERA SD ===
+    jsr print_vera_sd_header
+    
+    ; Try to detect/reset the SD card
+    jsr vera_reset_sd_card
+    bcc done_with_sd_checks   ; If card was not detected (or there was some error) we do not proceed with SD Card tests
+    
+    ; Check if card is SDC Ver.2+
+    jsr vera_check_sdc_version
+    bcc done_with_sd_checks   ; If card was SDC Ver.2+ we do not proceed with SD Card tests
+    
+    ; Initialize SD card
+    jsr vera_initialize_sd_card
+    bcc done_with_sd_checks   ; If card was not propely initialized we do not proceed with SD Card tests
+    
+    jsr vera_check_block_addressing_mode
+    bcc done_with_sd_checks   ; If card does not support block addrssing mode so we do not proceed with SD Card tests
+ 
+; FIXME! 
+; FIXME! 
+; FIXME! 
+;    lda #1
+    lda #0
+    sta SD_USE_AUTOTX
+	lda #SPI_CHIP_SELECT_AND_FAST
+	sta VERA_SPI_CTRL
+    
     jsr load_and_draw_frame
     
-; FIXME: color 0 should NOT be TOUCHED!
-; FIXME: color 0 should NOT be TOUCHED!
-; FIXME: color 0 should NOT be TOUCHED!
-    
+
+done_with_sd_checks:
 
     ; We are not returning to BASIC here...
 infinite_loop:
@@ -81,7 +132,7 @@ infinite_loop:
     rts
     
     
-    
+; FIXME: NOT USED!
 setup_vera_for_layer0_bitmap:
 
     lda VERA_DC_VIDEO
@@ -105,6 +156,10 @@ setup_vera_for_layer0_bitmap:
     ; Set layer0 tilebase to 0x00000 and tile width to 320 px
     lda #0
     sta VERA_L0_TILEBASE
+    
+    rts
+
+setup_screen_borders:
 
     ; Setting VSTART/VSTOP so that we have 200 rows on screen (320x200 pixels on screen)
 
@@ -153,6 +208,283 @@ next_packed_color_1:
 
 
 
+walker_spi_send_command17:
+
+    ; The command index requires the highest bit to be 0 and the bit after that to be 1 = $40
+    lda #(17 | $40)      
+    jsr spi_write_byte
+    
+    ; Command 17 has four bytes of argument, so sending four bytes with their as argument
+    
+    ; FIXME: allow for choice of sector!
+    lda #0
+    jsr spi_write_byte
+    lda #0
+    jsr spi_write_byte
+    lda #0
+    jsr spi_write_byte
+    lda #0
+    jsr spi_write_byte
+    
+    ; Command 17 requires no CRC. So we send 0
+    lda #0
+    jsr spi_write_byte
+
+    ; We wait for a response (which should be R1 + data bytes)
+    ldx #20                   ; TODO: how many retries do we want to do?
+walker_spi_wait_command17:
+    dex
+    beq walker_spi_command17_timeout
+    jsr spi_read_byte
+    tay                       ; we want to keep the original value (so we put it in y for now)
+    ; FIXME: Use 65C02 processor so we can use "bit #$80" here
+    and #$80
+    cmp #$80
+    beq walker_spi_wait_command17
+    
+    tya                       ; we restore the original value (stored in y)
+    
+    sec  ; set the carry: we succeeded
+    rts
+
+walker_spi_command17_timeout:
+    clc  ; clear the carry: we did not succeed
+    rts
+
+
+
+walker_vera_read_sector:
+
+    ; We send command 17 to read single sector
+; FIXME: we need to set the sector number!!
+    jsr walker_spi_send_command17
+    
+    bcs walker_command17_success
+walker_command17_timed_out:
+    
+    ; If carry is unset, we timed out. We print 'Timeout' as an error
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<vera_sd_timeout_message
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_timeout_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+    jmp walker_done_reading_sector_do_not_proceed
+    
+walker_command17_success:
+
+    ; We got our byte of response. We check if the SD Card is not in an IDLE state (which is expected)
+    cmp #%0000000   ; NOT in IDLE state! (we initialized earlier, so we should NOT be in IDLE state anymore!)
+    beq walker_command17_not_in_idle_state
+
+walker_command17_in_idle_state:
+    ; The reponse says we are in an IDLE state, which means there is an error
+    ldx #17 ; command number to print
+    jsr print_spi_cmd_error
+    
+    jmp walker_done_reading_sector_do_not_proceed
+    
+walker_command17_not_in_idle_state:
+    
+    ; Wait for start of data packet
+    ldx #0
+walker_wait_for_data_packet_start_256:
+    ldy #0
+walker_wait_for_data_packet_start_1:
+    jsr spi_read_byte
+    cmp #%11111110    ; Data token for CMD17
+    beq walker_start_reading_sector_data
+    dey
+    bne walker_wait_for_data_packet_start_1
+    dex
+    bne walker_wait_for_data_packet_start_256
+    
+    jmp walker_wait_for_data_packet_start_timeout
+    
+walker_start_reading_sector_data:
+
+    ; Retrieve the additional 512 bytes 
+    
+    lda SD_USE_AUTOTX
+    bne walker_read_autotx_read_sector
+    
+    
+walker_read_slow_read_sector:
+    ldx #0
+walker_reading_sector_byte_L:
+    jsr spi_read_byte
+    sta VERA_DATA0
+    inx
+    bne walker_reading_sector_byte_L
+    
+    ldx #0
+walker_reading_sector_byte_H:
+    jsr spi_read_byte
+    sta VERA_DATA0
+    inx
+    bne walker_reading_sector_byte_H
+    
+    ; Read the 2 CRC bytes
+    jsr spi_read_byte
+    jsr spi_read_byte_measure ; We are measuring the speed of this last read
+    
+    jmp walker_read_sector_check_mbr
+    
+walker_read_autotx_read_sector:
+
+    lda VERA_SPI_CTRL
+    ora #%00000100       ; AUTOTX bit = 1
+    sta VERA_SPI_CTRL
+    
+    
+    ; This loads and draws 512 bytes from SD card to VRAM
+    
+    ; Start first read transfer
+    lda VERA_SPI_DATA    ; Auto-tx
+    ldy #0                ; 2
+
+; FIXME! DO THIS INSTEAD!!
+; FIXME! DO THIS INSTEAD!!
+; FIXME! DO THIS INSTEAD!!
+;    jsr COPY_SECTOR_CODE
+    
+
+    ; Efficiently read first 256 bytes (hide SPI transfer time)
+    ldy #0                ; 2
+walker_reading_sector_8_bytes_L:
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 0, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 1, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 2, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 3, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 4, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 5, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 6, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_L + 7, y    ; 5
+    tya                ; 2
+    clc                ; 2
+    adc #8                ; 2
+    tay                ; 2
+    bne walker_reading_sector_8_bytes_L  ; 2+1
+
+    ; Efficiently read second 256 bytes (hide SPI transfer time)
+walker_reading_sector_8_bytes_H:
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 0, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 1, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 2, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 3, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 4, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 5, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 6, y    ; 5
+    lda VERA_SPI_DATA            ; 4
+    sta MBR_H + 7, y    ; 5
+    tya                ; 2
+    clc                ; 2
+    adc #8                ; 2
+    tay                ; 2
+    bne walker_reading_sector_8_bytes_H  ; 2+1
+
+    ; Disable auto-tx mode
+    lda VERA_SPI_CTRL
+    and #%11111011     ; AUTOTX bit = 1
+    sta VERA_SPI_CTRL
+
+    ; Next read is now already done (first CRC byte), read second CRC byte
+    jsr spi_read_byte
+    jsr spi_read_byte_measure ; We are measuring the speed of this last read
+
+
+walker_read_sector_check_mbr:
+
+    ; The last two bytes of the MBR should always be $55AA
+    lda MBR_H+254
+    cmp #$55
+    bne walker_mbr_malformed
+    
+    lda MBR_H+255
+    cmp #$AA
+    bne walker_mbr_malformed
+
+    lda #COLOR_OK
+    sta TEXT_COLOR
+    
+    lda #<ok_message
+    sta TEXT_TO_PRINT
+    lda #>ok_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+    
+    jsr print_number_of_loops
+    
+    jmp walker_done_reading_sector_proceed
+    
+walker_mbr_malformed:
+
+    ; The MBR is not correctly formed
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<vera_sd_malformed_msb
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_malformed_msb
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+    jmp walker_done_reading_sector_do_not_proceed
+    
+walker_wait_for_data_packet_start_timeout:
+    
+    ; If carry is unset, we timed out. We print 'Timeout' as an error
+    lda #COLOR_ERROR
+    sta TEXT_COLOR
+    
+    lda #<vera_sd_timeout_message
+    sta TEXT_TO_PRINT
+    lda #>vera_sd_timeout_message
+    sta TEXT_TO_PRINT + 1
+    
+    jsr print_text_zero
+
+    jmp walker_done_reading_sector_do_not_proceed
+    
+    
+walker_done_reading_sector_do_not_proceed:
+    jsr move_cursor_to_next_line
+
+    ; We unselect the card
+    lda #SPI_CHIP_DESELECT_AND_SLOW
+    sta VERA_SPI_CTRL
+
+    ; TODO: Can we further 'POWER OFF' the card?
+    clc
+    rts
+    
+walker_done_reading_sector_proceed:
+    jsr move_cursor_to_next_line
+    sec
+    rts
+    
+
 
 
 load_and_draw_frame:
@@ -165,15 +497,12 @@ load_and_draw_frame:
     sta VERA_ADDR_BANK
     
     
-    
     stz SECTOR_NUMBER
 next_sector_to_copy:
 
-    ; FIXME: setup for loading (the next) sector
+    ; FIXME: setup for loading the NEXT! sector
+    jsr walker_vera_read_sector
 
-    ; This loads and draws 512 bytes from SD card to VRAM
-    jsr COPY_SECTOR_CODE
-    
     ; SPEED: we can make this a bit quicker by counting DOWN
     inc SECTOR_NUMBER
     lda SECTOR_NUMBER
@@ -487,3 +816,4 @@ end_of_palette_data:
     .include utils/x16.s
     .include utils/utils.s
     .include utils/setup_vera_for_bitmap_and_tilemap.s
+    .include tests/vera_sd_tests.s
