@@ -1,45 +1,39 @@
 ; == Very crude PoC of 320x136px video playback using AUTOTX ==
 
-; To build: cl65 -t cx16 -o WALKER.PRG walker.s
-; To run: x16emu.exe -prg WALKER.PRG -run 
+; To build: ./vasm6502_oldstyle.exe -Fbin -dotdir -quiet .\fx_tests\textures\StarWars\walker.s -wdc02 -D CREATE_PRG -o .\fx_tests\textures\StarWars\WALKER.PRG
+; To run (from StarWars dir) : C:\x16emu_win-r44\x16emu.exe -prg .\WALKER.PRG -run -sdcard .\walker_sdcard.img
 
-.org $080D
-.segment "STARTUP"
-.segment "INIT"
-.segment "ONCE"
-.segment "CODE"
+BACKGROUND_COLOR = $00 ; black
 
-   jmp start
-
-; TODO: The following is *copied* from my x16.s (it should be included instead)
-
-; -- some X16 constants --
-
-VERA_ADDR_LOW     = $9F20
-VERA_ADDR_HIGH    = $9F21
-VERA_ADDR_BANK    = $9F22
-VERA_DATA0        = $9F23
-VERA_DATA1        = $9F24
-VERA_CTRL         = $9F25
-
-VERA_DC_VIDEO     = $9F29  ; DCSEL=0
-VERA_DC_HSCALE    = $9F2A  ; DCSEL=0
-VERA_DC_VSCALE    = $9F2B  ; DCSEL=0
-
-VERA_DC_VSTART    = $9F2B  ; DCSEL=1
-VERA_DC_VSTOP     = $9F2C  ; DCSEL=1
-
-VERA_L0_CONFIG    = $9F2D
-VERA_L0_TILEBASE  = $9F2F
-
-; -- VRAM addresses --
-
-VERA_PALETTE          = $1FA00
-
+TOP_MARGIN = 13
+LEFT_MARGIN = 16
+VSPACING = 10
 
 
 ; === Zero page addresses ===
 
+; Bank switching
+RAM_BANK                  = $00
+ROM_BANK                  = $01
+
+; Temp vars
+TMP1                      = $02
+TMP2                      = $03
+TMP3                      = $04
+TMP4                      = $05
+
+; FIXME: these are leftovers of memory tests in the general hardware tester (needed by utils.s atm). We dont use them, but cant remove them right now
+BANK_TESTING              = $06   
+BAD_VALUE                 = $07
+
+; Printing
+TEXT_TO_PRINT             = $07 ; 08
+TEXT_COLOR                = $09
+CURSOR_X                  = $0A
+CURSOR_Y                  = $0B
+INDENTATION               = $0C
+BYTE_TO_PRINT             = $0D
+DECIMAL_STRING            = $0E ; 0F ; 10
 
 LOAD_ADDRESS              = $30 ; 31
 CODE_ADDRESS              = $32 ; 33
@@ -57,6 +51,8 @@ COPY_SECTOR_CODE               = $7800
 
 NR_OF_SECTORS_TO_COPY = 136*320 / 512 ; Note (320x136 resolution): 136 * 320 = 170 * 256 = 85 * 512 bytes (1 sector = 512 bytes)
 
+
+    .include utils/build_as_prg_or_rom.s
 
 start:
 
@@ -488,3 +484,6 @@ palette_data:
 end_of_palette_data:
 
 
+    .include utils/x16.s
+    .include utils/utils.s
+    .include utils/setup_vera_for_bitmap_and_tilemap.s
