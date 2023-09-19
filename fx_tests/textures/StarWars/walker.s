@@ -7,6 +7,7 @@
 IS_EMULATOR = 0
 DO_PRINT = 0
 DO_BORDER_COLOR = 1
+DO_MULTI_SECTOR_READS = 1
 
 BACKGROUND_COLOR = $00 ; black
 
@@ -54,6 +55,7 @@ SECTOR_NUMBER_IN_FRAME    = $3B
 FRAME_NUMBER              = $3C ; 3D
 
 BORDER_COLOR              = $3E
+COMMAND18_INITIATED       = $3F
 
 
 ; === RAM addresses ===
@@ -133,8 +135,17 @@ start:
     jsr vera_check_block_addressing_mode
     bcc done_with_sd_checks   ; If card does not support block addrssing mode so we do not proceed with SD Card tests
  
+    .if(DO_MULTI_SECTOR_READS)
+        stz COMMAND18_INITIATED
+    .endif
  
- start_movie:
+start_movie:
+ 
+; FIXME: we are currently not resetting COMMAND18_INITIATED here! (see above)
+;     .if(DO_MULTI_SECTOR_READS)
+;        stz COMMAND18_INITIATED
+;    .endif
+
      stz SECTOR_NUMBER
      stz SECTOR_NUMBER+1
      stz SECTOR_NUMBER+2
@@ -153,6 +164,7 @@ start:
     sta FRAME_NUMBER
     lda #>NUMBER_OF_FRAMES
     sta FRAME_NUMBER+1
+    
 next_frame:
 
     jsr load_and_draw_frame
@@ -225,15 +237,18 @@ next_packed_color_1:
 
 
 
-walker_spi_send_command17:
+walker_spi_send_command17: ; or command 18
 
     ; The command index requires the highest bit to be 0 and the bit after that to be 1 = $40
-    lda #(17 | $40)      
+    .if(DO_MULTI_SECTOR_READS)
+        lda #(18 | $40)      
+    .else
+        lda #(17 | $40)      
+    .endif
     jsr spi_write_byte
     
-    ; Command 17 has four bytes of argument, so sending four bytes with their as argument
+    ; Command 17 (or 18) has four bytes of argument, so sending four bytes with their as argument
     
-    ; FIXME: allow for choice of sector!
     lda SECTOR_NUMBER+3
     jsr spi_write_byte
     lda SECTOR_NUMBER+2
@@ -243,29 +258,29 @@ walker_spi_send_command17:
     lda SECTOR_NUMBER
     jsr spi_write_byte
     
-    ; Command 17 requires no CRC. So we send 0
+    ; Command 17 (or 18) requires no CRC. So we send 0
     lda #0
     jsr spi_write_byte
 
 
     ; We wait for a response (which should be R1 + data bytes)
     ldx #20                   ; TODO: how many retries do we want to do?
-walker_spi_wait_command17:
+walker_spi_wait_command17: ; or command 18
     dex
-    beq walker_spi_command17_timeout
+    beq walker_spi_command17_timeout ; or command 18
     jsr spi_read_byte
     tay                       ; we want to keep the original value (so we put it in y for now)
     ; FIXME: Use 65C02 processor so we can use "bit #$80" here
     and #$80
     cmp #$80
-    beq walker_spi_wait_command17
+    beq walker_spi_wait_command17 ; or command 18
     
     tya                       ; we restore the original value (stored in y)
     
     sec  ; set the carry: we succeeded
     rts
 
-walker_spi_command17_timeout:
+walker_spi_command17_timeout: ; or command 18
     clc  ; clear the carry: we did not succeed
     rts
 
@@ -273,12 +288,18 @@ walker_spi_command17_timeout:
 
 walker_vera_read_sector:
 
-    ; We send command 17 to read single sector
-; FIXME: we need to set the sector number!!
-    jsr walker_spi_send_command17
+    .if(DO_MULTI_SECTOR_READS)
+        lda COMMAND18_INITIATED
+        bne walker_start_reading_data_packet
+    .endif
     
-    bcs walker_command17_success
-walker_command17_timed_out:
+    ; We send command 17 to read single sector (or command 18 to read multiple sectors)
+    jsr walker_spi_send_command17  ; or command 18
+    
+    bcs walker_command17_success ; or command 18
+walker_command17_timed_out:  ; or command18
+
+    ; TODO: is it correct that we do not set COMMAND18_INITIATED to 1 here?
     
     .if(DO_PRINT)
         ; If carry is unset, we timed out. We print 'Timeout' as an error
@@ -295,23 +316,37 @@ walker_command17_timed_out:
 
     jmp walker_done_reading_sector_do_not_proceed
     
-walker_command17_success:
+walker_command17_success: ; or command 18
 
     ; We got our byte of response. We check if the SD Card is not in an IDLE state (which is expected)
     cmp #%0000000   ; NOT in IDLE state! (we initialized earlier, so we should NOT be in IDLE state anymore!)
     beq walker_command17_not_in_idle_state
 
-walker_command17_in_idle_state:
+walker_command17_in_idle_state: ; or command 18
+
+    ; TODO: is it correct that we do not set COMMAND18_INITIATED to 1 here?
+    
     .if(DO_PRINT)
         ; The reponse says we are in an IDLE state, which means there is an error
-        ldx #17 ; command number to print
+        .if(DO_MULTI_SECTOR_READS)
+            ldx #18 ; command number to print
+        .else
+            ldx #17 ; command number to print
+        .endif
         jsr print_spi_cmd_error
     .endif
     
     jmp walker_done_reading_sector_do_not_proceed
     
-walker_command17_not_in_idle_state:
+walker_command17_not_in_idle_state: ; or command 18
     
+    .if(DO_MULTI_SECTOR_READS)
+        lda #1
+        sta COMMAND18_INITIATED
+    .endif
+
+walker_start_reading_data_packet:
+
     ; Wait for start of data packet
     ldx #0
 walker_wait_for_data_packet_start_256:
@@ -664,223 +699,231 @@ done_adding_code_byte:
 ; FIXME: all this DATA is included as asm text right now, but should be *loaded* from SD instead!
 
 palette_data:
-  .byte $66, $05 ; #1
-  .if(0)
-      .byte $F0, $00 ; #2
-      .byte $0F, $00 ; #3
-      .byte $00, $0F ; #4
-      .byte $FF, $00 ; #5
-      .byte $F0, $F0 ; #6
-  .else
-      .byte $68, $06
-      .byte $88, $06
-      .byte $88, $07
-      .byte $8a, $07
-      .byte $8a, $08
-  .endif
-  .byte $aa, $08
-  .byte $aa, $09
-  
-  .byte $ac, $09 ; #9
-  .byte $ac, $0a
-  .byte $cc, $0a
-  .byte $cc, $0b
+  .byte $67, $05
+  .byte $78, $06
+  .byte $89, $06
+  .byte $89, $07
+  .byte $8a, $07
+  .byte $9a, $07
+  .byte $9a, $08
+  .byte $9b, $08
+  .byte $ab, $08
+  .byte $ab, $09
+  .byte $ac, $09
+  .byte $bc, $0a
+  .byte $bd, $0a
+  .byte $cd, $0a
+  .byte $cd, $0b
   .byte $ce, $0b
-  .byte $ce, $0c
-  .byte $ee, $0d
-  .byte $ee, $0e
-  
-  .byte $24, $02 ; #17
-  .byte $24, $03
-  .byte $44, $05
-  .byte $46, $05
+  .byte $df, $0c
+  .byte $ef, $0d
+  .byte $ef, $0e
+  .byte $ff, $0e
+  .byte $ff, $0d
+  .byte $de, $0c
+  .byte $34, $02
+  .byte $34, $03
+  .byte $55, $05
+  .byte $56, $05
   .byte $66, $06
-  .byte $88, $09
-  .byte $88, $08
-  .byte $44, $04
-  
-  .byte $22, $03 ; #25
+  .byte $88, $07
+  .byte $99, $09
+  .byte $aa, $09
+  .byte $98, $08
+  .byte $55, $04
+  .byte $33, $03
   .byte $44, $03
-  .byte $42, $02
-  .byte $42, $03
+  .byte $43, $02
+  .byte $43, $03
+  .byte $33, $02
   .byte $22, $02
   .byte $22, $01
-  .byte $66, $07
-  .byte $64, $05
-  
-  .byte $00, $01 ; #33
+  .byte $77, $07
+  .byte $88, $08
+  .byte $65, $05
+  .byte $54, $04
+  .byte $44, $04
+  .byte $11, $01
   .byte $00, $00
   .byte $68, $05
+  .byte $79, $06
   .byte $ac, $08
+  .byte $ad, $09
+  .byte $bd, $09
   .byte $ce, $0a
-  .byte $ee, $0f
-  .byte $8c, $09
+  .byte $cf, $0b
+  .byte $df, $0b
+  .byte $ff, $0f
+  .byte $9c, $09
   .byte $26, $02
-  
-  .byte $02, $00 ; #41
+  .byte $12, $00
+  .byte $45, $04
+  .byte $66, $05
   .byte $44, $02
+  .byte $11, $00
+  .byte $78, $05
+  .byte $79, $05
   .byte $8a, $06
-  .byte $8c, $08
-  .byte $ae, $0a
-  .byte $ee, $0c
-  .byte $68, $07
+  .byte $9b, $07
+  .byte $9c, $08
+  .byte $be, $0a
+  .byte $ef, $0c
+  .byte $89, $08
+  .byte $77, $06
+  .byte $78, $07
+  .byte $67, $06
+  .byte $99, $08
+  .byte $01, $00
   .byte $68, $04
-  .byte $64, $04
+  .byte $8b, $07
+  .byte $de, $0b
+  .byte $23, $01
+  .byte $65, $04
   .byte $aa, $0a
-  .byte $02, $01
-  .byte $02, $02
+  .byte $54, $03
+  .byte $55, $03
+  .byte $12, $01
+  .byte $12, $02
+  .byte $00, $01
   .byte $22, $00
   .byte $66, $04
-  .byte $8a, $09
+  .byte $9a, $09
+  .byte $23, $02
+  .byte $23, $03
+  .byte $ad, $08
   .byte $24, $01
-  .byte $46, $04
-  .byte $20, $01
+  .byte $cf, $0a
+  .byte $35, $02
+  .byte $56, $04
+  .byte $57, $04
+  .byte $01, $01
+  .byte $32, $02
+  .byte $10, $00
+  .byte $21, $01
+  .byte $67, $04
+  .byte $45, $03
+  .byte $56, $03
+  .byte $33, $01
+  .byte $34, $04
+  .byte $bc, $09
+  .byte $45, $02
+  .byte $32, $01
+  .byte $be, $09
+  .byte $02, $00
+  .byte $34, $01
+  .byte $11, $02
+  .byte $9c, $07
+  .byte $23, $00
   .byte $46, $03
-  .byte $24, $04
-  .byte $ae, $09
-  .byte $00, $02
-  .byte $8c, $07
-  .byte $ce, $0d
-  .byte $22, $04
-  .byte $ac, $0b
-  .byte $cc, $0d
-  .byte $68, $08
+  .byte $df, $0d
+  .byte $33, $04
+  .byte $df, $0a
+  .byte $9b, $09
+  .byte $57, $03
+  .byte $35, $01
+  .byte $79, $07
+  .byte $8a, $08
+  .byte $46, $04
+  .byte $89, $09
+  .byte $68, $06
+  .byte $cc, $0b
+  .byte $de, $0d
+  .byte $ee, $0d
+  .byte $ee, $0e
+  .byte $45, $05
+  .byte $bc, $0b
+  .byte $dd, $0d
+  .byte $ee, $0f
+  .byte $ef, $0f
+  .byte $ce, $0c
+  .byte $78, $08
+  .byte $ba, $0a
   .byte $cc, $0c
-  .byte $46, $06
-  .byte $a8, $0a
+  .byte $56, $06
+  .byte $a9, $0a
+  .byte $bb, $0b
+  .byte $cd, $0d
   .byte $aa, $0b
+  .byte $de, $0e
+  .byte $fe, $0f
+  .byte $cd, $0c
+  .byte $dd, $0e
+  .byte $ab, $0b
+  .byte $99, $0a
+  .byte $bb, $0c
+  .byte $13, $01
+  .byte $cc, $0d
+  .byte $24, $02
+  .byte $ac, $0a
+  .byte $bd, $0b
+  .byte $88, $09
+  .byte $be, $0b
+  .byte $77, $08
+  .byte $ed, $0e
+  .byte $57, $05
+  .byte $dc, $0d
+  .byte $44, $05
+  .byte $cb, $0c
+  .byte $dd, $0c
+  .byte $bc, $0c
+  .byte $ed, $0f
+  .byte $66, $07
+  .byte $65, $06
+  .byte $ba, $0b
+  .byte $cf, $0c
+  .byte $ad, $0a
+  .byte $be, $0c
+  .byte $ab, $0a
+  .byte $df, $0e
+  .byte $df, $0f
+  .byte $cf, $0e
+  .byte $ce, $0d
+  .byte $be, $0d
+  .byte $bd, $0c
+  .byte $55, $06
+  .byte $9a, $0a
+  .byte $bb, $0a
+  .byte $cf, $0d
+  .byte $cf, $0f
+  .byte $bf, $0e
+  .byte $ad, $0c
+  .byte $ad, $0b
   .byte $ce, $0e
-  .byte $cc, $0e
-  .byte $88, $0a
-  .byte $aa, $0c
-  .byte $ae, $0b
-  .byte $66, $08
-  .byte $ec, $0e
-  .byte $ca, $0c
   .byte $ac, $0c
-  .byte $ec, $0f
-  .byte $64, $06
-  .byte $ae, $0c
+  .byte $9b, $0a
+  .byte $9c, $0a
+  .byte $ac, $0b
+  .byte $67, $07
+  .byte $bd, $0d
+  .byte $45, $06
+  .byte $87, $08
+  .byte $54, $05
+  .byte $22, $03
+  .byte $35, $04
+  .byte $67, $08
+  .byte $76, $07
+  .byte $32, $03
+  .byte $99, $07
+  .byte $79, $08
+  .byte $43, $04
   .byte $ce, $0f
-  .byte $ae, $0d
-  .byte $44, $06
-  .byte $8a, $0a
-  .byte $ae, $0e
-  .byte $8c, $0a
-  .byte $ac, $0d
-  .byte $86, $08
-  .byte $42, $04
-  .byte $ae, $0f
-  .byte $ac, $0e
-  .byte $8a, $0c
-  .byte $a8, $09
-  .byte $46, $02
-  .byte $ce, $09
-  .byte $6a, $06
-  .byte $86, $06
-  .byte $6a, $09
-  .byte $8a, $0b
-  .byte $20, $02
-  .byte $86, $07
-  .byte $6a, $07
-  .byte $64, $03
-  .byte $20, $00
-  .byte $ec, $0d
-  .byte $a8, $0b
-  .byte $ca, $0d
-  .byte $ca, $0b
-  .byte $68, $0a
-  .byte $88, $0b
-  .byte $68, $0b
-  .byte $88, $0c
-  .byte $68, $0c
-  .byte $aa, $0e
-  .byte $aa, $0f
-  .byte $46, $0a
-  .byte $24, $06
-  .byte $22, $05
-  .byte $66, $0a
-  .byte $46, $08
-  .byte $24, $05
-  .byte $46, $07
-  .byte $44, $07
-  .byte $8c, $0b
-  .byte $68, $09
-  .byte $66, $09
-  .byte $6a, $0a
-  .byte $6a, $0b
-  .byte $8c, $0c
-  .byte $8c, $0d
-  .byte $8c, $0e
-  .byte $ac, $0f
-  .byte $cc, $0f
-  .byte $6a, $08
-  .byte $88, $05
-  .byte $8a, $0d
-  .byte $8a, $05
-  .byte $02, $03
-  .byte $aa, $0d
-  .byte $86, $09
-  .byte $ca, $0a
-  .byte $02, $04
-  .byte $22, $06
-  .byte $46, $09
-  .byte $44, $08
-  .byte $24, $07
-  .byte $8a, $0e
-  .byte $88, $0d
-  .byte $66, $0b
-  .byte $44, $09
-  .byte $68, $0d
-  .byte $8a, $0f
-  .byte $88, $0e
-  .byte $66, $0c
-  .byte $68, $0e
-  .byte $66, $0e
-  .byte $66, $0d
-  .byte $68, $0f
-  .byte $88, $0f
-  .byte $46, $0c
-  .byte $44, $0b
-  .byte $46, $0d
-  .byte $44, $0a
-  .byte $24, $0a
-  .byte $46, $0b
-  .byte $24, $09
-  .byte $44, $0c
-  .byte $24, $0b
-  .byte $22, $0a
-  .byte $22, $09
-  .byte $02, $09
-  .byte $24, $08
-  .byte $22, $08
-  .byte $02, $07
-  .byte $00, $07
-  .byte $00, $06
-  .byte $22, $07
-  .byte $02, $05
-  .byte $00, $05
-  .byte $02, $06
-  .byte $00, $04
-  .byte $a8, $08
-  .byte $86, $0a
-  .byte $42, $05
-  .byte $00, $03
-  .byte $48, $04
-  .byte $46, $0e
-  .byte $64, $07
-  .byte $48, $06
-  .byte $6a, $0c
-  .byte $20, $03
-  .byte $8c, $0f
-  .byte $26, $03
-  .byte $cc, $09
-  .byte $48, $05
-  .byte $6a, $0d
-  .byte $26, $09
-  .byte $04, $07
-  .byte $aa, $07
-  .byte $66, $03
+  .byte $be, $0e
+  .byte $ae, $0b
+  .byte $be, $0f
+  .byte $bd, $0e
+  .byte $98, $09
+  .byte $8a, $09
+  .byte $9b, $0c
+  .byte $10, $01
+  .byte $88, $06
+  .byte $aa, $08
+  .byte $35, $03
+  .byte $77, $05
+  .byte $cc, $0a
+  .byte $dd, $0b
+  .byte $bb, $09
+  .byte $ee, $0c
+  .byte $a9, $09
 end_of_palette_data:
 
 
