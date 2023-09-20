@@ -5,7 +5,7 @@ import sys
 # FIXME: 
 source_image_filename_prefix = "Walker/output_" # 0001.png"
 video_pixel_data_filename = "walker_sdcard.img"
-nr_of_frames = 72
+nr_of_frames = 157
 image_width = 320
 image_height = 136
 
@@ -50,6 +50,30 @@ def find_closely_matching_color(pixel, frame_colors_to_palette_index):
     # We try to find a color that closely matches (since there is no more room to create a new color)
     closely_matching_palette_color_index = None
     
+    best_score = 9999
+    # We are simply iterating over all colors and take the best matching color
+    for color_str in current_frame_colors_to_palette_index:
+        palette_color_index = current_frame_colors_to_palette_index[color_str]
+        
+        red_value = int(color_str[0:2], 16)
+        green_value = int(color_str[2:4], 16)
+        blue_value = int(color_str[4:6], 16)
+        
+        score_color = 0
+        score_color += abs(red_value - pixel[0])
+        score_color += abs(green_value - pixel[1])
+        score_color += abs(blue_value - pixel[2])
+        
+        #print(color_str, red_value, green_value, blue_value)
+        #print(pixel)
+        #print(score_color)
+        
+        if (score_color < best_score):
+            closely_matching_palette_color_index = palette_color_index
+            best_score = score_color
+    
+    
+    '''
     # We try several closely matching colors: red (0) +1/-1, green (1) +1/-1, blue (2) +1/-1
     delta_tries = [(1,0,0),(0,1,0),(0,0,1),(-1,0,0),(0,-1,0),(0,0,-1), 
                    (1,1,0),(0,1,1),(1,0,1),(-1,-1,0),(0,-1,-1),(-1,0,-1),
@@ -103,6 +127,7 @@ def find_closely_matching_color(pixel, frame_colors_to_palette_index):
             closely_matching_palette_color_index = current_frame_colors_to_palette_index[color_str]
             # print("found closely matching color for: " + orig_color_str + ", namely: " + color_str)
             break
+    '''
     
     return closely_matching_palette_color_index
     

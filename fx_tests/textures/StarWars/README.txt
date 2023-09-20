@@ -15,5 +15,5 @@ FFMPEG: https://gist.github.com/FranciscoG/c63760be6d77ab44d919772b2b7b8f82
 # reduce the file size of the pngs b
 
 DO THIS: (320x136@20fps)
-./ffmpeg -ss 01:12 -t 00:05 -i Walkers.mp4 -vf scale=320:-1,crop=320:136:0:22  -r 20 output/output_%04d.png
+./ffmpeg -ss 01:12 -t 00:15 -i Walkers.mp4 -vf scale=320:-1,crop=320:136:0:22  -r 20 output/output_%04d.png
 
