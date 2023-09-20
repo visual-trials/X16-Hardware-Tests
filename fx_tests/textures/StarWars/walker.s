@@ -4,10 +4,10 @@
 ; To run (from StarWars dir) : C:\x16emu_win-r44\x16emu.exe -prg .\WALKER.PRG -run -sdcard .\walker_sdcard.img
 
 ; FIXME: REMOVE THIS!
-IS_EMULATOR = 0
+IS_EMULATOR = 1
 DO_PRINT = 0
 DO_BORDER_COLOR = 1
-DO_MULTI_SECTOR_READS = 1
+DO_MULTI_SECTOR_READS = 0
 
 BACKGROUND_COLOR = $00 ; black
 
@@ -48,14 +48,16 @@ LOAD_ADDRESS              = $30 ; 31
 CODE_ADDRESS              = $32 ; 33
 
 VERA_ADDR_ZP_TO           = $34 ; 35 ; 36
+PALETTE_CHANGE_ADDRESS    = $37 ; 38
+NR_OF_COLORS_TO_CHANGE    = $39
 
-SECTOR_NUMBER             = $37 ; 38 ; 39 ; 3A
-SECTOR_NUMBER_IN_FRAME    = $3B
+SECTOR_NUMBER             = $47 ; 48 ; 49 ; 4A
+SECTOR_NUMBER_IN_FRAME    = $4B
 
-FRAME_NUMBER              = $3C ; 3D
+FRAME_NUMBER              = $4C ; 4D
 
-BORDER_COLOR              = $3E
-COMMAND18_INITIATED       = $3F
+BORDER_COLOR              = $4E
+COMMAND18_INITIATED       = $4F
 
 
 ; === RAM addresses ===
@@ -100,7 +102,7 @@ start:
     jsr clear_tilemap_screen
     jsr init_cursor
 
-    jsr copy_palette_from_index_1
+    ; FIXME: we should do a CLEAR SCREEN here!
 
     jsr generate_copy_sector_code
 
@@ -138,9 +140,17 @@ start:
     .if(DO_MULTI_SECTOR_READS)
         stz COMMAND18_INITIATED
     .endif
- 
+
 start_movie:
  
+    jsr copy_palette_from_index_1
+
+    ; We start at the beginning of the palette changes (first change is AFTER frame 0)
+    lda #<palette_changes_per_frame
+    sta PALETTE_CHANGE_ADDRESS
+    lda #>palette_changes_per_frame
+    sta PALETTE_CHANGE_ADDRESS+1
+
 ; FIXME: we are currently not resetting COMMAND18_INITIATED here! (see above)
 ;     .if(DO_MULTI_SECTOR_READS)
 ;        stz COMMAND18_INITIATED
@@ -168,6 +178,8 @@ start_movie:
 next_frame:
 
     jsr load_and_draw_frame
+    
+    jsr do_palette_changes
     
 ; FIXME: we need to be able to do more than 256 frames!
     dec FRAME_NUMBER
@@ -234,6 +246,90 @@ next_packed_color_1:
     bne next_packed_color_1
     
     rts
+
+
+do_palette_changes:
+
+    lda #%00010001      ; setting bit 16 of vram address to 1, setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+
+    ldy #0
+    lda (PALETTE_CHANGE_ADDRESS),y
+    iny
+    sta NR_OF_COLORS_TO_CHANGE
+    lda NR_OF_COLORS_TO_CHANGE  ; FIXME: SPEED: we lda, sta and lda again! (just so Z is correct and y is incremented)
+    beq done_with_changing_colors  ; if there are 0 colors to change we are done
+
+next_palette_color_change:
+    ; Load palette index of the color
+    lda (PALETTE_CHANGE_ADDRESS),y
+    iny
+    
+    asl a
+    sta TMP2
+    bcs change_high_palette_color
+
+change_low_palette_color:
+
+    clc
+    lda #<(VERA_PALETTE)
+    adc TMP2
+    sta VERA_ADDR_LOW
+    ; FIXME: the carry is never 1 here, right? So this adc is not needed! (the lda+sta is)
+    lda #>(VERA_PALETTE)
+    adc #0
+    sta VERA_ADDR_HIGH
+    ; Note: since the entire palette is in high VRAM we dont need to set the highest byte here
+
+    lda (PALETTE_CHANGE_ADDRESS),y
+    sta VERA_DATA0
+    iny
+    lda (PALETTE_CHANGE_ADDRESS),y
+    sta VERA_DATA0
+    iny
+    
+    bra changed_palette_color
+
+change_high_palette_color:
+
+    clc
+    lda #<(VERA_PALETTE+256)
+    adc TMP2
+    sta VERA_ADDR_LOW
+    ; FIXME: the carry is never 1 here, right? So this adc is not needed! (the lda+sta is)
+    lda #>(VERA_PALETTE+256)
+    adc #0
+    sta VERA_ADDR_HIGH
+    ; Note: since the entire palette is in high VRAM we dont need to set the highest byte here
+
+    lda (PALETTE_CHANGE_ADDRESS),y
+    sta VERA_DATA0
+    iny
+    lda (PALETTE_CHANGE_ADDRESS),y
+    sta VERA_DATA0
+    iny
+
+changed_palette_color:
+    dec NR_OF_COLORS_TO_CHANGE
+    bne next_palette_color_change
+done_with_changing_colors:
+
+    ; We add y to the PALETTE_CHANGE_ADDRESS (since it contains the number of bytes we just comsumed)
+    sty TMP1 
+    
+    ; FIXME: we are assuming that the number of bytes for ONE frame never exceeds 255 bytes!
+    clc
+    lda PALETTE_CHANGE_ADDRESS
+    adc TMP1
+    sta PALETTE_CHANGE_ADDRESS
+    lda PALETTE_CHANGE_ADDRESS+1
+    adc #0
+    sta PALETTE_CHANGE_ADDRESS+1
+
+    rts
+
+
+
 
 
 
@@ -608,9 +704,6 @@ sector_number_is_incremented:
     
     
 
-
-
-
 generate_copy_sector_code:
 
     lda #<COPY_SECTOR_CODE
@@ -698,6 +791,7 @@ done_adding_code_byte:
 
 ; FIXME: all this DATA is included as asm text right now, but should be *loaded* from SD instead!
 
+; - Initial palette -
 palette_data:
   .byte $67, $05
   .byte $78, $06
@@ -926,6 +1020,82 @@ palette_data:
   .byte $a9, $09
 end_of_palette_data:
 
+
+palette_changes_per_frame:
+  .byte $00
+  .byte $0b  ,  $e2, $25, $02,  $e3, $69, $05,  $e4, $46, $02,  $e5, $ce, $09,  $e6, $7a, $06,  $e7, $bd, $08,  $e8, $bf, $0d,  $e9, $ad, $0d,  $ea, $ac, $0d,  $eb, $87, $06,  $ec, $76, $05
+  .byte $08  ,  $39, $13, $00,  $6f, $76, $06,  $72, $8b, $09,  $77, $8b, $08,  $7a, $7a, $09,  $8b, $9b, $0b,  $a8, $21, $02,  $c5, $87, $07
+  .byte $09  ,  $5d, $36, $02,  $6d, $02, $00,  $73, $7a, $07,  $79, $69, $06,  $bf, $9c, $07,  $c9, $24, $01,  $ca, $65, $03,  $d1, $32, $01,  $d2, $ba, $09
+  .byte $02  ,  $72, $21, $00,  $7a, $98, $07
+  .byte $04  ,  $38, $03, $00,  $57, $9c, $09,  $5d, $ed, $0d,  $79, $a9, $0b
+  .byte $05  ,  $39, $47, $03,  $6d, $13, $00,  $70, $57, $03,  $73, $ed, $0f,  $77, $dc, $0b
+  .byte $02  ,  $1f, $36, $02,  $38, $23, $00
+  .byte $05  ,  $39, $98, $08,  $5d, $bf, $0a,  $64, $cb, $0d,  $6d, $68, $07,  $70, $22, $00
+  .byte $04  ,  $1f, $13, $00,  $38, $10, $00,  $57, $46, $05,  $69, $cb, $0b
+  .byte $1f  ,  $64, $34, $01,  $6d, $45, $06,  $70, $9a, $0b,  $72, $cd, $0e,  $73, $78, $0a,  $77, $89, $0b,  $79, $9a, $0c,  $7a, $78, $0b,  $8b, $89, $0c,  $a8, $79, $0c,  $ad, $ab, $0e,  $b2, $68, $0b,  $b4, $ab, $0f,  $b5, $57, $0a,  $ba, $56, $0a,  $bb, $34, $06,  $bc, $33, $05,  $bd, $23, $04,  $be, $ab, $0c,  $c0, $67, $0a,  $c1, $56, $08,  $c4, $88, $0a,  $c6, $34, $05,  $d0, $56, $07,  $d1, $55, $07,  $d2, $66, $08,  $d3, $bd, $0c,  $d4, $87, $08,  $d7, $32, $01,  $da, $33, $01,  $e0, $54, $02
+  .byte $21  ,  $23, $02, $00,  $38, $9c, $09,  $50, $9c, $0a,  $57, $ad, $0b,  $69, $9c, $0b,  $c5, $ad, $0e,  $cd, $bd, $0e,  $dd, $ce, $0e,  $e1, $ce, $0f,  $e2, $cf, $0f,  $e3, $ad, $0c,  $e4, $cf, $0e,  $e7, $be, $0d,  $e8, $ad, $0a,  $ed, $bf, $0f,  $ee, $be, $0e,  $ef, $ac, $0c,  $f0, $be, $0f,  $f1, $bd, $0d,  $f2, $bf, $0e,  $f3, $8a, $0a,  $f4, $79, $09,  $f5, $77, $09,  $f6, $78, $09,  $f7, $bc, $0d,  $f8, $68, $08,  $f9, $67, $08,  $fa, $89, $0a,  $fb, $9b, $0a,  $fc, $21, $02,  $fd, $cc, $0a,  $fe, $87, $07,  $ff, $10, $00
+  .byte $16  ,  $64, $79, $0a,  $70, $7a, $0a,  $72, $7a, $0b,  $73, $8a, $0c,  $77, $8b, $0c,  $79, $9b, $0c,  $7a, $9c, $0c,  $8b, $9c, $0d,  $93, $9c, $0e,  $a8, $ad, $0f,  $ad, $bd, $0f,  $b2, $cd, $0f,  $b4, $7a, $09,  $b5, $8b, $0b,  $ba, $ac, $0e,  $bb, $7a, $08,  $bc, $8a, $0b,  $bd, $68, $07,  $be, $ae, $0d,  $c0, $ae, $0b,  $c1, $aa, $08,  $c4, $99, $07
+  .byte $06  ,  $23, $43, $02,  $38, $34, $01,  $69, $7a, $07,  $6d, $9c, $09,  $c6, $9c, $0b,  $ca, $ae, $0e
+  .byte $09  ,  $50, $02, $00,  $64, $57, $03,  $65, $89, $05,  $70, $fe, $0f,  $72, $8b, $0a,  $73, $9b, $0d,  $77, $9b, $0b,  $79, $dc, $0b,  $93, $21, $01
+  .byte $02  ,  $38, $69, $06,  $a8, $8b, $0c
+  .byte $02  ,  $1f, $46, $02,  $50, $ba, $0a
+  .byte $03  ,  $38, $13, $00,  $57, $02, $00,  $64, $bf, $09
+  .byte $02  ,  $50, $ed, $0f,  $65, $57, $06
+  .byte $00
+  .byte $01  ,  $1f, $cf, $09
+  .byte $02  ,  $50, $89, $05,  $65, $8a, $05
+  .byte $02  ,  $1f, $69, $05,  $38, $8b, $08
+  .byte $0a  ,  $57, $a9, $09,  $64, $02, $00,  $69, $13, $00,  $6d, $dd, $0f,  $72, $de, $0f,  $73, $98, $0a,  $77, $a9, $0b,  $79, $dc, $0e,  $7a, $12, $03,  $8b, $ba, $0c
+  .byte $09  ,  $1f, $9c, $09,  $38, $cb, $0d,  $a2, $88, $0a,  $a8, $99, $0b,  $ad, $aa, $0c,  $ae, $bb, $0d,  $b0, $cc, $0e,  $b1, $87, $09,  $b2, $df, $0e
+  .byte $0a  ,  $57, $34, $01,  $6d, $69, $05,  $70, $ed, $0f,  $7a, $ab, $0c,  $8b, $dd, $0f,  $b4, $ad, $0b,  $b5, $9c, $0d,  $b9, $57, $07,  $bb, $cb, $0a,  $bc, $dc, $0c
+  .byte $25  ,  $38, $57, $05,  $73, $57, $03,  $be, $cd, $0e,  $c0, $cf, $0d,  $c4, $33, $05,  $c6, $12, $04,  $c7, $bb, $0e,  $ca, $ab, $0d,  $cb, $cd, $0f,  $cd, $bc, $0e,  $ce, $9a, $0c,  $d0, $34, $06,  $d4, $22, $04,  $d7, $45, $07,  $d8, $cc, $0f,  $da, $df, $0f,  $dd, $56, $08,  $de, $33, $06,  $e0, $78, $0a,  $e1, $67, $09,  $e2, $ab, $0e,  $e4, $aa, $0d,  $e5, $56, $09,  $e7, $45, $08,  $ea, $44, $07,  $eb, $99, $0c,  $ed, $ba, $0d,  $ee, $fe, $0f,  $f0, $cf, $0f,  $f1, $9a, $0d,  $f2, $34, $07,  $f3, $89, $0c,  $f4, $bc, $0f,  $f8, $ab, $0f,  $fc, $9a, $0e,  $fd, $89, $0d,  $ff, $88, $0c
+  .byte $11  ,  $57, $a9, $09,  $6d, $87, $06,  $77, $ba, $0a,  $79, $ce, $09,  $8e, $7a, $07,  $aa, $36, $02,  $b5, $ba, $0c,  $b9, $9c, $0a,  $bb, $9c, $0c,  $bc, $9b, $0b,  $bd, $ad, $0f,  $bf, $ac, $0d,  $cc, $8a, $0b,  $cf, $9b, $0c,  $d5, $43, $04,  $d6, $68, $08,  $fb, $32, $03
+  .byte $09  ,  $69, $25, $02,  $9f, $58, $04,  $c6, $69, $05,  $e0, $76, $07,  $e7, $a9, $0a,  $ed, $12, $03,  $f2, $21, $02,  $f4, $dd, $0b,  $f9, $45, $09
+  .byte $15  ,  $1f, $be, $0b,  $70, $10, $01,  $73, $79, $04,  $79, $78, $04,  $8e, $47, $03,  $aa, $99, $07,  $b4, $32, $04,  $b9, $9c, $09,  $ba, $ad, $0b,  $bb, $ed, $0f,  $bc, $9c, $0b,  $bd, $ac, $0e,  $c0, $9b, $0b,  $c2, $ad, $0f,  $c5, $79, $0a,  $cc, $8a, $0a,  $cf, $8a, $0b,  $d6, $9b, $0c,  $d9, $ad, $0e,  $dc, $ac, $0b,  $f0, $9c, $0d
+  .byte $05  ,  $57, $10, $00,  $69, $57, $03,  $6d, $9c, $07,  $9f, $01, $02,  $c6, $88, $06
+  .byte $06  ,  $64, $36, $02,  $72, $69, $05,  $7a, $23, $00,  $8e, $34, $01,  $a2, $02, $00,  $a8, $87, $06
+  .byte $0a  ,  $1f, $a9, $09,  $57, $7a, $07,  $6d, $35, $04,  $77, $de, $0f,  $aa, $ab, $0c,  $ac, $88, $0a,  $ad, $99, $0b,  $ae, $33, $01,  $b0, $cb, $0a,  $b3, $ba, $0a
+  .byte $06  ,  $64, $69, $06,  $72, $22, $00,  $7a, $13, $02,  $8e, $aa, $0c,  $9f, $cc, $0e,  $a8, $99, $07
+  .byte $1f  ,  $1f, $68, $0c,  $57, $46, $05,  $77, $57, $06,  $8b, $57, $0a,  $aa, $79, $0e,  $ab, $8a, $0e,  $ad, $8a, $0f,  $b0, $35, $09,  $b1, $24, $08,  $b3, $24, $09,  $b4, $35, $0a,  $b5, $46, $0a,  $b9, $00, $05,  $ba, $01, $02,  $bb, $12, $05,  $bc, $00, $04,  $bd, $11, $04,  $be, $01, $03,  $bf, $bf, $09,  $c2, $02, $05,  $c5, $46, $09,  $c7, $12, $04,  $ca, $de, $0f,  $cb, $69, $05,  $cc, $87, $08,  $cd, $ba, $0b,  $cf, $ba, $0c,  $d3, $87, $09,  $d8, $ce, $0d,  $d9, $ab, $0d,  $e3, $bd, $0c
+  .byte $10  ,  $64, $a9, $09,  $68, $cf, $0c,  $72, $10, $00,  $7a, $cf, $0d,  $a8, $cf, $0e,  $c9, $be, $0b,  $e0, $cf, $0f,  $e4, $be, $0d,  $e8, $9c, $09,  $e9, $ad, $0a,  $eb, $34, $01,  $ef, $24, $01,  $f0, $ed, $0f,  $f4, $76, $07,  $f7, $65, $07,  $f8, $cd, $0e
+  .byte $12  ,  $1f, $24, $03,  $57, $69, $08,  $6d, $79, $09,  $70, $79, $08,  $77, $8b, $0c,  $8b, $8b, $0b,  $aa, $8a, $0a,  $ab, $7a, $0a,  $ad, $7a, $09,  $b0, $7a, $08,  $b1, $56, $03,  $b3, $69, $0a,  $b4, $8b, $0a,  $b5, $58, $06,  $b9, $69, $06,  $ba, $13, $00,  $bb, $10, $01,  $bc, $99, $07
+  .byte $02  ,  $64, $58, $04,  $7a, $a9, $09
+  .byte $02  ,  $1f, $57, $06,  $57, $cb, $0a
+  .byte $05  ,  $64, $57, $0a,  $68, $cb, $0b,  $6d, $00, $02,  $77, $35, $08,  $7a, $35, $05
+  .byte $0c  ,  $1f, $cf, $0c,  $57, $cf, $0d,  $6c, $8b, $08,  $70, $47, $04,  $72, $79, $09,  $8b, $ac, $0f,  $8e, $ab, $0f,  $aa, $bf, $0e,  $ab, $8a, $0a,  $ac, $9b, $0f,  $ad, $bd, $0f,  $b0, $cb, $0a
+  .byte $1c  ,  $64, $10, $00,  $68, $79, $0a,  $69, $69, $08,  $6d, $8b, $0d,  $77, $9c, $0e,  $7a, $9c, $0d,  $b3, $9c, $0c,  $b4, $8b, $0b,  $b5, $8b, $0a,  $b9, $79, $08,  $bc, $8b, $0c,  $bd, $7a, $0a,  $be, $7a, $09,  $bf, $69, $07,  $c2, $45, $02,  $c4, $58, $04,  $c5, $ad, $0b,  $c6, $9c, $0a,  $c7, $ad, $0d,  $cf, $9c, $0b,  $d0, $be, $0f,  $d1, $ad, $0e,  $d2, $ad, $0c,  $d3, $88, $0a,  $d4, $01, $02,  $d6, $aa, $0c,  $de, $66, $08,  $ea, $88, $06
+  .byte $0f  ,  $57, $69, $06,  $6c, $ae, $09,  $70, $dc, $0e,  $8b, $7a, $08,  $8e, $7a, $0c,  $a8, $ae, $0f,  $aa, $cf, $0e,  $ab, $8b, $09,  $ac, $cf, $0d,  $b0, $55, $07,  $eb, $34, $06,  $ed, $22, $04,  $f7, $21, $03,  $f9, $87, $09,  $fd, $8a, $0c
+  .byte $05  ,  $64, $7a, $07,  $69, $ba, $0c,  $6d, $57, $0a,  $bc, $9b, $0c,  $bf, $8b, $0c
+  .byte $04  ,  $57, $57, $03,  $68, $36, $03,  $72, $ce, $09,  $77, $cd, $09
+  .byte $07  ,  $1f, $10, $00,  $64, $58, $05,  $69, $34, $01,  $6d, $79, $0a,  $7a, $7a, $0b,  $8b, $9c, $0d,  $8e, $a9, $09
+  .byte $05  ,  $68, $9c, $07,  $72, $ba, $0c,  $77, $cf, $0c,  $a8, $57, $06,  $ac, $46, $02
+  .byte $03  ,  $57, $8b, $08,  $64, $57, $03,  $69, $35, $01
+  .byte $02  ,  $1f, $34, $01,  $68, $23, $00
+  .byte $03  ,  $57, $10, $00,  $64, $9c, $07,  $69, $87, $06
+  .byte $02  ,  $5d, $57, $03,  $6c, $22, $00
+  .byte $10  ,  $64, $36, $02,  $69, $47, $04,  $6d, $8b, $08,  $72, $35, $05,  $7a, $46, $06,  $8e, $24, $05,  $a8, $ad, $0f,  $aa, $7a, $0d,  $ab, $36, $09,  $ac, $24, $07,  $b4, $8a, $0e,  $b9, $14, $07,  $bd, $35, $09,  $be, $13, $07,  $bf, $24, $06,  $c1, $65, $03
+  .byte $03  ,  $1f, $9c, $07,  $5d, $46, $02,  $68, $ba, $0a
+  .byte $02  ,  $64, $7a, $07,  $69, $02, $01
+  .byte $0c  ,  $1f, $24, $03,  $5d, $79, $0a,  $68, $89, $0d,  $6d, $bf, $0e,  $72, $cf, $0e,  $7a, $bf, $0f,  $8b, $45, $09,  $8e, $33, $06,  $9f, $cf, $0d,  $a8, $44, $07,  $aa, $46, $02,  $ab, $a9, $09
+  .byte $05  ,  $69, $ba, $0a,  $6c, $57, $03,  $70, $ae, $0d,  $ac, $44, $06,  $ad, $34, $01
+  .byte $14  ,  $1f, $bf, $0a,  $5d, $02, $01,  $64, $25, $02,  $68, $13, $02,  $8b, $79, $08,  $8e, $7a, $07,  $9f, $68, $08,  $a8, $79, $09,  $aa, $7a, $09,  $ab, $8b, $08,  $b0, $8b, $09,  $b4, $7a, $08,  $b9, $bd, $0f,  $ba, $ad, $0f,  $bd, $8b, $0c,  $be, $9c, $0d,  $bf, $bd, $08,  $c1, $cf, $0d,  $c4, $a9, $09,  $d4, $22, $00
+  .byte $04  ,  $39, $47, $03,  $57, $13, $00,  $69, $57, $06,  $6d, $69, $07
+  .byte $04  ,  $5d, $10, $00,  $64, $aa, $08,  $6c, $98, $08,  $79, $87, $06
+  .byte $03  ,  $39, $ba, $0a,  $69, $57, $03,  $6d, $46, $02
+  .byte $0a  ,  $57, $69, $06,  $68, $13, $00,  $70, $46, $05,  $72, $35, $01,  $79, $69, $09,  $7a, $7a, $0a,  $8b, $8b, $0b,  $8e, $7a, $0b,  $a3, $cf, $0e,  $aa, $cd, $09
+  .byte $0a  ,  $39, $36, $03,  $4c, $9c, $07,  $6d, $bc, $08,  $a1, $ab, $07,  $a5, $dc, $0d,  $ab, $68, $04,  $ac, $cb, $0c,  $ad, $ae, $0d,  $b0, $55, $07,  $b4, $cb, $0b
+  .byte $10  ,  $57, $58, $05,  $5c, $7a, $07,  $64, $8b, $08,  $68, $58, $04,  $69, $13, $00,  $70, $69, $07,  $72, $35, $04,  $79, $34, $01,  $7a, $ad, $08,  $8b, $ed, $0e,  $8e, $9d, $0b,  $9f, $bf, $0e,  $a8, $ce, $09,  $ae, $aa, $08,  $b3, $ba, $0a,  $b5, $79, $08
+  .byte $03  ,  $39, $33, $01,  $5d, $98, $07,  $6d, $66, $03
+  .byte $0c  ,  $69, $57, $03,  $70, $13, $00,  $72, $46, $02,  $8e, $79, $09,  $9f, $7a, $09,  $a1, $8b, $0a,  $a8, $bc, $08,  $aa, $ac, $0e,  $ac, $8b, $0b,  $ad, $cb, $0c,  $ae, $ae, $0a,  $b0, $aa, $08
+  .byte $02  ,  $68, $87, $06,  $6d, $a9, $08
+  .byte $00
+  .byte $05  ,  $4c, $10, $00,  $5d, $47, $04,  $68, $69, $06,  $6d, $58, $04,  $8e, $36, $03
+  .byte $02  ,  $39, $9c, $07,  $57, $33, $01
+  .byte $06  ,  $4c, $98, $07,  $5d, $58, $05,  $72, $47, $03,  $9f, $36, $02,  $a1, $46, $02,  $a3, $ba, $09
+  .byte $00
+  
+; FIXME: added another 0 here!  
+  .byte $00
 
     .include utils/x16.s
     .include utils/utils.s
