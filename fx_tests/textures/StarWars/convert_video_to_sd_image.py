@@ -7,9 +7,7 @@ from operator import itemgetter
 source_image_filename_prefix = "C:/ffmpeg/output/output_" # 0001.png"
 #source_image_filename_prefix = "Walker/output_" # 0001.png"
 video_pixel_data_filename = "walker_sdcard.img"
-# FIXME!
-nr_of_frames = 400
-#nr_of_frames = 968
+nr_of_frames = 968
 #nr_of_frames = 157
 image_width = 320
 image_height = 136
