@@ -1,20 +1,29 @@
 from PIL import Image
 import hashlib
 import sys
+from operator import itemgetter
 
 # FIXME: 
-source_image_filename_prefix = "Walker/output_" # 0001.png"
+source_image_filename_prefix = "C:/ffmpeg/output/output_" # 0001.png"
+#source_image_filename_prefix = "Walker/output_" # 0001.png"
 video_pixel_data_filename = "walker_sdcard.img"
-nr_of_frames = 157
+# FIXME!
+nr_of_frames = 400
+#nr_of_frames = 968
+#nr_of_frames = 157
 image_width = 320
 image_height = 136
 
 
 def get_color_str(pixel):
     red = pixel[0]
+# FIXME!
+#    red = red & 0xE0
     red = red & 0xF0
 
     green = pixel[1]
+# FIXME!
+#    green = green & 0xE0
     green = green & 0xF0
 
     blue = pixel[2]
@@ -22,14 +31,14 @@ def get_color_str(pixel):
     
     color_str = format(red, "02x") + format(green, "02x") + format(blue, "02x") 
     
-    return (color_str, red, green, blue)
+    return (color_str, (red, green, blue))
     
 def add_frame_pixels_to_video_pixel_data(video_pixel_data, frame_pixels, frame_colors_to_palette_index):
 
     for y in range(image_height):
         for x in range(image_width):
             pixel = frame_pixels[x, y]
-            (color_str, red, green, blue) = get_color_str(pixel)
+            (color_str, rgb) = get_color_str(pixel)
             palette_color_index = frame_colors_to_palette_index[color_str]
             video_pixel_data.append(palette_color_index)
 
@@ -37,13 +46,32 @@ def get_free_palette_color_index(used_palette_color_indexes, current_frame_index
     free_palette_color_index = None
     for palette_color_index in used_palette_color_indexes:
         # If the frame is still available or is used by a frame before the previous frame, its free
-        if ((used_palette_color_indexes[palette_color_index] is None) or
-             used_palette_color_indexes[palette_color_index] < current_frame_index - 1):
+        (frame_index, rgb) = used_palette_color_indexes[palette_color_index]
+        if ((frame_index is None) or
+             frame_index < current_frame_index - 1):
              free_palette_color_index =  palette_color_index
              break
             
     return free_palette_color_index
     
+def get_rgb_from_color_str(color_str):
+    red_value = int(color_str[0:2], 16)
+    green_value = int(color_str[2:4], 16)
+    blue_value = int(color_str[4:6], 16)
+    
+    return (red_value, green_value, blue_value)
+    
+def get_score(color_str, pixel):
+    red_value = int(color_str[0:2], 16)
+    green_value = int(color_str[2:4], 16)
+    blue_value = int(color_str[4:6], 16)
+    
+    score_color = 0
+    score_color += abs(red_value - pixel[0])
+    score_color += abs(green_value - pixel[1])
+    score_color += abs(blue_value - pixel[2])
+    
+    return score_color
     
 def find_closely_matching_color(pixel, frame_colors_to_palette_index):
     
@@ -55,81 +83,13 @@ def find_closely_matching_color(pixel, frame_colors_to_palette_index):
     for color_str in current_frame_colors_to_palette_index:
         palette_color_index = current_frame_colors_to_palette_index[color_str]
         
-        red_value = int(color_str[0:2], 16)
-        green_value = int(color_str[2:4], 16)
-        blue_value = int(color_str[4:6], 16)
-        
-        score_color = 0
-        score_color += abs(red_value - pixel[0])
-        score_color += abs(green_value - pixel[1])
-        score_color += abs(blue_value - pixel[2])
-        
-        #print(color_str, red_value, green_value, blue_value)
-        #print(pixel)
-        #print(score_color)
+        score_color = get_score(color_str, pixel)
         
         if (score_color < best_score):
             closely_matching_palette_color_index = palette_color_index
             best_score = score_color
     
-    
-    '''
-    # We try several closely matching colors: red (0) +1/-1, green (1) +1/-1, blue (2) +1/-1
-    delta_tries = [(1,0,0),(0,1,0),(0,0,1),(-1,0,0),(0,-1,0),(0,0,-1), 
-                   (1,1,0),(0,1,1),(1,0,1),(-1,-1,0),(0,-1,-1),(-1,0,-1),
-                   (1,-1,0),(0,1,-1),(1,0,-1),(-1,1,0),(0,-1,1),(-1,0,1),
-                   (-1,1,1),(1,-1,-1),(1,1,-1),(-1,-1,1),(1,-1,1),(-1,1,-1),
-                   (1,1,1),(-1,-1,-1)]
-    
-    for (delta_red, delta_green, delta_blue) in delta_tries:
-        red = pixel[0]
-        red = red & 0xF0
-
-        green = pixel[1]
-        green = green & 0xF0
-
-        blue = pixel[2]
-        blue = blue & 0xF0
-        
-        if (delta_red > 0):
-            red += delta_red*16
-            if red > 255:
-                continue
-        elif (delta_red < 0):
-            red += delta_red*16
-            if red < 0:
-                continue
-                
-        if (delta_green > 0):
-            green += delta_green*16
-            if green > 255:
-                continue
-        elif (delta_green < 0):
-            green += delta_green*16
-            if green < 0:
-                continue
-                
-        if (delta_blue > 0):
-            blue += delta_blue*16
-            if blue > 255:
-                continue
-        elif (delta_blue < 0):
-            blue += delta_blue*16
-            if blue < 0:
-                continue
-   
-        color_str = format(red, "02x") + format(green, "02x") + format(blue, "02x") 
-        
-        (orig_color_str, orig_red, orig_green, orig_blue) = get_color_str(pixel)
-        #print("trying to find color for: " + orig_color_str + ", trying: " + color_str)
-        
-        if color_str in current_frame_colors_to_palette_index:
-            closely_matching_palette_color_index = current_frame_colors_to_palette_index[color_str]
-            # print("found closely matching color for: " + orig_color_str + ", namely: " + color_str)
-            break
-    '''
-    
-    return closely_matching_palette_color_index
+    return (closely_matching_palette_color_index, best_score)
     
             
 # FIXME: we should instead try to find a *good matching* 256-color (or 128-color?) palette!
@@ -140,9 +100,10 @@ initial_palette_colors = []
 current_frame_colors_to_palette_index = {}
 
 used_palette_color_indexes = {}
-used_palette_color_indexes[0] = 999999  # Note: we dont want to touch color 0 (it is now used by frame 999999, we its never freed up)
+# FIXME: we might want to make the black color available for (nearly dark) pixels!
+used_palette_color_indexes[0] = ( 999999, None )  # Note: we dont want to touch color 0 (it is now used by frame 999999, we its never freed up)
 for palette_color_index in range(1,256):
-    used_palette_color_indexes[palette_color_index] = None
+    used_palette_color_indexes[palette_color_index] = (None, None) # no frame index, no color
 
 # -- Determine the initial palette colors --
 
@@ -160,14 +121,14 @@ for y in range(image_height):
     for x in range(image_width):
         pixel = frame_pixels[x, y]
         
-        (color_str, red, green, blue) = get_color_str(pixel)
+        (color_str, rgb) = get_color_str(pixel)
 
         if color_str in current_frame_colors_to_palette_index:
             pass
         else:
             current_frame_colors_to_palette_index[color_str] = palette_color_index
-            initial_palette_colors.append((red, green, blue))
-            used_palette_color_indexes[palette_color_index] = frame_index
+            initial_palette_colors.append(rgb)
+            used_palette_color_indexes[palette_color_index] = (frame_index, rgb)
             palette_color_index += 1
             
             # If we exceed 255 for the first frame, we need to deal with that
@@ -178,9 +139,6 @@ for y in range(image_height):
 # We add the pixels of the first frame to the video pixel data
 add_frame_pixels_to_video_pixel_data(video_pixel_data, frame_pixels, current_frame_colors_to_palette_index)
         
-        
-    
-
 added_frame_palette_colors_per_frame = []
 for frame_index in range(1, nr_of_frames):
 
@@ -191,56 +149,229 @@ for frame_index in range(1, nr_of_frames):
     frame_pixels = im.load()
     
     added_frame_palette_colors = []
-    
-    # print(used_palette_color_indexes)
 
+    # FIXME: I think we are now rounding *DOWN* pixels (24 bits) to rgb12-values. We should consider rounding NORMALLY?
+
+    # print(used_palette_color_indexes)
+    
+    colors_that_need_palette_color_index = {}
+    colors_that_already_have_palette_color_index = {}
+    for y in range(image_height):
+        for x in range(image_width):
+            pixel = frame_pixels[x, y]
+            
+            (color_str, rgb) = get_color_str(pixel)
+            
+            if ((color_str in colors_that_need_palette_color_index) or
+               (color_str in colors_that_already_have_palette_color_index)):
+                continue
+            
+            if color_str in current_frame_colors_to_palette_index:
+                old_palette_color_index = current_frame_colors_to_palette_index[color_str]
+                (old_frame_index, old_rgb) = used_palette_color_indexes[old_palette_color_index]
+                
+                (old_color_str, old_rgb) = get_color_str(old_rgb)
+                if (old_color_str != color_str):
+                    # Not a perfect match, we get the current score
+                    score = get_score(old_color_str, rgb)
+                    
+                    # We are re-CLAIMING this imperfect color!
+                    used_palette_color_indexes[old_palette_color_index] = (frame_index, old_rgb)
+                else:
+                    # Perfect match
+                    score = 0
+                    
+                    # We are re-CLAIMING this perfect color!
+                    used_palette_color_indexes[old_palette_color_index] = (frame_index, old_rgb)
+
+                colors_that_already_have_palette_color_index[color_str] = score
+            else:
+                    
+                (palette_color_index, score) = find_closely_matching_color(pixel, current_frame_colors_to_palette_index)
+                
+                if palette_color_index is None:
+                    # FIXME: we need to be able to deal with this situation!
+                    sys.exit("Could not find a free (or closely matching) palette color index!")
+                    
+                colors_that_need_palette_color_index[color_str] = score
+            
+    colors_that_need_palette_color_index_sorted = sorted(colors_that_need_palette_color_index.items(), key=lambda item: item[1], reverse=True)
+    print("colors that need palette color index: " + str(len(colors_that_need_palette_color_index_sorted)))
+    #print(colors_that_need_palette_color_index_sorted)
+    for (color_str, score) in colors_that_need_palette_color_index_sorted:
+    
+        rgb = get_rgb_from_color_str(color_str)
+        
+        # We need a NEW color, so we need a FREE palette_color_index!
+        palette_color_index = get_free_palette_color_index(used_palette_color_indexes, frame_index)
+        
+        if palette_color_index is not None:
+            # We have to remove the color_string that used this old color_palette_index
+            # FIXME: this is SLOW!
+            color_strings = list(current_frame_colors_to_palette_index.keys())
+            for check_color_str in color_strings:
+                if (current_frame_colors_to_palette_index[check_color_str] == palette_color_index):
+                    # print('deleting old color: ' + check_color_str)
+                    del current_frame_colors_to_palette_index[check_color_str]
+            
+            current_frame_colors_to_palette_index[color_str] = palette_color_index
+            used_palette_color_indexes[palette_color_index] = (frame_index, rgb)
+            added_frame_palette_colors.append((palette_color_index, rgb))
+        else:
+            # If we dont have an EXACT match of the color AND we dont have room for a new color, we need to find a closely matching color
+            
+            # FIXME: in a LATER frame we want to replace this color with the EXACT color. We dont do that now. So this color can stay a litte off for a long time!
+            (palette_color_index, score) = find_closely_matching_color(rgb, current_frame_colors_to_palette_index)
+            
+            if palette_color_index is None:
+                # FIXME: we need to be able to deal with this situation!
+                sys.exit("Could not find a free (or closely matching) palette color index!")
+        
+            current_frame_colors_to_palette_index[color_str] = palette_color_index
+            (old_frame_index, old_rgb) = used_palette_color_indexes[palette_color_index]
+            used_palette_color_indexes[palette_color_index] = (frame_index, old_rgb)
+
+                
+    colors_that_already_have_palette_color_index_sorted = sorted(colors_that_already_have_palette_color_index.items(), key=lambda item: item[1], reverse=True)
+    print("colors that already have palette color index: " + str(len(colors_that_already_have_palette_color_index_sorted)))
+    #print(colors_that_already_have_palette_color_index_sorted)
+    for (color_str, score) in colors_that_already_have_palette_color_index_sorted:
+    
+        rgb = get_rgb_from_color_str(color_str)
+        
+        if score != 0:
+        
+            # We have a *close* palette color. So we want to try to create a *exact* palette color 
+        
+            # We need a NEW color, so we need a FREE palette_color_index!
+            palette_color_index = get_free_palette_color_index(used_palette_color_indexes, frame_index)
+            
+            if palette_color_index is not None:
+                print("improving color: " + color_str)
+
+                # The to-be-improved color is going to have its own unique value, but it first needs to be detached from the close value
+                del current_frame_colors_to_palette_index[color_str]
+
+                # We have to remove the color_string that used this old color_palette_index
+                # FIXME: this is SLOW!
+                color_strings = list(current_frame_colors_to_palette_index.keys())
+                for check_color_str in color_strings:
+                    if (current_frame_colors_to_palette_index[check_color_str] == palette_color_index):
+                        # print('deleting old color: ' + check_color_str)
+                        del current_frame_colors_to_palette_index[check_color_str]
+                
+                current_frame_colors_to_palette_index[color_str] = palette_color_index
+                used_palette_color_indexes[palette_color_index] = (frame_index, rgb)
+                added_frame_palette_colors.append((palette_color_index, rgb))
+            
+            else:
+                # There is no more room, we stop trying to improve colors
+                print("could not improve colors anymore, due to lack of room")
+                
+                # FIXME: SPEED: we should probably BREAK here!
+                    
+                # Nothing left to do: we use the (old) close color, its the best we can do (we already re-claimed it for this frame)
+                pass
+        
+        else:
+            # If we already have a perfect score there is nothing left to do for this color (we already re-claimed it for this frame)
+            pass
+        
+    
+    '''
     # We first determine all unique 12-bit COLORS, so we can re-index the image (pixels) with the new color indexes
     for y in range(image_height):
         for x in range(image_width):
             pixel = frame_pixels[x, y]
             
-            (color_str, red, green, blue) = get_color_str(pixel)
+            (color_str, rgb) = get_color_str(pixel)
             
-# FIXME: we are NOT USING old_color_index_to_new_color_index right now!
             if color_str in current_frame_colors_to_palette_index:
-                palette_color_index = current_frame_colors_to_palette_index[color_str]
-                used_palette_color_indexes[palette_color_index] = frame_index
+                old_palette_color_index = current_frame_colors_to_palette_index[color_str]
+                (old_frame_index, old_rgb) = used_palette_color_indexes[old_palette_color_index]
+                
+                (old_color_str, old_rgb) = get_color_str(old_rgb)
+                if (old_color_str != color_str):
+                    # print(old_color_str + " <-> " + color_str)
+                
+                    # We have a *close* palette color. So we want to try to create a *exact* palette color 
+                
+                    # We need a NEW color, so we need a FREE palette_color_index!
+                    palette_color_index = get_free_palette_color_index(used_palette_color_indexes, frame_index)
+                    
+                    if palette_color_index is not None:
+                        print("improving color: " + color_str)
+
+                        # The to-be-improved color is going to have its own unique value, but it first needs to be detached from the close value
+                        del current_frame_colors_to_palette_index[color_str]
+
+                        # We have to remove the color_string that used this old color_palette_index
+                        # FIXME: this is SLOW!
+                        color_strings = list(current_frame_colors_to_palette_index.keys())
+                        for check_color_str in color_strings:
+                            if (current_frame_colors_to_palette_index[check_color_str] == palette_color_index):
+                                # print('deleting old color: ' + check_color_str)
+                                del current_frame_colors_to_palette_index[check_color_str]
+                        
+                        current_frame_colors_to_palette_index[color_str] = palette_color_index
+                        used_palette_color_indexes[palette_color_index] = (frame_index, rgb)
+                        added_frame_palette_colors.append((palette_color_index, rgb))
+                    
+                    else:
+                        # There is no more room, we stop trying to improve colors
+                        # print("could not improve colors anymore, due to lack of room")
+                        
+                        # We fould the (old) close color, its the best we can do
+                        used_palette_color_indexes[old_palette_color_index] = (frame_index, old_rgb)
+                
+                else:
+                    # We fould the exact color, all is ok
+                    used_palette_color_indexes[old_palette_color_index] = (frame_index, old_rgb)
             else:
                 # We need a NEW color, so we need a FREE palette_color_index!
                 palette_color_index = get_free_palette_color_index(used_palette_color_indexes, frame_index)
                 
                 if palette_color_index is not None:
                     # We have to remove the color_string that used this old color_palette_index
-                    # FIXME: this is SLOW!
+                    # FIXME: this is SLOW! -> USE palette_color_index_used_by_frame_colors instead!
                     color_strings = list(current_frame_colors_to_palette_index.keys())
                     for check_color_str in color_strings:
                         if (current_frame_colors_to_palette_index[check_color_str] == palette_color_index):
                             # print('deleting old color: ' + check_color_str)
                             del current_frame_colors_to_palette_index[check_color_str]
+                            del palette_color_index_used_by_frame_colors[palette_color_index][check_color_str]
+
                     
                     current_frame_colors_to_palette_index[color_str] = palette_color_index
-                    used_palette_color_indexes[palette_color_index] = frame_index
-                    added_frame_palette_colors.append((palette_color_index, red, green, blue))
+                    palette_color_index_used_by_frame_colors[palette_color_index] = {}
+                    palette_color_index_used_by_frame_colors[palette_color_index][color_str] = True
+                    used_palette_color_indexes[palette_color_index] = (frame_index, rgb)
+                    added_frame_palette_colors.append((palette_color_index, rgb))
                 else:
                     # If we cant find an EXACT match of the color AND we dont have room for a new color, we need to find a closely matching color
                     
                     # FIXME: in a LATER frame we want to replace this color with the EXACT color. We dont do that now. So this color can stay a litte off for a long time!
-                    palette_color_index = find_closely_matching_color(pixel, current_frame_colors_to_palette_index)
+                    (palette_color_index, score) = find_closely_matching_color(pixel, current_frame_colors_to_palette_index)
                     
                     if palette_color_index is None:
                         # FIXME: we need to be able to deal with this situation!
                         sys.exit("Could not find a free (or closely matching) palette color index!")
                 
                     current_frame_colors_to_palette_index[color_str] = palette_color_index
-                    used_palette_color_indexes[palette_color_index] = frame_index
+                    palette_color_index_used_by_frame_colors[palette_color_index][color_str] = True
+                    (old_frame_index, old_rgb) = used_palette_color_indexes[palette_color_index]
+                    used_palette_color_indexes[palette_color_index] = (frame_index, old_rgb)
+    '''
 
     if False:
         nr_of_palette_colors_used_in_current_frame = 0
         for palette_color_index in used_palette_color_indexes:
-            check_frame_index = used_palette_color_indexes[palette_color_index]
+            (check_frame_index, rgb) = used_palette_color_indexes[palette_color_index]
             if (check_frame_index == frame_index):
                 nr_of_palette_colors_used_in_current_frame += 1
-        print("Nr of palette colros used in current frame: " + str(nr_of_palette_colors_used_in_current_frame))
+        print("Nr of palette colors used in current frame: " + str(nr_of_palette_colors_used_in_current_frame))
+        
+    
             
     # print(current_frame_colors_to_palette_index)
     
@@ -258,10 +389,10 @@ print()
 
 # Printing out asm for initial palette:
 palette_string = "palette_data: \n"
-for palette_color in initial_palette_colors:
-    red = palette_color[0]
-    green = palette_color[1]
-    blue = palette_color[2]
+for rgb in initial_palette_colors:
+    red = rgb[0]
+    green = rgb[1]
+    blue = rgb[2]
 
     red = red >> 4
     blue = blue >> 4
@@ -285,9 +416,11 @@ for added_frame_palette_colors in added_frame_palette_colors_per_frame:
     
     for palette_color in added_frame_palette_colors:
         palette_color_index = palette_color[0]
-        red = palette_color[1]
-        green = palette_color[2]
-        blue = palette_color[3]
+        rgb = palette_color[1]
+        
+        red = rgb[0]
+        green = rgb[1]
+        blue = rgb[2]
 
         red = red >> 4
         blue = blue >> 4
