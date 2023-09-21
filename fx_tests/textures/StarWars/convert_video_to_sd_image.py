@@ -7,7 +7,7 @@ from operator import itemgetter
 source_image_filename_prefix = "C:/ffmpeg/output/output_" # 0001.png"
 #source_image_filename_prefix = "Walker/output_" # 0001.png"
 video_pixel_data_filename = "walker_sdcard.img"
-nr_of_frames = 968
+nr_of_frames = 100
 #nr_of_frames = 157
 image_width = 320
 image_height = 136
@@ -15,13 +15,9 @@ image_height = 136
 
 def get_color_str(pixel):
     red = pixel[0]
-# FIXME!
-#    red = red & 0xE0
     red = red & 0xF0
 
     green = pixel[1]
-# FIXME!
-#    green = green & 0xE0
     green = green & 0xF0
 
     blue = pixel[2]
@@ -266,10 +262,11 @@ for frame_index in range(1, nr_of_frames):
                 # There is no more room, we stop trying to improve colors
                 print("could not improve colors anymore, due to lack of room")
                 
-                # FIXME: SPEED: we should probably BREAK here!
-                    
                 # Nothing left to do: we use the (old) close color, its the best we can do (we already re-claimed it for this frame)
-                pass
+                
+                # FIXME: SPEED: we should probably BREAK here!
+                # pass
+                break
         
         else:
             # If we already have a perfect score there is nothing left to do for this color (we already re-claimed it for this frame)
