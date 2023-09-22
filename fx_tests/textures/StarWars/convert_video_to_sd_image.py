@@ -6,11 +6,14 @@ from operator import itemgetter
 # FIXME: 
 source_image_filename_prefix = "C:/ffmpeg/output/output_" # 0001.png"
 #source_image_filename_prefix = "Walker/output_" # 0001.png"
-video_pixel_data_filename = "walker_sdcard.img"
+video_data_filename = "walker_sdcard.img"
 nr_of_frames = 100
 #nr_of_frames = 157
 image_width = 320
 image_height = 136
+
+# FIXME: Load audio binary as array: https://stackoverflow.com/questions/41498630/how-to-read-binary-file-data-into-arrays
+
 
 
 def get_color_str(pixel):
@@ -27,14 +30,40 @@ def get_color_str(pixel):
     
     return (color_str, (red, green, blue))
     
-def add_frame_pixels_to_video_pixel_data(video_pixel_data, frame_pixels, frame_colors_to_palette_index):
+def add_frame_data_to_video_data(video_data, frame_pixels, frame_colors_to_palette_index):
 
-    for y in range(image_height):
+    # We add 6 sectors of audio (6 * 512 bytes)
+    # We add 1 sector of palette (1 * 512 bytes)
+    # We add 30 sectors of video (30 * 512 bytes = 48 lines of 320px)
+    # We add 3 sectors of audio (2 * 512 + 70 audio bytes + 186 dummy/filler bytes)
+    # We add 55 sectors of video (55 * 512 bytes = 88 lines of 320px)
+    
+    # FIXME: add REAL audio data!
+    for n in range(6*512):
+        video_data.append(250)
+
+    # FIXME: add REAL palette data!
+#    for n in range(1*512):
+#        video_data.append(0)
+
+    for y in range(0, 48):
         for x in range(image_width):
             pixel = frame_pixels[x, y]
             (color_str, rgb) = get_color_str(pixel)
             palette_color_index = frame_colors_to_palette_index[color_str]
-            video_pixel_data.append(palette_color_index)
+            video_data.append(palette_color_index)
+            
+    # FIXME: add REAL audio data!
+    for n in range(3*512):
+        video_data.append(255)
+            
+    for y in range(48, 136):
+        for x in range(image_width):
+            pixel = frame_pixels[x, y]
+            (color_str, rgb) = get_color_str(pixel)
+            palette_color_index = frame_colors_to_palette_index[color_str]
+            video_data.append(palette_color_index)
+    
 
 def get_free_palette_color_index(used_palette_color_indexes, current_frame_index):
     free_palette_color_index = None
@@ -88,7 +117,7 @@ def find_closely_matching_color(pixel, frame_colors_to_palette_index):
             
 # FIXME: we should instead try to find a *good matching* 256-color (or 128-color?) palette!
 
-video_pixel_data = []
+video_data = []
 initial_palette_colors = []
 
 current_frame_colors_to_palette_index = {}
@@ -130,8 +159,8 @@ for y in range(image_height):
                 # FIXME: we need to be able to deal with this situation!
                 sys.exit("First frame has more than 255 colors!")
             
-# We add the pixels of the first frame to the video pixel data
-add_frame_pixels_to_video_pixel_data(video_pixel_data, frame_pixels, current_frame_colors_to_palette_index)
+# We add the data of the first frame to the video data
+add_frame_data_to_video_data(video_data, frame_pixels, current_frame_colors_to_palette_index)
         
 added_frame_palette_colors_per_frame = []
 for frame_index in range(1, nr_of_frames):
@@ -371,7 +400,7 @@ for frame_index in range(1, nr_of_frames):
     # print(current_frame_colors_to_palette_index)
     
     # We add the pixels of this frame to the video pixel data
-    add_frame_pixels_to_video_pixel_data(video_pixel_data, frame_pixels, current_frame_colors_to_palette_index)
+    add_frame_data_to_video_data(video_data, frame_pixels, current_frame_colors_to_palette_index)
     
     # print(used_palette_color_indexes)
     #
@@ -428,12 +457,10 @@ for added_frame_palette_colors in added_frame_palette_colors_per_frame:
 
 print(palette_changes_string)
 
-# FIXME!
-# video_pixel_data = video_pixel_data * 30
     
-videoFile = open(video_pixel_data_filename, "wb")
-videoFile.write(bytearray(video_pixel_data))
+videoFile = open(video_data_filename, "wb")
+videoFile.write(bytearray(video_data))
 videoFile.close()
-print("video pixel data written to file: " + video_pixel_data_filename)
+print("video pixel data written to file: " + video_data_filename)
 
 

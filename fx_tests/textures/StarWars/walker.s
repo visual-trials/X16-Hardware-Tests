@@ -81,19 +81,16 @@ MBR_FAST_H     = $8500
 
 ; Format:
 
-; Prefix:
-; 6 sectors of audio
-
 ; Each frame:
-; 2 sectors of palette
-; 28 sectors of video
-; 3 sectors of audio (last sector is NOT full!)
-; 57 sectors of video
 ; 6 sectors of audio
+; 1 sector of palette
+; 30 sectors of video
+; 3 sectors of audio (last sector is NOT full!)
+; 55 sectors of video
 
 ; 1 frame of video = 85 sectors of VIDEO = 136*320 / 512 ; Note (320x136 resolution): 136 * 320 = 170 * 256 = 85 * 512 bytes (1 sector = 512 bytes)
-NR_OF_SECTORS_TO_COPY_FIRST_HALF = 28
-NR_OF_SECTORS_TO_COPY_SECOND_HALF = 57
+NR_OF_SECTORS_TO_COPY_FIRST_HALF = 30  ; 48 lines of 320px
+NR_OF_SECTORS_TO_COPY_SECOND_HALF = 55 ; 88 lines of 320px
 NUMBER_OF_FRAMES = 968
 ;NUMBER_OF_FRAMES = 157
 
@@ -207,20 +204,7 @@ start_movie:
     lda #%10101111       ; Reset FIFO, 16bit mono, max volume
     sta VERA_AUDIO_CTRL
 
-    ; We START with loading 6 sectors of AUDIO (since COMMAND18_INITIATED is not initiated, this will seek to the SECTOR_NUMBER first)
-    stz COPY_TO_VRAM_OR_AUDIO ; set to load audio
-    stz PARTIAL_AUDIO_COPY
-    jsr walker_vera_read_sector
-    jsr walker_vera_read_sector
-    jsr walker_vera_read_sector
-    jsr walker_vera_read_sector
-    jsr walker_vera_read_sector
-    jsr walker_vera_read_sector
-
-    lda #1
-    stz COPY_TO_VRAM_OR_AUDIO ; set to load VRAM
-    
-; FIXME: we should load 2 *sectors* of palette instead!
+; FIXME: we should load 1 *sector* of palette instead!
 
     jsr copy_palette_from_index_1
 
@@ -230,9 +214,10 @@ start_movie:
     lda #>palette_changes_per_frame
     sta PALETTE_CHANGE_ADDRESS+1
 
+; FIXME! Instead of this, keep track of whether you started! If not, then set to 1 and start! (but AFTER the first 6 sectors of audio load!)
 ; FIXME: as long as we dont do double buffering, we START playing the AUDIO here!
-    lda #AUDIO_RATE              ; Audio rate
-    sta VERA_AUDIO_RATE
+;    lda #AUDIO_RATE              ; Audio rate
+;    sta VERA_AUDIO_RATE
     
 next_frame:
 
@@ -261,25 +246,40 @@ infinite_loop:
 
 load_and_draw_frame:
 
-    ; -- loading 2 sectors of PALETTE --
+    ; -- loading 6 sectors of AUDIO (last one is not full) --
+    
+    stz COPY_TO_VRAM_OR_AUDIO ; set to load AUDIO
+    stz PARTIAL_AUDIO_COPY
+    
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
 
-    ; FIXME: we should load 2 *sectors* of palette instead!
+    ; -- loading 1 sector of PALETTE --
+
+    ; FIXME: we should load 1 *sector* of palette instead!
     .if(0)
+        lda #1
+        sta COPY_TO_VRAM_OR_AUDIO ; set to load VRAM
+        
+        lda #<VERA_PALETTE
+        sta VERA_ADDR_LOW
+        lda #>VERA_PALETTE
+        sta VERA_ADDR_HIGH
+        lda #%00010001      ; setting bit 16 of vram address to 1, setting auto-increment value to 1
+        sta VERA_ADDR_BANK
+        
+        jsr walker_vera_read_sector
+    .endif
+
+    ; -- loading 30 sectors of VIDEO (48 lines of 320px) --
+    ; FIXME: no need to set this if we just dod the palette load!
     lda #1
     sta COPY_TO_VRAM_OR_AUDIO ; set to load VRAM
     
-    lda #<VERA_PALETTE
-    sta VERA_ADDR_LOW
-    lda #>VERA_PALETTE
-    sta VERA_ADDR_HIGH
-    lda #%00010001      ; setting bit 16 of vram address to 1, setting auto-increment value to 1
-    sta VERA_ADDR_BANK
-    
-    jsr walker_vera_read_sector
-    jsr walker_vera_read_sector
-    .endif
-
-    ; -- loading 28 sectors of VIDEO --
     lda #0
     sta VERA_ADDR_LOW
     sta VERA_ADDR_HIGH
@@ -294,25 +294,10 @@ next_sector_to_copy_first_half:
 
     jsr walker_vera_read_sector
 
-    ; Incrementing the SECTOR_NUMBER is NOT NEEDED when using MULTI-sector reads
-    .if(!DO_MULTI_SECTOR_READS)
-        inc SECTOR_NUMBER
-        bne sector_number_is_incremented_first_half
-        inc SECTOR_NUMBER+1
-        bne sector_number_is_incremented_first_half
-        inc SECTOR_NUMBER+2
-        bne sector_number_is_incremented_first_half
-        inc SECTOR_NUMBER+3
-        bne sector_number_is_incremented_first_half
-        
-sector_number_is_incremented_first_half:
-    .endif
-    
     dec NR_OF_SECTORS_TODO
     bne next_sector_to_copy_first_half
 
 
-; FIXME: we also need to be able to load only a FEW BYTES into audio!
     ; -- loading 3 sectors of AUDIO (last one is not full) --
     
     stz COPY_TO_VRAM_OR_AUDIO ; set to load AUDIO
@@ -320,11 +305,13 @@ sector_number_is_incremented_first_half:
     
     jsr walker_vera_read_sector
     jsr walker_vera_read_sector
-; FIXME: implement PARTIAL COPY!
     lda #1
     sta PARTIAL_AUDIO_COPY
     jsr walker_vera_read_sector
 
+    lda #1
+    sta COPY_TO_VRAM_OR_AUDIO ; set to load VRAM
+    
     lda #NR_OF_SECTORS_TO_COPY_SECOND_HALF
     sta NR_OF_SECTORS_TODO
     
@@ -332,33 +319,8 @@ next_sector_to_copy_second_half:
 
     jsr walker_vera_read_sector
 
-    ; Incrementing the SECTOR_NUMBER is NOT NEEDED when using MULTI-sector reads
-    .if(!DO_MULTI_SECTOR_READS)
-        inc SECTOR_NUMBER
-        bne sector_number_is_incremented_second_half
-        inc SECTOR_NUMBER+1
-        bne sector_number_is_incremented_second_half
-        inc SECTOR_NUMBER+2
-        bne sector_number_is_incremented_second_half
-        inc SECTOR_NUMBER+3
-        bne sector_number_is_incremented_second_half
-sector_number_is_incremented_second_half:
-    .endif
-    
     dec NR_OF_SECTORS_TODO
     bne next_sector_to_copy_second_half
-
-    ; -- loading 6 sectors of AUDIO (last one is not full) --
-    
-    stz COPY_TO_VRAM_OR_AUDIO ; set to load AUDIO
-    stz PARTIAL_AUDIO_COPY
-    
-    jsr walker_vera_read_sector
-    jsr walker_vera_read_sector
-    jsr walker_vera_read_sector
-    jsr walker_vera_read_sector
-    jsr walker_vera_read_sector
-    jsr walker_vera_read_sector
 
     rts
     
@@ -811,8 +773,21 @@ walker_done_reading_sector_do_not_proceed:
     rts
     
 walker_done_reading_sector_proceed:
-    jsr move_cursor_to_next_line
-    sec
+    ; Incrementing the SECTOR_NUMBER is NOT NEEDED when using MULTI-sector reads
+    .if(!DO_MULTI_SECTOR_READS)
+        inc SECTOR_NUMBER
+        bne sector_number_is_incremented
+        inc SECTOR_NUMBER+1
+        bne sector_number_is_incremented
+        inc SECTOR_NUMBER+2
+        bne sector_number_is_incremented
+        inc SECTOR_NUMBER+3
+        bne sector_number_is_incremented
+sector_number_is_incremented:
+    .endif
+    
+    ; jsr move_cursor_to_next_line
+    ; sec
     rts
     
 
