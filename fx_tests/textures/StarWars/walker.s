@@ -8,6 +8,7 @@ IS_EMULATOR = 1
 DO_PRINT = 0
 DO_BORDER_COLOR = 1
 DO_MULTI_SECTOR_READS = 0
+SD_USE_AUTOTX = 1
 
 BACKGROUND_COLOR = $00 ; black
 
@@ -42,7 +43,6 @@ BYTE_TO_PRINT             = $0D
 DECIMAL_STRING            = $0E ; 0F ; 10
 
 SD_DUMP_ADDR              = $1C ; 1D
-SD_USE_AUTOTX             = $1E
 
 LOAD_ADDRESS              = $30 ; 31
 CODE_ADDRESS              = $32 ; 33
@@ -52,16 +52,19 @@ PALETTE_CHANGE_ADDRESS    = $37 ; 38
 NR_OF_COLORS_TO_CHANGE    = $39
 
 SECTOR_NUMBER             = $47 ; 48 ; 49 ; 4A
-SECTOR_NUMBER_IN_FRAME    = $4B
+NR_OF_SECTORS_TODO        = $4B
 
 FRAME_NUMBER              = $4C ; 4D
 
 BORDER_COLOR              = $4E
 COMMAND18_INITIATED       = $4F
 
+COPY_TO_VRAM_OR_AUDIO     = $50
+PARTIAL_AUDIO_COPY        = $51
 
 ; === RAM addresses ===
 
+COPY_SECTORPART_TO_AUDIO_CODE = $77E0
 COPY_SECTOR_TO_AUDIO_CODE = $83F0
 COPY_SECTOR_TO_VRAM_CODE  = $9000  ; (3 + 3) * 512 = 3kB + rts ~ $0C01
 
@@ -76,10 +79,39 @@ MBR_FAST_H     = $8500
 
 ; === Other constants ===
 
-NR_OF_SECTORS_TO_COPY = 136*320 / 512 ; Note (320x136 resolution): 136 * 320 = 170 * 256 = 85 * 512 bytes (1 sector = 512 bytes)
+; Format:
+
+; Prefix:
+; 6 sectors of audio
+
+; Each frame:
+; 2 sectors of palette
+; 28 sectors of video
+; 3 sectors of audio (last sector is NOT full!)
+; 57 sectors of video
+; 6 sectors of audio
+
+; 1 frame of video = 85 sectors of VIDEO = 136*320 / 512 ; Note (320x136 resolution): 136 * 320 = 170 * 256 = 85 * 512 bytes (1 sector = 512 bytes)
+NR_OF_SECTORS_TO_COPY_FIRST_HALF = 28
+NR_OF_SECTORS_TO_COPY_SECOND_HALF = 57
 NUMBER_OF_FRAMES = 968
 ;NUMBER_OF_FRAMES = 157
 
+; Timings:
+; assuming 25000000/(800*525) = 59.5238095238 frame rate (VSYNC)
+; video will run at: 59.5238095238/3 = 19.8412698413 fps (we use 3 VSYNC frames for one frame)
+; Set audio rate at 115/128 -> 43869.02Hz  = (25000000/512)*(115/128)
+; This means: 4422 audio bytes for every frame (16bit mono)
+;   -> (25000000/512)*(115/128) / (59.5238095238/3) * 2 bytes = 4421.99707031 bytes per (video) frame
+; We can load audio in 9 sectors: 9 * 512 = 4608
+; The last sector is a partial load: 256 - (4608 - 4422) = 70 bytes (186 dummy reads)
+
+; Note: since ffmpeg can only do encode the video at 19.84 (not precise) we also slow down the audio encoding a bit (to 43866Hz)
+;       so the video and audio actually *both* run a little slower than the original video. This should not really affect the calculations above
+;       apart from the fact that the audio encoding is also not precise: 43866 vs 43866.2123827 -> (19.84/19.8412698413*43869.02 = 43866.2123827)
+
+AUDIO_PART_BYTES = 70  ; 70 bytes (186 dummy bytes)
+AUDIO_RATE = 115
 
     .include utils/build_as_prg_or_rom.s
 
@@ -108,6 +140,7 @@ start:
 
     jsr generate_copy_sector_to_vram_code
     jsr generate_copy_sector_to_audio_code
+    jsr generate_copy_sectorpart_to_audio_code
 
 
     .if(!DO_PRINT)
@@ -121,7 +154,7 @@ start:
         lda BORDER_COLOR
         sta VERA_DC_BORDER
     .endif
-
+    
     ; === VERA SD ===
     jsr print_vera_sd_header
     
@@ -146,6 +179,49 @@ start:
 
 start_movie:
  
+    .if (SD_USE_AUTOTX)
+        lda #SPI_CHIP_SELECT_AND_FAST
+        sta VERA_SPI_CTRL
+    .endif
+    
+; FIXME: we are currently not resetting COMMAND18_INITIATED here! (see above)
+;     .if(DO_MULTI_SECTOR_READS)
+;        stz COMMAND18_INITIATED
+;    .endif
+
+    stz SECTOR_NUMBER
+    stz SECTOR_NUMBER+1
+    stz SECTOR_NUMBER+2
+    stz SECTOR_NUMBER+3
+
+    lda #<NUMBER_OF_FRAMES
+    sta FRAME_NUMBER
+    lda #>NUMBER_OF_FRAMES
+    sta FRAME_NUMBER+1
+ 
+    ; === SETUP AUDIO ===
+    
+    lda #%00000000
+    sta VERA_AUDIO_RATE  ; stop audio
+    
+    lda #%10101111       ; Reset FIFO, 16bit mono, max volume
+    sta VERA_AUDIO_CTRL
+
+    ; We START with loading 6 sectors of AUDIO (since COMMAND18_INITIATED is not initiated, this will seek to the SECTOR_NUMBER first)
+    stz COPY_TO_VRAM_OR_AUDIO ; set to load audio
+    stz PARTIAL_AUDIO_COPY
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+
+    lda #1
+    stz COPY_TO_VRAM_OR_AUDIO ; set to load VRAM
+    
+; FIXME: we should load 2 *sectors* of palette instead!
+
     jsr copy_palette_from_index_1
 
     ; We start at the beginning of the palette changes (first change is AFTER frame 0)
@@ -154,40 +230,15 @@ start_movie:
     lda #>palette_changes_per_frame
     sta PALETTE_CHANGE_ADDRESS+1
 
-; FIXME: we are currently not resetting COMMAND18_INITIATED here! (see above)
-;     .if(DO_MULTI_SECTOR_READS)
-;        stz COMMAND18_INITIATED
-;    .endif
-
-     stz SECTOR_NUMBER
-     stz SECTOR_NUMBER+1
-     stz SECTOR_NUMBER+2
-     stz SECTOR_NUMBER+3
-
-; FIXME! 
-; FIXME! 
-; FIXME! 
-    lda #1
-;    lda #0
-    sta SD_USE_AUTOTX
-	lda #SPI_CHIP_SELECT_AND_FAST
-	sta VERA_SPI_CTRL
-    
-    lda #<NUMBER_OF_FRAMES
-    sta FRAME_NUMBER
-    lda #>NUMBER_OF_FRAMES
-    sta FRAME_NUMBER+1
-    
-; FIXME: we should START with loading 2 sectors of AUDIO
-
-; FIXME: we should also load 2 sectors of palette    
-    
-; FIXME: as long as we dont do double buffering, we should START playing the AUDIO!
+; FIXME: as long as we dont do double buffering, we START playing the AUDIO here!
+    lda #AUDIO_RATE              ; Audio rate
+    sta VERA_AUDIO_RATE
     
 next_frame:
 
     jsr load_and_draw_frame
-    
+
+; FIXME: make this part of the frame loading!    
     jsr do_palette_changes
     
     dec FRAME_NUMBER
@@ -205,6 +256,112 @@ infinite_loop:
     jmp infinite_loop
     
     rts
+
+
+
+load_and_draw_frame:
+
+    ; -- loading 2 sectors of PALETTE --
+
+    ; FIXME: we should load 2 *sectors* of palette instead!
+    .if(0)
+    lda #1
+    sta COPY_TO_VRAM_OR_AUDIO ; set to load VRAM
+    
+    lda #<VERA_PALETTE
+    sta VERA_ADDR_LOW
+    lda #>VERA_PALETTE
+    sta VERA_ADDR_HIGH
+    lda #%00010001      ; setting bit 16 of vram address to 1, setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+    
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    .endif
+
+    ; -- loading 28 sectors of VIDEO --
+    lda #0
+    sta VERA_ADDR_LOW
+    sta VERA_ADDR_HIGH
+
+    lda #%00010000      ; setting bit 16 of vram address to 0, setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+    
+    lda #NR_OF_SECTORS_TO_COPY_FIRST_HALF
+    sta NR_OF_SECTORS_TODO
+    
+next_sector_to_copy_first_half:
+
+    jsr walker_vera_read_sector
+
+    ; Incrementing the SECTOR_NUMBER is NOT NEEDED when using MULTI-sector reads
+    .if(!DO_MULTI_SECTOR_READS)
+        inc SECTOR_NUMBER
+        bne sector_number_is_incremented_first_half
+        inc SECTOR_NUMBER+1
+        bne sector_number_is_incremented_first_half
+        inc SECTOR_NUMBER+2
+        bne sector_number_is_incremented_first_half
+        inc SECTOR_NUMBER+3
+        bne sector_number_is_incremented_first_half
+        
+sector_number_is_incremented_first_half:
+    .endif
+    
+    dec NR_OF_SECTORS_TODO
+    bne next_sector_to_copy_first_half
+
+
+; FIXME: we also need to be able to load only a FEW BYTES into audio!
+    ; -- loading 3 sectors of AUDIO (last one is not full) --
+    
+    stz COPY_TO_VRAM_OR_AUDIO ; set to load AUDIO
+    stz PARTIAL_AUDIO_COPY
+    
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+; FIXME: implement PARTIAL COPY!
+    lda #1
+    sta PARTIAL_AUDIO_COPY
+    jsr walker_vera_read_sector
+
+    lda #NR_OF_SECTORS_TO_COPY_SECOND_HALF
+    sta NR_OF_SECTORS_TODO
+    
+next_sector_to_copy_second_half:
+
+    jsr walker_vera_read_sector
+
+    ; Incrementing the SECTOR_NUMBER is NOT NEEDED when using MULTI-sector reads
+    .if(!DO_MULTI_SECTOR_READS)
+        inc SECTOR_NUMBER
+        bne sector_number_is_incremented_second_half
+        inc SECTOR_NUMBER+1
+        bne sector_number_is_incremented_second_half
+        inc SECTOR_NUMBER+2
+        bne sector_number_is_incremented_second_half
+        inc SECTOR_NUMBER+3
+        bne sector_number_is_incremented_second_half
+sector_number_is_incremented_second_half:
+    .endif
+    
+    dec NR_OF_SECTORS_TODO
+    bne next_sector_to_copy_second_half
+
+    ; -- loading 6 sectors of AUDIO (last one is not full) --
+    
+    stz COPY_TO_VRAM_OR_AUDIO ; set to load AUDIO
+    stz PARTIAL_AUDIO_COPY
+    
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+
+    rts
+    
     
     
 setup_screen_borders:
@@ -494,10 +651,11 @@ walker_wait_for_data_packet_start_1:
 walker_start_reading_sector_data:
 
     ; Retrieve the additional 512 bytes 
-    
-    lda SD_USE_AUTOTX
-    bne walker_read_autotx_read_sector
-    
+
+    .if(SD_USE_AUTOTX)
+        ; FIXME: SPEED: we should NOT do this bra, but insread *remove* (with an .if) the next section!
+        bra walker_read_autotx_read_sector
+    .endif
     
 walker_read_slow_read_sector:
     ldx #0
@@ -538,60 +696,23 @@ walker_read_autotx_read_sector:
     lda VERA_SPI_DATA    ; Auto-tx
     ldy #0                ; 2
 
-    .if(1)
+    lda COPY_TO_VRAM_OR_AUDIO
+    bne copy_to_vram 
+    
+copy_to_audio:
+    lda PARTIAL_AUDIO_COPY
+    bne copy_part_to_audio
+        jsr COPY_SECTOR_TO_AUDIO_CODE
+    bra done_copy_to_audio_or_vram
+    
+copy_part_to_audio: 
+        jsr COPY_SECTORPART_TO_AUDIO_CODE
+    bra done_copy_to_audio_or_vram
+    
+copy_to_vram:
         jsr COPY_SECTOR_TO_VRAM_CODE
-    .else
-    
-    ; Efficiently read first 256 bytes (hide SPI transfer time)
-    ldy #0                ; 2
-walker_reading_sector_8_bytes_L:
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    tya                ; 2
-    clc                ; 2
-    adc #8                ; 2
-    tay                ; 2
-    bne walker_reading_sector_8_bytes_L  ; 2+1
-
-    ; Efficiently read second 256 bytes (hide SPI transfer time)
-walker_reading_sector_8_bytes_H:
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    lda VERA_SPI_DATA            ; 4
-    sta VERA_DATA0               ; 4
-    tya                ; 2
-    clc                ; 2
-    adc #8                ; 2
-    tay                ; 2
-    bne walker_reading_sector_8_bytes_H  ; 2+1
-    
-    .endif
+        
+done_copy_to_audio_or_vram:
 
     ; Disable auto-tx mode
     lda VERA_SPI_CTRL
@@ -697,39 +818,6 @@ walker_done_reading_sector_proceed:
 
 
 
-load_and_draw_frame:
-
-    lda #0
-    sta VERA_ADDR_LOW
-    sta VERA_ADDR_HIGH
-
-    lda #%00010000      ; setting bit 16 of vram address to 0, setting auto-increment value to 1
-    sta VERA_ADDR_BANK
-    
-    lda #NR_OF_SECTORS_TO_COPY
-    sta SECTOR_NUMBER_IN_FRAME
-    
-next_sector_to_copy:
-
-    ; FIXME: setup for loading the NEXT! sector
-    jsr walker_vera_read_sector
-
-    inc SECTOR_NUMBER
-    bne sector_number_is_incremented
-    inc SECTOR_NUMBER+1
-    bne sector_number_is_incremented
-    inc SECTOR_NUMBER+2
-    bne sector_number_is_incremented
-    inc SECTOR_NUMBER+3
-    bne sector_number_is_incremented
-    
-sector_number_is_incremented:
-    dec SECTOR_NUMBER_IN_FRAME
-    bne next_sector_to_copy
-
-
-    rts
-    
     
 
 generate_copy_sector_to_vram_code:
@@ -742,7 +830,7 @@ generate_copy_sector_to_vram_code:
     ldy #0                 ; generated code byte counter
     
     ldx #0                 ; counts nr of copy instructions
-next_copy_instruction_low:
+next_copy_instruction_low_vram:
 
     ; -- lda VERA_SPI_DATA ($9F3E)
     lda #$AD               ; lda ....
@@ -765,11 +853,11 @@ next_copy_instruction_low:
     jsr add_code_byte
 
     inx
-    bne next_copy_instruction_low
+    bne next_copy_instruction_low_vram
     
     
     ldx #0                 ; counts nr of copy instructions
-next_copy_instruction_high:
+next_copy_instruction_high_vram:
 
     ; -- lda VERA_SPI_DATA ($9F3E)
     lda #$AD               ; lda ....
@@ -792,7 +880,7 @@ next_copy_instruction_high:
     jsr add_code_byte
 
     inx
-    bne next_copy_instruction_high
+    bne next_copy_instruction_high_vram
     
 
     ; -- rts --
@@ -813,7 +901,7 @@ generate_copy_sector_to_audio_code:
     ldy #0                 ; generated code byte counter
     
     ldx #0                 ; counts nr of copy instructions
-next_copy_instruction_low:
+next_copy_instruction_low_audio:
 
     ; -- lda VERA_SPI_DATA ($9F3E)
     lda #$AD               ; lda ....
@@ -836,11 +924,11 @@ next_copy_instruction_low:
     jsr add_code_byte
 
     inx
-    bne next_copy_instruction_low
+    bne next_copy_instruction_low_audio
     
     
     ldx #0                 ; counts nr of copy instructions
-next_copy_instruction_high:
+next_copy_instruction_high_audio:
 
     ; -- lda VERA_SPI_DATA ($9F3E)
     lda #$AD               ; lda ....
@@ -863,7 +951,106 @@ next_copy_instruction_high:
     jsr add_code_byte
 
     inx
-    bne next_copy_instruction_high
+    bne next_copy_instruction_high_audio
+    
+
+    ; -- rts --
+    lda #$60
+    jsr add_code_byte
+
+    rts
+
+
+
+generate_copy_sectorpart_to_audio_code:
+
+    lda #<COPY_SECTORPART_TO_AUDIO_CODE
+    sta CODE_ADDRESS
+    lda #>COPY_SECTORPART_TO_AUDIO_CODE
+    sta CODE_ADDRESS+1
+    
+    ldy #0                 ; generated code byte counter
+    
+    ldx #0                 ; counts nr of copy instructions
+next_copy_instruction_low_audiopart:
+
+    ; -- lda VERA_SPI_DATA ($9F3E)
+    lda #$AD               ; lda ....
+    jsr add_code_byte
+    
+    lda #$3E               ; VERA_SPI_DATA
+    jsr add_code_byte
+    
+    lda #$9F         
+    jsr add_code_byte
+
+    ; -- sta VERA_AUDIO_DATA ($9F3D)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
+
+    lda #$3D               ; $3D
+    jsr add_code_byte
+
+    lda #$9F               ; $9F
+    jsr add_code_byte
+
+    inx
+    cpy #AUDIO_PART_BYTES
+    bne next_copy_instruction_low_audiopart
+    
+
+next_copy_instruction_low_audiodummy:
+
+    ; -- lda VERA_SPI_DATA ($9F3E)
+    lda #$AD               ; lda ....
+    jsr add_code_byte
+    
+    lda #$3E               ; VERA_SPI_DATA
+    jsr add_code_byte
+    
+    lda #$9F         
+    jsr add_code_byte
+
+
+    ; -- lda VERA_ADDR_LOW ($9F20) -> DUMMY!
+    lda #$AD               ; lda ....
+    jsr add_code_byte
+    
+    lda #$20               ; VERA_ADDR_LOW
+    jsr add_code_byte
+    
+    lda #$9F         
+    jsr add_code_byte
+
+    inx
+    bne next_copy_instruction_low_audiodummy
+
+    
+    ldx #0                 ; counts nr of copy instructions
+next_copy_instruction_high_audiodummy:
+
+    ; -- lda VERA_SPI_DATA ($9F3E)
+    lda #$AD               ; lda ....
+    jsr add_code_byte
+    
+    lda #$3E               ; VERA_SPI_DATA
+    jsr add_code_byte
+    
+    lda #$9F         
+    jsr add_code_byte
+
+    ; -- lda VERA_ADDR_LOW ($9F20) -> DUMMY!
+    lda #$AD               ; lda ....
+    jsr add_code_byte
+    
+    lda #$20               ; VERA_ADDR_LOW
+    jsr add_code_byte
+    
+    lda #$9F         
+    jsr add_code_byte
+
+    inx
+    bne next_copy_instruction_high_audiodummy
     
 
     ; -- rts --
