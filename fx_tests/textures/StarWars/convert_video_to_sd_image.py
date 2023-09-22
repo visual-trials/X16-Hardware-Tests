@@ -2,19 +2,31 @@ from PIL import Image
 import hashlib
 import sys
 from operator import itemgetter
+from array import array
 
 # FIXME: 
 source_image_filename_prefix = "C:/ffmpeg/output/output_" # 0001.png"
 #source_image_filename_prefix = "Walker/output_" # 0001.png"
+source_audio_filename = "C:/ffmpeg/output.raw"
 video_data_filename = "walker_sdcard.img"
 nr_of_frames = 100
 #nr_of_frames = 157
 image_width = 320
 image_height = 136
 
-# FIXME: Load audio binary as array: https://stackoverflow.com/questions/41498630/how-to-read-binary-file-data-into-arrays
+audio_position = 0
+nr_of_audio_bytes_per_frame = 4420
+audio_data = bytearray()
 
-
+# https://stackoverflow.com/questions/41498630/how-to-read-binary-file-data-into-arrays
+# FIXME: this looks slow an ugly!
+with open(source_audio_filename, "rb") as f:
+    ba = f.read(1)
+    while ba:
+        for byte in ba:
+            audio_data.append(byte)
+        ba = f.read(1)
+        
 
 def get_color_str(pixel):
     red = pixel[0]
@@ -30,17 +42,17 @@ def get_color_str(pixel):
     
     return (color_str, (red, green, blue))
     
-def add_frame_data_to_video_data(video_data, frame_pixels, frame_colors_to_palette_index):
+def add_frame_data_to_video_data(video_data, frame_pixels, frame_colors_to_palette_index, frame_audio_bytes):
 
     # We add 6 sectors of audio (6 * 512 bytes)
     # We add 1 sector of palette (1 * 512 bytes)
     # We add 30 sectors of video (30 * 512 bytes = 48 lines of 320px)
-    # We add 3 sectors of audio (2 * 512 + 70 audio bytes + 186 dummy/filler bytes)
+    # We add 3 sectors of audio (2 * 512 + 70 audio bytes + 186+256 dummy/filler bytes)
     # We add 55 sectors of video (55 * 512 bytes = 88 lines of 320px)
     
-    # FIXME: add REAL audio data!
-    for n in range(6*512):
-        video_data.append(250)
+    # Adding 6 sectors of audio data
+    for n in range(0, 6*512):
+        video_data.append(frame_audio_bytes[n])
 
     # FIXME: add REAL palette data!
 #    for n in range(1*512):
@@ -53,9 +65,13 @@ def add_frame_data_to_video_data(video_data, frame_pixels, frame_colors_to_palet
             palette_color_index = frame_colors_to_palette_index[color_str]
             video_data.append(palette_color_index)
             
-    # FIXME: add REAL audio data!
-    for n in range(3*512):
-        video_data.append(255)
+    # Adding 2 sectors + 70 bytes of audio data
+    for n in range(6*512, 6*512+2*512+70):
+        video_data.append(frame_audio_bytes[n])
+        
+    # Adding dummy/filler data
+    for n in range(512-70):
+        video_data.append(0)
             
     for y in range(48, 136):
         for x in range(image_width):
@@ -158,9 +174,12 @@ for y in range(image_height):
             if palette_color_index > 255:
                 # FIXME: we need to be able to deal with this situation!
                 sys.exit("First frame has more than 255 colors!")
-            
+
+
 # We add the data of the first frame to the video data
-add_frame_data_to_video_data(video_data, frame_pixels, current_frame_colors_to_palette_index)
+frame_audio_bytes = audio_data[audio_position:audio_position+nr_of_audio_bytes_per_frame]
+audio_position += nr_of_audio_bytes_per_frame
+add_frame_data_to_video_data(video_data, frame_pixels, current_frame_colors_to_palette_index, frame_audio_bytes)
         
 added_frame_palette_colors_per_frame = []
 for frame_index in range(1, nr_of_frames):
@@ -301,91 +320,6 @@ for frame_index in range(1, nr_of_frames):
             # If we already have a perfect score there is nothing left to do for this color (we already re-claimed it for this frame)
             pass
         
-    
-    '''
-    # We first determine all unique 12-bit COLORS, so we can re-index the image (pixels) with the new color indexes
-    for y in range(image_height):
-        for x in range(image_width):
-            pixel = frame_pixels[x, y]
-            
-            (color_str, rgb) = get_color_str(pixel)
-            
-            if color_str in current_frame_colors_to_palette_index:
-                old_palette_color_index = current_frame_colors_to_palette_index[color_str]
-                (old_frame_index, old_rgb) = used_palette_color_indexes[old_palette_color_index]
-                
-                (old_color_str, old_rgb) = get_color_str(old_rgb)
-                if (old_color_str != color_str):
-                    # print(old_color_str + " <-> " + color_str)
-                
-                    # We have a *close* palette color. So we want to try to create a *exact* palette color 
-                
-                    # We need a NEW color, so we need a FREE palette_color_index!
-                    palette_color_index = get_free_palette_color_index(used_palette_color_indexes, frame_index)
-                    
-                    if palette_color_index is not None:
-                        print("improving color: " + color_str)
-
-                        # The to-be-improved color is going to have its own unique value, but it first needs to be detached from the close value
-                        del current_frame_colors_to_palette_index[color_str]
-
-                        # We have to remove the color_string that used this old color_palette_index
-                        # FIXME: this is SLOW!
-                        color_strings = list(current_frame_colors_to_palette_index.keys())
-                        for check_color_str in color_strings:
-                            if (current_frame_colors_to_palette_index[check_color_str] == palette_color_index):
-                                # print('deleting old color: ' + check_color_str)
-                                del current_frame_colors_to_palette_index[check_color_str]
-                        
-                        current_frame_colors_to_palette_index[color_str] = palette_color_index
-                        used_palette_color_indexes[palette_color_index] = (frame_index, rgb)
-                        added_frame_palette_colors.append((palette_color_index, rgb))
-                    
-                    else:
-                        # There is no more room, we stop trying to improve colors
-                        # print("could not improve colors anymore, due to lack of room")
-                        
-                        # We fould the (old) close color, its the best we can do
-                        used_palette_color_indexes[old_palette_color_index] = (frame_index, old_rgb)
-                
-                else:
-                    # We fould the exact color, all is ok
-                    used_palette_color_indexes[old_palette_color_index] = (frame_index, old_rgb)
-            else:
-                # We need a NEW color, so we need a FREE palette_color_index!
-                palette_color_index = get_free_palette_color_index(used_palette_color_indexes, frame_index)
-                
-                if palette_color_index is not None:
-                    # We have to remove the color_string that used this old color_palette_index
-                    # FIXME: this is SLOW! -> USE palette_color_index_used_by_frame_colors instead!
-                    color_strings = list(current_frame_colors_to_palette_index.keys())
-                    for check_color_str in color_strings:
-                        if (current_frame_colors_to_palette_index[check_color_str] == palette_color_index):
-                            # print('deleting old color: ' + check_color_str)
-                            del current_frame_colors_to_palette_index[check_color_str]
-                            del palette_color_index_used_by_frame_colors[palette_color_index][check_color_str]
-
-                    
-                    current_frame_colors_to_palette_index[color_str] = palette_color_index
-                    palette_color_index_used_by_frame_colors[palette_color_index] = {}
-                    palette_color_index_used_by_frame_colors[palette_color_index][color_str] = True
-                    used_palette_color_indexes[palette_color_index] = (frame_index, rgb)
-                    added_frame_palette_colors.append((palette_color_index, rgb))
-                else:
-                    # If we cant find an EXACT match of the color AND we dont have room for a new color, we need to find a closely matching color
-                    
-                    # FIXME: in a LATER frame we want to replace this color with the EXACT color. We dont do that now. So this color can stay a litte off for a long time!
-                    (palette_color_index, score) = find_closely_matching_color(pixel, current_frame_colors_to_palette_index)
-                    
-                    if palette_color_index is None:
-                        # FIXME: we need to be able to deal with this situation!
-                        sys.exit("Could not find a free (or closely matching) palette color index!")
-                
-                    current_frame_colors_to_palette_index[color_str] = palette_color_index
-                    palette_color_index_used_by_frame_colors[palette_color_index][color_str] = True
-                    (old_frame_index, old_rgb) = used_palette_color_indexes[palette_color_index]
-                    used_palette_color_indexes[palette_color_index] = (frame_index, old_rgb)
-    '''
 
     if False:
         nr_of_palette_colors_used_in_current_frame = 0
@@ -400,7 +334,9 @@ for frame_index in range(1, nr_of_frames):
     # print(current_frame_colors_to_palette_index)
     
     # We add the pixels of this frame to the video pixel data
-    add_frame_data_to_video_data(video_data, frame_pixels, current_frame_colors_to_palette_index)
+    frame_audio_bytes = audio_data[audio_position:audio_position+nr_of_audio_bytes_per_frame]
+    audio_position += nr_of_audio_bytes_per_frame
+    add_frame_data_to_video_data(video_data, frame_pixels, current_frame_colors_to_palette_index, frame_audio_bytes)
     
     # print(used_palette_color_indexes)
     #

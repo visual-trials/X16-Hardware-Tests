@@ -101,13 +101,13 @@ NUMBER_OF_FRAMES = 968
 ; This means: 4422 audio bytes for every frame (16bit mono)
 ;   -> (25000000/512)*(115/128) / (59.5238095238/3) * 2 bytes = 4421.99707031 bytes per (video) frame
 ; We can load audio in 9 sectors: 9 * 512 = 4608
-; The last sector is a partial load: 256 - (4608 - 4422) = 70 bytes (186 dummy reads)
+; The last sector is a partial load: 256 - (4608 - 4422) = 70 bytes (186+256 dummy reads)
 
 ; Note: since ffmpeg can only do encode the video at 19.84 (not precise) we also slow down the audio encoding a bit (to 43866Hz)
 ;       so the video and audio actually *both* run a little slower than the original video. This should not really affect the calculations above
 ;       apart from the fact that the audio encoding is also not precise: 43866 vs 43866.2123827 -> (19.84/19.8412698413*43869.02 = 43866.2123827)
 
-AUDIO_PART_BYTES = 70  ; 70 bytes (186 dummy bytes)
+AUDIO_PART_BYTES = 70  ; 70 bytes (186+256 dummy bytes)
 AUDIO_RATE = 115
 
     .include utils/build_as_prg_or_rom.s
@@ -214,11 +214,6 @@ start_movie:
     lda #>palette_changes_per_frame
     sta PALETTE_CHANGE_ADDRESS+1
 
-; FIXME! Instead of this, keep track of whether you started! If not, then set to 1 and start! (but AFTER the first 6 sectors of audio load!)
-; FIXME: as long as we dont do double buffering, we START playing the AUDIO here!
-;    lda #AUDIO_RATE              ; Audio rate
-;    sta VERA_AUDIO_RATE
-    
 next_frame:
 
     jsr load_and_draw_frame
@@ -258,6 +253,11 @@ load_and_draw_frame:
     jsr walker_vera_read_sector
     jsr walker_vera_read_sector
 
+; FIXME! Instead of this, keep track of whether you started! If not, then set to 1 and start! (but AFTER the first 6 sectors of audio load!)
+; FIXME: as long as we dont do double buffering, we START playing the AUDIO here!
+    lda #AUDIO_RATE              ; Audio rate
+    sta VERA_AUDIO_RATE
+    
     ; -- loading 1 sector of PALETTE --
 
     ; FIXME: we should load 1 *sector* of palette instead!
