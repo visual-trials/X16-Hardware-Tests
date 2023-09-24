@@ -15,7 +15,8 @@ image_width = 320
 image_height = 136
 
 audio_position = 0
-nr_of_audio_bytes_per_frame = 4420
+# nr_of_audio_bytes_per_frame = 2807
+nr_of_audio_bytes_per_frame = 4422
 audio_data = bytearray()
 
 # https://stackoverflow.com/questions/41498630/how-to-read-binary-file-data-into-arrays
@@ -47,7 +48,7 @@ def add_frame_data_to_video_data(video_data, frame_pixels, frame_colors_to_palet
     # We add 6 sectors of audio (6 * 512 bytes)
     # We add 1 sector of palette (1 * 512 bytes)
     # We add 30 sectors of video (30 * 512 bytes = 48 lines of 320px)
-    # We add 3 sectors of audio (2 * 512 + 70 audio bytes + 186+256 dummy/filler bytes)
+    # We add 3 sectors of audio (2 * 512 + 256+70 audio bytes + 186 dummy/filler bytes)
     # We add 55 sectors of video (55 * 512 bytes = 88 lines of 320px)
     
     # Adding 6 sectors of audio data
@@ -65,14 +66,14 @@ def add_frame_data_to_video_data(video_data, frame_pixels, frame_colors_to_palet
             palette_color_index = frame_colors_to_palette_index[color_str]
             video_data.append(palette_color_index)
             
-    # Adding 2 sectors + 70 bytes of audio data
-    for n in range(6*512, 6*512+2*512+70):
+    # Adding 2 sectors + 256+70 bytes of audio data
+    for n in range(6*512, 6*512+(2*512+256+70)):
         video_data.append(frame_audio_bytes[n])
-        
-    # Adding dummy/filler data
-    for n in range(512-70):
+       
+    # Adding dummy/filler data: 186 bytes
+    for n in range(512-(256+70)):
         video_data.append(0)
-            
+        
     for y in range(48, 136):
         for x in range(image_width):
             pixel = frame_pixels[x, y]
@@ -175,7 +176,12 @@ for y in range(image_height):
                 # FIXME: we need to be able to deal with this situation!
                 sys.exit("First frame has more than 255 colors!")
 
-
+# FIXME: do we really want this?
+# Adding 2 sectors of pre-buffer audio data
+for n in range(0, 2*512):
+    video_data.append(audio_data[n])
+audio_position += 2*512
+                
 # We add the data of the first frame to the video data
 frame_audio_bytes = audio_data[audio_position:audio_position+nr_of_audio_bytes_per_frame]
 audio_position += nr_of_audio_bytes_per_frame

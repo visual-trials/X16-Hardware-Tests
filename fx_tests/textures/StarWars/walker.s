@@ -5,9 +5,13 @@
 
 ; FIXME: REMOVE THIS!
 IS_EMULATOR = 1
+; FIXME: somehow turning this on breaks it all?
+DO_MULTI_SECTOR_READS = 0
+USE_AFLOW = 1
+PLAY_AUDIO_ONLY = 1
+
 DO_PRINT = 0
 DO_BORDER_COLOR = 1
-DO_MULTI_SECTOR_READS = 0
 SD_USE_AUTOTX = 1
 
 BACKGROUND_COLOR = $00 ; black
@@ -15,6 +19,8 @@ BACKGROUND_COLOR = $00 ; black
 TOP_MARGIN = 2
 LEFT_MARGIN = 0
 VSPACING = 10
+
+AFLOW_BIT = %00001000
 
 
 ; === Zero page addresses ===
@@ -94,20 +100,40 @@ NR_OF_SECTORS_TO_COPY_SECOND_HALF = 55 ; 88 lines of 320px
 NUMBER_OF_FRAMES = 968
 ;NUMBER_OF_FRAMES = 157
 
-; Timings:
+; OLD Timings (115):
 ; assuming 25000000/(800*525) = 59.5238095238 frame rate (VSYNC)
 ; video will run at: 59.5238095238/3 = 19.8412698413 fps (we use 3 VSYNC frames for one frame)
 ; Set audio rate at 115/128 -> 43869.02Hz  = (25000000/512)*(115/128)
 ; This means: 4422 audio bytes for every frame (16bit mono)
 ;   -> (25000000/512)*(115/128) / (59.5238095238/3) * 2 bytes = 4421.99707031 bytes per (video) frame
 ; We can load audio in 9 sectors: 9 * 512 = 4608
-; The last sector is a partial load: 256 - (4608 - 4422) = 70 bytes (186+256 dummy reads)
+; The last sector is a partial load: 512 - (4608 - 4422) = 256+70 = 326 bytes (186 dummy reads)
+
+; Timings (73):
+; assuming 25000000/(800*525) = 59.5238095238 frame rate (VSYNC)
+; video will run at: 59.5238095238/3 = 19.8412698413 fps (we use 3 VSYNC frames for one frame)
+; Set audio rate at 73/128 -> 27847.29Hz  = (25000000/512)*(73/128)
+; This means: 2807 audio bytes for every frame (16bit mono)
+;   -> (25000000/512)*(73/128) / (59.5238095238/3) * 2 bytes = 2807.00683594 bytes per (video) frame!
+; We can load audio in 6 sectors: 6 * 512 = 3072
+; The last sector is a partial load: 512 - (3072 - 2807) = 247 bytes (9 + 256 = 265 dummy reads)
+
+; Timings (87):
+;   MAYBE (25000000/512)*(87/128) / (59.5238095238/3) * 2 bytes = 3345.33691406 bytes per (video frame
+
 
 ; Note: since ffmpeg can only do encode the video at 19.84 (not precise) we also slow down the audio encoding a bit (to 43866Hz)
 ;       so the video and audio actually *both* run a little slower than the original video. This should not really affect the calculations above
-;       apart from the fact that the audio encoding is also not precise: 43866 vs 43866.2123827 -> (19.84/19.8412698413*43869.02 = 43866.2123827)
+;          apart from the fact that the audio encoding is also not precise: 27845 vs 27845.5077734 -> (19.84/19.8412698413*27847.2900391 = 27845.5077734)
+; FIXME: maybe add one DUPLICATE byte each odd/even frame? So we are much closer to 0.5077734! (should we use 27845 or 27846 then?)
 
-AUDIO_PART_BYTES = 70  ; 70 bytes (186+256 dummy bytes)
+; OLD      apart from the fact that the audio encoding is also not precise: 43866 vs 43866.2123827 -> (19.84/19.8412698413*43869.02 = 43866.2123827)
+
+;AUDIO_PART_BYTES = 247  ; (9 + 256 dummy bytes)
+;AUDIO_RATE = 73
+
+; OLD:
+AUDIO_PART_BYTES = 326  ; 256+70 bytes (186 dummy bytes)
 AUDIO_RATE = 115
 
     .include utils/build_as_prg_or_rom.s
@@ -157,19 +183,28 @@ start:
     
     ; Try to detect/reset the SD card
     jsr vera_reset_sd_card
-    bcc done_with_sd_checks   ; If card was not detected (or there was some error) we do not proceed with SD Card tests
+    bcc done_with_sd_checks_jmp   ; If card was not detected (or there was some error) we do not proceed with SD Card tests
     
     ; Check if card is SDC Ver.2+
     jsr vera_check_sdc_version
-    bcc done_with_sd_checks   ; If card was SDC Ver.2+ we do not proceed with SD Card tests
+    bcc done_with_sd_checks_jmp   ; If card was SDC Ver.2+ we do not proceed with SD Card tests
     
     ; Initialize SD card
     jsr vera_initialize_sd_card
-    bcc done_with_sd_checks   ; If card was not propely initialized we do not proceed with SD Card tests
+    bcc done_with_sd_checks_jmp   ; If card was not propely initialized we do not proceed with SD Card tests
     
     jsr vera_check_block_addressing_mode
-    bcc done_with_sd_checks   ; If card does not support block addrssing mode so we do not proceed with SD Card tests
- 
+    bcc done_with_sd_checks_jmp   ; If card does not support block addrssing mode so we do not proceed with SD Card tests
+    
+    bra move_on
+    
+; FIXME! clean this up!
+done_with_sd_checks_jmp:
+    jmp done_with_sd_checks
+
+
+move_on:
+    
     .if(DO_MULTI_SECTOR_READS)
         stz COMMAND18_INITIATED
     .endif
@@ -204,6 +239,132 @@ start_movie:
     lda #%10101111       ; Reset FIFO, 16bit mono, max volume
     sta VERA_AUDIO_CTRL
 
+    .if(USE_AFLOW)
+        lda #AFLOW_BIT ; make VERA generate AFLOW IRQs
+        sta VERA_IEN
+    
+        ; Reset all interrupts in VERA
+        stz VERA_ISR
+    .endif
+    
+    .if(PLAY_AUDIO_ONLY)
+        ; -- loading 2 sectors of PRE-BUFFER AUDIO --
+        
+        stz COPY_TO_VRAM_OR_AUDIO ; set to load AUDIO
+        stz PARTIAL_AUDIO_COPY
+
+        jsr walker_vera_read_sector
+        jsr walker_vera_read_sector
+ 
+        lda #AUDIO_RATE              ; Audio rate
+        sta VERA_AUDIO_RATE
+        
+keep_playing_audio:
+
+        .if(USE_AFLOW)
+wait_until_audio_fifo_is_low3:
+            lda VERA_ISR
+            and #AFLOW_BIT
+            bne audio_fifo_is_low3
+            bra wait_until_audio_fifo_is_low3
+
+audio_fifo_is_low3:
+            ; Reset all interrupts in VERA
+            stz VERA_ISR
+        .endif
+    
+        stz COPY_TO_VRAM_OR_AUDIO ; set to load AUDIO
+        stz PARTIAL_AUDIO_COPY
+        
+        jsr walker_vera_read_sector
+        jsr walker_vera_read_sector
+        jsr walker_vera_read_sector
+        jsr walker_vera_read_sector
+        jsr walker_vera_read_sector
+        jsr walker_vera_read_sector
+
+        
+        
+        
+        
+        ; -- loading 30 sectors of VIDEO (48 lines of 320px) --
+        ; FIXME: no need to set this if we just do the palette load!
+        lda #1
+        sta COPY_TO_VRAM_OR_AUDIO ; set to load VRAM
+        
+        lda #0
+        sta VERA_ADDR_LOW
+        sta VERA_ADDR_HIGH
+
+        lda #%00010000      ; setting bit 16 of vram address to 0, setting auto-increment value to 1
+        sta VERA_ADDR_BANK
+        
+        lda #NR_OF_SECTORS_TO_COPY_FIRST_HALF
+        sta NR_OF_SECTORS_TODO
+        
+next_sector_to_copy_first_half2:
+
+        jsr walker_vera_read_sector
+
+        dec NR_OF_SECTORS_TODO
+        bne next_sector_to_copy_first_half2
+
+        
+        
+
+        
+
+        .if(USE_AFLOW)
+wait_until_audio_fifo_is_low4:
+            lda VERA_ISR
+            and #AFLOW_BIT
+            bne audio_fifo_is_low4
+            bra wait_until_audio_fifo_is_low4
+
+audio_fifo_is_low4:
+            ; Reset all interrupts in VERA
+            stz VERA_ISR
+        .endif
+        
+        
+        stz COPY_TO_VRAM_OR_AUDIO ; set to load AUDIO
+        stz PARTIAL_AUDIO_COPY
+        
+        jsr walker_vera_read_sector
+        jsr walker_vera_read_sector
+        
+        lda #1
+        sta PARTIAL_AUDIO_COPY
+        
+        jsr walker_vera_read_sector
+        
+        
+        
+        lda #1
+        sta COPY_TO_VRAM_OR_AUDIO ; set to load VRAM
+        
+        lda #NR_OF_SECTORS_TO_COPY_SECOND_HALF
+        sta NR_OF_SECTORS_TODO
+        
+next_sector_to_copy_second_half2:
+
+        jsr walker_vera_read_sector
+
+        dec NR_OF_SECTORS_TODO
+        bne next_sector_to_copy_second_half2
+        
+        
+        
+        
+        
+        
+        
+        jmp keep_playing_audio
+    
+        jmp infinite_loop
+    .endif
+    
+    
 ; FIXME: we should load 1 *sector* of palette instead!
 
     jsr copy_palette_from_index_1
@@ -214,6 +375,15 @@ start_movie:
     lda #>palette_changes_per_frame
     sta PALETTE_CHANGE_ADDRESS+1
 
+; FIXME: do we really want to do this?
+    ; -- loading 2 sectors of PRE-BUFFER AUDIO --
+    
+    stz COPY_TO_VRAM_OR_AUDIO ; set to load AUDIO
+    stz PARTIAL_AUDIO_COPY
+
+    jsr walker_vera_read_sector
+    jsr walker_vera_read_sector
+    
 next_frame:
 
     jsr load_and_draw_frame
@@ -228,7 +398,6 @@ next_frame:
     
     jmp start_movie
     
-
 done_with_sd_checks:
 
     ; We are not returning to BASIC here...
@@ -237,11 +406,35 @@ infinite_loop:
     
     rts
 
-
-
+    
 load_and_draw_frame:
 
-    ; -- loading 6 sectors of AUDIO (last one is not full) --
+    .if(1)
+        lda VERA_AUDIO_CTRL
+        and #%01000000      ; FIFO empty?
+        beq fifi_not_empty
+        lda #250
+        sta VERA_DC_BORDER
+fifi_not_empty:
+    .endif
+
+    .if(USE_AFLOW)
+        lda VERA_AUDIO_RATE
+        beq not_started_yet
+    
+wait_until_audio_fifo_is_low:
+        lda VERA_ISR
+        and #AFLOW_BIT
+        bne audio_fifo_is_low
+        bra wait_until_audio_fifo_is_low
+
+audio_fifo_is_low:        
+        ; Reset all interrupts in VERA
+        stz VERA_ISR
+not_started_yet:
+    .endif
+    
+    ; -- loading 6 sectors of AUDIO --
     
     stz COPY_TO_VRAM_OR_AUDIO ; set to load AUDIO
     stz PARTIAL_AUDIO_COPY
@@ -253,10 +446,30 @@ load_and_draw_frame:
     jsr walker_vera_read_sector
     jsr walker_vera_read_sector
 
-; FIXME! Instead of this, keep track of whether you started! If not, then set to 1 and start! (but AFTER the first 6 sectors of audio load!)
+    .if(0)
+        lda VERA_AUDIO_CTRL
+        and #%10000000      ; FIFO full?
+        beq fifi_not_full
+        lda #255
+        sta VERA_DC_BORDER
+fifi_not_full:
+    .endif
+    
 ; FIXME: as long as we dont do double buffering, we START playing the AUDIO here!
-    lda #AUDIO_RATE              ; Audio rate
+
+    lda VERA_AUDIO_RATE
+    bne already_playing_audio
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+; FIXME!
+    lda #32
+;    lda #AUDIO_RATE              ; Audio rate
     sta VERA_AUDIO_RATE
+already_playing_audio:
     
     ; -- loading 1 sector of PALETTE --
 
@@ -276,7 +489,7 @@ load_and_draw_frame:
     .endif
 
     ; -- loading 30 sectors of VIDEO (48 lines of 320px) --
-    ; FIXME: no need to set this if we just dod the palette load!
+    ; FIXME: no need to set this if we just do the palette load!
     lda #1
     sta COPY_TO_VRAM_OR_AUDIO ; set to load VRAM
     
@@ -297,7 +510,18 @@ next_sector_to_copy_first_half:
     dec NR_OF_SECTORS_TODO
     bne next_sector_to_copy_first_half
 
+    .if(USE_AFLOW)
+wait_until_audio_fifo_is_low2:
+        lda VERA_ISR
+        and #AFLOW_BIT
+        bne audio_fifo_is_low2
+        bra wait_until_audio_fifo_is_low2
 
+audio_fifo_is_low2:
+        ; Reset all interrupts in VERA
+        stz VERA_ISR
+    .endif
+    
     ; -- loading 3 sectors of AUDIO (last one is not full) --
     
     stz COPY_TO_VRAM_OR_AUDIO ; set to load AUDIO
@@ -688,7 +912,8 @@ done_copy_to_audio_or_vram:
 
     ; Next read is now already done (first CRC byte), read second CRC byte
     jsr spi_read_byte
-    jsr spi_read_byte_measure ; We are measuring the speed of this last read
+; FIXME: THIS IS WRONG! CORRECT!?
+;    jsr spi_read_byte_measure ; We are measuring the speed of this last read
 
 
 walker_read_sector_check_mbr:
@@ -970,11 +1195,39 @@ next_copy_instruction_low_audiopart:
     jsr add_code_byte
 
     inx
-    cpy #AUDIO_PART_BYTES
     bne next_copy_instruction_low_audiopart
     
-
+    .if(0)
 next_copy_instruction_low_audiodummy:
+
+        ; -- lda VERA_SPI_DATA ($9F3E)
+        lda #$AD               ; lda ....
+        jsr add_code_byte
+        
+        lda #$3E               ; VERA_SPI_DATA
+        jsr add_code_byte
+        
+        lda #$9F         
+        jsr add_code_byte
+
+
+        ; -- lda VERA_ADDR_LOW ($9F20) -> DUMMY!
+        lda #$AD               ; lda ....
+        jsr add_code_byte
+        
+        lda #$20               ; VERA_ADDR_LOW
+        jsr add_code_byte
+        
+        lda #$9F         
+        jsr add_code_byte
+
+        inx
+        bne next_copy_instruction_low_audiodummy
+    .endif
+
+    
+    ldx #0                 ; counts nr of copy instructions
+next_copy_instruction_high_audiopart:
 
     ; -- lda VERA_SPI_DATA ($9F3E)
     lda #$AD               ; lda ....
@@ -986,22 +1239,20 @@ next_copy_instruction_low_audiodummy:
     lda #$9F         
     jsr add_code_byte
 
+    ; -- sta VERA_AUDIO_DATA ($9F3D)
+    lda #$8D               ; sta ....
+    jsr add_code_byte
 
-    ; -- lda VERA_ADDR_LOW ($9F20) -> DUMMY!
-    lda #$AD               ; lda ....
+    lda #$3D               ; $3D
     jsr add_code_byte
-    
-    lda #$20               ; VERA_ADDR_LOW
-    jsr add_code_byte
-    
-    lda #$9F         
+
+    lda #$9F               ; $9F
     jsr add_code_byte
 
     inx
-    bne next_copy_instruction_low_audiodummy
-
+    cpx #<AUDIO_PART_BYTES   ; this is the part past the first 256 bytes
+    bne next_copy_instruction_high_audiopart
     
-    ldx #0                 ; counts nr of copy instructions
 next_copy_instruction_high_audiodummy:
 
     ; -- lda VERA_SPI_DATA ($9F3E)
