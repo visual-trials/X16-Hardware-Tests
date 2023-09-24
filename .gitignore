@@ -1,3 +1,4 @@
 vasm6502_oldstyle.exe
 x16_hardware_tester.lst
 fx_tests/*.rom
+fx_tests/textures/StarWars/*.img
