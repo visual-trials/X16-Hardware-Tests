@@ -61,7 +61,10 @@ LOAD              = $FFD5  ; Load a file into main memory or VRAM
 
 BITMAP_VRAM_ADDRESS   = $00000
 
-VERA_PALETTE          = $1FA00
+SPRITE0_VRAM_ADDRESS  = $12000
+
+VERA_PALETTE      = $1FA00
+VERA_SPRITES      = $1FC00 
 
 
 
@@ -73,11 +76,11 @@ CODE_ADDRESS              = $32 ; 33
 
 VERA_ADDR_ZP_TO           = $34 ; 35 ; 36
 
-; For affine transformation
-X_SUB_PIXEL               = $40 ; 41
-Y_SUB_PIXEL               = $42 ; 43
 
-ROTATION_ANGLE            = $50
+LENS_X_POS                = $40 ; 41
+LENS_Y_POS                = $42 ; 43  ; second byte is never used
+Z_DEPTH_BIT               = $44
+
 
 COSINE_OF_ANGLE           = $51 ; 52
 SINE_OF_ANGLE             = $53 ; 53
@@ -101,6 +104,22 @@ start:
     
 ;    jsr generate_copy_row_code
 
+    ; If set the first 4 sprites will be enabled, the others not
+    lda #%00001000  ; Z-depth = 2
+    sta Z_DEPTH_BIT
+    
+    lda #<(160-64)
+    sta LENS_X_POS
+    lda #>(160-64)
+    sta LENS_X_POS+1
+    
+    lda #<(100-64)
+    sta LENS_Y_POS
+    lda #>(100-64)
+    sta LENS_Y_POS+1
+    
+    jsr setup_sprites
+
 
     ; We are not returning to BASIC here...
 infinite_loop:
@@ -113,8 +132,8 @@ infinite_loop:
 setup_vera_for_layer0_bitmap:
 
     lda VERA_DC_VIDEO
-    ora #%00010000           ; Enable Layer 0 
-    and #%10011111           ; Disable Layer 1 and sprites
+    ora #%01010000           ; Enable Layer 0 and sprites
+    and #%11011111           ; Disable Layer 1
     sta VERA_DC_VIDEO
 
     lda #$40                 ; 2:1 scale (320 x 240 pixels on screen)
@@ -147,6 +166,101 @@ setup_vera_for_layer0_bitmap:
     rts
     
     
+clear_sprite_memory:
+
+; FIXME!
+; FIXME!
+; FIXME!
+
+    rts
+    
+sprite_address_l:  ; Addres bits: 12:5  -> starts at $12000, then $13000: so first is %00000000, second is %10000000 = $00 and $80
+    .byte $00, $80, $00, $80, $00, $80, $00, $80
+sprite_address_h:  ; Addres bits: 16:13  -> starts at $12000, so first is %10001001 (mode = 8bpp, $12000) = $09
+    .byte $09, $09, $0A, $0A, $0B, $0B, $0C, $0C
+sprite_x_offset:
+    .byte 64,  0, 0, 64, 64,  0, 0, 64
+sprite_y_offset:
+    .byte 64, 64, 0,  0, 64, 64, 0,  0
+sprite_flips:
+    .byte 0, 1, 3,  2, 0, 1, 3,  2
+    
+setup_sprites:
+
+    lda #%00010001      ; setting bit 16 of vram address to 1, setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+
+    lda #<(VERA_SPRITES)
+    sta VERA_ADDR_LOW
+    lda #>(VERA_SPRITES)
+    sta VERA_ADDR_HIGH
+
+    ldx #0
+
+setup_next_sprite:
+
+    ; TODO: for performance we could skip writing certain sprite attibutes and just read them 
+
+    ; Address (12:5)
+    lda sprite_address_l, x
+    sta VERA_DATA0
+
+    ; Mode,	-	, Address (16:13)
+    lda sprite_address_h, x
+    ora #%10000000 ; 8bpp
+    sta VERA_DATA0
+    
+    ; X (7:0)
+    clc
+    lda sprite_x_offset, x
+    adc LENS_X_POS
+    sta VERA_DATA0
+    
+    ; X (9:8)
+    lda #0
+    adc LENS_X_POS+1
+    sta VERA_DATA0
+
+    ; Y (7:0)
+    clc
+    lda sprite_y_offset, x
+    adc LENS_Y_POS
+    sta VERA_DATA0
+
+    ; Y (9:8)
+    lda #0
+    adc LENS_Y_POS+1
+    sta VERA_DATA0
+    
+    ; Collision mask	Z-depth	V-flip	H-flip
+    lda Z_DEPTH_BIT
+    ora sprite_flips, x
+    sta VERA_DATA0
+
+    ; Sprite height,	Sprite width,	Palette offset
+; FIXME: we want to use a different palette (blue-ish color) for the pixels inside the lens
+    lda #%11110000 ; 64x64, 0*16 = 0 palette offset
+    sta VERA_DATA0
+    
+    inx
+    
+    ; if x == 4 we flip the Z_DEPTH_BIT
+    cpx #4
+    bne z_depth_bit_is_correct
+    
+    lda Z_DEPTH_BIT
+    eor #%00001000
+    sta Z_DEPTH_BIT
+
+z_depth_bit_is_correct:
+
+    cpx #8
+    bne setup_next_sprite
+    
+    rts
+    
+
+
 copy_palette_from_index_16:
 
     ; Starting at palette VRAM address
