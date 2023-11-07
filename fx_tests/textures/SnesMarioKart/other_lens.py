@@ -5,7 +5,7 @@ import math
 # FIXME: remove this
 import time
 
-DO_MOVE_LENS = False
+DO_MOVE_LENS = True
 
 source_image_filename = "OtherImage_256x256px.png"
 source_image_width = 256
@@ -107,13 +107,33 @@ def init_lens():
         y2 = y*y
         for x in range(hlf):
             x2 = x*x
-            if ((x2 + y2) < r2):
-                shift = d / math.sqrt(d2 - (x2 + y2 - r2))
-                x_shift = shift * x - x
-                y_shift = shift * y - y
+            if ((x2 + y2) <= r2):
+                # old way:
+                # shift = d / math.sqrt(d2 - (x2 + y2 - r2))
+                # x_shift = shift * x - x
+                # y_shift = shift * y - y
+                
+                distance_from_center = math.sqrt(x2 + y2) / lens_radius # distance from center: 0.0 -> 1.0
+                
+                # We now use the quadratic function to create the lens effect
+                distance_from_center += 0.1
+# FIXME: this is ALMOST correct!
+                desired_distance_from_center = distance_from_center * distance_from_center
+                
+                if distance_from_center > 0:
+                    ratio = desired_distance_from_center / distance_from_center
+                else:
+                    ratio = 1
+                    
+                if ratio < 0:
+                    ratio = 0
+                
+                x_shift = ratio * x - x
+                y_shift = ratio * y - y
+                
                 
                 # Inside the lens the pixel gets shifted according to the quadrant it is in
-                lens_offsets[ hlf   + y][ hlf   + x] = (  x_shift   y_shift)
+                lens_offsets[ hlf   + y][ hlf   + x] = (  x_shift,  y_shift)
                 lens_offsets[ hlf-1 - y][ hlf   + x] = (  x_shift, -y_shift)
                 lens_offsets[ hlf   + y][ hlf-1 - x] = ( -x_shift,  y_shift)
                 lens_offsets[ hlf-1 - y][ hlf-1 - x] = ( -x_shift, -y_shift)
@@ -163,8 +183,8 @@ def run():
 
     running = True
     
-    lens_pos_x = 70
-    lens_pos_y = 70
+    lens_pos_x = 50
+    lens_pos_y = 50
     
     while running:
         # TODO: We might want to set this to max?
@@ -175,7 +195,7 @@ def run():
             lens_pos_x += 1
             lens_pos_y += 1
             
-            if (lens_pos_x > 200):
+            if (lens_pos_x > 150):
                 lens_pos_x = 40
                 lens_pos_y = 40
         
