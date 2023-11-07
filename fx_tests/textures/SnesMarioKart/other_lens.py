@@ -113,15 +113,15 @@ def init_lens():
                 y_shift = shift * y - y
                 
                 # Inside the lens the pixel gets shifted according to the quadrant it is in
-                lens_offsets[ hlf + y][ hlf + x] = (x_shift,y_shift)
-                lens_offsets[ hlf-1 - y][ hlf + x] = (x_shift, -y_shift)
-                lens_offsets[ hlf + y][ hlf-1 - x] = ( -x_shift,y_shift)
+                lens_offsets[ hlf   + y][ hlf   + x] = (  x_shift   y_shift)
+                lens_offsets[ hlf-1 - y][ hlf   + x] = (  x_shift, -y_shift)
+                lens_offsets[ hlf   + y][ hlf-1 - x] = ( -x_shift,  y_shift)
                 lens_offsets[ hlf-1 - y][ hlf-1 - x] = ( -x_shift, -y_shift)
             else:
                 # Outside the lens there is no distortion/shift
-                lens_offsets[ hlf + y][ hlf + x] = (0,0)
-                lens_offsets[ hlf-1 - y][ hlf + x] = (0,0)
-                lens_offsets[ hlf + y][ hlf-1 - x] = (0,0)
+                lens_offsets[ hlf   + y][ hlf   + x] = (0,0)
+                lens_offsets[ hlf-1 - y][ hlf   + x] = (0,0)
+                lens_offsets[ hlf   + y][ hlf-1 - x] = (0,0)
                 lens_offsets[ hlf-1 - y][ hlf-1 - x] = (0,0)
 
 
