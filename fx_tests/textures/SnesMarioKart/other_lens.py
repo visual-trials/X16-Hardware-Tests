@@ -78,19 +78,78 @@ background_color = (0,0,0)
 screen_width = 320
 screen_height = 200
 
+lens_size = 80
+lens_radius = lens_size/2
+lens_zoom = 16
+
+# x,y offsets
+lens_offsets = []
+
+
+def init_lens():
+
+    d = lens_zoom
+    d2 = lens_zoom*lens_zoom
+    r2 = lens_radius*lens_radius
+    
+    hlf = int(lens_radius)
+
+    for y in range(int(lens_size)):
+        lens_offsets.append([])
+        for x in range(int(lens_size)):
+            lens_offsets[y].append(None)
+
+    for y in range(hlf):
+        y2 = y*y
+        for x in range(hlf):
+            x2 = x*x
+            if ((x2 + y2) < r2):
+                shift = d / math.sqrt(d2 - (x2 + y2 - r2))
+                x_shift = shift * x - x
+                y_shift = shift * y - y
+                
+                # Inside the lens the pixel gets shifted according to the quadrant it is in
+                lens_offsets[ hlf + y][ hlf + x] = (x_shift,y_shift)
+                lens_offsets[ hlf-1 - y][ hlf + x] = (x_shift, -y_shift)
+                lens_offsets[ hlf + y][ hlf-1 - x] = ( -x_shift,y_shift)
+                lens_offsets[ hlf-1 - y][ hlf-1 - x] = ( -x_shift, -y_shift)
+            else:
+                # Outside the lens there is no distortion/shift
+                lens_offsets[ hlf + y][ hlf + x] = (0,0)
+                lens_offsets[ hlf-1 - y][ hlf + x] = (0,0)
+                lens_offsets[ hlf + y][ hlf-1 - x] = (0,0)
+                lens_offsets[ hlf-1 - y][ hlf-1 - x] = (0,0)
+
+
 pygame.init()
 
 pygame.display.set_caption('X16 2R Lens test')
 screen = pygame.display.set_mode((screen_width*2, screen_height*2))
 clock = pygame.time.Clock()
 
+init_lens()
+
 
 def run():
 
     running = True
+    
+    lens_pos_x = 40
+    lens_pos_y = 40
+    
     while running:
         # TODO: We might want to set this to max?
         clock.tick(60)
+        
+        
+        # FIXME: make the lens move!
+        lens_pos_x += 1
+        lens_pos_y += 1
+        
+        if (lens_pos_x > 200):
+            lens_pos_x = 40
+            lens_pos_y = 40
+        
         
         for event in pygame.event.get():
 
@@ -127,11 +186,28 @@ def run():
                 pixel_color = new_pixel_color = new_colors[old_color_index_to_new_color_index[px[source_x, source_y]]]
                 
                 pygame.draw.rect(screen, pixel_color, pygame.Rect(x_screen*2, y_screen*2, 2, 2))
-            
+
+                
+        for lens_y in range(int(lens_size)):
+            for lens_x in range(int(lens_size)):
+                
+                (x_shift, y_shift) = lens_offsets[lens_y][lens_x]
+                
+                source_y = lens_pos_y + lens_y + y_shift
+                source_x = lens_pos_x + lens_x + x_shift
+                
+                pixel_color = new_pixel_color = new_colors[old_color_index_to_new_color_index[px[source_x, source_y]]]
+                
+                y_screen = lens_pos_y - 32 + lens_y
+                x_screen = lens_pos_x + 32 + lens_x
+                
+                pygame.draw.rect(screen, pixel_color, pygame.Rect(x_screen*2, y_screen*2, 2, 2))
+                
+                
         
         pygame.display.update()
         
-        time.sleep(0.1)
+        time.sleep(0.05)
    
         
     pygame.quit()
