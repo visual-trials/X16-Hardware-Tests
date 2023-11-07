@@ -8,6 +8,7 @@ import time
 source_image_filename = "OtherImage_256x256px.png"
 source_image_width = 256
 source_image_height = 256
+bitmap_filename = "OTHER.BIN"
 
 # creating a image object
 im = Image.open(source_image_filename)
@@ -24,7 +25,8 @@ unique_12bit_colors = {}
 old_color_index_to_new_color_index = []
 
 old_color_index = 0
-new_color_index = 0  # FIXME: dont we want to start at index 16!?
+new_color_index_offset = 16    # We  start at index 16! (preserving the first 16 colors)
+new_color_index = new_color_index_offset
 byte_index = 0
 nr_of_palette_bytes = 3*256
 palette_bytes = im.getpalette()
@@ -130,6 +132,31 @@ clock = pygame.time.Clock()
 init_lens()
 
 
+bitmap_data = []
+# FIXME: we now use 0 as BLACK, but in the bitmap a DIFFERENT color index is used as BLACK!
+hor_margin_pixels = [0] * 32
+for source_y in range(source_image_height):
+
+    if (source_y < 32):
+        continue
+    if (source_y >= 32 + 200):
+        continue
+        
+    bitmap_data += hor_margin_pixels
+    for source_x in range(source_image_width):
+
+        pixel_color_index = new_pixel_color = old_color_index_to_new_color_index[px[source_x, source_y]]
+        
+        bitmap_data.append(pixel_color_index)
+        
+    bitmap_data += hor_margin_pixels
+    
+tableFile = open(bitmap_filename, "wb")
+tableFile.write(bytearray(bitmap_data))
+tableFile.close()
+print("bitmap written to file: " + bitmap_filename)
+
+
 def run():
 
     running = True
@@ -183,7 +210,7 @@ def run():
                 y_screen = source_y - 32
                 x_screen = source_x + 32
                 
-                pixel_color = new_pixel_color = new_colors[old_color_index_to_new_color_index[px[source_x, source_y]]]
+                pixel_color = new_pixel_color = new_colors[old_color_index_to_new_color_index[px[source_x, source_y]] - new_color_index_offset]
                 
                 pygame.draw.rect(screen, pixel_color, pygame.Rect(x_screen*2, y_screen*2, 2, 2))
 
@@ -196,7 +223,7 @@ def run():
                 source_y = lens_pos_y + lens_y + y_shift
                 source_x = lens_pos_x + lens_x + x_shift
                 
-                pixel_color = new_pixel_color = new_colors[old_color_index_to_new_color_index[px[source_x, source_y]]]
+                pixel_color = new_pixel_color = new_colors[old_color_index_to_new_color_index[px[source_x, source_y]] - new_color_index_offset]
                 
                 y_screen = lens_pos_y - 32 + lens_y
                 x_screen = lens_pos_x + 32 + lens_x
