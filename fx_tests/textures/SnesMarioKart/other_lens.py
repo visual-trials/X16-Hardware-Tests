@@ -116,6 +116,7 @@ def init_lens():
                 distance_from_center = math.sqrt(x2 + y2) / lens_radius # distance from center: 0.0 -> 1.0
                 
                 # We now use the quadratic function to create the lens effect
+                distance_from_center *= 0.9
                 distance_from_center += 0.1
 # FIXME: this is ALMOST correct!
                 desired_distance_from_center = distance_from_center * distance_from_center
