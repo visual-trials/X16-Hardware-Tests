@@ -56,7 +56,19 @@ while (byte_index < nr_of_palette_bytes):
         new_color_index += 1
     
     old_color_index += 1
+
+# Create duplicate colors that a blue-ish    
+extra_colors = []
+for new_color in new_colors:
+    red = new_color[0]
+    green = new_color[1]
+    blue = new_color[2]
     
+    new_blue = 256 - (256 - blue) // 2
+    
+    extra_colors.append((red, green, new_blue))
+    
+new_colors += extra_colors
     
 # Printing out asm for palette:
 
@@ -140,10 +152,10 @@ def init_lens():
                 lens_offsets[ hlf-1 - y][ hlf-1 - x] = ( -x_shift, -y_shift)
             else:
                 # Outside the lens there is no distortion/shift
-                lens_offsets[ hlf   + y][ hlf   + x] = (0,0)
-                lens_offsets[ hlf-1 - y][ hlf   + x] = (0,0)
-                lens_offsets[ hlf   + y][ hlf-1 - x] = (0,0)
-                lens_offsets[ hlf-1 - y][ hlf-1 - x] = (0,0)
+                lens_offsets[ hlf   + y][ hlf   + x] = (None,None)
+                lens_offsets[ hlf-1 - y][ hlf   + x] = (None,None)
+                lens_offsets[ hlf   + y][ hlf-1 - x] = (None,None)
+                lens_offsets[ hlf-1 - y][ hlf-1 - x] = (None,None)
 
 
 pygame.init()
@@ -243,10 +255,13 @@ def run():
                 
                 (x_shift, y_shift) = lens_offsets[lens_y][lens_x]
                 
+                if (x_shift is None):
+                    continue
+                
                 source_y = lens_pos_y + lens_y + y_shift
                 source_x = lens_pos_x + lens_x + x_shift
                 
-                pixel_color = new_pixel_color = new_colors[old_color_index_to_new_color_index[px[source_x, source_y]] - new_color_index_offset]
+                pixel_color = new_pixel_color = extra_colors[old_color_index_to_new_color_index[px[source_x, source_y]] - new_color_index_offset]
                 
                 y_screen = lens_pos_y - 32 + lens_y
                 x_screen = lens_pos_x + 32 + lens_x

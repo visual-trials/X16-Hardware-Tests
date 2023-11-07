@@ -61,7 +61,7 @@ LOAD              = $FFD5  ; Load a file into main memory or VRAM
 
 BITMAP_VRAM_ADDRESS   = $00000
 
-SPRITE0_VRAM_ADDRESS  = $12000
+SPRITES_VRAM_ADDRESS  = $12000
 
 VERA_PALETTE      = $1FA00
 VERA_SPRITES      = $1FC00 
@@ -73,13 +73,13 @@ VERA_SPRITES      = $1FC00
 
 LOAD_ADDRESS              = $30 ; 31
 CODE_ADDRESS              = $32 ; 33
-
-VERA_ADDR_ZP_TO           = $34 ; 35 ; 36
+VRAM_ADDRESS              = $34 ; 35 ; 36
 
 
 LENS_X_POS                = $40 ; 41
 LENS_Y_POS                = $42 ; 43  ; second byte is never used
 Z_DEPTH_BIT               = $44
+QUADRANT                  = $45
 
 
 COSINE_OF_ANGLE           = $51 ; 52
@@ -87,7 +87,11 @@ SINE_OF_ANGLE             = $53 ; 53
 
 ; === RAM addresses ===
 
-COPY_ROW_CODE               = $7800
+BITMAP_QUADRANT_BUFFER    = $6000  ; 40 * 40 bytes = 1600 bytes (assuming a lens of 80x80)
+Y_TO_ADDRESS_LOW          = $7600
+Y_TO_ADDRESS_HIGH         = $7700
+
+COPY_ROW_CODE             = $7800
 
 
 ; === Other constants ===
@@ -101,6 +105,7 @@ start:
 
     jsr copy_palette_from_index_16
     jsr load_bitmap_into_vram
+    jsr generate_y_to_address_table
     
 ;    jsr generate_copy_row_code
 
@@ -118,13 +123,54 @@ start:
     lda #>(100-64)
     sta LENS_Y_POS+1
     
+    jsr clear_sprite_memory
     jsr setup_sprites
+    
+    lda #0
+    sta QUADRANT
+    jsr download_bitmap_quadrant_into_buffer
 
 
     ; We are not returning to BASIC here...
 infinite_loop:
     jmp infinite_loop
     
+    rts
+    
+    
+download_bitmap_quadrant_into_buffer:
+
+; FIXME: do something with theses!
+; FIXME: do something with theses!
+; FIXME: do something with theses!
+
+;    lda QUADRANT
+
+;    lda LENS_X_POS
+;    lda LENS_X_POS+1  ; -> also NEGATIVE NUMBERS!
+    
+;    lda LENS_Y_POS
+;    lda LENS_Y_POS+1  ; -> also NEGATIVE NUMBERS!
+
+    ; -- Setup polygon mode --
+    
+    ; -> setup increment direction (of ADDR0 and ADDR1) based on QUADRANT
+
+    ; -- loop through lines to download (0-39) --
+    
+        ; -- Calculate line number on screen --
+
+        ; -- Skip downloading lines < 0 -- 
+        ; -- Skip downloading lines > 200 -- 
+    
+    
+        ; -- Set ADDR0 to the line we want to download --
+        
+        ; -- call download routine (which copies one row of VRAM (40 pixels) into Fixed RAM)
+
+
+
+
     rts
     
     
@@ -168,10 +214,32 @@ setup_vera_for_layer0_bitmap:
     
 clear_sprite_memory:
 
-; FIXME!
-; FIXME!
-; FIXME!
+    lda #%00010001      ; setting bit 16 of vram address to 1, setting auto-increment value to 1
+    sta VERA_ADDR_BANK
 
+    lda #<(SPRITES_VRAM_ADDRESS)
+    sta VERA_ADDR_LOW
+    lda #>(SPRITES_VRAM_ADDRESS)
+    sta VERA_ADDR_HIGH
+
+    ; FIXME: PERFORMANCE we can do this MUCH faster using CACHE writes and UNROLLING!
+    
+    ldy #128
+clear_next_256:
+    ldx #0
+clear_next_1:
+
+; FIXME: we should CLEAR! (for now filling with red)
+;    stz VERA_DATA0
+    lda #2
+    sta VERA_DATA0
+
+    inx
+    bne clear_next_1
+    
+    dey
+    bne clear_next_256
+    
     rts
     
 sprite_address_l:  ; Addres bits: 12:5  -> starts at $12000, then $13000: so first is %00000000, second is %10000000 = $00 and $80
@@ -323,6 +391,38 @@ load_bitmap_into_vram:
 bitmap_loaded:
     rts
 
+    
+    
+    
+generate_y_to_address_table:
+
+    ; TODO: we assume the base address is 0 here!
+    stz VRAM_ADDRESS
+    stz VRAM_ADDRESS+1
+    stz VRAM_ADDRESS+2
+    
+    ldy #0
+generate_next_y_to_address_entry:
+    clc
+    lda VRAM_ADDRESS
+    adc #<320
+    sta VRAM_ADDRESS
+    sta Y_TO_ADDRESS_LOW, y
+    
+    lda VRAM_ADDRESS+1
+    adc #>320
+    sta VRAM_ADDRESS+1
+    sta Y_TO_ADDRESS_HIGH, y
+    
+    ; FIXME: not storing VRAM_ADDRESS+2 at the moment!
+    ; FIXME: not storing Y_TO_ADDRESS_BANK here!
+    
+    iny
+    bne generate_next_y_to_address_entry
+
+    rts
+    
+    
 
 generate_copy_row_code:
 
