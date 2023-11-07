@@ -5,6 +5,8 @@ import math
 # FIXME: remove this
 import time
 
+DO_MOVE_LENS = False
+
 source_image_filename = "OtherImage_256x256px.png"
 source_image_width = 256
 source_image_height = 256
@@ -161,21 +163,21 @@ def run():
 
     running = True
     
-    lens_pos_x = 40
-    lens_pos_y = 40
+    lens_pos_x = 70
+    lens_pos_y = 70
     
     while running:
         # TODO: We might want to set this to max?
         clock.tick(60)
         
         
-        # FIXME: make the lens move!
-        lens_pos_x += 1
-        lens_pos_y += 1
-        
-        if (lens_pos_x > 200):
-            lens_pos_x = 40
-            lens_pos_y = 40
+        if (DO_MOVE_LENS):
+            lens_pos_x += 1
+            lens_pos_y += 1
+            
+            if (lens_pos_x > 200):
+                lens_pos_x = 40
+                lens_pos_y = 40
         
         
         for event in pygame.event.get():
