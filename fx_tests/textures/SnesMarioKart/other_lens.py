@@ -13,6 +13,8 @@ source_image_height = 256
 bitmap_filename = "OTHER.BIN"
 download1_code_filename = "DOWNLOAD1.BIN"
 download2_code_filename = "DOWNLOAD2.BIN"
+upload1_code_filename = "UPLOAD1.BIN"
+upload2_code_filename = "UPLOAD2.BIN"
 
 screen_width = 320
 screen_height = 200
@@ -174,11 +176,14 @@ def init_lens():
 #  - X1-position is 0
 #  - Free memory at address BITMAP_QUADRANT_BUFFER (lens_radius*lens_radius in size)
 #
-def generate_download_code():
+def generate_download_and_upload_code():
     download1_code = []
     download2_code = []
+    upload1_code = []
+    upload2_code = []
 
     download_code = download1_code
+    upload_code = upload1_code
     
     hlf = int(lens_radius)
 
@@ -187,6 +192,9 @@ def generate_download_code():
             (x_shift, y_shift) = lens_offsets[ hlf   + y][ hlf   + x]
             
             if x_shift is not None:
+            
+                # -- download --
+                
                 # We need to download a byte from VRAM into Fixed RAM
 
                 # lda VERA_DATA1 ($9F24)  -> this loads a byte from VRAM
@@ -196,21 +204,42 @@ def generate_download_code():
                 
                 address_to_write_to = BITMAP_QUADRANT_BUFFER + y * hlf + x
                 
-                # sta $6... ($9F25)
+                # sta $6... 
                 download_code.append(0x8D)  # sta ....
                 download_code.append(address_to_write_to % 256)  # low part of address
                 download_code.append(address_to_write_to // 256)  # high part of address
+
+                # -- upload --
+
+# FIXME: we want to OFFSET this address!!
+# FIXME: we want to OFFSET this address!!
+# FIXME: we want to OFFSET this address!!
+                address_to_read_from = BITMAP_QUADRANT_BUFFER + y * hlf + x
+                
+                # lda $6....
+                upload_code.append(0xAD)  # lda ....
+                upload_code.append(address_to_read_from % 256)  # low part of address
+                upload_code.append(address_to_read_from // 256)  # high part of address
+                
+                # sta VERA_DATA1 ($9F24)  -> this writes a byte to VRAM
+                upload_code.append(0x8D)  # sta ....
+                upload_code.append(0x24)  # $24
+                upload_code.append(0x9F)  # $9F
+                
             
             if (((x_shift is None) or x == hlf-1) and (y != hlf-1)):
+            
                 # We reached the end of this row, so we have to move to the next one (unless its the last row)
             
+                # -- download --
+                
                 # lda #%00000010  (polygon mode = 1)
                 download_code.append(0xA9)  # lda #..
                 download_code.append(0x02)  # #%00000010  (polygon mode = 1)
                 
-                # sta VERA_CTRL ($9F25)
+                # sta VERA_CTRL ($9F29)
                 download_code.append(0x8D)  # sta ....
-                download_code.append(0x25)  # $25
+                download_code.append(0x29)  # $29
                 download_code.append(0x9F)  # $9F
                 
                 # lda VERA_DATA0 ($9F23)  -> this increments ADDR0 one pixel vertically
@@ -223,16 +252,33 @@ def generate_download_code():
                 download_code.append(0x24)  # $24
                 download_code.append(0x9F)  # $9F
                 
-                # stz VERA_CTRL ($9F25)  (polygon mode = 0)
+                # stz VERA_CTRL ($9F29)  (polygon mode = 0)
                 download_code.append(0x9C)  # stz ....
-                download_code.append(0x25)  # $25
+                download_code.append(0x29)  # $29
                 download_code.append(0x9F)  # $9F
+                
+                # -- upload --
+
+                # lda VERA_DATA0 ($9F23)  -> this increments ADDR0 one pixel vertically
+                upload_code.append(0xAD)  # lda ....
+                upload_code.append(0x23)  # $23
+                upload_code.append(0x9F)  # $9F
+                
+                # lda VERA_DATA1 ($9F24)  -> this sets ADDR1 to DATA0 + x1 (note: x1 is 0)
+                upload_code.append(0xAD)  # lda ....
+                upload_code.append(0x24)  # $24
+                upload_code.append(0x9F)  # $9F
+
+                # -- updload and download --
                 
                 # Note: dividing by 2.5 divides the two files in roughly equal size
                 if (y == int(hlf/2.5)):
                     # We are halfway, we need to add an rts and continue in the other array
                     download_code.append(0x60)  # rts
                     download_code = download2_code
+                    
+                    upload_code.append(0x60)  # rts
+                    upload_code = upload2_code
                 
                 # We break from the x-loop
                 break
@@ -240,8 +286,9 @@ def generate_download_code():
         if (y == hlf-1):
             # We are done, we need to add an rts
             download_code.append(0x60)  # rts
+            upload_code.append(0x60)  # rts
 
-    return (download1_code, download2_code)
+    return (download1_code, download2_code, upload1_code, upload2_code)
 
 
 pygame.init()
@@ -252,7 +299,7 @@ clock = pygame.time.Clock()
 
 init_lens()
 
-(download1_code, download2_code) = generate_download_code()
+(download1_code, download2_code, upload1_code, upload2_code) = generate_download_and_upload_code()
 
 tableFile = open(download1_code_filename, "wb")
 tableFile.write(bytearray(download1_code))
@@ -264,6 +311,15 @@ tableFile.write(bytearray(download2_code))
 tableFile.close()
 print("download code 2 written to file: " + download2_code_filename)
 
+tableFile = open(upload1_code_filename, "wb")
+tableFile.write(bytearray(upload1_code))
+tableFile.close()
+print("upload code 1 written to file: " + upload1_code_filename)
+
+tableFile = open(upload2_code_filename, "wb")
+tableFile.write(bytearray(upload2_code))
+tableFile.close()
+print("upload code 2 written to file: " + upload2_code_filename)
 
 bitmap_data = []
 # FIXME: we now use 0 as BLACK, but in the bitmap a DIFFERENT color index is used as BLACK!

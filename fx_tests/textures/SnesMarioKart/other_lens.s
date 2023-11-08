@@ -88,6 +88,7 @@ BITMAP_QUADRANT_BUFFER    = $6000  ; LENS_RADIUS * LENS_RADIUS bytes = 2500 byte
 Y_TO_ADDRESS_LOW          = $7600
 Y_TO_ADDRESS_HIGH         = $7700
 DOWNLOAD_RAM_ADDRESS      = $A000
+UPLOAD_RAM_ADDRESS        = $A000
 
 ; === VRAM addresses ===
 
@@ -103,6 +104,8 @@ LENS_RADIUS = 50  ; --> also CHANGE clear_download_buffer if you change this num
 
 DOWNLOAD1_RAM_BANK        = $01
 DOWNLOAD2_RAM_BANK        = $02
+UPLOAD1_RAM_BANK          = $03
+UPLOAD2_RAM_BANK          = $04
 
 start:
 
@@ -114,19 +117,21 @@ start:
     
     jsr load_download1_code_into_banked_ram
     jsr load_download2_code_into_banked_ram
+    jsr load_upload1_code_into_banked_ram
+    jsr load_upload2_code_into_banked_ram
     
     ; If set the first 4 sprites will be enabled, the others not
     lda #%00001000  ; Z-depth = 2
     sta Z_DEPTH_BIT
     
-    lda #<(160-64)
+    lda #<(160)
     sta LENS_X_POS
-    lda #>(160-64)
+    lda #>(160)
     sta LENS_X_POS+1
     
-    lda #<(100-64)
+    lda #<(100)
     sta LENS_Y_POS
-    lda #>(100-64)
+    lda #>(100)
     sta LENS_Y_POS+1
     
     jsr clear_sprite_memory
@@ -147,6 +152,7 @@ infinite_loop:
     rts
     
     
+; FIXME: *RENAME* this!
 download_bitmap_quadrant_into_buffer:
 
 ; FIXME: do something with theses!
@@ -169,18 +175,23 @@ download_bitmap_quadrant_into_buffer:
     ;  - X1-position is 0
     ;  - Free memory at address BITMAP_QUADRANT_BUFFER (lens_radius*lens_radius in size)
 
+    ; -- upload --
+    
     ; -- Setup for downloading in quadrant 0 --
     
     lda #%00000101           ; DCSEL=2, ADDRSEL=1
     sta VERA_CTRL
     
+; FIXME: this is QUADRANT SPECIFIC!
     lda #%00010000           ; Setting bit 16 of ADDR1 to 0, auto-increment to +1
     sta VERA_ADDR_BANK
     
     lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00010000           ; Setting bit 16 of ADDR1 to 0, auto-increment to +320
+; FIXME: this is QUADRANT SPECIFIC!
+; FIXME: NOTE THE bit16! We need to reset between download and upload!
+    lda #%11100000           ; Setting bit 16 of ADDR1 to 0, auto-increment to +320
     sta VERA_ADDR_BANK
     
     lda #%00000010
@@ -207,19 +218,51 @@ download_bitmap_quadrant_into_buffer:
     lda #%00000000
     sta VERA_FX_CTRL         ; normal addr1-mode
 
+    lda #DOWNLOAD1_RAM_BANK
+    sta RAM_BANK
+    jsr DOWNLOAD_RAM_ADDRESS
+    
+    lda #DOWNLOAD2_RAM_BANK
+    sta RAM_BANK
+    jsr DOWNLOAD_RAM_ADDRESS
+
+
+    ; -- upload --
+    
+; FIXME: we might want to REMEMBER the START_ADDRESS!!
+    
+; FIXME: this is QUADRANT SPECIFIC!
+; FIXME: NOTE THE bit16! We need to reset between download and upload!
+    lda #%01110001           ; Setting bit 16 of ADDR1 to 1, auto-increment to +64
+    sta VERA_ADDR_BANK
+    
+    lda #%00000010
+    sta VERA_FX_CTRL         ; polygon addr1-mode
+    
+; FIXME   lda LENS_Y_POS+1  ; -> also NEGATIVE NUMBERS!
+    ldy LENS_Y_POS
+
+    
+; FIXME: this is QUADRANT SPECIFIC!
+    lda #<SPRITES_VRAM_ADDRESS
+    sta VERA_ADDR_LOW
+
+; FIXME: this is QUADRANT SPECIFIC!
+    lda #>SPRITES_VRAM_ADDRESS
+    sta VERA_ADDR_HIGH
+
+    lda VERA_DATA1                ; sets ADDR1 to ADDR0
+    
+    ; Note: when doing the upload, we stay in polygon mode
+
     stp
-    
-    lda #1
+    lda #UPLOAD1_RAM_BANK
     sta RAM_BANK
-    jsr DOWNLOAD_RAM_ADDRESS
+    jsr UPLOAD_RAM_ADDRESS
     
-    lda #2
+    lda #UPLOAD2_RAM_BANK
     sta RAM_BANK
-    jsr DOWNLOAD_RAM_ADDRESS
-    
-    
-; FIXME: also implement UPLOAD here!
-; FIXME: note that uploading goes into a 64x64 pixel SPRITE! (so vertical increment should be +64/-64)
+    jsr UPLOAD_RAM_ADDRESS
 
 
     rts
@@ -330,9 +373,13 @@ sprite_address_l:  ; Addres bits: 12:5  -> starts at $12000, then $13000: so fir
 sprite_address_h:  ; Addres bits: 16:13  -> starts at $12000, so first is %10001001 (mode = 8bpp, $12000) = $09
     .byte $09, $09, $0A, $0A, $0B, $0B, $0C, $0C
 sprite_x_offset:
-    .byte 64,  0, 0, 64, 64,  0, 0, 64
+; Note: these are SUBTRACTED!
+    .byte 0,  64, 64, 0, 0,  64, 64, 0
+; OLD    .byte 64,  0, 0, 64, 64,  0, 0, 64
 sprite_y_offset:
-    .byte 64, 64, 0,  0, 64, 64, 0,  0
+; Note: these are SUBTRACTED!
+    .byte 0, 0, 64,  64, 0, 0, 64,  64
+; OLD    .byte 64, 64, 0,  0, 64, 64, 0,  0
 sprite_flips:
     .byte 0, 1, 3,  2, 0, 1, 3,  2
     
@@ -362,25 +409,25 @@ setup_next_sprite:
     sta VERA_DATA0
     
     ; X (7:0)
-    clc
-    lda sprite_x_offset, x
-    adc LENS_X_POS
+    sec
+    lda LENS_X_POS
+    sbc sprite_x_offset, x
     sta VERA_DATA0
     
     ; X (9:8)
-    lda #0
-    adc LENS_X_POS+1
+    lda LENS_X_POS+1
+    sbc #0
     sta VERA_DATA0
 
     ; Y (7:0)
-    clc
-    lda sprite_y_offset, x
-    adc LENS_Y_POS
+    sec
+    lda LENS_Y_POS
+    sbc sprite_y_offset, x
     sta VERA_DATA0
 
     ; Y (9:8)
-    lda #0
-    adc LENS_Y_POS+1
+    lda LENS_Y_POS+1
+    sbc #0
     sta VERA_DATA0
     
     ; Collision mask	Z-depth	V-flip	H-flip
@@ -537,6 +584,72 @@ download2_loaded:
 
     rts
 
+    
+    
+upload1_filename:      .byte    "upload1.bin" 
+end_upload1_filename:
+
+load_upload1_code_into_banked_ram:
+
+    lda #(end_upload1_filename-upload1_filename) ; Length of filename
+    ldx #<upload1_filename      ; Low byte of Fname address
+    ldy #>upload1_filename      ; High byte of Fname address
+    jsr SETNAM
+ 
+    lda #1            ; Logical file number
+    ldx #8            ; Device 8 = sd card
+    ldy #2            ; 0=ignore address in bin file (2 first bytes)
+                      ; 1=use address in bin file
+                      ; 2=?use address in bin file? (and dont add first 2 bytes?)
+    
+    jsr SETLFS
+    
+    lda #UPLOAD1_RAM_BANK
+    sta RAM_BANK
+    
+    lda #0            ; load into Fixed RAM (current RAM Bank) (see https://github.com/X16Community/x16-docs/blob/master/X16%20Reference%20-%2004%20-%20KERNAL.md#function-name-load )
+    ldx #<UPLOAD_RAM_ADDRESS
+    ldy #>UPLOAD_RAM_ADDRESS
+    jsr LOAD
+    bcc upload1_loaded
+    ; FIXME: do proper error handling!
+    stp
+upload1_loaded:
+
+    rts
+    
+upload2_filename:      .byte    "upload2.bin" 
+end_upload2_filename:
+
+load_upload2_code_into_banked_ram:
+
+    lda #(end_upload2_filename-upload2_filename) ; Length of filename
+    ldx #<upload2_filename      ; Low byte of Fname address
+    ldy #>upload2_filename      ; High byte of Fname address
+    jsr SETNAM
+ 
+    lda #1            ; Logical file number
+    ldx #8            ; Device 8 = sd card
+    ldy #2            ; 0=ignore address in bin file (2 first bytes)
+                      ; 1=use address in bin file
+                      ; 2=?use address in bin file? (and dont add first 2 bytes?)
+    jsr SETLFS
+    
+    lda #UPLOAD2_RAM_BANK
+    sta RAM_BANK
+ 
+    lda #0            ; load into Fixed RAM (current RAM Bank) (see https://github.com/X16Community/x16-docs/blob/master/X16%20Reference%20-%2004%20-%20KERNAL.md#function-name-load )
+    ldx #<UPLOAD_RAM_ADDRESS
+    ldy #>UPLOAD_RAM_ADDRESS
+    jsr LOAD
+    bcc upload2_loaded
+    ; FIXME: do proper error handling!
+    stp
+upload2_loaded:
+
+    rts
+    
+    
     
 generate_y_to_address_table:
 
