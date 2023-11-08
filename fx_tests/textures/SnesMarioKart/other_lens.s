@@ -55,20 +55,16 @@ SETNAM            = $FFBD  ; set filename
 SETLFS            = $FFBA  ; Set LA, FA, and SA
 LOAD              = $FFD5  ; Load a file into main memory or VRAM
 
-
-; -- VRAM addresses --
-
-
-BITMAP_VRAM_ADDRESS   = $00000
-
-SPRITES_VRAM_ADDRESS  = $12000
-
 VERA_PALETTE      = $1FA00
-VERA_SPRITES      = $1FC00 
-
+VERA_SPRITES      = $1FC00
+ 
 
 
 ; === Zero page addresses ===
+
+; Bank switching
+RAM_BANK                  = $00
+ROM_BANK                  = $01
 
 
 LOAD_ADDRESS              = $30 ; 31
@@ -90,14 +86,21 @@ SINE_OF_ANGLE             = $53 ; 53
 BITMAP_QUADRANT_BUFFER    = $6000  ; 40 * 40 bytes = 1600 bytes (assuming a lens of 80x80)
 Y_TO_ADDRESS_LOW          = $7600
 Y_TO_ADDRESS_HIGH         = $7700
+DOWNLOAD_RAM_ADDRESS      = $A000
 
-COPY_ROW_CODE             = $7800
+; === VRAM addresses ===
+
+BITMAP_VRAM_ADDRESS   = $00000
+SPRITES_VRAM_ADDRESS  = $12000
 
 
 ; === Other constants ===
 
 BITMAP_WIDTH = 256
 BITMAP_HEIGHT = 192
+
+DOWNLOAD1_RAM_BANK        = $01
+DOWNLOAD2_RAM_BANK        = $02
 
 start:
 
@@ -107,8 +110,9 @@ start:
     jsr load_bitmap_into_vram
     jsr generate_y_to_address_table
     
-;    jsr generate_copy_row_code
-
+    jsr load_download1_code_into_banked_ram
+    jsr load_download2_code_into_banked_ram
+    
     ; If set the first 4 sprites will be enabled, the others not
     lda #%00001000  ; Z-depth = 2
     sta Z_DEPTH_BIT
@@ -377,7 +381,6 @@ load_bitmap_into_vram:
     ldy #2            ; 0=ignore address in bin file (2 first bytes)
                       ; 1=use address in bin file
                       ; 2=?use address in bin file? (and dont add first 2 bytes?)
-           
     jsr SETLFS
  
     lda #2            ; load into Bank 0 of VRAM (see https://github.com/X16Community/x16-docs/blob/master/X16%20Reference%20-%2004%20-%20KERNAL.md#function-name-load )
@@ -385,14 +388,76 @@ load_bitmap_into_vram:
     ldy #>BITMAP_VRAM_ADDRESS
     jsr LOAD
     bcc bitmap_loaded
-; FIXME: do proper error handling!
+    ; FIXME: do proper error handling!
     stp
 
 bitmap_loaded:
     rts
 
+
+download1_filename:      .byte    "download1.bin" 
+end_download1_filename:
+
+load_download1_code_into_banked_ram:
+
+    lda #(end_download1_filename-download1_filename) ; Length of filename
+    ldx #<download1_filename      ; Low byte of Fname address
+    ldy #>download1_filename      ; High byte of Fname address
+    jsr SETNAM
+ 
+    lda #1            ; Logical file number
+    ldx #8            ; Device 8 = sd card
+    ldy #2            ; 0=ignore address in bin file (2 first bytes)
+                      ; 1=use address in bin file
+                      ; 2=?use address in bin file? (and dont add first 2 bytes?)
     
+    jsr SETLFS
     
+    lda #DOWNLOAD1_RAM_BANK
+    sta RAM_BANK
+    
+    lda #0            ; load into Fixed RAM (current RAM Bank) (see https://github.com/X16Community/x16-docs/blob/master/X16%20Reference%20-%2004%20-%20KERNAL.md#function-name-load )
+    ldx #<DOWNLOAD_RAM_ADDRESS
+    ldy #>DOWNLOAD_RAM_ADDRESS
+    jsr LOAD
+    bcc download1_loaded
+    ; FIXME: do proper error handling!
+    stp
+download1_loaded:
+
+    rts
+    
+download2_filename:      .byte    "download2.bin" 
+end_download2_filename:
+
+load_download2_code_into_banked_ram:
+
+    lda #(end_download2_filename-download2_filename) ; Length of filename
+    ldx #<download2_filename      ; Low byte of Fname address
+    ldy #>download2_filename      ; High byte of Fname address
+    jsr SETNAM
+ 
+    lda #1            ; Logical file number
+    ldx #8            ; Device 8 = sd card
+    ldy #2            ; 0=ignore address in bin file (2 first bytes)
+                      ; 1=use address in bin file
+                      ; 2=?use address in bin file? (and dont add first 2 bytes?)
+    jsr SETLFS
+    
+    lda #DOWNLOAD2_RAM_BANK
+    sta RAM_BANK
+ 
+    lda #0            ; load into Fixed RAM (current RAM Bank) (see https://github.com/X16Community/x16-docs/blob/master/X16%20Reference%20-%2004%20-%20KERNAL.md#function-name-load )
+    ldx #<DOWNLOAD_RAM_ADDRESS
+    ldy #>DOWNLOAD_RAM_ADDRESS
+    jsr LOAD
+    bcc download2_loaded
+    ; FIXME: do proper error handling!
+    stp
+download2_loaded:
+
+    rts
+
     
 generate_y_to_address_table:
 
@@ -424,82 +489,6 @@ generate_next_y_to_address_entry:
     
     
 
-generate_copy_row_code:
-
-    lda #<COPY_ROW_CODE
-    sta CODE_ADDRESS
-    lda #>COPY_ROW_CODE
-    sta CODE_ADDRESS+1
-    
-    ldy #0                 ; generated code byte counter
-    
-    ldx #0                 ; counts nr of copy instructions
-
-next_copy_instruction:
-
-    ; -- lda VERA_DATA1 ($9F24)
-    lda #$AD               ; lda ....
-    jsr add_code_byte
-    
-    lda #$24               ; VERA_DATA1
-    jsr add_code_byte
-    
-    lda #$9F         
-    jsr add_code_byte
-
-    ; When using the cache for writing we only write 1/4th of the time, so we read 3 extra bytes here (they go into the cache)
-    
-    ; -- lda VERA_DATA1 ($9F24)
-    lda #$AD               ; lda ....
-    jsr add_code_byte
-    
-    lda #$24               ; VERA_DATA1
-    jsr add_code_byte
-    
-    lda #$9F         
-    jsr add_code_byte
-
-    ; -- lda VERA_DATA1 ($9F24)
-    lda #$AD               ; lda ....
-    jsr add_code_byte
-    
-    lda #$24               ; VERA_DATA1
-    jsr add_code_byte
-    
-    lda #$9F         
-    jsr add_code_byte
-
-    ; -- lda VERA_DATA1 ($9F24)
-    lda #$AD               ; lda ....
-    jsr add_code_byte
-    
-    lda #$24               ; VERA_DATA1
-    jsr add_code_byte
-    
-    lda #$9F         
-    jsr add_code_byte
-
-    ; We use the cache for writing, we do not want a mask to we store 0 (stz)
-
-    ; -- stz VERA_DATA0 ($9F23)
-    lda #$9C               ; stz ....
-    jsr add_code_byte
-
-    lda #$23               ; $23
-    jsr add_code_byte
-    
-    lda #$9F               ; $9F
-    jsr add_code_byte
-
-    inx
-    cpx #320/4
-    bne next_copy_instruction
-
-    ; -- rts --
-    lda #$60
-    jsr add_code_byte
-
-    rts
 
 
     

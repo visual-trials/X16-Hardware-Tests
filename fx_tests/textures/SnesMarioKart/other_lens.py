@@ -11,6 +11,17 @@ source_image_filename = "OtherImage_256x256px.png"
 source_image_width = 256
 source_image_height = 256
 bitmap_filename = "OTHER.BIN"
+download1_code_filename = "DOWNLOAD1.BIN"
+download2_code_filename = "DOWNLOAD2.BIN"
+
+screen_width = 320
+screen_height = 200
+
+BITMAP_QUADRANT_BUFFER = 0x6000
+lens_size = 100
+lens_radius = lens_size/2
+lens_zoom = 16
+
 
 # creating a image object
 im = Image.open(source_image_filename)
@@ -91,13 +102,6 @@ print(palette_string)
 
 background_color = (0,0,0)
 
-screen_width = 320
-screen_height = 200
-
-lens_size = 80
-lens_radius = lens_size/2
-lens_zoom = 16
-
 # x,y offsets
 lens_offsets = []
 
@@ -157,6 +161,88 @@ def init_lens():
                 lens_offsets[ hlf   + y][ hlf-1 - x] = (None,None)
                 lens_offsets[ hlf-1 - y][ hlf-1 - x] = (None,None)
 
+# Generate 'download' code (to copy quarter of a cirle from VRAM to Fixed RAM)
+#
+# Preconditions to run this code:
+#
+#  - Normal addr1-mode
+#  - DCSEL=2
+#  - ADDR0-increment should be set 1-pixel vertically (+320/-320 according to quadrant)
+#  - ADDR1-increment should be set 1-pixel horizontally (+1/-1 according to quadrant)
+#  - ADDR0 set to address of first pixel in quadrant
+#  - X1-increment is 0
+#  - X1-position is 0
+#  - Free memory at address BITMAP_QUADRANT_BUFFER (lens_radius*lens_radius in size)
+#
+def generate_download_code():
+    download1_code = []
+    download2_code = []
+
+    download_code = download1_code
+    
+    hlf = int(lens_radius)
+
+    for y in range(hlf):
+        for x in range(hlf):
+            (x_shift, y_shift) = lens_offsets[ hlf   + y][ hlf   + x]
+            
+            if x_shift is not None:
+                # We need to download a byte from VRAM into Fixed RAM
+
+                # lda VERA_DATA1 ($9F24)  -> this loads a byte from VRAM
+                download_code.append(0xAD)  # lda ....
+                download_code.append(0x24)  # $24
+                download_code.append(0x9F)  # $9F
+                
+                address_to_write_to = BITMAP_QUADRANT_BUFFER + y * hlf + x
+                
+                # sta $6... ($9F25)
+                download_code.append(0x8D)  # sta ....
+                download_code.append(address_to_write_to % 256)  # low part of address
+                download_code.append(address_to_write_to // 256)  # high part of address
+            
+            if (((x_shift is None) or x == hlf-1) and (y != hlf-1)):
+                # We reached the end of this row, so we have to move to the next one (unless its the last row)
+            
+                # lda #%00000010  (polygon mode = 1)
+                download_code.append(0xA9)  # lda #..
+                download_code.append(0x02)  # #%00000010  (polygon mode = 1)
+                
+                # sta VERA_CTRL ($9F25)
+                download_code.append(0x8D)  # sta ....
+                download_code.append(0x25)  # $25
+                download_code.append(0x9F)  # $9F
+                
+                # lda VERA_DATA0 ($9F23)  -> this increments ADDR0 one pixel vertically
+                download_code.append(0xAD)  # lda ....
+                download_code.append(0x23)  # $23
+                download_code.append(0x9F)  # $9F
+                
+                # lda VERA_DATA1 ($9F24)  -> this sets ADDR1 to DATA0 + x1 (note: x1 is 0)
+                download_code.append(0xAD)  # lda ....
+                download_code.append(0x24)  # $24
+                download_code.append(0x9F)  # $9F
+                
+                # stz VERA_CTRL ($9F25)  (polygon mode = 0)
+                download_code.append(0x9C)  # stz ....
+                download_code.append(0x25)  # $25
+                download_code.append(0x9F)  # $9F
+                
+                # Note: dividing by 2.5 divides the two files in roughly equal size
+                if (y == int(hlf/2.5)):
+                    # We are halfway, we need to add an rts and continue in the other array
+                    download_code.append(0x60)  # rts
+                    download_code = download2_code
+                
+                # We break from the x-loop
+                break
+                
+        if (y == hlf-1):
+            # We are done, we need to add an rts
+            download_code.append(0x60)  # rts
+
+    return (download1_code, download2_code)
+
 
 pygame.init()
 
@@ -165,6 +251,18 @@ screen = pygame.display.set_mode((screen_width*2, screen_height*2))
 clock = pygame.time.Clock()
 
 init_lens()
+
+(download1_code, download2_code) = generate_download_code()
+
+tableFile = open(download1_code_filename, "wb")
+tableFile.write(bytearray(download1_code))
+tableFile.close()
+print("download code 1 written to file: " + download1_code_filename)
+
+tableFile = open(download2_code_filename, "wb")
+tableFile.write(bytearray(download2_code))
+tableFile.close()
+print("download code 2 written to file: " + download2_code_filename)
 
 
 bitmap_data = []
