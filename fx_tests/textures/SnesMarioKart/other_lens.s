@@ -124,18 +124,22 @@ start:
     lda #%00001000  ; Z-depth = 2
     sta Z_DEPTH_BIT
     
-    lda #<(80)
+    ; Good test case: 80+50, 100+50
+    
+    lda #<(80+50)
     sta LENS_X_POS
-    lda #>(80)
+    lda #>(80+50)
     sta LENS_X_POS+1
     
-    lda #<(100)
+    lda #<(100+50)
     sta LENS_Y_POS
-    lda #>(100)
+    lda #>(100+50)
     sta LENS_Y_POS+1
     
     jsr clear_sprite_memory
     jsr clear_download_buffer ; TODO: this is not really needed, but makes debugging easier
+    
+; FIXME: this might be too early, sprite data is not filled yet! (and this will flip the buffer, right?)
     jsr setup_sprites
     
     ; FIXME: we have to set X1-increment and X1-position to 0! (NOW we rely on the DEFAULT settings of VERA!)
@@ -147,8 +151,8 @@ move_lens:
     sta QUADRANT
     jsr download_and_upload_quadrants
 
-;tmp_loop:
-;    jmp tmp_loop
+tmp_loop:
+    jmp tmp_loop
 
 
     jsr setup_sprites
