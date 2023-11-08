@@ -71,7 +71,7 @@ LOAD_ADDRESS              = $30 ; 31
 CODE_ADDRESS              = $32 ; 33
 STORE_ADDRESS             = $34 ; 35
 VRAM_ADDRESS              = $36 ; 37 ; 38
-
+LENS_VRAM_ADDRESS         = $39 ; 3A ; 3B
 
 LENS_X_POS                = $40 ; 41
 LENS_Y_POS                = $42 ; 43  ; second byte is never used
@@ -93,7 +93,7 @@ UPLOAD_RAM_ADDRESS        = $A000
 ; === VRAM addresses ===
 
 BITMAP_VRAM_ADDRESS   = $00000
-SPRITES_VRAM_ADDRESS  = $12000
+SPRITES_VRAM_ADDRESS  = $12000   ; if you CHANGE this you also have to change quadrant_addr0_high_sprite/quadrant_addr0_low_sprite!!
 
 
 ; === Other constants ===
@@ -142,7 +142,7 @@ start:
     
     lda #0
     sta QUADRANT
-    jsr download_bitmap_quadrant_into_buffer
+    jsr download_and_upload_quadrants
 
 
     ; We are not returning to BASIC here...
@@ -152,16 +152,25 @@ infinite_loop:
     rts
     
     
-; FIXME: *RENAME* this!
-download_bitmap_quadrant_into_buffer:
-
-; FIXME: do something with theses!
-; FIXME: do something with theses!
-; FIXME: do something with theses!
-
-;    lda QUADRANT
-
+quadrant_addr1_bank:  ; %00010000 ($10) = +1 and %00011000 ($18) = -1   (bit16 = 0)
+    .byte $10, $18, $10, $18,    $10, $18, $10, $18
     
+quadrant_addr0_bank:  ; %11100000 ($E0) = +320 and %11101000 ($E8) = -320  (bit16 = 0)
+    .byte $E0, $E0, $E8, $E8,    $E0, $E0, $E8, $E8
+    
+quadrant_vram_offset_low: ;  +0, -1, -321, -320 -> 0, 1, 65, 64 (negated and low)
+    ; Note: these are SUBTRACTED!
+    .byte   0,   1,  65,  64,      0,   1,  65,  64 
+    
+quadrant_vram_offset_high: ;  +0, -1, -321, -320 -> 0, 0, 1, 1 (negated and high)
+    ; Note: these are SUBTRACTED!
+    .byte   0,   0,   1,   1,      0,   0,   1,    1 
+    
+quadrant_addr0_high_sprite:  ; SPRITES_VRAM_ADDRESS + 4096 * sprite_index ($12000, $13000, $14000, ..., $19000)
+    .byte $20, $30, $40, $50,    $60, $70, $80, $90
+    
+    
+download_and_upload_quadrants:
 
 
     ; For each quadrant download we need to have set this:
@@ -175,30 +184,8 @@ download_bitmap_quadrant_into_buffer:
     ;  - X1-position is 0
     ;  - Free memory at address BITMAP_QUADRANT_BUFFER (lens_radius*lens_radius in size)
 
-    ; -- upload --
     
-    ; -- Setup for downloading in quadrant 0 --
-    
-    lda #%00000101           ; DCSEL=2, ADDRSEL=1
-    sta VERA_CTRL
-    
-; FIXME: this is QUADRANT SPECIFIC!
-    lda #%00010000           ; Setting bit 16 of ADDR1 to 0, auto-increment to +1
-    sta VERA_ADDR_BANK
-    
-    lda #%00000100           ; DCSEL=2, ADDRSEL=0
-    sta VERA_CTRL
-    
-; FIXME: this is QUADRANT SPECIFIC!
-; FIXME: NOTE THE bit16! We need to reset between download and upload!
-    lda #%11100000           ; Setting bit 16 of ADDR1 to 0, auto-increment to +320
-    sta VERA_ADDR_BANK
-    
-    lda #%00000010
-    sta VERA_FX_CTRL         ; polygon addr1-mode
-    
-    
-; FIXME: do we want a *separate* Y_TO_ADDRESS_HIGH (+0, -1, -321, -320) for every QUADRANT or do we want to ADJUST the starting ADDRESS per QUADRANT?
+    ; - We calculate the BASE vram address for the LENS -
     
 ; FIXME   lda LENS_Y_POS+1  ; -> also NEGATIVE NUMBERS!
     ldy LENS_Y_POS
@@ -206,11 +193,48 @@ download_bitmap_quadrant_into_buffer:
     clc
     lda Y_TO_ADDRESS_LOW, y
     adc LENS_X_POS
-    sta VERA_ADDR_LOW
+    sta LENS_VRAM_ADDRESS
 
     lda Y_TO_ADDRESS_HIGH, y
 ; FIXME: -> also NEGATIVE NUMBERS!
     adc LENS_X_POS+1
+    sta LENS_VRAM_ADDRESS+1
+
+    
+    ; We iterate through 4 quadrants (either 0-3 OR 4-7)
+
+    ldx QUADRANT
+
+next_quadrant_to_download_and_upload:
+    
+    ; -- download --
+    
+    ; -- Setup for downloading in quadrant 0 --
+    
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda quadrant_addr1_bank, x   ; Setting bit 16 of ADDR1 to 0, auto-increment to +1 or -1 (depending on quadrant)
+    sta VERA_ADDR_BANK
+    
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda quadrant_addr0_bank, x   ; Setting bit 16 of ADDR1 to 0, auto-increment to +320 or -320 (depending on quadrant)
+    sta VERA_ADDR_BANK
+    
+    lda #%00000010
+    sta VERA_FX_CTRL         ; polygon addr1-mode
+    
+    
+    ; Each quadrant has a slight VRAM-offset as its starting point (+0, -1, -321, -320). We subtract those here.
+    sec
+    lda LENS_VRAM_ADDRESS
+    sbc quadrant_vram_offset_low, x
+    sta VERA_ADDR_LOW
+
+    lda LENS_VRAM_ADDRESS+1
+    sbc quadrant_vram_offset_high, x
     sta VERA_ADDR_HIGH
 
     lda VERA_DATA1                ; sets ADDR1 to ADDR0
@@ -229,29 +253,31 @@ download_bitmap_quadrant_into_buffer:
 
     ; -- upload --
     
-; FIXME: we might want to REMEMBER the START_ADDRESS!!
+    ; This sets ADDR1 increment to +1
     
-; FIXME: this is QUADRANT SPECIFIC!
-; FIXME: NOTE THE bit16! We need to reset between download and upload!
-    lda #%01110001           ; Setting bit 16 of ADDR1 to 1, auto-increment to +64
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%00010001           ; Setting bit 16 of ADDR1 to 1, auto-increment to +1  (note: setting bit16 is not needed here, because it will be overwritten later)
     sta VERA_ADDR_BANK
     
-    lda #%00000010
-    sta VERA_FX_CTRL         ; polygon addr1-mode
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
     
-; FIXME   lda LENS_Y_POS+1  ; -> also NEGATIVE NUMBERS!
-    ldy LENS_Y_POS
-
+    ; This sets ADDR0 to the base vram address of the sprite involved (and sets it autoincrement correctly)
     
-; FIXME: this is QUADRANT SPECIFIC!
-    lda #<SPRITES_VRAM_ADDRESS
-    sta VERA_ADDR_LOW
-
-; FIXME: this is QUADRANT SPECIFIC!
-    lda #>SPRITES_VRAM_ADDRESS
+    lda #%01110001           ; Setting bit 16 of ADDR0 to 1, auto-increment to +64 
+    sta VERA_ADDR_BANK
+    
+    lda quadrant_addr0_high_sprite, x
     sta VERA_ADDR_HIGH
+    
+    stz VERA_ADDR_LOW
+    
+    lda #%00000010
+    sta VERA_FX_CTRL            ; polygon addr1-mode
 
-    lda VERA_DATA1                ; sets ADDR1 to ADDR0
+    lda VERA_DATA1              ; sets ADDR1 to ADDR0
     
     ; Note: when doing the upload, we stay in polygon mode
 
@@ -263,6 +289,27 @@ download_bitmap_quadrant_into_buffer:
     sta RAM_BANK
     jsr UPLOAD_RAM_ADDRESS
 
+    inx 
+    inc QUADRANT  ; TODO: this is not efficient
+    
+    ; We loop through quadrant indexes be 0-3 OR 4-7.
+    cpx #4
+    beq done_downloading_and_uploading_quadrants
+    cpx #8
+    beq done_downloading_and_uploading_quadrants
+    
+    jmp next_quadrant_to_download_and_upload
+
+done_downloading_and_uploading_quadrants:
+    
+    ; We reset QUADRANT to 0 if we reach 8
+    lda QUADRANT
+    cmp #8
+    bne quadrant_is_ok
+    stz QUADRANT
+    
+quadrant_is_ok:
+    
 
     rts
     
@@ -355,9 +402,9 @@ clear_next_256:
 clear_next_1:
 
 ; FIXME: we should CLEAR! (for now filling with red)
-;    stz VERA_DATA0
-    lda #2
-    sta VERA_DATA0
+    stz VERA_DATA0
+;    lda #2
+;    sta VERA_DATA0
 
     inx
     bne clear_next_1
@@ -374,11 +421,9 @@ sprite_address_h:  ; Addres bits: 16:13  -> starts at $12000, so first is %10001
 sprite_x_offset:
 ; Note: these are SUBTRACTED!
     .byte 0,  64, 64, 0, 0,  64, 64, 0
-; OLD    .byte 64,  0, 0, 64, 64,  0, 0, 64
 sprite_y_offset:
 ; Note: these are SUBTRACTED!
     .byte 0, 0, 64,  64, 0, 0, 64,  64
-; OLD    .byte 64, 64, 0,  0, 64, 64, 0,  0
 sprite_flips:
     .byte 0, 1, 3,  2, 0, 1, 3,  2
     
@@ -437,6 +482,7 @@ setup_next_sprite:
     ; Sprite height,	Sprite width,	Palette offset
     ; Note: we want to use a different palette (blue-ish color) for the pixels inside the lens, so we add 32 to the color index!
     lda #%11110010 ; 64x64, 2*16 = 32 palette offset
+;    lda #%11110000 ; 64x64, 0*16 = 0 palette offset
     sta VERA_DATA0
     
     inx
