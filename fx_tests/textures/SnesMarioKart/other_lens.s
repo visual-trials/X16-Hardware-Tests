@@ -126,14 +126,14 @@ start:
     
     ; Good test case: 80+50, 100+50
     
-    lda #<(80+50)
+    lda #<(80)
     sta LENS_X_POS
-    lda #>(80+50)
+    lda #>(80)
     sta LENS_X_POS+1
     
-    lda #<(100+50)
+    lda #<(100)
     sta LENS_Y_POS
-    lda #>(100+50)
+    lda #>(100)
     sta LENS_Y_POS+1
     
     jsr clear_sprite_memory
@@ -151,8 +151,8 @@ move_lens:
     sta QUADRANT
     jsr download_and_upload_quadrants
 
-tmp_loop:
-    jmp tmp_loop
+;tmp_loop:
+;    jmp tmp_loop
 
 
     jsr setup_sprites

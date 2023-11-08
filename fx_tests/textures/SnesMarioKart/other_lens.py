@@ -4,6 +4,7 @@ import pygame
 import math
 # FIXME: remove this
 import time
+import random
 
 DO_MOVE_LENS = True
 
@@ -119,12 +120,30 @@ def init_lens():
     r2 = lens_radius*lens_radius
     
     hlf = int(lens_radius)
+    
+    full = lens_radius*lens_radius + lens_radius*lens_radius
 
     for y in range(int(lens_size)):
         lens_offsets.append([])
         for x in range(int(lens_size)):
             lens_offsets[y].append(None)
 
+    # Original: https://github.com/mtuomi/SecondReality/blob/master/LENS/CALC.C
+    
+    # full=59*59+50*50;
+    
+    # void	lenscalc(int x,int y,int *px,int *py)
+    # {
+    #     double	now,new,fx,fy;
+    #     now=full-(double)(x*x+(y*9/8)*(y*9/8));
+    #     if(now<1.0) now=1.0;
+    #     new=250.0/pow(now,0.69);
+    #     fx=(double)(rand()-16384)/30000.0;
+    #     fy=(double)(rand()-16384)/30000.0;
+    #     *px=(int)(((double)x+fx)*new);
+    #     *py=(int)(((double)y+fy)*new);
+    # }
+            
     for y in range(hlf):
         y2 = y*y
         for x in range(hlf):
@@ -135,26 +154,42 @@ def init_lens():
                 # x_shift = shift * x - x
                 # y_shift = shift * y - y
                 
-                distance_from_center = math.sqrt(x2 + y2) / lens_radius # distance from center: 0.0 -> 1.0
-                
-                # We now use the quadratic function to create the lens effect
-                #distance_from_center *= 0.9
-                #distance_from_center += 0.1
-# FIXME: this is ALMOST correct!
-                desired_distance_from_center = distance_from_center * distance_from_center
-                
-                if distance_from_center > 0:
-                    ratio = desired_distance_from_center / distance_from_center
-                else:
-                    ratio = 2
+                if (False):
+                    distance_from_center = math.sqrt(x2 + y2) / lens_radius # distance from center: 0.0 -> 1.0
                     
-                if ratio < 0:
-                    ratio = 0
-                
+                    # We now use the quadratic function to create the lens effect
+                    #distance_from_center *= 0.9
+                    #distance_from_center += 0.1
+# FIXME: this is ALMOST correct!
+                    desired_distance_from_center = distance_from_center * distance_from_center
+                    
+                    if distance_from_center > 0:
+                        ratio = desired_distance_from_center / distance_from_center
+                    else:
+                        ratio = 2
+                        
+                    if ratio < 0:
+                        ratio = 0
+                    
 # FIXME: should we round UP or DOWN here?
-                x_shift = int(ratio * x - x)
-                y_shift = int(ratio * y - y)
-                
+                    #x_shift = int(ratio * x - x) 
+                    #y_shift = int(ratio * y - y) 
+                    x_shift = int(ratio * x - x + random.random()*1.5 - 0.75) 
+                    y_shift = int(ratio * y - y + random.random()*1.5 - 0.75)
+
+                if (True):
+                    now = full - (x2 + y2)
+                    if now < 1:
+                        now = 1
+                    new = 220 / (now**0.69)
+                    fx = (random.random() - 0.5) * 1.2
+                    fy = (random.random() - 0.5) * 1.2
+                    px = int((x+fx)*new)
+                    py = int((y+fy)*new)
+                    
+                    x_shift = px - x
+                    y_shift = py - y
+                    
                 
                 # Inside the lens the pixel gets shifted according to the quadrant it is in
                 lens_offsets[ hlf   + y][ hlf   + x] = (  x_shift,  y_shift)
