@@ -81,6 +81,10 @@ for new_color in new_colors:
     
     extra_colors.append((red, green, new_blue))
     
+# FIXME: we add ONE more dummy color to reach exactly 32 new_colors (which makes palette offsets for sprites possible)
+new_colors.append((0,0,0))
+
+offset_blue_colors = len(new_colors)  # = 32
 new_colors += extra_colors
     
 # Printing out asm for palette:
@@ -147,8 +151,9 @@ def init_lens():
                 if ratio < 0:
                     ratio = 0
                 
-                x_shift = ratio * x - x
-                y_shift = ratio * y - y
+# FIXME: should we round UP or DOWN here?
+                x_shift = int(ratio * x - x)
+                y_shift = int(ratio * y - y)
                 
                 
                 # Inside the lens the pixel gets shifted according to the quadrant it is in
@@ -211,10 +216,7 @@ def generate_download_and_upload_code():
 
                 # -- upload --
 
-# FIXME: we want to OFFSET this address!!
-# FIXME: we want to OFFSET this address!!
-# FIXME: we want to OFFSET this address!!
-                address_to_read_from = BITMAP_QUADRANT_BUFFER + y * hlf + x
+                address_to_read_from = BITMAP_QUADRANT_BUFFER + (y+y_shift) * hlf + (x+x_shift)
                 
                 # lda $6....
                 upload_code.append(0xAD)  # lda ....
@@ -334,7 +336,7 @@ for source_y in range(source_image_height):
     bitmap_data += hor_margin_pixels
     for source_x in range(source_image_width):
 
-        pixel_color_index = new_pixel_color = old_color_index_to_new_color_index[px[source_x, source_y]]
+        pixel_color_index = old_color_index_to_new_color_index[px[source_x, source_y]]
         
         bitmap_data.append(pixel_color_index)
         
@@ -345,6 +347,10 @@ tableFile.write(bytearray(bitmap_data))
 tableFile.close()
 print("bitmap written to file: " + bitmap_filename)
 
+
+
+print(len(new_colors))
+print(len(extra_colors))
 
 def run():
 
@@ -415,7 +421,7 @@ def run():
                 source_y = lens_pos_y + lens_y + y_shift
                 source_x = lens_pos_x + lens_x + x_shift
                 
-                pixel_color = new_pixel_color = extra_colors[old_color_index_to_new_color_index[px[source_x, source_y]] - new_color_index_offset]
+                pixel_color = new_pixel_color = new_colors[old_color_index_to_new_color_index[px[source_x, source_y]] - new_color_index_offset + offset_blue_colors]
                 
                 y_screen = lens_pos_y - 32 + lens_y
                 x_screen = lens_pos_x + 32 + lens_x

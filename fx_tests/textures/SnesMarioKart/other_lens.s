@@ -255,7 +255,6 @@ download_bitmap_quadrant_into_buffer:
     
     ; Note: when doing the upload, we stay in polygon mode
 
-    stp
     lda #UPLOAD1_RAM_BANK
     sta RAM_BANK
     jsr UPLOAD_RAM_ADDRESS
@@ -436,8 +435,8 @@ setup_next_sprite:
     sta VERA_DATA0
 
     ; Sprite height,	Sprite width,	Palette offset
-; FIXME: we want to use a different palette (blue-ish color) for the pixels inside the lens
-    lda #%11110000 ; 64x64, 0*16 = 0 palette offset
+    ; Note: we want to use a different palette (blue-ish color) for the pixels inside the lens, so we add 32 to the color index!
+    lda #%11110010 ; 64x64, 2*16 = 32 palette offset
     sta VERA_DATA0
     
     inx
@@ -719,6 +718,7 @@ cosine_values_high:
 ; ==== DATA ====
 
 palette_data:
+  ; Normal colors:
   .byte $f0, $0f
   .byte $e0, $0e
   .byte $c8, $0e
@@ -750,6 +750,40 @@ palette_data:
   .byte $20, $04
   .byte $24, $02
   .byte $00, $00
+  .byte $00, $00
+  
+  ; Blue-ish colors:
+  .byte $f8, $0f
+  .byte $e8, $0e
+  .byte $cc, $0e
+  .byte $c8, $0e
+  .byte $ae, $0e
+  .byte $ac, $0e
+  .byte $ac, $0c
+  .byte $a8, $0c
+  .byte $ae, $08
+  .byte $8c, $0c
+  .byte $8a, $0c
+  .byte $88, $0c
+  .byte $8a, $0a
+  .byte $8e, $08
+  .byte $8c, $08
+  .byte $8c, $06
+  .byte $6a, $0a
+  .byte $68, $0a
+  .byte $6c, $06
+  .byte $6c, $04
+  .byte $48, $0a
+  .byte $4a, $08
+  .byte $48, $08
+  .byte $28, $08
+  .byte $28, $06
+  .byte $4c, $04
+  .byte $4a, $04
+  .byte $4a, $02
+  .byte $28, $04
+  .byte $2a, $02
+  .byte $08, $00
 end_of_palette_data:
 
 
