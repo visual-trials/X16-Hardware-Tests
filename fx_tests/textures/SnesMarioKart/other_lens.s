@@ -124,9 +124,9 @@ start:
     lda #%00001000  ; Z-depth = 2
     sta Z_DEPTH_BIT
     
-    lda #<(160)
+    lda #<(80)
     sta LENS_X_POS
-    lda #>(160)
+    lda #>(80)
     sta LENS_X_POS+1
     
     lda #<(100)
@@ -139,11 +139,41 @@ start:
     jsr setup_sprites
     
     ; FIXME: we have to set X1-increment and X1-position to 0! (NOW we rely on the DEFAULT settings of VERA!)
-    
+
+move_lens:
+    ; FIXME: we should *DOUBLE BUFFER* the SPRITES! (we already have most for this in place!)
+    ;         now we are simply resetting to the single buffer each time, but we should *switch* (aka turn on/off) between the quadruples of sprites
     lda #0
     sta QUADRANT
     jsr download_and_upload_quadrants
 
+;tmp_loop:
+;    jmp tmp_loop
+
+
+    jsr setup_sprites
+
+    ; FIXME: make it move more interestingly!
+    clc
+    lda LENS_X_POS
+    adc #1
+    sta LENS_X_POS
+    lda LENS_X_POS+1
+    adc #0
+    sta LENS_X_POS+1
+    
+    clc
+    lda LENS_Y_POS
+    adc #1
+    sta LENS_Y_POS
+    lda LENS_Y_POS+1
+    adc #0
+    sta LENS_Y_POS+1
+    
+    lda LENS_X_POS
+    cmp #200
+    bne move_lens
+    
 
     ; We are not returning to BASIC here...
 infinite_loop:
@@ -153,7 +183,7 @@ infinite_loop:
     
     
 quadrant_addr1_bank:  ; %00010000 ($10) = +1 and %00011000 ($18) = -1   (bit16 = 0)
-    .byte $10, $18, $10, $18,    $10, $18, $10, $18
+    .byte $10, $18, $18, $10,    $10, $18, $18, $10
     
 quadrant_addr0_bank:  ; %11100000 ($E0) = +320 and %11101000 ($E8) = -320  (bit16 = 0)
     .byte $E0, $E0, $E8, $E8,    $E0, $E0, $E8, $E8
@@ -491,9 +521,12 @@ setup_next_sprite:
     cpx #4
     bne z_depth_bit_is_correct
     
-    lda Z_DEPTH_BIT
-    eor #%00001000
-    sta Z_DEPTH_BIT
+; FIXME: ENABLE THIS!!
+; FIXME: ENABLE THIS!!
+; FIXME: ENABLE THIS!!
+;    lda Z_DEPTH_BIT
+;    eor #%00001000
+;    sta Z_DEPTH_BIT
 
 z_depth_bit_is_correct:
 
