@@ -128,6 +128,8 @@ def init_lens():
         for x in range(int(lens_size)):
             lens_offsets[y].append(None)
 
+    # 2R analysis: https://fabiensanglard.net/second_reality/
+            
     # Original: https://github.com/mtuomi/SecondReality/blob/master/LENS/CALC.C
     
     # full=59*59+50*50;

@@ -78,6 +78,9 @@ LENS_Y_POS                = $42 ; 43  ; second byte is never used
 Z_DEPTH_BIT               = $44
 QUADRANT                  = $45
 
+LENS_DELTA_X              = $46 ; 47
+LENS_DELTA_Y              = $48 ; 49
+
 
 COSINE_OF_ANGLE           = $51 ; 52
 SINE_OF_ANGLE             = $53 ; 53
@@ -109,6 +112,8 @@ UPLOAD2_RAM_BANK          = $04
 
 start:
 
+    sei
+    
     jsr setup_vera_for_layer0_bitmap
 
     jsr copy_palette_from_index_16
@@ -144,6 +149,17 @@ start:
     
     ; FIXME: we have to set X1-increment and X1-position to 0! (NOW we rely on the DEFAULT settings of VERA!)
 
+    
+    lda #1
+    sta LENS_DELTA_X
+    lda #0
+    sta LENS_DELTA_X+1
+    
+    lda #1
+    sta LENS_DELTA_Y
+    lda #0
+    sta LENS_DELTA_Y+1
+    
 move_lens:
     ; FIXME: we should *DOUBLE BUFFER* the SPRITES! (we already have most for this in place!)
     ;         now we are simply resetting to the single buffer each time, but we should *switch* (aka turn on/off) between the quadruples of sprites
@@ -160,23 +176,84 @@ move_lens:
     ; FIXME: make it move more interestingly!
     clc
     lda LENS_X_POS
-    adc #1
+    adc LENS_DELTA_X
     sta LENS_X_POS
     lda LENS_X_POS+1
-    adc #0
+    adc LENS_DELTA_X+1
     sta LENS_X_POS+1
     
     clc
     lda LENS_Y_POS
-    adc #1
+    adc LENS_DELTA_Y
     sta LENS_Y_POS
     lda LENS_Y_POS+1
-    adc #0
+    adc LENS_DELTA_Y+1
     sta LENS_Y_POS+1
     
+    ; Check for screen boundaries
+    
     lda LENS_X_POS
-    cmp #200
-    bne move_lens
+; FIXME! Should be 320!
+    cmp #300-LENS_RADIUS
+    bcc lens_x_not_too_high
+    
+    sec
+    lda #0
+    sbc LENS_DELTA_X
+    sta LENS_DELTA_X
+    lda #0
+    sbc LENS_DELTA_X+1
+    sta LENS_DELTA_X+1
+    
+    bra lens_x_not_too_low
+lens_x_not_too_high:
+
+
+    lda LENS_X_POS
+    cmp #LENS_RADIUS
+    bcs lens_x_not_too_low
+    
+    sec
+    lda #0
+    sbc LENS_DELTA_X
+    sta LENS_DELTA_X
+    lda #0
+    sbc LENS_DELTA_X+1
+    sta LENS_DELTA_X+1
+lens_x_not_too_low:
+
+
+    lda LENS_Y_POS
+    cmp #200-LENS_RADIUS
+    bcc lens_y_not_too_high
+    
+    sec
+    lda #0
+    sbc LENS_DELTA_Y
+    sta LENS_DELTA_Y
+    lda #0
+    sbc LENS_DELTA_Y+1
+    sta LENS_DELTA_Y+1
+    
+    bra lens_y_not_too_low
+    
+lens_y_not_too_high:
+
+    lda LENS_Y_POS
+    cmp #LENS_RADIUS
+    bcs lens_y_not_too_low
+    
+    sec
+    lda #0
+    sbc LENS_DELTA_Y
+    sta LENS_DELTA_Y
+    lda #0
+    sbc LENS_DELTA_Y+1
+    sta LENS_DELTA_Y+1
+lens_y_not_too_low:
+
+
+    jmp move_lens
     
 
     ; We are not returning to BASIC here...
