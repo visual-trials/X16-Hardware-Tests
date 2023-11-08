@@ -69,7 +69,8 @@ ROM_BANK                  = $01
 
 LOAD_ADDRESS              = $30 ; 31
 CODE_ADDRESS              = $32 ; 33
-VRAM_ADDRESS              = $34 ; 35 ; 36
+STORE_ADDRESS             = $34 ; 35
+VRAM_ADDRESS              = $36 ; 37 ; 38
 
 
 LENS_X_POS                = $40 ; 41
@@ -83,7 +84,7 @@ SINE_OF_ANGLE             = $53 ; 53
 
 ; === RAM addresses ===
 
-BITMAP_QUADRANT_BUFFER    = $6000  ; 40 * 40 bytes = 1600 bytes (assuming a lens of 80x80)
+BITMAP_QUADRANT_BUFFER    = $6000  ; LENS_RADIUS * LENS_RADIUS bytes = 2500 bytes (assuming a lens of 100x100) -> if you CHANGE this, ALSO change the python code!!
 Y_TO_ADDRESS_LOW          = $7600
 Y_TO_ADDRESS_HIGH         = $7700
 DOWNLOAD_RAM_ADDRESS      = $A000
@@ -98,6 +99,7 @@ SPRITES_VRAM_ADDRESS  = $12000
 
 BITMAP_WIDTH = 256
 BITMAP_HEIGHT = 192
+LENS_RADIUS = 50  ; --> also CHANGE clear_download_buffer if you change this number!
 
 DOWNLOAD1_RAM_BANK        = $01
 DOWNLOAD2_RAM_BANK        = $02
@@ -128,7 +130,10 @@ start:
     sta LENS_Y_POS+1
     
     jsr clear_sprite_memory
+    jsr clear_download_buffer ; TODO: this is not really needed, but makes debugging easier
     jsr setup_sprites
+    
+    ; FIXME: we have to set X1-increment and X1-position to 0! (NOW we rely on the DEFAULT settings of VERA!)
     
     lda #0
     sta QUADRANT
@@ -150,29 +155,71 @@ download_bitmap_quadrant_into_buffer:
 
 ;    lda QUADRANT
 
-;    lda LENS_X_POS
-;    lda LENS_X_POS+1  ; -> also NEGATIVE NUMBERS!
     
-;    lda LENS_Y_POS
-;    lda LENS_Y_POS+1  ; -> also NEGATIVE NUMBERS!
-
-    ; -- Setup polygon mode --
-    
-    ; -> setup increment direction (of ADDR0 and ADDR1) based on QUADRANT
-
-    ; -- loop through lines to download (0-39) --
-    
-        ; -- Calculate line number on screen --
-
-        ; -- Skip downloading lines < 0 -- 
-        ; -- Skip downloading lines > 200 -- 
-    
-    
-        ; -- Set ADDR0 to the line we want to download --
-        
-        ; -- call download routine (which copies one row of VRAM (40 pixels) into Fixed RAM)
 
 
+    ; For each quadrant download we need to have set this:
+    ;
+    ;  - Normal addr1-mode
+    ;  - DCSEL=2
+    ;  - ADDR0-increment should be set 1-pixel vertically (+320/-320 according to quadrant)
+    ;  - ADDR1-increment should be set 1-pixel horizontally (+1/-1 according to quadrant)
+    ;  - ADDR0 set to address of first pixel in quadrant
+    ;  - X1-increment is 0
+    ;  - X1-position is 0
+    ;  - Free memory at address BITMAP_QUADRANT_BUFFER (lens_radius*lens_radius in size)
+
+    ; -- Setup for downloading in quadrant 0 --
+    
+    lda #%00000101           ; DCSEL=2, ADDRSEL=1
+    sta VERA_CTRL
+    
+    lda #%00010000           ; Setting bit 16 of ADDR1 to 0, auto-increment to +1
+    sta VERA_ADDR_BANK
+    
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
+    sta VERA_CTRL
+    
+    lda #%00010000           ; Setting bit 16 of ADDR1 to 0, auto-increment to +320
+    sta VERA_ADDR_BANK
+    
+    lda #%00000010
+    sta VERA_FX_CTRL         ; polygon addr1-mode
+    
+    
+; FIXME: do we want a *separate* Y_TO_ADDRESS_HIGH (+0, -1, -321, -320) for every QUADRANT or do we want to ADJUST the starting ADDRESS per QUADRANT?
+    
+; FIXME   lda LENS_Y_POS+1  ; -> also NEGATIVE NUMBERS!
+    ldy LENS_Y_POS
+    
+    clc
+    lda Y_TO_ADDRESS_LOW, y
+    adc LENS_X_POS
+    sta VERA_ADDR_LOW
+
+    lda Y_TO_ADDRESS_HIGH, y
+; FIXME: -> also NEGATIVE NUMBERS!
+    adc LENS_X_POS+1
+    sta VERA_ADDR_HIGH
+
+    lda VERA_DATA1                ; sets ADDR1 to ADDR0
+    
+    lda #%00000000
+    sta VERA_FX_CTRL         ; normal addr1-mode
+
+    stp
+    
+    lda #1
+    sta RAM_BANK
+    jsr DOWNLOAD_RAM_ADDRESS
+    
+    lda #2
+    sta RAM_BANK
+    jsr DOWNLOAD_RAM_ADDRESS
+    
+    
+; FIXME: also implement UPLOAD here!
+; FIXME: note that uploading goes into a 64x64 pixel SPRITE! (so vertical increment should be +64/-64)
 
 
     rts
@@ -213,6 +260,38 @@ setup_vera_for_layer0_bitmap:
     lda #400/2+20-1
     sta VERA_DC_VSTOP
     
+    rts
+    
+
+clear_download_buffer:
+
+    lda #<BITMAP_QUADRANT_BUFFER
+    sta STORE_ADDRESS
+    lda #>BITMAP_QUADRANT_BUFFER
+    sta STORE_ADDRESS+1
+    
+    ; Number of bytes to clear is: LENS_RADIUS*LENS_RADIUS
+    
+    ; FIXME: We *ASSUME* this is 50*50=2500 bytes. So clearing 10*256 would be enough
+    
+    lda #0
+    
+    ldx #10
+clear_next_download_buffer_256:
+
+    ldy #0
+clear_next_download_buffer_1:
+
+    sta (STORE_ADDRESS),y
+
+    iny
+    bne clear_next_download_buffer_1
+
+    inc STORE_ADDRESS+1
+    
+    dex
+    bne clear_next_download_buffer_256
+
     rts
     
     
