@@ -250,7 +250,7 @@ done_with_sd_checks:
         jsr test_receiving_keyboard_keycode_smc
     .endif
     
-    .if(0)
+    .if(1)
         ; TODO: we dont want to mess with the SRAM by default
     
         ; === RTC ===
