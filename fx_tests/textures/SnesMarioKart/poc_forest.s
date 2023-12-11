@@ -98,8 +98,8 @@ SCROLLTEXT_RAM_BANK        = $01  ; This is 640x32 bytes
 SCROLL_COPY_CODE_RAM_BANK  = $04  ; This is 13 RAM Banks of scroll copy code (actually 12.06 RAM banks)
 NR_OF_SCROLL_COPY_CODE_BANKS = 13
 ; FIXME: we should change this!
-INITIAL_SCROLL = 237
-
+INITIAL_SCROLL = 100
+NR_OF_SCROLL_ITERATIONS = 640-INITIAL_SCROLL
 
 start:
 
@@ -115,7 +115,7 @@ start:
     jsr load_scrolltext_into_banked_ram
     jsr load_scroll_copy_code_into_banked_ram
 
-
+    jsr clear_initial_scroll_text_slow
     jsr load_initial_scroll_text_slow
     jsr do_scrolling
     
@@ -125,28 +125,54 @@ infinite_loop:
     
     rts
     
+clear_initial_scroll_text_slow:
+
+    lda #<SCROLLER_BUFFER_ADDRESS
+    sta STORE_ADDRESS
+    lda #>SCROLLER_BUFFER_ADDRESS
+    sta STORE_ADDRESS+1
+
+    ldx #0
+clear_scroll_text_next_column:
+
+    lda #$80  ; We set bit7 to 1
+    ldy #0
+clear_scroll_text_next_pixel:    
+
+    sta (STORE_ADDRESS), y
+    iny
+    cpy #31
+    bne clear_scroll_text_next_pixel
+    
+    clc
+    lda STORE_ADDRESS
+    adc #31
+    sta STORE_ADDRESS
+    lda STORE_ADDRESS+1
+    adc #0
+    sta STORE_ADDRESS+1
+    
+    inx
+    cpx #237
+    bne clear_scroll_text_next_column
+
+
+    rts
     
     
 load_initial_scroll_text_slow:
 
-; FIXME: use INITIAL_SCROLL!!
-; FIXME: use INITIAL_SCROLL!!
-; FIXME: use INITIAL_SCROLL!!
-
     lda #SCROLLTEXT_RAM_BANK
     sta RAM_BANK
-    
-
-    ; FIXME: for now we are just loading the first 237 columns, but we should START at the different colum and clear the first columns INSTEAD!
 
     lda #<SCROLLTEXT_RAM_ADDRESS
     sta LOAD_ADDRESS
     lda #>SCROLLTEXT_RAM_ADDRESS
     sta LOAD_ADDRESS+1
     
-    lda #<SCROLLER_BUFFER_ADDRESS
+    lda #<(SCROLLER_BUFFER_ADDRESS+(237-INITIAL_SCROLL)*31)
     sta STORE_ADDRESS
-    lda #>SCROLLER_BUFFER_ADDRESS
+    lda #>(SCROLLER_BUFFER_ADDRESS+(237-INITIAL_SCROLL)*31)
     sta STORE_ADDRESS+1
     
     ldx #0
@@ -170,7 +196,6 @@ initial_copy_scroll_text_next_pixel:
     lda LOAD_ADDRESS+1
     adc #0
     sta LOAD_ADDRESS+1
-    
 
     clc
     lda STORE_ADDRESS
@@ -181,7 +206,7 @@ initial_copy_scroll_text_next_pixel:
     sta STORE_ADDRESS+1
     
     inx
-    cpx #237
+    cpx #INITIAL_SCROLL
     bne initial_copy_scroll_text_next_column
     
 
@@ -205,9 +230,9 @@ do_scrolling:
     sta VERA_FX_CTRL         ; 4-bit mode
 
 
-    lda #<400
+    lda #<NR_OF_SCROLL_ITERATIONS
     sta SCROLL_ITERATION
-    lda #>400
+    lda #>NR_OF_SCROLL_ITERATIONS
     sta SCROLL_ITERATION+1
     
     lda #<(SCROLLTEXT_RAM_ADDRESS+INITIAL_SCROLL*32)
