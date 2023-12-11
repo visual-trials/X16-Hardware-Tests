@@ -72,10 +72,13 @@ CODE_ADDRESS              = $32 ; 33
 STORE_ADDRESS             = $34 ; 35
 VRAM_ADDRESS              = $36 ; 37 ; 38
 
+SCROLL_ITERATION          = $40 ; 41
+CURRENT_SCROLLTEXT_BANK   = $42
 
 ; === RAM addresses ===
 
 SCROLLER_BUFFER_ADDRESS   = $6000  ; (237+1)*31 = 7378 bytes (= $1CD2, so rougly $1D00 is ok) -> Note: the +1 is the extra column used to add a single column just before 'shifting' every pixel to the left
+SHIFT_PIXEL_CODE_ADDRESS  = $5000  ; 237*6 + rts = 1423 bytes
 
 SCROLLTEXT_RAM_ADDRESS    = $A000
 SCROLL_COPY_CODE_RAM_ADDRESS = $A000
@@ -94,11 +97,15 @@ BITMAP_HEIGHT = 200
 SCROLLTEXT_RAM_BANK        = $01  ; This is 640x32 bytes
 SCROLL_COPY_CODE_RAM_BANK  = $04  ; This is 13 RAM Banks of scroll copy code (actually 12.06 RAM banks)
 NR_OF_SCROLL_COPY_CODE_BANKS = 13
+; FIXME: we should change this!
+INITIAL_SCROLL = 237
 
 
 start:
 
     sei
+    
+    jsr generate_shift_by_one_pixel_code
     
     jsr setup_vera_for_layer0_bitmap
 
@@ -121,6 +128,10 @@ infinite_loop:
     
     
 load_initial_scroll_text_slow:
+
+; FIXME: use INITIAL_SCROLL!!
+; FIXME: use INITIAL_SCROLL!!
+; FIXME: use INITIAL_SCROLL!!
 
     lda #SCROLLTEXT_RAM_BANK
     sta RAM_BANK
@@ -179,6 +190,7 @@ initial_copy_scroll_text_next_pixel:
     rts
     
     
+    
 do_scrolling:
 
     ; Setup ADDR0 HIGH and nibble-bit and increment (+1 byte) and set to 4-bit mode
@@ -193,6 +205,21 @@ do_scrolling:
     sta VERA_FX_CTRL         ; 4-bit mode
 
 
+    lda #<400
+    sta SCROLL_ITERATION
+    lda #>400
+    sta SCROLL_ITERATION+1
+    
+    lda #<(SCROLLTEXT_RAM_ADDRESS+INITIAL_SCROLL*32)
+    sta LOAD_ADDRESS
+    lda #>(SCROLLTEXT_RAM_ADDRESS+INITIAL_SCROLL*32)
+    sta LOAD_ADDRESS+1
+    
+    lda #SCROLLTEXT_RAM_BANK
+    sta CURRENT_SCROLLTEXT_BANK
+
+next_scroll_iteration:
+
     ; Copying all scroll text to VRAM
     
     ldy #SCROLL_COPY_CODE_RAM_BANK
@@ -206,13 +233,70 @@ next_scroll_copy_code_bank:
     cpy #SCROLL_COPY_CODE_RAM_BANK+NR_OF_SCROLL_COPY_CODE_BANKS
     bne next_scroll_copy_code_bank
     
-    ; Resetting to RAM_BANK zero (not sure if this is needed)
-    stz RAM_BANK
 
-    ; FIXME: load the 238th column into the buffer
-    ; FIXME: 'shift' all pixels to the left in the buffer
+    
+    ; FIXME: WARNING: if no more scroll text is left, we need to fill with zeros!
+        
+    ; We load the 238th column into the buffer
+    
+    lda CURRENT_SCROLLTEXT_BANK
+    sta RAM_BANK
+    
+    ldy #0
+scroll_text_single_column_copy_next_y:
+    lda (LOAD_ADDRESS), y
+    sta SCROLLER_BUFFER_ADDRESS+237*31, y  ; 237 is the 238th pixel from the left
+    iny
+    cpy #31
+    bne scroll_text_single_column_copy_next_y
+
+    ; We increment our load address into the scroll text data
+    clc
+    lda LOAD_ADDRESS
+    adc #32
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    adc #0
+    sta LOAD_ADDRESS+1
+
+    ; Check if you reached the end of our RAM bank (>= $C000)
+    cmp #$C0
+    bne scroll_bank_is_ok
+    
+    ; We have reached the end of a RAM bank so we switch to the next one and reset our address
+    
+    inc CURRENT_SCROLLTEXT_BANK
+    
+    lda #<SCROLLTEXT_RAM_ADDRESS
+    sta LOAD_ADDRESS
+    lda #>SCROLLTEXT_RAM_ADDRESS
+    sta LOAD_ADDRESS+1
+    
+scroll_bank_is_ok:
     
 
+    ; We 'shift' all pixels to the left in the buffer (31 rows)
+    ldy #0
+shift_nex_row:
+    jsr SHIFT_PIXEL_CODE_ADDRESS
+    iny
+    cpy #31
+    bne shift_nex_row
+
+    sec
+    lda SCROLL_ITERATION
+    sbc #1
+    sta SCROLL_ITERATION
+    lda SCROLL_ITERATION+1
+    sbc #0
+    sta SCROLL_ITERATION+1
+    
+    lda SCROLL_ITERATION
+    bne next_scroll_iteration
+    lda SCROLL_ITERATION+1
+    bne next_scroll_iteration
+    
+    ; We are done, exiting
 
     lda #%00000000
     sta VERA_FX_CTRL         ; back to 8-bit mode
@@ -220,6 +304,8 @@ next_scroll_copy_code_bank:
     lda #%00000000           ; DCSEL=0, ADDRSEL=0
     sta VERA_CTRL
 
+    ; Resetting to RAM_BANK zero (not sure if this is needed)
+    stz RAM_BANK
 
     rts
     
@@ -392,6 +478,67 @@ scroll_copy_code_loaded:
     rts
 
 
+generate_shift_by_one_pixel_code:
+
+    lda #<SHIFT_PIXEL_CODE_ADDRESS
+    sta CODE_ADDRESS
+    lda #>SHIFT_PIXEL_CODE_ADDRESS
+    sta CODE_ADDRESS+1
+    
+    lda #<SCROLLER_BUFFER_ADDRESS
+    sta LOAD_ADDRESS
+    lda #>SCROLLER_BUFFER_ADDRESS
+    sta LOAD_ADDRESS+1
+    
+    ldy #0                 ; generated code byte counter
+    
+    ldx #0                 ; counts nr of copy instructions (we need to do 237 copies)
+next_copy_instruction:
+
+    ; Use the previous LOAD_ADDRESS as the new STORE_ADDRESS
+    lda LOAD_ADDRESS
+    sta STORE_ADDRESS
+    lda LOAD_ADDRESS+1
+    sta STORE_ADDRESS+1
+
+    ; Increment the LOAD_ADDRESS with 31
+    clc
+    lda LOAD_ADDRESS
+    adc #31
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    adc #0
+    sta LOAD_ADDRESS+1
+
+    ; -- lda $LOAD_ADDRESS, y
+    lda #$B9               ; lda ...., y
+    jsr add_code_byte
+    
+    lda LOAD_ADDRESS       ; LOAD_ADDRESS
+    jsr add_code_byte
+    
+    lda LOAD_ADDRESS+1     ; LOAD_ADDRESS+1
+    jsr add_code_byte
+
+    ; -- sta $STORE_ADDRESS, y
+    lda #$99               ; sta ...., y
+    jsr add_code_byte
+
+    lda STORE_ADDRESS      ; STORE_ADDRESS
+    jsr add_code_byte
+    
+    lda STORE_ADDRESS+1    ; STORE_ADDRESS+1
+    jsr add_code_byte
+
+    inx
+    cpx #237
+    bne next_copy_instruction
+
+    ; -- rts --
+    lda #$60
+    jsr add_code_byte
+
+    rts
 
     
 add_code_byte:
