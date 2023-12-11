@@ -109,7 +109,7 @@ start:
     jsr load_scroll_copy_code_into_banked_ram
 
 
-    jsr load_initial_scroll_text
+    jsr load_initial_scroll_text_slow
     jsr do_scrolling
     
     ; We are not returning to BASIC here...
@@ -120,32 +120,77 @@ infinite_loop:
     
     
     
-load_initial_scroll_text:
+load_initial_scroll_text_slow:
 
-    ; FIXME: IMPLEMENT THIS!
-    ; FIXME: IMPLEMENT THIS!
-    ; FIXME: IMPLEMENT THIS!
+    lda #SCROLLTEXT_RAM_BANK
+    sta RAM_BANK
+    
 
+    ; FIXME: for now we are just loading the first 237 columns, but we should START at the different colum and clear the first columns INSTEAD!
+
+    lda #<SCROLLTEXT_RAM_ADDRESS
+    sta LOAD_ADDRESS
+    lda #>SCROLLTEXT_RAM_ADDRESS
+    sta LOAD_ADDRESS+1
+    
+    lda #<SCROLLER_BUFFER_ADDRESS
+    sta STORE_ADDRESS
+    lda #>SCROLLER_BUFFER_ADDRESS
+    sta STORE_ADDRESS+1
+    
+    ldx #0
+initial_copy_scroll_text_next_column:
+
+    ldy #0
+initial_copy_scroll_text_next_pixel:    
+
+    lda (LOAD_ADDRESS), y
+    sta (STORE_ADDRESS), y
+    iny
+    cpy #31
+    bne initial_copy_scroll_text_next_pixel
+    
+    ; Increment LOAD and STORE ADDRESS (with 32 and 31 respectively)
+    
+    clc
+    lda LOAD_ADDRESS
+    adc #32
+    sta LOAD_ADDRESS
+    lda LOAD_ADDRESS+1
+    adc #0
+    sta LOAD_ADDRESS+1
+    
+
+    clc
+    lda STORE_ADDRESS
+    adc #31
+    sta STORE_ADDRESS
+    lda STORE_ADDRESS+1
+    adc #0
+    sta STORE_ADDRESS+1
+    
+    inx
+    cpx #237
+    bne initial_copy_scroll_text_next_column
+    
+
+    stz RAM_BANK
+    
     rts
     
     
 do_scrolling:
 
-    ; Setup ADDR0 HIGH and increment
+    ; Setup ADDR0 HIGH and nibble-bit and increment (+1 byte) and set to 4-bit mode
     
-    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    lda #%00000100           ; DCSEL=2, ADDRSEL=0
     sta VERA_CTRL
     
-    lda #%00010000      ; setting bit 16 of vram address to 0, setting auto-increment value to 1
+    lda #%00010000      ; setting bit 16 of vram address to 0, setting auto-increment value to +1 byte, nibble-address bit to 1
     sta VERA_ADDR_BANK
 
-; FIXME: we need to set 4-bit mode!
-; FIXME: we need to set 4-bit mode!
-; FIXME: we need to set 4-bit mode!
-; FIXME: we need to set 4-bit mode!
-; FIXME: we need to set 4-bit mode!
-
-
+    lda #%00000100
+    sta VERA_FX_CTRL         ; 4-bit mode
 
 
     ; Copying all scroll text to VRAM
@@ -166,7 +211,14 @@ next_scroll_copy_code_bank:
 
     ; FIXME: load the 238th column into the buffer
     ; FIXME: 'shift' all pixels to the left in the buffer
+    
 
+
+    lda #%00000000
+    sta VERA_FX_CTRL         ; back to 8-bit mode
+
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
 
 
     rts
