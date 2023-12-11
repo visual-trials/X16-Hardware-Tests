@@ -139,6 +139,12 @@ do_scrolling:
     lda #%00010000      ; setting bit 16 of vram address to 0, setting auto-increment value to 1
     sta VERA_ADDR_BANK
 
+; FIXME: we need to set 4-bit mode!
+; FIXME: we need to set 4-bit mode!
+; FIXME: we need to set 4-bit mode!
+; FIXME: we need to set 4-bit mode!
+; FIXME: we need to set 4-bit mode!
+
 
 
 
