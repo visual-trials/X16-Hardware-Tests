@@ -163,7 +163,7 @@ reset:
     jsr vera_check_block_addressing_mode
     bcc done_with_sd_checks   ; If card does not support block addrssing mode so we do not proceed with SD Card tests
     
-; FIXME!
+; FIXME! Right now we are not using this autotx test feature!
     stz SD_USE_AUTOTX
     
     ; Reading the MBR in slow speed
@@ -172,9 +172,9 @@ reset:
     
     ; Reading the MBR in fast speed
     
-; FIXME!
-    lda #1
-    sta SD_USE_AUTOTX
+; FIXME! Right now we are not using this autotx test feature!
+;    lda #1
+;    sta SD_USE_AUTOTX
 
 	lda #SPI_CHIP_SELECT_AND_FAST
 	sta VERA_SPI_CTRL
@@ -184,7 +184,7 @@ reset:
     ; bcc show_differences   ; We could not read a sector so we do not proceed with SD Card tests
 
     ; Show results:
-    .if(1)
+    .if(0)
         inc CURSOR_Y
         inc CURSOR_Y
         inc CURSOR_Y
