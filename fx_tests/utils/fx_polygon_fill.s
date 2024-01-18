@@ -254,6 +254,16 @@ draw_next_triangle:
         .else
             ; SPEED: we can skip this load if we use register y for setting up DCSEL=6
             lda TRIANGLE_COLOR
+            .if(DO_4BIT)
+                ; We 'duplicate' the lower 4 bits to the higher 4 bits of the color
+                and #$0F
+                sta TMP2
+                asl
+                asl
+                asl
+                asl
+                ora TMP2
+            .endif
             sta VERA_FX_CACHE_L      ; cache32[7:0]
             sta VERA_FX_CACHE_M      ; cache32[15:8]
             sta VERA_FX_CACHE_H      ; cache32[23:16]
