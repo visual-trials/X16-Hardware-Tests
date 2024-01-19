@@ -38,11 +38,12 @@ USE_FX_MULTIPLIER = 1
 
 DO_SPEED_TEST = 1
 DO_4BIT = 1
-DO_2BIT = 0
-USE_DITHERING = 0
+DO_2BIT = 1
+USE_DITHERING = 1
 KEEP_RUNNING = 1  ; IMPORTANT: we cant show text AND do double buffering!
 USE_LIGHT = 1
 USE_KEYBOARD_INPUT = 1
+; FIXME: using double buffering somehow OVERWRITES? palette colors?? (but only on real HW??)
 USE_DOUBLE_BUFFER = 1  ; IMPORTANT: we cant show text AND do double buffering!
 SLOW_DOWN = 0
 DEBUG = 0
