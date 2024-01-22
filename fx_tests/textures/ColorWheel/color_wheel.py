@@ -10,10 +10,10 @@ random.seed(10)
 DRAW_NEW_PALETTE = False
 SHOW_ORG_PICTURE = False
 
-source_image_filename = "color_wheel_240x240.png"
+source_image_filename = "color_wheel.png"
 # FIXME: we probably want to use a higher resolution source file!
-source_image_width = 240
-source_image_height = 240
+source_image_width = 1600
+source_image_height = 1600
 bitmap_filename = "COLORWHEEL.DAT"
 
 screen_width = 320
@@ -22,10 +22,12 @@ screen_height = 240
 scale = 3
 
 # creating a image object for the background
-im_org = Image.open(source_image_filename)
-px_org = im_org.load()
+#im_org = Image.open(source_image_filename)
+#px_org = im_org.load()
+im_surface_org = pygame.image.load(source_image_filename)
 
 
+'''
 img8bpp = im_org.convert(mode='P', dither=Image.Dither.FLOYDSTEINBERG, palette=Image.Palette.ADAPTIVE, colors=256)
 px = img8bpp.load()
 
@@ -85,6 +87,7 @@ for new_color in colors_12bit:
     palette_string += "\n"
 
 print(palette_string)
+'''
 
 background_color = (0,0,0)
 
@@ -94,6 +97,10 @@ pygame.init()
 pygame.display.set_caption('X16 Color wheel')
 screen = pygame.display.set_mode((screen_width*scale, screen_height*scale))
 clock = pygame.time.Clock()
+
+frame_buffer = pygame.Surface((source_image_width, source_image_height))
+frame_buffer.blit(im_surface_org, (0, 0))
+
 
 '''
 bitmap_data = []
@@ -113,32 +120,93 @@ tableFile.close()
 print("bitmap written to file: " + bitmap_filename)
 '''
 
+
+
+screen.fill(background_color)
+
+'''
+for source_y in range(source_image_height):
+    for source_x in range(source_image_width):
+
+        y_screen = source_y
+        x_screen = source_x
+        
+        pixel_color_24bit = None
+        if (SHOW_ORG_PICTURE):
+            pixel_color_24bit = px_org[source_x, source_y]
+        else:
+            pixel_color_12bit = colors_12bit[px[source_x, source_y]]
+            
+            # 4 bit to 8 bit (for each channel)
+            r = pixel_color_12bit[0] * 17
+            g = pixel_color_12bit[1] * 17
+            b = pixel_color_12bit[2] * 17
+
+            pixel_color_24bit = (r,g,b)
+        
+        pygame.draw.rect(screen, pixel_color_24bit, pygame.Rect(x_screen*scale, y_screen*scale, scale, scale))
+'''
+
+
+
+center_x = source_image_width // 2
+center_y = source_image_height // 2
+
+
+radius_per_brightness_index = [
+    80,
+    148,
+    216,
+    282,
+    349,
+    408,
+    475,
+    526,
+    582,
+    624,
+    670
+]
+
+for brightness_index in range(11):
+
+    radius = radius_per_brightness_index[brightness_index]
+    
+    for hue_angle_index in range(0, 36):
+# FIXME: we need to offset the hue_angle by HALF for even/odd brightnesses!
+        if (brightness_index % 2 == 0): 
+            hue_angle = math.radians(hue_angle_index * 10 + 5)
+        else:
+            hue_angle = math.radians(hue_angle_index * 10)
+    
+        x_offset = math.sin(hue_angle)
+        y_offset = - math.cos(hue_angle)
+        
+        sample_point_color = (0xFF, 0xFF, 0x00)
+        sample_point_x = center_x + x_offset*radius
+        sample_point_y = center_y + y_offset*radius
+        
+        pygame.draw.rect(frame_buffer, sample_point_color, pygame.Rect(sample_point_x, sample_point_y, 4, 4))
+        
+    
+    # print(x_offset, y_offset)
+
+
+
+
+frame_buffer_on_screen_x = 0
+frame_buffer_on_screen_y = 0
+
+screen.fill((0,0,0))
+# IMPORANT: we scale to a SQUARE here!
+screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), (frame_buffer_on_screen_x, frame_buffer_on_screen_y))
+
+
+
+
+
 def run():
 
     running = True
-    
-    screen.fill(background_color)
-    
-    for source_y in range(source_image_height):
-        for source_x in range(source_image_width):
-
-            y_screen = source_y
-            x_screen = source_x
-            
-            pixel_color_24bit = None
-            if (SHOW_ORG_PICTURE):
-                pixel_color_24bit = px_org[source_x, source_y]
-            else:
-                pixel_color_12bit = colors_12bit[px[source_x, source_y]]
-                
-                # 4 bit to 8 bit (for each channel)
-                r = pixel_color_12bit[0] * 17
-                g = pixel_color_12bit[1] * 17
-                b = pixel_color_12bit[2] * 17
-
-                pixel_color_24bit = (r,g,b)
-            
-            pygame.draw.rect(screen, pixel_color_24bit, pygame.Rect(x_screen*scale, y_screen*scale, scale, scale))
     
     while running:
         # TODO: We might want to set this to max?
