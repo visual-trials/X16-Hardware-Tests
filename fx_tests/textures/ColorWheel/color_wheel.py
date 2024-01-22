@@ -9,7 +9,8 @@ random.seed(10)
 
 DRAW_NEW_PALETTE = False
 SHOW_12BIT_PALETTE = False
-SHOW_ORG_PICTURE = True
+SHOW_ORG_PICTURE = False
+DRAW_STRUCTURAL_POINTS = False
 
 source_image_filename = "color_wheel.png"
 # FIXME: we probably want to use a higher resolution source file!
@@ -173,6 +174,7 @@ screen = pygame.display.set_mode((screen_width*scale, screen_height*scale))
 clock = pygame.time.Clock()
 
 frame_buffer = pygame.Surface((source_image_width, source_image_height))
+
 frame_buffer.blit(im_surface_org, (0, 0))
 
 
@@ -240,30 +242,68 @@ for brightness_index in range(11):
         #pygame.draw.rect(frame_buffer, mark_point_color, pygame.Rect(sample_point_x, sample_point_y, 4, 4))
 
 
-        
 
-# Draw structural points
-for brightness_index in range(0, 13):
+if (not SHOW_ORG_PICTURE):
+    frame_buffer.fill((0,0,0))
+
+
+
+# FIXME! Right now we dont draw the WHITE, so the MIDDLE is different from the original!
+# FIXME! Right now we dont draw the WHITE, so the MIDDLE is different from the original!
+# FIXME! Right now we dont draw the WHITE, so the MIDDLE is different from the original!
+for brightness_index in range(0,11):
+        
     for hue_angle_index in range(0, 36):
 
-        point = rows_of_points[brightness_index][hue_angle_index]
-        
-        structural_point_x = int(center_x + point[0])
-        structural_point_y = int(center_y + point[1])
-        
-        mark_structural_point_color = (0x00, 0xFF, 0xFF)
-        pygame.draw.rect(frame_buffer, mark_structural_point_color, pygame.Rect(structural_point_x, structural_point_y, 4, 4))
-    
-    # print(x_offset, y_offset)
+        left_index = None
+        right_index = None
+        if (brightness_index % 2 == 0):
+            left_index = hue_angle_index
+            right_index = hue_angle_index + 1
+        else:
+            left_index = hue_angle_index - 1
+            right_index = hue_angle_index
+            
+        if (left_index < 0):
+            left_index += 36
+        if (right_index >= 36):
+            right_index -= 36
+            
+        base_point = rows_of_points[brightness_index][hue_angle_index]
+        left_point = rows_of_points[brightness_index+1][left_index]
+        right_point = rows_of_points[brightness_index+1][right_index]
+        far_point = rows_of_points[brightness_index+2][hue_angle_index]
 
+        diamond_polygon = [
+            (int(center_x+base_point[0]), int(center_y+base_point[1])), 
+            (int(center_x+left_point[0]), int(center_y+left_point[1])), 
+            (int(center_x+far_point[0]), int(center_y+far_point[1])), 
+            (int(center_x+right_point[0]), int(center_y+right_point[1])), 
+        ]
 
+        color_24bit = colors_24bit[brightness_index*36+hue_angle_index]
+
+        pygame.draw.polygon(frame_buffer, color_24bit, diamond_polygon)
+        
+
+if (DRAW_STRUCTURAL_POINTS):
+    # Draw structural points
+    for brightness_index in range(0, 13):
+        for hue_angle_index in range(0, 36):
+
+            point = rows_of_points[brightness_index][hue_angle_index]
+            
+            structural_point_x = int(center_x + point[0])
+            structural_point_y = int(center_y + point[1])
+            
+            mark_structural_point_color = (0x00, 0xFF, 0xFF)
+            pygame.draw.rect(frame_buffer, mark_structural_point_color, pygame.Rect(structural_point_x, structural_point_y, 4, 4))
 
 
 frame_buffer_on_screen_x = 0
 frame_buffer_on_screen_y = 0
 
-# FIXME: screen.fill((0,0,0))
-screen.fill((255,255,255))
+screen.fill((0,0,0))
 # IMPORANT: we scale to a SQUARE here!
 screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), (frame_buffer_on_screen_x, frame_buffer_on_screen_y))
 
