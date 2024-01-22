@@ -7,7 +7,8 @@ import random
 
 random.seed(10)
 
-DRAW_NEW_PALETTE = False
+DRAW_NEW_PALETTE = True
+SHOW_12BIT_PALETTE = True
 SHOW_ORG_PICTURE = False
 
 source_image_filename = "color_wheel.png"
@@ -104,8 +105,6 @@ frame_buffer.blit(im_surface_org, (0, 0))
 
 '''
 bitmap_data = []
-# FIXME: we now use 0 as BLACK, but in the bitmap a DIFFERENT color index is used as BLACK!
-#hor_margin_pixels = [0] * 32
 for source_y in range(source_image_height):
 
     for source_x in range(source_image_width):
@@ -123,31 +122,6 @@ print("bitmap written to file: " + bitmap_filename)
 
 
 screen.fill(background_color)
-
-'''
-for source_y in range(source_image_height):
-    for source_x in range(source_image_width):
-
-        y_screen = source_y
-        x_screen = source_x
-        
-        pixel_color_24bit = None
-        if (SHOW_ORG_PICTURE):
-            pixel_color_24bit = px_org[source_x, source_y]
-        else:
-            pixel_color_12bit = colors_12bit[px[source_x, source_y]]
-            
-            # 4 bit to 8 bit (for each channel)
-            r = pixel_color_12bit[0] * 17
-            g = pixel_color_12bit[1] * 17
-            b = pixel_color_12bit[2] * 17
-
-            pixel_color_24bit = (r,g,b)
-        
-        pygame.draw.rect(screen, pixel_color_24bit, pygame.Rect(x_screen*scale, y_screen*scale, scale, scale))
-'''
-
-
 
 center_x = source_image_width // 2
 center_y = source_image_height // 2
@@ -167,12 +141,14 @@ radius_per_brightness_index = [
     670
 ]
 
+
+colors_24bit = []
 for brightness_index in range(11):
 
     radius = radius_per_brightness_index[brightness_index]
-    
+        
     for hue_angle_index in range(0, 36):
-# FIXME: we need to offset the hue_angle by HALF for even/odd brightnesses!
+
         if (brightness_index % 2 == 0): 
             hue_angle = math.radians(hue_angle_index * 10 + 5)
         else:
@@ -181,11 +157,14 @@ for brightness_index in range(11):
         x_offset = math.sin(hue_angle)
         y_offset = - math.cos(hue_angle)
         
-        sample_point_color = (0xFF, 0xFF, 0x00)
-        sample_point_x = center_x + x_offset*radius
-        sample_point_y = center_y + y_offset*radius
+        sample_point_x = int(center_x + x_offset*radius)
+        sample_point_y = int(center_y + y_offset*radius)
         
-        pygame.draw.rect(frame_buffer, sample_point_color, pygame.Rect(sample_point_x, sample_point_y, 4, 4))
+        sample_color = frame_buffer.get_at((sample_point_x, sample_point_y))
+        colors_24bit.append(sample_color)
+        
+        mark_point_color = (0xFF, 0xFF, 0x00)
+        pygame.draw.rect(frame_buffer, mark_point_color, pygame.Rect(sample_point_x, sample_point_y, 4, 4))
         
     
     # print(x_offset, y_offset)
@@ -193,12 +172,17 @@ for brightness_index in range(11):
 
 
 
+
+
+
+
 frame_buffer_on_screen_x = 0
 frame_buffer_on_screen_y = 0
 
-screen.fill((0,0,0))
+# FIXME: screen.fill((0,0,0))
+screen.fill((255,255,255))
 # IMPORANT: we scale to a SQUARE here!
-screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), (frame_buffer_on_screen_x, frame_buffer_on_screen_y))
+#screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), (frame_buffer_on_screen_x, frame_buffer_on_screen_y))
 
 
 
@@ -236,24 +220,63 @@ def run():
         if (DRAW_NEW_PALETTE):
             # screen.fill(background_color)
             
-            x = 0
+            diamond_width = 8
+            diamond_height = 8
+            
+            x = diamond_width // 2
             y = 0
             
-            for clr_idx in range(256):
+            for clr_idx in range(396):
             
                 #if clr_idx >= len(colors_12bit):
                 #    continue
-            
-                pixel_color = colors_12bit[clr_idx]
+
+                color_24bit = colors_24bit[clr_idx]
+                if (SHOW_12BIT_PALETTE):
+                    r = color_24bit[0]
+                    g = color_24bit[1]
+                    b = color_24bit[2]
+
+                    # 8 bit to 4 bit conversion (for each channel)
+                    r = int((r * 15 + 135)) >> 8
+                    g = int((g * 15 + 135)) >> 8
+                    b = int((b * 15 + 135)) >> 8
+                    
+                    new_12bit_color = (r,g,b)
+                    
+                    # 4 bit to 8 bit (for each channel)
+                    r = new_12bit_color[0] * 17
+                    g = new_12bit_color[1] * 17
+                    b = new_12bit_color[2] * 17
+                    
+                    color_24bit = (r,g,b)
+                    
+                left_diamond_x = x
+                middle_diamond_x = x + diamond_width // 2
+                right_diamond_x = x + diamond_width
+                top_diamond_y = y
+                middle_diamond_y = y + diamond_height // 2
+                bottom_diamond_y = y + diamond_height
                 
-                pygame.draw.rect(screen, pixel_color, pygame.Rect(x*scale, y*scale, 8*scale, 8*scale))
+                diamond_polygon = [
+                    (middle_diamond_x*scale, top_diamond_y*scale), 
+                    (right_diamond_x*scale, middle_diamond_y*scale), 
+                    (middle_diamond_x*scale, bottom_diamond_y*scale), 
+                    (left_diamond_x*scale, middle_diamond_y*scale), 
+                ]
+
+                pygame.draw.polygon(screen, color_24bit, diamond_polygon)
+                # pygame.draw.rect(screen, color_24bit, pygame.Rect(x*scale, y*scale, 8*scale, 8*scale))
                 
                 # if (byte_index % 16 == 0 and byte_index != 0):
-                if (clr_idx % 16 == 15):
-                    y += 8
-                    x = 0
+                if (clr_idx % 36 == 35):
+                    y += diamond_height // 2
+                    if ((clr_idx // 36) % 2 == 0):
+                        x = 0
+                    else:
+                        x = diamond_width // 2
                 else:
-                    x += 8
+                    x += diamond_width
 
         
         pygame.display.update()
