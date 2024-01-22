@@ -7,9 +7,9 @@ import random
 
 random.seed(10)
 
-DRAW_NEW_PALETTE = True
-SHOW_12BIT_PALETTE = True
-SHOW_ORG_PICTURE = False
+DRAW_NEW_PALETTE = False
+SHOW_12BIT_PALETTE = False
+SHOW_ORG_PICTURE = True
 
 source_image_filename = "color_wheel.png"
 # FIXME: we probably want to use a higher resolution source file!
@@ -37,6 +37,68 @@ im_surface_org = pygame.image.load(source_image_filename)
 #   - next point is calculated by changing the angle
 #   - store the angle (from the middle) to each point (this is a lookup table, which loops)
 #   - the next ring points (n+2) can be calculated by taking the *two* n->n+1 vectors  *adding* them together
+
+
+# Create the empty points first
+rows_of_points = []
+for i in range(13):
+    rows_of_points.append([])
+    for j in range(36):
+        rows_of_points[i].append((None,None))
+        
+# We use brightness_index = 0 as center point, we create 36 of them!
+for hue_angle_index in range(36):
+    rows_of_points[0][hue_angle_index] = (0,0)
+
+# FIXME: ADJUST THIS!
+# FIXME: ADJUST THIS!
+# FIXME: ADJUST THIS!
+side_length = 71.5
+# We use brightness_index = 1 as first ring, we create 36 of them with a starting position
+for hue_angle_index in range(36):
+
+    hue_angle = math.radians(hue_angle_index * 10)
+
+    x_offset = math.sin(hue_angle)
+    y_offset = - math.cos(hue_angle)
+    
+    point_x = x_offset*side_length
+    point_y = y_offset*side_length
+    
+    rows_of_points[1][hue_angle_index] = (point_x,point_y)
+
+        
+# We then do each next ring of points
+for brightness_index in range(2, 13):
+    for hue_angle_index in range(36):
+
+        left_index = None
+        right_index = None
+        if (brightness_index % 2 == 0):
+            left_index = hue_angle_index
+            right_index = hue_angle_index + 1
+        else:
+            left_index = hue_angle_index - 1
+            right_index = hue_angle_index
+            
+        if (left_index < 0):
+            left_index += 36
+        if (right_index >= 36):
+            right_index -= 36
+
+        base_point = rows_of_points[brightness_index-2][hue_angle_index]
+        left_point = rows_of_points[brightness_index-1][left_index]
+        right_point = rows_of_points[brightness_index-1][right_index]
+        
+        delta_x = (left_point[0] - base_point[0]) + (right_point[0] - base_point[0])
+        delta_y = (left_point[1] - base_point[1]) + (right_point[1] - base_point[1])
+        
+        point_x = base_point[0] + delta_x
+        point_y = base_point[1] + delta_y
+        
+        rows_of_points[brightness_index][hue_angle_index] = (point_x,point_y)
+    
+
 
 
 '''
@@ -174,9 +236,23 @@ for brightness_index in range(11):
         sample_color = frame_buffer.get_at((sample_point_x, sample_point_y))
         colors_24bit.append(sample_color)
         
-        mark_point_color = (0xFF, 0xFF, 0x00)
-        pygame.draw.rect(frame_buffer, mark_point_color, pygame.Rect(sample_point_x, sample_point_y, 4, 4))
+        #mark_point_color = (0xFF, 0xFF, 0x00)
+        #pygame.draw.rect(frame_buffer, mark_point_color, pygame.Rect(sample_point_x, sample_point_y, 4, 4))
+
+
         
+
+# Draw structural points
+for brightness_index in range(0, 13):
+    for hue_angle_index in range(0, 36):
+
+        point = rows_of_points[brightness_index][hue_angle_index]
+        
+        structural_point_x = int(center_x + point[0])
+        structural_point_y = int(center_y + point[1])
+        
+        mark_structural_point_color = (0x00, 0xFF, 0xFF)
+        pygame.draw.rect(frame_buffer, mark_structural_point_color, pygame.Rect(structural_point_x, structural_point_y, 4, 4))
     
     # print(x_offset, y_offset)
 
@@ -189,7 +265,7 @@ frame_buffer_on_screen_y = 0
 # FIXME: screen.fill((0,0,0))
 screen.fill((255,255,255))
 # IMPORANT: we scale to a SQUARE here!
-#screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), (frame_buffer_on_screen_x, frame_buffer_on_screen_y))
+screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), (frame_buffer_on_screen_x, frame_buffer_on_screen_y))
 
 
 
