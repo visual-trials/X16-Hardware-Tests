@@ -28,6 +28,17 @@ scale = 3
 im_surface_org = pygame.image.load(source_image_filename)
 
 
+
+# Generating your own 'color wheel':
+
+# - determine the distance between two points (this is the length of the side of all diamand shapes): its around 72px? (for 1600x1600 picture)
+# - determine all points:
+#   - start at the top point (x = 0*sin(angle), y = -72*cos(angle))
+#   - next point is calculated by changing the angle
+#   - store the angle (from the middle) to each point (this is a lookup table, which loops)
+#   - the next ring points (n+2) can be calculated by taking the *two* n->n+1 vectors  *adding* them together
+
+
 '''
 img8bpp = im_org.convert(mode='P', dither=Image.Dither.FLOYDSTEINBERG, palette=Image.Palette.ADAPTIVE, colors=256)
 px = img8bpp.load()
@@ -168,10 +179,6 @@ for brightness_index in range(11):
         
     
     # print(x_offset, y_offset)
-
-
-
-
 
 
 
