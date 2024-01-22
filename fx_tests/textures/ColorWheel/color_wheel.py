@@ -8,7 +8,7 @@ import random
 random.seed(10)
 
 DRAW_NEW_PALETTE = False
-SHOW_12BIT_PALETTE = False
+SHOW_12BIT_COLORS = True
 SHOW_ORG_PICTURE = False
 DRAW_STRUCTURAL_POINTS = False
 
@@ -21,7 +21,7 @@ bitmap_filename = "COLORWHEEL.DAT"
 screen_width = 320
 screen_height = 240
 
-scale = 3
+scale = 2
 
 # creating a image object for the background
 #im_org = Image.open(source_image_filename)
@@ -282,6 +282,25 @@ for brightness_index in range(0,11):
         ]
 
         color_24bit = colors_24bit[brightness_index*36+hue_angle_index]
+        if (SHOW_12BIT_COLORS):
+            r = color_24bit[0]
+            g = color_24bit[1]
+            b = color_24bit[2]
+
+            # 8 bit to 4 bit conversion (for each channel)
+            r = int((r * 15 + 135)) >> 8
+            g = int((g * 15 + 135)) >> 8
+            b = int((b * 15 + 135)) >> 8
+            
+            new_12bit_color = (r,g,b)
+            
+            # 4 bit to 8 bit (for each channel)
+            r = new_12bit_color[0] * 17
+            g = new_12bit_color[1] * 17
+            b = new_12bit_color[2] * 17
+            
+            color_24bit = (r,g,b)
+        
 
         pygame.draw.polygon(frame_buffer, color_24bit, diamond_polygon)
         
@@ -355,7 +374,7 @@ def run():
                 #    continue
 
                 color_24bit = colors_24bit[clr_idx]
-                if (SHOW_12BIT_PALETTE):
+                if (SHOW_12BIT_COLORS):
                     r = color_24bit[0]
                     g = color_24bit[1]
                     b = color_24bit[2]
