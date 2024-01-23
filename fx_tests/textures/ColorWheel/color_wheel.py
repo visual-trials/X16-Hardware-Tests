@@ -4,6 +4,7 @@ import pygame
 import math
 import time
 import random
+from functools import cmp_to_key
 
 random.seed(10)
 
@@ -173,9 +174,8 @@ pygame.display.set_caption('X16 Color wheel')
 screen = pygame.display.set_mode((screen_width*scale, screen_height*scale))
 clock = pygame.time.Clock()
 
-frame_buffer = pygame.Surface((source_image_width, source_image_height))
-
-frame_buffer.blit(im_surface_org, (0, 0))
+source_image_buffer = pygame.Surface((source_image_width, source_image_height))
+source_image_buffer.blit(im_surface_org, (0, 0))
 
 
 '''
@@ -218,6 +218,7 @@ radius_per_brightness_index = [
 
 
 colors_24bit = []
+colors_24bit.append((0,0,0)) # black is always color #0
 for brightness_index in range(11):
 
     radius = radius_per_brightness_index[brightness_index]
@@ -235,18 +236,39 @@ for brightness_index in range(11):
         sample_point_x = int(center_x + x_offset*radius)
         sample_point_y = int(center_y + y_offset*radius)
         
-        sample_color = frame_buffer.get_at((sample_point_x, sample_point_y))
+        sample_color = source_image_buffer.get_at((sample_point_x, sample_point_y))
         colors_24bit.append(sample_color)
         
         #mark_point_color = (0xFF, 0xFF, 0x00)
-        #pygame.draw.rect(frame_buffer, mark_point_color, pygame.Rect(sample_point_x, sample_point_y, 4, 4))
+        #pygame.draw.rect(source_image_buffer, mark_point_color, pygame.Rect(sample_point_x, sample_point_y, 4, 4))
 
+
+
+
+frame_buffer = pygame.Surface((source_image_width, source_image_height))
 
 
 if (not SHOW_ORG_PICTURE):
     frame_buffer.fill((0,0,0))
 
 
+
+
+
+def get_max_and_min_y_for_polygon(diamond_polygon):
+
+    min_y = None
+    max_y = None
+    
+    for point in diamond_polygon:
+        if min_y is None or point[1] < min_y:
+            min_y = point[1]
+        if max_y is None or point[1] > max_y:
+            max_y = point[1]
+
+    return (min_y, max_y)
+
+polygons = []
 
 # FIXME! Right now we dont draw the WHITE, so the MIDDLE is different from the original!
 # FIXME! Right now we dont draw the WHITE, so the MIDDLE is different from the original!
@@ -280,31 +302,86 @@ for brightness_index in range(0,11):
             (int(center_x+far_point[0]), int(center_y+far_point[1])), 
             (int(center_x+right_point[0]), int(center_y+right_point[1])), 
         ]
-
-        color_24bit = colors_24bit[brightness_index*36+hue_angle_index]
-        if (SHOW_12BIT_COLORS):
-            r = color_24bit[0]
-            g = color_24bit[1]
-            b = color_24bit[2]
-
-            # 8 bit to 4 bit conversion (for each channel)
-            r = int((r * 15 + 135)) >> 8
-            g = int((g * 15 + 135)) >> 8
-            b = int((b * 15 + 135)) >> 8
-            
-            new_12bit_color = (r,g,b)
-            
-            # 4 bit to 8 bit (for each channel)
-            r = new_12bit_color[0] * 17
-            g = new_12bit_color[1] * 17
-            b = new_12bit_color[2] * 17
-            
-            color_24bit = (r,g,b)
         
-
-        pygame.draw.polygon(frame_buffer, color_24bit, diamond_polygon)
+        clr_idx = brightness_index*36+hue_angle_index+1  # +1 due to color #0 (black)
         
+        (min_y, max_y) = get_max_and_min_y_for_polygon(diamond_polygon)
+        
+# FIXME: we need to add BLACK too!
+        polygons.append((clr_idx, min_y, max_y, diamond_polygon))
 
+
+use_max_y_for_sorting = True
+
+def compare_polygons(polygon_a, polygon_b):
+    
+    result = None
+
+    #if ('in_front_of' in face_a):
+    #    if (face_b['orig_face_index'] in face_a['in_front_of']):
+    #        return -1
+            
+    #if ('in_front_of' in face_b):
+    #    if (face_a['orig_face_index'] in face_b['in_front_of']):
+    #        return 1
+
+    min_y_a = polygon_a[1]
+    min_y_b = polygon_b[1]
+    max_y_a = polygon_a[2]
+    max_y_b = polygon_b[2]
+    if (use_max_y_for_sorting):
+        if max_y_a == max_y_b:
+            result = 0
+        if max_y_a < max_y_b:
+            result = 1
+        if max_y_a > max_y_b:
+            result = -1
+    else:
+        if min_y_a == min_y_b:
+            result = 0
+        if min_y_a < min_y_b:
+            result = 1
+        if min_y_a > min_y_b:
+            result = -1
+            
+            
+    return result
+
+compare_key = cmp_to_key(compare_polygons)
+
+sorted_polygons = sorted(polygons, key=compare_key, reverse=True)
+#sorted_polygons = sorted(polygons, key=compare_key)
+
+for sorted_clr_idx, polygon_info in enumerate(sorted_polygons):
+
+    (clr_idx, min_y, max_y, diamond_polygon) = polygon_info
+    
+    color_24bit = colors_24bit[clr_idx] 
+    if (SHOW_12BIT_COLORS):
+        r = color_24bit[0]
+        g = color_24bit[1]
+        b = color_24bit[2]
+
+        # 8 bit to 4 bit conversion (for each channel)
+        r = int((r * 15 + 135)) >> 8
+        g = int((g * 15 + 135)) >> 8
+        b = int((b * 15 + 135)) >> 8
+        
+        new_12bit_color = (r,g,b)
+        
+        # 4 bit to 8 bit (for each channel)
+        r = new_12bit_color[0] * 17
+        g = new_12bit_color[1] * 17
+        b = new_12bit_color[2] * 17
+        
+        color_24bit = (r,g,b)
+
+    if (sorted_clr_idx < 143):
+        color_24bit = (0xFF, 0xFF, 0x00)
+#        color_24bit = (0x00, 0xFF, 0xFF)
+
+    pygame.draw.polygon(frame_buffer, color_24bit, diamond_polygon)
+        
 if (DRAW_STRUCTURAL_POINTS):
     # Draw structural points
     for brightness_index in range(0, 13):
@@ -373,7 +450,7 @@ def run():
                 #if clr_idx >= len(colors_12bit):
                 #    continue
 
-                color_24bit = colors_24bit[clr_idx]
+                color_24bit = colors_24bit[clr_idx+1]  # +1 due to color #0 (black)
                 if (SHOW_12BIT_COLORS):
                     r = color_24bit[0]
                     g = color_24bit[1]
