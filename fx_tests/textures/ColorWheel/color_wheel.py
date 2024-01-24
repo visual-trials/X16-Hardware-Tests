@@ -14,7 +14,6 @@ SHOW_ORG_PICTURE = False
 DRAW_STRUCTURAL_POINTS = False
 
 source_image_filename = "color_wheel.png"
-# FIXME: we probably want to use a higher resolution source file!
 source_image_width = 1600
 source_image_height = 1600
 bitmap_filename = "COLORWHEEL.DAT"
@@ -28,11 +27,7 @@ screen_height = 240
 # IMPORANT: set this to 1 if you want 320x240 output, set to 2 if you want 640x480 output
 scale = 2
 
-# creating a image object for the background
-#im_org = Image.open(source_image_filename)
-#px_org = im_org.load()
 im_surface_org = pygame.image.load(source_image_filename)
-
 
 
 # Generating your own 'color wheel':
@@ -56,9 +51,6 @@ for i in range(13):
 for hue_angle_index in range(36):
     rows_of_points[0][hue_angle_index] = (0,0)
 
-# FIXME: ADJUST THIS!
-# FIXME: ADJUST THIS!
-# FIXME: ADJUST THIS!
 side_length = 71.5
 # We use brightness_index = 1 as first ring, we create 36 of them with a starting position
 for hue_angle_index in range(36):
@@ -107,10 +99,6 @@ for brightness_index in range(2, 13):
 
 
 
-
-background_color = (0,0,0)
-
-
 pygame.init()
 
 pygame.display.set_caption('X16 Color wheel')
@@ -120,14 +108,13 @@ clock = pygame.time.Clock()
 source_image_buffer = pygame.Surface((source_image_width, source_image_height))
 source_image_buffer.blit(im_surface_org, (0, 0))
 
-
-
+background_color = (0,0,0)
 screen.fill(background_color)
 
 center_x = source_image_width // 2
 center_y = source_image_height // 2
 
-
+# This was hand picked
 radius_per_brightness_index = [
     80,
     148,
@@ -167,7 +154,6 @@ for brightness_index in range(11):
         
         #mark_point_color = (0xFF, 0xFF, 0x00)
         #pygame.draw.rect(source_image_buffer, mark_point_color, pygame.Rect(sample_point_x, sample_point_y, 4, 4))
-
 
 
 
@@ -228,8 +214,6 @@ def get_max_and_min_y_for_polygon(diamond_polygon):
 polygons = []
 
 # FIXME! Right now we dont draw the WHITE, so the MIDDLE is different from the original!
-# FIXME! Right now we dont draw the WHITE, so the MIDDLE is different from the original!
-# FIXME! Right now we dont draw the WHITE, so the MIDDLE is different from the original!
 for brightness_index in range(0,11):
         
     for hue_angle_index in range(0, 36):
@@ -264,7 +248,7 @@ for brightness_index in range(0,11):
         
         # We also add the vertical-mirror of this polygon (its "bottom-mirror")
         bottom_diamond_polygon = [
-# FIXME: should we reverse the order of the polygon-vertices here?
+            # TODO: should we reverse the order of the polygon-vertices here?
             (int(center_x+base_point[0]), int(center_y-base_point[1])), 
             (int(center_x+left_point[0]), int(center_y-left_point[1])), 
             (int(center_x+far_point[0]), int(center_y-far_point[1])), 
@@ -288,14 +272,6 @@ for brightness_index in range(0,11):
 def compare_polygons(polygon_a, polygon_b):
     
     result = None
-
-    #if ('in_front_of' in face_a):
-    #    if (face_b['orig_face_index'] in face_a['in_front_of']):
-    #        return -1
-            
-    #if ('in_front_of' in face_b):
-    #    if (face_a['orig_face_index'] in face_b['in_front_of']):
-    #        return 1
 
     min_y_a = polygon_a[1]
     min_y_b = polygon_b[1]
@@ -574,9 +550,6 @@ else:
                 mirror_tile_nr_0 = (29-screen_tile_y_index)*64 + screen_tile_x_index
                 tile_map_1.append(tile_map_0[mirror_tile_nr_0])
         
-    #print(tile_map_0)
-    #print(tile_map_1)
-
     tile_data_bytes = []
     for tile_data in tiles_data:
         tile_data_bytes += tile_data
@@ -636,7 +609,7 @@ screen.fill((0,0,0))
 
 
 scaled_surface.set_palette(colors_24bit_top)
-# IMPORANT: we scale to a SQUARE here so we use screen_height for the destination width as well!
+# Note: we scale to a SQUARE here so we use screen_height for the destination width as well!
 screen.blit(scaled_surface, dest=(start_x, 0), area=pygame.Rect(0,0,screen_height*scale, screen_height*scale//2))
 scaled_surface.set_palette(colors_24bit_bottom)
 screen.blit(scaled_surface, dest=(start_x, screen_height*scale//2), area=pygame.Rect(0,screen_height*scale//2,screen_height*scale, screen_height*scale//2))
