@@ -4,7 +4,7 @@
 ; To run: x16emu.exe -prg WHEEL.PRG -run
 
 ; Set this to 1 if you want 640x480
-DO_HIGH_RES = 0
+DO_HIGH_RES = 1
 
 
 
@@ -37,7 +37,20 @@ VERA_DC_HSCALE    = $9F2A  ; DCSEL=0
 VERA_DC_VSCALE    = $9F2B  ; DCSEL=0
 
 VERA_L0_CONFIG    = $9F2D
+VERA_L0_MAPBASE   = $9F2E
 VERA_L0_TILEBASE  = $9F2F
+VERA_L0_HSCROLL_L = $9F30
+VERA_L0_HSCROLL_H = $9F31
+VERA_L0_VSCROLL_L = $9F32
+VERA_L0_VSCROLL_H = $9F33
+
+VERA_L1_CONFIG    = $9F34
+VERA_L1_MAPBASE   = $9F35
+VERA_L1_TILEBASE  = $9F36
+VERA_L1_HSCROLL_L = $9F37
+VERA_L1_HSCROLL_H = $9F38
+VERA_L1_VSCROLL_L = $9F39
+VERA_L1_VSCROLL_H = $9F3A
 
 
 ; Kernal API functions
@@ -71,7 +84,7 @@ BITMAP_VRAM_ADDRESS       = $00000  ; 75kB? (on in low-res mode)
 
 TILEDATA_VRAM_ADDRESS     = $00000  ; 94kB? (on in high-res mode)
 TILEMAP0_VRAM_ADDRESS     = $1B000  ; 64 * 32 * 2 bytes = 4096 bytes
-TILEMAP1_VRAM_ADDRESS     = $1C000  ; 64 * 32 * 2 bytes = 4096 bytes
+TILEMAP1_VRAM_ADDRESS     = $1D000  ; 64 * 32 * 2 bytes = 4096 bytes
 
 ; === Other constants ===
 
@@ -90,7 +103,7 @@ start:
 
     jsr copy_full_top_palette
     
-    jsr clear_video_memory   ; SLOW!
+;    jsr clear_video_memory   ; SLOW!
     .if (DO_HIGH_RES)
         jsr load_tiledata_into_vram
         jsr load_tilemap0_into_vram
@@ -203,6 +216,48 @@ setup_vera_for_layer0_bitmap:
 
     rts
     
+
+setup_vera_for_layer0_and_layer1_tilemap:
+
+    lda VERA_DC_VIDEO
+    ora #%00110000           ; Enable Layer 0 and layer 1
+    and #%10111111           ; Disable sprites
+    sta VERA_DC_VIDEO
+    
+    lda #0                   ; Set Horizontal and vertical scoll to 0
+    sta VERA_L0_HSCROLL_L
+    sta VERA_L0_HSCROLL_H
+    sta VERA_L0_VSCROLL_L
+    sta VERA_L0_VSCROLL_H
+    sta VERA_L1_HSCROLL_L
+    sta VERA_L1_HSCROLL_H
+    sta VERA_L1_VSCROLL_L
+    sta VERA_L1_VSCROLL_H
+
+    lda #$80                 ; 1:1 scale (640 x 480 pixels on screen)
+    sta VERA_DC_HSCALE
+    sta VERA_DC_VSCALE
+    
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; TODO: use TILE_MAP_HEIGHT and TILE_MAP_WIDTH to determine this value!
+    lda #%00010011           ; Set map height/width to 32/64, and Tile mode 8 bpp
+    sta VERA_L0_CONFIG
+    sta VERA_L1_CONFIG
+    
+    lda #(TILEMAP0_VRAM_ADDRESS >> 9)         ; Set mapbase for layer 0.
+    sta VERA_L0_MAPBASE
+    
+    lda #(TILEMAP1_VRAM_ADDRESS >> 9)         ; Set mapbase for layer 1.
+    sta VERA_L1_MAPBASE
+    
+    lda #%00000011           ; Set tilebase for layer 0 to 0x00000. This also sets the tile width and height to 16 px
+    sta VERA_L0_TILEBASE
+    sta VERA_L1_TILEBASE
+    
+    
+    rts
 
 
 clear_video_memory:
@@ -430,7 +485,7 @@ load_tilemap0_into_vram:
                       ; 2=?use address in bin file? (and dont add first 2 bytes?)
     jsr SETLFS
  
-    lda #2            ; load into Bank 0 of VRAM (see https://github.com/X16Community/x16-docs/blob/master/X16%20Reference%20-%2004%20-%20KERNAL.md#function-name-load )
+    lda #3            ; load into Bank 1 of VRAM (see https://github.com/X16Community/x16-docs/blob/master/X16%20Reference%20-%2004%20-%20KERNAL.md#function-name-load )
     ldx #<TILEMAP0_VRAM_ADDRESS
     ldy #>TILEMAP0_VRAM_ADDRESS
     jsr LOAD
@@ -459,7 +514,7 @@ load_tilemap1_into_vram:
                       ; 2=?use address in bin file? (and dont add first 2 bytes?)
     jsr SETLFS
  
-    lda #2            ; load into Bank 0 of VRAM (see https://github.com/X16Community/x16-docs/blob/master/X16%20Reference%20-%2004%20-%20KERNAL.md#function-name-load )
+    lda #3            ; load into Bank 1 of VRAM (see https://github.com/X16Community/x16-docs/blob/master/X16%20Reference%20-%2004%20-%20KERNAL.md#function-name-load )
     ldx #<TILEMAP1_VRAM_ADDRESS
     ldy #>TILEMAP1_VRAM_ADDRESS
     jsr LOAD

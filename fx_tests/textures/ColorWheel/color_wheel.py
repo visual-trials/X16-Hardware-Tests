@@ -600,11 +600,10 @@ else:
         tile_index_low = tile_index % 256
         tile_index_high = tile_index // 256
         
-        tile_index_high = tile_index_high | 0x04  # v-flip
+        tile_index_high = tile_index_high | 0x08  # v-flip
 
         tile_map_1_bytes.append(tile_index_low)
         tile_map_1_bytes.append(tile_index_high)
-
 
     tableFile = open(tile_map0_filename, "wb")
     tableFile.write(bytearray(tile_map_0_bytes))
