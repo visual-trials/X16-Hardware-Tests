@@ -92,7 +92,9 @@ start:
     
     jsr clear_video_memory   ; SLOW!
     .if (DO_HIGH_RES)
-        jsr load_tilemap_into_vram
+        jsr load_tiledata_into_vram
+        jsr load_tilemap0_into_vram
+        jsr load_tilemap1_into_vram
     .else
         jsr load_bitmap_into_vram
     .endif
