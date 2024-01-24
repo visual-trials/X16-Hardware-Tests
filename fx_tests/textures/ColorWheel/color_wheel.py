@@ -22,7 +22,7 @@ bitmap_filename = "COLORWHEEL.DAT"
 screen_width = 320
 screen_height = 240
 
-scale = 2
+scale = 1
 
 # creating a image object for the background
 #im_org = Image.open(source_image_filename)
@@ -322,11 +322,8 @@ for brightness_index in range(0,11):
         
         (min_y, max_y) = get_max_and_min_y_for_polygon(diamond_polygon)
         
-# FIXME: we need to add BLACK too!
         polygons.append((clr_idx, min_y, max_y, diamond_polygon))
 
-
-use_max_y_for_sorting = None
 
 def compare_polygons(polygon_a, polygon_b):
     
@@ -344,6 +341,12 @@ def compare_polygons(polygon_a, polygon_b):
     min_y_b = polygon_b[1]
     max_y_a = polygon_a[2]
     max_y_b = polygon_b[2]
+    
+    # TODO: we wanted to use this setting to use a different way of sorting for the top and bottom polygons
+    #       but this is probematic when trying to create two palettes that need to be flipped.
+    #       So for now we dont use this. But it may be beneficial to the amount of time available to swap the palette.
+    use_max_y_for_sorting = True
+
     if (use_max_y_for_sorting):
         if max_y_a == max_y_b:
             result = 0
@@ -365,10 +368,7 @@ def compare_polygons(polygon_a, polygon_b):
 compare_key = cmp_to_key(compare_polygons)
 
 
-use_max_y_for_sorting = True
 top_to_bottom_sorted_polygons = sorted(polygons, key=compare_key, reverse=True)
-
-use_max_y_for_sorting = False
 bottom_to_top_sorted_polygons = sorted(polygons, key=compare_key, reverse=False)
 
 frame_buffer = pygame.Surface((source_image_width, source_image_height), depth=8)
@@ -442,7 +442,7 @@ for top_to_bottom_sorted_idx, top_polygon_info in enumerate(top_to_bottom_sorted
 #        color_24bit = (0xFF, 0xFF, 0x00)
 #        color_24bit = (0x00, 0xFF, 0xFF)
 
-        
+
 # We add WHITE as color #255
 colors_12bit_top.append((255,255,255))
 colors_12bit_bottom.append((255,255,255))
@@ -469,22 +469,18 @@ if (DRAW_STRUCTURAL_POINTS):
             pygame.draw.rect(frame_buffer, mark_structural_point_color, pygame.Rect(structural_point_x, structural_point_y, 4, 4))
 
 
-frame_buffer_on_screen_x = 0
-frame_buffer_on_screen_y = 0
 
 screen.fill((0,0,0))
-# IMPORANT: we scale to a SQUARE here!
 
 
+# We want to draw in the middle of the screen
+start_x = (screen_width-screen_height)//2*scale
 
 frame_buffer.set_palette(colors_12bit_top)
-# FIXME! area to blit!
-screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), (frame_buffer_on_screen_x, frame_buffer_on_screen_y))
+# IMPORANT: we scale to a SQUARE here so we use screen_height for the destination width as well!
+screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), dest=(start_x, 0), area=pygame.Rect(0,0,screen_height*scale, screen_height*scale//2))
 frame_buffer.set_palette(colors_12bit_bottom)
-# FIXME! area to blit!
-# FIXME! screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), (frame_buffer_on_screen_x, frame_buffer_on_screen_y))
-
-
+screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), dest=(start_x, screen_height*scale//2), area=pygame.Rect(0,screen_height*scale//2,screen_height*scale, screen_height*scale//2))
 
 
 
