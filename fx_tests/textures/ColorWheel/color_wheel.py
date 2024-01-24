@@ -245,14 +245,29 @@ for brightness_index in range(11):
 
 
 
-frame_buffer = pygame.Surface((source_image_width, source_image_height))
+def get_color_by_org_index(clr_idx):
+    color_24bit = colors_24bit[clr_idx] 
+    
+    if (SHOW_12BIT_COLORS):
+        r = color_24bit[0]
+        g = color_24bit[1]
+        b = color_24bit[2]
 
-
-if (not SHOW_ORG_PICTURE):
-    frame_buffer.fill((0,0,0))
-
-
-
+        # 8 bit to 4 bit conversion (for each channel)
+        r = int((r * 15 + 135)) >> 8
+        g = int((g * 15 + 135)) >> 8
+        b = int((b * 15 + 135)) >> 8
+        
+        new_12bit_color = (r,g,b)
+        
+        # 4 bit to 8 bit (for each channel)
+        r = new_12bit_color[0] * 17
+        g = new_12bit_color[1] * 17
+        b = new_12bit_color[2] * 17
+        
+        color_24bit = (r,g,b)
+        
+    return color_24bit
 
 
 def get_max_and_min_y_for_polygon(diamond_polygon):
@@ -311,7 +326,7 @@ for brightness_index in range(0,11):
         polygons.append((clr_idx, min_y, max_y, diamond_polygon))
 
 
-use_max_y_for_sorting = True
+use_max_y_for_sorting = None
 
 def compare_polygons(polygon_a, polygon_b):
     
@@ -349,38 +364,96 @@ def compare_polygons(polygon_a, polygon_b):
 
 compare_key = cmp_to_key(compare_polygons)
 
-sorted_polygons = sorted(polygons, key=compare_key, reverse=True)
-#sorted_polygons = sorted(polygons, key=compare_key)
 
-for sorted_clr_idx, polygon_info in enumerate(sorted_polygons):
+use_max_y_for_sorting = True
+top_to_bottom_sorted_polygons = sorted(polygons, key=compare_key, reverse=True)
 
-    (clr_idx, min_y, max_y, diamond_polygon) = polygon_info
+use_max_y_for_sorting = False
+bottom_to_top_sorted_polygons = sorted(polygons, key=compare_key, reverse=False)
+
+frame_buffer = pygame.Surface((source_image_width, source_image_height), depth=8)
+
+
+if (not SHOW_ORG_PICTURE):
+    frame_buffer.fill(0)
+
+
+# These are two 256-color palettes
+colors_12bit_top = []
+colors_12bit_bottom = []
+
+# We add BLACK as color #0
+colors_12bit_top.append((0,0,0))
+colors_12bit_bottom.append((0,0,0))
+
+all_polygons = []
+for top_to_bottom_sorted_idx, top_polygon_info in enumerate(top_to_bottom_sorted_polygons):
+
+    # There are 11*36 colors in the color wheel = 396 colors
+    # There is also BLACK and WHITE
     
-    color_24bit = colors_24bit[clr_idx] 
-    if (SHOW_12BIT_COLORS):
-        r = color_24bit[0]
-        g = color_24bit[1]
-        b = color_24bit[2]
+    # The amount of colors in a X16 palette is 256 (of which the first one we want to be BLACK) so 255 of available colors
+    # So we need to put 397 colors (396 + WHITE) into a 255 palette somehow. We do that by swapping (397-255=) 142 colors each frame
+    # We want the top and bottom 142 diamonds/colors to be swapped. So we want the following palette:
+    # - 1 color BLACK
+    # - 142 colors (first the TOP ones, overwritten by the BOTTOM ones)
+    # - 112 middle colors 
+    # - 1 color WHITE
+    
+    
+    (top_clr_idx, top_min_y, top_max_y, top_diamond_polygon) = top_polygon_info
+    
+    if (top_to_bottom_sorted_idx >= 396 - 142):
+        # We STOP where we reach 396-142 index! (so 254 colors added, BLACK and WHITE are added at the beginning/end)
+        break
+    elif (top_to_bottom_sorted_idx <= 142):
+    
+        # Note: we want the bottom 142 diamonds to be sorted top to bottom, so we negate the index here
+        bottom_to_top_sorted_idx = 142 - top_to_bottom_sorted_idx
+        bottom_polygon_info = bottom_to_top_sorted_polygons[bottom_to_top_sorted_idx]
+        (bottom_clr_idx, bottom_min_y, bottom_max_y, bottom_diamond_polygon) = bottom_polygon_info
+        
+        top_color_24bit = get_color_by_org_index(top_clr_idx)
+        bottom_color_24bit = get_color_by_org_index(bottom_clr_idx)
+        
+        # Note: the top and bottom polygons share the same color 142 indexes!
+        new_clr_idx = top_to_bottom_sorted_idx+1
+        
+        new_polygon_info = (new_clr_idx, top_diamond_polygon)
+        all_polygons.append(new_polygon_info)
+        colors_12bit_top.append(top_color_24bit)
 
-        # 8 bit to 4 bit conversion (for each channel)
-        r = int((r * 15 + 135)) >> 8
-        g = int((g * 15 + 135)) >> 8
-        b = int((b * 15 + 135)) >> 8
-        
-        new_12bit_color = (r,g,b)
-        
-        # 4 bit to 8 bit (for each channel)
-        r = new_12bit_color[0] * 17
-        g = new_12bit_color[1] * 17
-        b = new_12bit_color[2] * 17
-        
-        color_24bit = (r,g,b)
+        # TODO: we probably shouldnt draw this polygon this early, but drawing order doesnt really matter (only color order)
+        new_polygon_info = (new_clr_idx, bottom_diamond_polygon)
+        all_polygons.append(new_polygon_info)
+        colors_12bit_bottom.append(bottom_color_24bit)
+    else:
+        new_clr_idx = top_to_bottom_sorted_idx+1
 
-    if (sorted_clr_idx < 143):
-        color_24bit = (0xFF, 0xFF, 0x00)
+        # We use the top colors/polygons for the middle polygons
+        color_24bit = get_color_by_org_index(top_clr_idx)
+        
+        new_polygon_info = (new_clr_idx, top_diamond_polygon)
+        all_polygons.append(new_polygon_info)
+    
+        colors_12bit_top.append(color_24bit)
+        colors_12bit_bottom.append(color_24bit)
+    
+#        color_24bit = (0xFF, 0xFF, 0x00)
 #        color_24bit = (0x00, 0xFF, 0xFF)
 
-    pygame.draw.polygon(frame_buffer, color_24bit, diamond_polygon)
+        
+# We add WHITE as color #255
+colors_12bit_top.append((255,255,255))
+colors_12bit_bottom.append((255,255,255))
+
+
+for polygon_info in all_polygons:
+
+    (clr_idx_256, diamond_polygon) = polygon_info
+
+    pygame.draw.polygon(frame_buffer, clr_idx_256, diamond_polygon)
+    
         
 if (DRAW_STRUCTURAL_POINTS):
     # Draw structural points
@@ -401,7 +474,15 @@ frame_buffer_on_screen_y = 0
 
 screen.fill((0,0,0))
 # IMPORANT: we scale to a SQUARE here!
+
+
+
+frame_buffer.set_palette(colors_12bit_top)
+# FIXME! area to blit!
 screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), (frame_buffer_on_screen_x, frame_buffer_on_screen_y))
+frame_buffer.set_palette(colors_12bit_bottom)
+# FIXME! area to blit!
+# FIXME! screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), (frame_buffer_on_screen_x, frame_buffer_on_screen_y))
 
 
 
