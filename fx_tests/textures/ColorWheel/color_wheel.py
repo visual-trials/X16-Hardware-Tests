@@ -117,23 +117,6 @@ source_image_buffer = pygame.Surface((source_image_width, source_image_height))
 source_image_buffer.blit(im_surface_org, (0, 0))
 
 
-'''
-bitmap_data = []
-for source_y in range(source_image_height):
-
-    for source_x in range(source_image_width):
-
-        pixel_color_index = px[source_x, source_y]
-        
-        bitmap_data.append(pixel_color_index)
-    
-tableFile = open(bitmap_filename, "wb")
-tableFile.write(bytearray(bitmap_data))
-tableFile.close()
-print("bitmap written to file: " + bitmap_filename)
-'''
-
-
 
 screen.fill(background_color)
 
@@ -414,68 +397,33 @@ colors_24bit_top.append((255,255,255))
 colors_24bit_bottom.append((255,255,255))
 
 
-
-'''
-img8bpp = im_org.convert(mode='P', dither=Image.Dither.FLOYDSTEINBERG, palette=Image.Palette.ADAPTIVE, colors=256)
-px = img8bpp.load()
-
-palette_bytes = img8bpp.getpalette()
-
-# We first convert to 12-bit COLORS
-colors_12bit = []
-
-byte_index = 0
-nr_of_palette_bytes = 3*256
-while (byte_index < nr_of_palette_bytes):
-    try:
-        r = palette_bytes[byte_index]
-    except:
-        r = 0
-
-    byte_index += 1
-
-    try:
-        g = palette_bytes[byte_index]
-    except:
-        g = 0
-
-    byte_index += 1
-
-    try:
-        b = palette_bytes[byte_index]
-    except:
-        b = 0
-
-    byte_index += 1
-
-    # 8 bit to 4 bit conversion (for each channel)
-    r = (r * 15 + 135) >> 8
-    g = (g * 15 + 135) >> 8
-    b = (b * 15 + 135) >> 8
-    
-    new_12bit_color = (r,g,b)
-    colors_12bit.append(new_12bit_color)
-    
-    
-
-
-# Printing out asm for palette:
-palette_string = ""
-for new_color in colors_12bit:
+# Printing out asm for top palette:
+palette_string = "top_palette:\n"
+for new_color in colors_12bit_top:
     red = new_color[0]
     green = new_color[1]
     blue = new_color[2]
 
-    red = red >> 4
-    blue = blue >> 4
-    
     palette_string += "  .byte "
     palette_string += "$" + format(green | blue,"02x") + ", "
     palette_string += "$" + format(red,"02x")
     palette_string += "\n"
 
 print(palette_string)
-'''
+
+
+palette_string = "bottom_palette:\n"
+for new_color in colors_12bit_bottom:
+    red = new_color[0]
+    green = new_color[1]
+    blue = new_color[2]
+
+    palette_string += "  .byte "
+    palette_string += "$" + format(green | blue,"02x") + ", "
+    palette_string += "$" + format(red,"02x")
+    palette_string += "\n"
+
+print(palette_string)
 
 
 for polygon_info in all_polygons:
@@ -483,6 +431,24 @@ for polygon_info in all_polygons:
     (clr_idx_256, diamond_polygon) = polygon_info
 
     pygame.draw.polygon(frame_buffer, clr_idx_256, diamond_polygon)
+    
+    
+# FIXME: this needs adjusting when scaling to 640x480!!
+bitmap_data = []
+for screen_y in range(screen_height):
+
+    for screen_x in range(screen_width):
+
+        pixel_color_index = frame_buffer.get_at((screen_x, screen_y))
+        
+        bitmap_data.append(pixel_color_index)
+    
+tableFile = open(bitmap_filename, "wb")
+tableFile.write(bytearray(bitmap_data))
+tableFile.close()
+print("bitmap written to file: " + bitmap_filename)
+
+
     
         
 if (DRAW_STRUCTURAL_POINTS):
