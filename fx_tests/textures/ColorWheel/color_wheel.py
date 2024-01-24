@@ -22,7 +22,7 @@ bitmap_filename = "COLORWHEEL.DAT"
 screen_width = 320
 screen_height = 240
 
-scale = 1
+scale = 2
 
 # creating a image object for the background
 #im_org = Image.open(source_image_filename)
@@ -249,18 +249,36 @@ for brightness_index in range(0,11):
         right_point = rows_of_points[brightness_index+1][right_index]
         far_point = rows_of_points[brightness_index+2][hue_angle_index]
 
-        diamond_polygon = [
+        top_diamond_polygon = [
             (int(center_x+base_point[0]), int(center_y+base_point[1])), 
             (int(center_x+left_point[0]), int(center_y+left_point[1])), 
             (int(center_x+far_point[0]), int(center_y+far_point[1])), 
             (int(center_x+right_point[0]), int(center_y+right_point[1])), 
         ]
+        top_clr_idx = brightness_index*36+hue_angle_index+1  # +1 due to color #0 (black)
+        (top_min_y, top_max_y) = get_max_and_min_y_for_polygon(top_diamond_polygon)
         
-        clr_idx = brightness_index*36+hue_angle_index+1  # +1 due to color #0 (black)
+        # We also add the vertical-mirror of this polygon (its "bottom-mirror")
+        bottom_diamond_polygon = [
+# FIXME: should we reverse the order of the polygon-vertices here?
+            (int(center_x+base_point[0]), int(center_y-base_point[1])), 
+            (int(center_x+left_point[0]), int(center_y-left_point[1])), 
+            (int(center_x+far_point[0]), int(center_y-far_point[1])), 
+            (int(center_x+right_point[0]), int(center_y-right_point[1])), 
+        ]
+        # We mirror the hue index
+        if (brightness_index % 2 == 0):
+            bottom_hue_angle_index = 18 - hue_angle_index
+        else:
+            bottom_hue_angle_index = 19 - hue_angle_index
+
+        if bottom_hue_angle_index < 0:
+            bottom_hue_angle_index += 36
+        bottom_clr_idx = brightness_index*36+bottom_hue_angle_index+1  # +1 due to color #0 (black)
+        # (bottom_min_y, bottom_max_y) = get_max_and_min_y_for_polygon(bottom_diamond_polygon)
         
-        (min_y, max_y) = get_max_and_min_y_for_polygon(diamond_polygon)
         
-        polygons.append((clr_idx, min_y, max_y, diamond_polygon))
+        polygons.append((top_clr_idx, top_min_y, top_max_y, top_diamond_polygon, bottom_clr_idx, bottom_diamond_polygon))
 
 
 def compare_polygons(polygon_a, polygon_b):
@@ -280,6 +298,10 @@ def compare_polygons(polygon_a, polygon_b):
     max_y_a = polygon_a[2]
     max_y_b = polygon_b[2]
     
+    avg_y_a = (min_y_a + max_y_a) / 2
+    avg_y_b = (min_y_b + max_y_b) / 2
+    
+    '''
     # TODO: we wanted to use this setting to use a different way of sorting for the top and bottom polygons
     #       but this is probematic when trying to create two palettes that need to be flipped.
     #       So for now we dont use this. But it may be beneficial to the amount of time available to swap the palette.
@@ -299,7 +321,14 @@ def compare_polygons(polygon_a, polygon_b):
             result = 1
         if min_y_a > min_y_b:
             result = -1
+    '''
             
+    if avg_y_a == avg_y_b:
+        result = 0
+    if avg_y_a < avg_y_b:
+        result = 1
+    if avg_y_a > avg_y_b:
+        result = -1
             
     return result
 
@@ -307,7 +336,7 @@ compare_key = cmp_to_key(compare_polygons)
 
 
 top_to_bottom_sorted_polygons = sorted(polygons, key=compare_key, reverse=True)
-bottom_to_top_sorted_polygons = sorted(polygons, key=compare_key, reverse=False)
+#bottom_to_top_sorted_polygons = sorted(polygons, key=compare_key, reverse=False)
 
 frame_buffer = pygame.Surface((source_image_width, source_image_height), depth=8)
 
@@ -343,17 +372,17 @@ for top_to_bottom_sorted_idx, top_polygon_info in enumerate(top_to_bottom_sorted
     # - 1 color WHITE
     
     
-    (top_clr_idx, top_min_y, top_max_y, top_diamond_polygon) = top_polygon_info
+    (top_clr_idx, top_min_y, top_max_y, top_diamond_polygon, bottom_clr_idx, bottom_diamond_polygon) = top_polygon_info
     
     if (top_to_bottom_sorted_idx >= 396 - 142):
         # We STOP where we reach 396-142 index! (so 254 colors added, BLACK and WHITE are added at the beginning/end)
         break
-    elif (top_to_bottom_sorted_idx <= 142):
+    elif (top_to_bottom_sorted_idx < 142):
     
         # Note: we want the bottom 142 diamonds to be sorted top to bottom, so we negate the index here
-        bottom_to_top_sorted_idx = 142 - top_to_bottom_sorted_idx
-        bottom_polygon_info = bottom_to_top_sorted_polygons[bottom_to_top_sorted_idx]
-        (bottom_clr_idx, bottom_min_y, bottom_max_y, bottom_diamond_polygon) = bottom_polygon_info
+        #bottom_to_top_sorted_idx = 142 - top_to_bottom_sorted_idx
+        #bottom_polygon_info = bottom_to_top_sorted_polygons[bottom_to_top_sorted_idx]
+        #(bottom_clr_idx, bottom_min_y, bottom_max_y, bottom_diamond_polygon) = bottom_polygon_info
         
         top_color_12bit = get_color_12bit_by_org_index(top_clr_idx)
         top_color_24bit = get_color_24bit_by_org_index(top_clr_idx)
@@ -375,6 +404,17 @@ for top_to_bottom_sorted_idx, top_polygon_info in enumerate(top_to_bottom_sorted
         colors_24bit_bottom.append(bottom_color_24bit)
     else:
         new_clr_idx = top_to_bottom_sorted_idx+1
+        
+        # FIXME: HACK! the +5 is a HACK to work around the polygons right in the middle of the screen!
+        if (top_to_bottom_sorted_idx >= 396 // 2 + 5):
+            # WORKAROUND:
+            # if we are beyond half of the polygons we get into sorting issues (the bottom half of the polyons is not sorted perfectly in reverse compared to the top half)
+            # In order to fix that we simply "playback" the polygons in reverse after reaching half of them. And we take the mirror polygon of those polygons.
+            inv_top_polygon_info = top_to_bottom_sorted_polygons[395-top_to_bottom_sorted_idx]
+            (tmp_top_clr_idx, tmp_top_min_y, tmp_top_max_y, tmp_top_diamond_polygon, tmp_bottom_clr_idx, tmp_bottom_diamond_polygon) = inv_top_polygon_info
+            
+            top_clr_idx = tmp_bottom_clr_idx
+            top_diamond_polygon = tmp_bottom_diamond_polygon
 
         # We use the top colors/polygons for the middle polygons
         color_12bit = get_color_12bit_by_org_index(top_clr_idx)
