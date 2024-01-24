@@ -213,14 +213,14 @@ copy_top_palette:
     
     ldy #0
 next_packed_color_256:
-    lda bottom_palette, y
+    lda top_palette, y
     sta VERA_DATA0
     iny
     bne next_packed_color_256
 
     ldy #0
 next_packed_color_1:
-    lda bottom_palette+256, y
+    lda top_palette+256, y
     sta VERA_DATA0
     iny
     bne next_packed_color_1
