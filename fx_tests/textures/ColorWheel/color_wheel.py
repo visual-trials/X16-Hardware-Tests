@@ -324,8 +324,8 @@ colors_24bit_bottom = []
 
 # We add BLACK as color #0
 colors_12bit_top.append((0,0,0))
-colors_12bit_bottom.append((0,0,0))
 colors_24bit_top.append((0,0,0))
+colors_12bit_bottom.append((0,0,0))
 colors_24bit_bottom.append((0,0,0))
 
 all_polygons = []
@@ -356,8 +356,8 @@ for top_to_bottom_sorted_idx, top_polygon_info in enumerate(top_to_bottom_sorted
         (bottom_clr_idx, bottom_min_y, bottom_max_y, bottom_diamond_polygon) = bottom_polygon_info
         
         top_color_12bit = get_color_12bit_by_org_index(top_clr_idx)
-        bottom_color_12bit = get_color_12bit_by_org_index(bottom_clr_idx)
         top_color_24bit = get_color_24bit_by_org_index(top_clr_idx)
+        bottom_color_12bit = get_color_12bit_by_org_index(bottom_clr_idx)
         bottom_color_24bit = get_color_24bit_by_org_index(bottom_clr_idx)
         
         # Note: the top and bottom polygons share the same color 142 indexes!
@@ -384,16 +384,16 @@ for top_to_bottom_sorted_idx, top_polygon_info in enumerate(top_to_bottom_sorted
         all_polygons.append(new_polygon_info)
     
         colors_12bit_top.append(color_12bit)
-        colors_12bit_bottom.append(color_12bit)
         colors_24bit_top.append(color_24bit)
+        colors_12bit_bottom.append(color_12bit)
         colors_24bit_bottom.append(color_24bit)
     
 
 
 # We add WHITE as color #255
 colors_12bit_top.append((15,15,15))
-colors_12bit_bottom.append((15,15,15))
 colors_24bit_top.append((255,255,255))
+colors_12bit_bottom.append((15,15,15))
 colors_24bit_bottom.append((255,255,255))
 
 
@@ -403,6 +403,8 @@ for new_color in colors_12bit_top:
     red = new_color[0]
     green = new_color[1]
     blue = new_color[2]
+    
+    green = green << 4
 
     palette_string += "  .byte "
     palette_string += "$" + format(green | blue,"02x") + ", "
@@ -417,6 +419,8 @@ for new_color in colors_12bit_bottom:
     red = new_color[0]
     green = new_color[1]
     blue = new_color[2]
+
+    green = green << 4
 
     palette_string += "  .byte "
     palette_string += "$" + format(green | blue,"02x") + ", "
@@ -442,6 +446,9 @@ scaled_surface = pygame.transform.scale(frame_buffer, (screen_height*scale, scre
 start_x = (screen_width-screen_height)//2*scale
 end_x = screen_width-start_x
 
+# TODO: we use a palette for which we can use the (reverse-lookup) map_rgb(). It might be better to extract the actual color indexes from the buffer itself!
+scaled_surface.set_palette(colors_24bit_top)
+
 # FIXME: this needs adjusting when scaling to 640x480!!
 bitmap_data = []
 for screen_y in range(screen_height*scale):
@@ -451,8 +458,8 @@ for screen_y in range(screen_height*scale):
         if (screen_x < start_x or screen_x >= end_x):
             pixel_color_index = 0
         else:
-            pixel_color = scaled_surface.get_at((screen_x-start_x, screen_y))\
-            # TODO: is there a better way to do this? We now have a default color palette, will this reverse-lookup work?
+            pixel_color = scaled_surface.get_at((screen_x-start_x, screen_y))
+            # TODO: is there a better way to do this? We now use the top color palette, will this reverse-lookup work?
             pixel_color_index = scaled_surface.map_rgb(pixel_color)
         
         bitmap_data.append(pixel_color_index)
