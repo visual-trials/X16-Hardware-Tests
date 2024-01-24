@@ -73,11 +73,21 @@ start:
     
     jsr setup_vera_for_layer0_bitmap
 
-    jsr copy_top_palette
+    jsr copy_full_top_palette
     
     jsr clear_bitmap_memory   ; SLOW!
     jsr load_bitmap_into_vram
     
+
+swap_loop:
+    jsr dumb_wait_for_half_screen
+    jsr copy_partial_bottom_palette
+
+    jsr dumb_wait_for_vsync
+    jsr copy_partial_top_palette
+    
+    bra swap_loop
+
 
     ; We are not returning to BASIC here...
 infinite_loop:
@@ -85,6 +95,25 @@ infinite_loop:
     
     rts
 
+
+
+
+; This is just a dumb verison of a proper half-screen-wait/interrupt
+dumb_wait_for_half_screen:
+
+    ; We wait until SCANLINE == $0E0 (indicating the beam roughly half screen screen, line 112+ low res lines)
+wait_for_scanline_bit8_zero:
+    lda VERA_IEN
+    and #%01000000
+    bne wait_for_scanline_bit8_zero
+    
+wait_for_scanline_low_half:
+    lda VERA_SCANLINE_L
+    cmp #$E0
+; FIXME: this is awfully precise! Maybe do a greater of equal here?
+    bne wait_for_scanline_low_half
+
+    rts
 
 
 ; This is just a dumb verison of a proper vsync-wait
@@ -196,7 +225,7 @@ clear_bitmap_next_1a:
     
 
 
-copy_top_palette:
+copy_full_top_palette:
 
     ; Starting at palette VRAM address
     
@@ -226,6 +255,77 @@ next_packed_color_1:
     bne next_packed_color_1
     
     rts
+
+
+
+
+
+copy_partial_top_palette:
+
+    ; Starting at palette VRAM address
+    
+    lda #%00010001      ; setting bit 16 of vram address to 1, setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+
+    ; We start at color index 0 of the palette
+    lda #<(VERA_PALETTE)
+    sta VERA_ADDR_LOW
+    lda #>(VERA_PALETTE)
+    sta VERA_ADDR_HIGH
+
+    ; HACK: we know we have more than 128 colors to copy (meaning: > 256 bytes), so we are just going to copy 128 colors first
+    
+    ldy #0
+next_packed_color_256_top:
+    lda top_palette, y
+    sta VERA_DATA0
+    iny
+    bne next_packed_color_256_top
+
+    ; We need to copy 142+1 colors, so copy 15 more (=30 bytes) --> this INCLUDES BLACK!
+    ldy #0
+next_packed_color_1_top:
+    lda top_palette+256, y
+    sta VERA_DATA0
+    iny
+    cpy #30+2 ; if y=30 we still need to go on?
+    bne next_packed_color_1_top
+    
+    rts
+
+copy_partial_bottom_palette:
+
+    ; Starting at palette VRAM address
+    
+    lda #%00010001      ; setting bit 16 of vram address to 1, setting auto-increment value to 1
+    sta VERA_ADDR_BANK
+
+    ; We start at color index 0 of the palette
+    lda #<(VERA_PALETTE)
+    sta VERA_ADDR_LOW
+    lda #>(VERA_PALETTE)
+    sta VERA_ADDR_HIGH
+
+    ; HACK: we know we have more than 128 colors to copy (meaning: > 256 bytes), so we are just going to copy 128 colors first
+    
+    ldy #0
+next_packed_color_256_bottom:
+    lda bottom_palette, y
+    sta VERA_DATA0
+    iny
+    bne next_packed_color_256_bottom
+
+    ; We need to copy 142+1 colors, so copy 15 more (=30 bytes) --> this INCLUDES BLACK!
+    ldy #0
+next_packed_color_1_bottom:
+    lda bottom_palette+256, y
+    sta VERA_DATA0
+    iny
+    cpy #30+2 ; if y=30 we still need to go on?
+    bne next_packed_color_1_bottom
+    
+    rts
+
 
 
 bitmap_filename:      .byte    "colorwheel.dat" 
