@@ -3,6 +3,11 @@
 ; To build: cl65 -t cx16 -o WHEEL.PRG color_wheel.s
 ; To run: x16emu.exe -prg WHEEL.PRG -run
 
+; Set this to 1 if you want 640x480
+DO_HIGH_RES = 0
+
+
+
 .org $080D
 .segment "STARTUP"
 .segment "INIT"
@@ -62,7 +67,11 @@ VRAM_ADDRESS              = $36 ; 37 ; 38
 
 ; === VRAM addresses ===
 
-BITMAP_VRAM_ADDRESS       = $00000
+BITMAP_VRAM_ADDRESS       = $00000  ; 75kB? (on in low-res mode)
+
+TILEDATA_VRAM_ADDRESS     = $00000  ; 94kB? (on in high-res mode)
+TILEMAP0_VRAM_ADDRESS     = $1B000  ; 64 * 32 * 2 bytes = 4096 bytes
+TILEMAP1_VRAM_ADDRESS     = $1C000  ; 64 * 32 * 2 bytes = 4096 bytes
 
 ; === Other constants ===
 
@@ -70,13 +79,23 @@ BITMAP_VRAM_ADDRESS       = $00000
 start:
 
     sei
+
+; FIXME: we should turn off the display while loading!
     
-    jsr setup_vera_for_layer0_bitmap
+    .if (DO_HIGH_RES)
+        jsr setup_vera_for_layer0_and_layer1_tilemap
+    .else
+        jsr setup_vera_for_layer0_bitmap
+    .endif
 
     jsr copy_full_top_palette
     
-    jsr clear_bitmap_memory   ; SLOW!
-    jsr load_bitmap_into_vram
+    jsr clear_video_memory   ; SLOW!
+    .if (DO_HIGH_RES)
+        jsr load_tilemap_into_vram
+    .else
+        jsr load_bitmap_into_vram
+    .endif
     
 
 swap_loop:
@@ -184,7 +203,7 @@ setup_vera_for_layer0_bitmap:
     
 
 
-clear_bitmap_memory:
+clear_video_memory:
 
     lda #%00010000      ; setting bit 16 of vram address to 0, setting auto-increment value to 1
     sta VERA_ADDR_BANK
@@ -210,7 +229,12 @@ clear_bitmap_next_1:
     dey
     bne clear_bitmap_next_256
 
-    ldy #44
+    .if(DO_HIGH_RES)
+        ; In case of high res we want to clear almost all VRAM.
+        ldy #220
+    .else
+        ldy #44
+    .endif
 clear_bitmap_next_256a:
     ldx #0
 clear_bitmap_next_1a:
@@ -356,6 +380,93 @@ load_bitmap_into_vram:
 bitmap_loaded:
     rts
 
+
+
+tiledata_filename:      .byte    "wheel-tiles.dat" 
+end_tiledata_filename:
+
+load_tiledata_into_vram:
+
+    lda #(end_tiledata_filename-tiledata_filename) ; Length of filename
+    ldx #<tiledata_filename      ; Low byte of Fname address
+    ldy #>tiledata_filename      ; High byte of Fname address
+    jsr SETNAM
+ 
+    lda #1            ; Logical file number
+    ldx #8            ; Device 8 = sd card
+    ldy #2            ; 0=ignore address in bin file (2 first bytes)
+                      ; 1=use address in bin file
+                      ; 2=?use address in bin file? (and dont add first 2 bytes?)
+    jsr SETLFS
+ 
+    lda #2            ; load into Bank 0 of VRAM (see https://github.com/X16Community/x16-docs/blob/master/X16%20Reference%20-%2004%20-%20KERNAL.md#function-name-load )
+    ldx #<TILEDATA_VRAM_ADDRESS
+    ldy #>TILEDATA_VRAM_ADDRESS
+    jsr LOAD
+    bcc tiledata_loaded
+    ; FIXME: do proper error handling!
+    stp
+
+tiledata_loaded:
+    rts
+
+
+tilemap0_filename:      .byte    "wheel-map0.dat" 
+end_tilemap0_filename:
+
+load_tilemap0_into_vram:
+
+    lda #(end_tilemap0_filename-tilemap0_filename) ; Length of filename
+    ldx #<tilemap0_filename      ; Low byte of Fname address
+    ldy #>tilemap0_filename      ; High byte of Fname address
+    jsr SETNAM
+ 
+    lda #1            ; Logical file number
+    ldx #8            ; Device 8 = sd card
+    ldy #2            ; 0=ignore address in bin file (2 first bytes)
+                      ; 1=use address in bin file
+                      ; 2=?use address in bin file? (and dont add first 2 bytes?)
+    jsr SETLFS
+ 
+    lda #2            ; load into Bank 0 of VRAM (see https://github.com/X16Community/x16-docs/blob/master/X16%20Reference%20-%2004%20-%20KERNAL.md#function-name-load )
+    ldx #<TILEMAP0_VRAM_ADDRESS
+    ldy #>TILEMAP0_VRAM_ADDRESS
+    jsr LOAD
+    bcc tilemap0_loaded
+    ; FIXME: do proper error handling!
+    stp
+
+tilemap0_loaded:
+    rts
+
+
+tilemap1_filename:      .byte    "wheel-map1.dat" 
+end_tilemap1_filename:
+
+load_tilemap1_into_vram:
+
+    lda #(end_tilemap1_filename-tilemap1_filename) ; Length of filename
+    ldx #<tilemap1_filename      ; Low byte of Fname address
+    ldy #>tilemap1_filename      ; High byte of Fname address
+    jsr SETNAM
+ 
+    lda #1            ; Logical file number
+    ldx #8            ; Device 8 = sd card
+    ldy #2            ; 0=ignore address in bin file (2 first bytes)
+                      ; 1=use address in bin file
+                      ; 2=?use address in bin file? (and dont add first 2 bytes?)
+    jsr SETLFS
+ 
+    lda #2            ; load into Bank 0 of VRAM (see https://github.com/X16Community/x16-docs/blob/master/X16%20Reference%20-%2004%20-%20KERNAL.md#function-name-load )
+    ldx #<TILEMAP1_VRAM_ADDRESS
+    ldy #>TILEMAP1_VRAM_ADDRESS
+    jsr LOAD
+    bcc tilemap1_loaded
+    ; FIXME: do proper error handling!
+    stp
+
+tilemap1_loaded:
+    rts
 
 
 

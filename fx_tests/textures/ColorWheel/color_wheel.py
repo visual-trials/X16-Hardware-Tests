@@ -18,10 +18,14 @@ source_image_filename = "color_wheel.png"
 source_image_width = 1600
 source_image_height = 1600
 bitmap_filename = "COLORWHEEL.DAT"
+tile_data_filename = "WHEEL-TILES.DAT"
+tile_map0_filename = "WHEEL-MAP0.DAT"
+tile_map1_filename = "WHEEL-MAP1.DAT"
 
 screen_width = 320
 screen_height = 240
 
+# IMPORANT: set this to 1 if you want 320x240 output, set to 2 if you want 640x480 output
 scale = 2
 
 # creating a image object for the background
@@ -480,99 +484,137 @@ for polygon_info in all_polygons:
 # Scaling to the size we want to draw on the X16    
 # FIXME: we should have TWO kinds of scales: one for the scale on the X16 and one scale for pygame!
 scaled_surface = pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale))
-    
-    
+
 # We want to draw in the middle of the screen
 start_x = (screen_width-screen_height)//2*scale
 end_x = screen_width-start_x
-
-# FIXME: this needs adjusting when scaling to 640x480!!
-bitmap_data = []
-
-scaled_pxarray = pygame.PixelArray(scaled_surface)
-for screen_y in range(screen_height*scale):
-
-    for screen_x in range(screen_width*scale):
-
-        if (screen_x < start_x or screen_x >= end_x):
-            pixel_color_index = 0
-        else:
-            pixel_color_index = scaled_pxarray[screen_x-start_x, screen_y]
-        
-        bitmap_data.append(pixel_color_index)
-scaled_pxarray.close()
-
-tableFile = open(bitmap_filename, "wb")
-tableFile.write(bytearray(bitmap_data))
-tableFile.close()
-print("bitmap written to file: " + bitmap_filename)
-
-
-
-# We also generate tile data and two tile maps (needed for 640x480 mode)
-
-tiles_data = []
-tile_index = 0
-
-# Our first 16x16 tile is completely black 
-tile_data = [0] * 256
-tiles_data.append(tile_data)
-tile_index += 1
-tile_map_0 = []
-tile_map_1 = []
-
-scaled_pxarray = pygame.PixelArray(scaled_surface)
-for screen_tile_y_index in range(32):
-    for screen_tile_x_index in range(64):
-        # Layer 0 is only visible up to tile row 18
-        if screen_tile_y_index >= 18:
-            tile_map_0.append(0)
-            continue
-        
-        # There are 5 tiles on each side (640-480=160, 160/16 = 10 tiles)
-        if (screen_tile_x_index < 5 or screen_tile_x_index >= 40-5):
-            tile_map_0.append(0)
-            continue
-            
-        # We extract the pixel bytes from the scaled_surface and see if its not all black
-        tile_data = []
-        is_all_black = True
-        for column_in_tile_index in range(16):
-            for row_in_tile_index in range(16):
-                scaled_x = (screen_tile_x_index-5) * 16 + row_in_tile_index
-                scaled_y = screen_tile_y_index * 16 + column_in_tile_index
-                pixel_color_index = scaled_pxarray[scaled_x, scaled_y]
-                if (pixel_color_index != 0):
-                    is_all_black = False
-                tile_data.append(pixel_color_index)
-
-        # If the tile turned out to be complete black, we can simply re-use the black tile
-        if (is_all_black):
-            tile_map_0.append(0)
-            continue
-
-        # The tile is not black so we add the tile data and we add the new tile to the map
-        tiles_data.append(tile_data)
-        tile_map_0.append(tile_index)
-        tile_index += 1
-        
-scaled_pxarray.close()
-
-for screen_tile_y_index in range(32):
-    for screen_tile_x_index in range(64):
-        # Layer 1 is only visible from tile row 18
-        if screen_tile_y_index < 18 or screen_tile_y_index >= 30:
-            tile_map_1.append(0)
-            continue
-        else:
-            # Otherwise its going to be the vertical-mirror of tile_map_0
-            mirror_tile_nr_0 = (29-screen_tile_y_index)*64 + screen_tile_x_index
-            tile_map_1.append(tile_map_0[mirror_tile_nr_0])
     
-#print(tile_map_0)
-print(tile_map_1)
+if (scale == 1):
+
+    # FIXME: this needs adjusting when scaling to 640x480!!
+    bitmap_data = []
+
+    scaled_pxarray = pygame.PixelArray(scaled_surface)
+    for screen_y in range(screen_height*scale):
+
+        for screen_x in range(screen_width*scale):
+
+            if (screen_x < start_x or screen_x >= end_x):
+                pixel_color_index = 0
+            else:
+                pixel_color_index = scaled_pxarray[screen_x-start_x, screen_y]
+            
+            bitmap_data.append(pixel_color_index)
+    scaled_pxarray.close()
+
+    tableFile = open(bitmap_filename, "wb")
+    tableFile.write(bytearray(bitmap_data))
+    tableFile.close()
+    print("bitmap written to file: " + bitmap_filename)
+else:
 
 
+    # We generate tile data and two tile maps (needed for 640x480 mode)
+
+    tiles_data = []
+    tile_index = 0
+
+    # Our first 16x16 tile is completely black 
+    tile_data = [0] * 256
+    tiles_data.append(tile_data)
+    tile_index += 1
+    tile_map_0 = []
+    tile_map_1 = []
+
+    scaled_pxarray = pygame.PixelArray(scaled_surface)
+    for screen_tile_y_index in range(32):
+        for screen_tile_x_index in range(64):
+            # Layer 0 is only visible up to tile row 18
+            if screen_tile_y_index >= 18:
+                tile_map_0.append(0)
+                continue
+            
+            # There are 5 tiles on each side (640-480=160, 160/16 = 10 tiles)
+            if (screen_tile_x_index < 5 or screen_tile_x_index >= 40-5):
+                tile_map_0.append(0)
+                continue
+                
+            # We extract the pixel bytes from the scaled_surface and see if its not all black
+            tile_data = []
+            is_all_black = True
+            for column_in_tile_index in range(16):
+                for row_in_tile_index in range(16):
+                    scaled_x = (screen_tile_x_index-5) * 16 + row_in_tile_index
+                    scaled_y = screen_tile_y_index * 16 + column_in_tile_index
+                    pixel_color_index = scaled_pxarray[scaled_x, scaled_y]
+                    if (pixel_color_index != 0):
+                        is_all_black = False
+                    tile_data.append(pixel_color_index)
+
+            # If the tile turned out to be complete black, we can simply re-use the black tile
+            if (is_all_black):
+                tile_map_0.append(0)
+                continue
+
+            # The tile is not black so we add the tile data and we add the new tile to the map
+            tiles_data.append(tile_data)
+            tile_map_0.append(tile_index)
+            tile_index += 1
+            
+    scaled_pxarray.close()
+
+    for screen_tile_y_index in range(32):
+        for screen_tile_x_index in range(64):
+            # Layer 1 is only visible from tile row 18
+            if screen_tile_y_index < 18 or screen_tile_y_index >= 30:
+                tile_map_1.append(0)
+                continue
+            else:
+                # Otherwise its going to be the vertical-mirror of tile_map_0
+                mirror_tile_nr_0 = (29-screen_tile_y_index)*64 + screen_tile_x_index
+                tile_map_1.append(tile_map_0[mirror_tile_nr_0])
+        
+    #print(tile_map_0)
+    #print(tile_map_1)
+
+    tile_data_bytes = []
+    for tile_data in tiles_data:
+        tile_data_bytes += tile_data
+
+    tableFile = open(tile_data_filename, "wb")
+    tableFile.write(bytearray(tile_data_bytes))
+    tableFile.close()
+    print("tile data written to file: " + tile_data_filename)
+
+    tile_map_0_bytes = []
+    for tile_index in tile_map_0:
+        tile_index_low = tile_index % 256
+        tile_index_high = tile_index // 256
+        
+        tile_map_0_bytes.append(tile_index_low)
+        tile_map_0_bytes.append(tile_index_high)
+        
+        
+    tile_map_1_bytes = []
+    for tile_index in tile_map_1:
+        tile_index_low = tile_index % 256
+        tile_index_high = tile_index // 256
+        
+        tile_index_high = tile_index_high | 0x04  # v-flip
+
+        tile_map_1_bytes.append(tile_index_low)
+        tile_map_1_bytes.append(tile_index_high)
+
+
+    tableFile = open(tile_map0_filename, "wb")
+    tableFile.write(bytearray(tile_map_0_bytes))
+    tableFile.close()
+    print("tile map 0 written to file: " + tile_map0_filename)
+
+    tableFile = open(tile_map1_filename, "wb")
+    tableFile.write(bytearray(tile_map_1_bytes))
+    tableFile.close()
+    print("tile map 1 written to file: " + tile_map1_filename)
 
     
 '''
@@ -597,7 +639,7 @@ screen.fill((0,0,0))
 scaled_surface.set_palette(colors_24bit_top)
 # IMPORANT: we scale to a SQUARE here so we use screen_height for the destination width as well!
 screen.blit(scaled_surface, dest=(start_x, 0), area=pygame.Rect(0,0,screen_height*scale, screen_height*scale//2))
-#scaled_surface.set_palette(colors_24bit_bottom)
+scaled_surface.set_palette(colors_24bit_bottom)
 screen.blit(scaled_surface, dest=(start_x, screen_height*scale//2), area=pygame.Rect(0,screen_height*scale//2,screen_height*scale, screen_height*scale//2))
 
 
