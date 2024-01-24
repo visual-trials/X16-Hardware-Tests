@@ -446,11 +446,10 @@ scaled_surface = pygame.transform.scale(frame_buffer, (screen_height*scale, scre
 start_x = (screen_width-screen_height)//2*scale
 end_x = screen_width-start_x
 
-# TODO: we use a palette for which we can use the (reverse-lookup) map_rgb(). It might be better to extract the actual color indexes from the buffer itself!
-scaled_surface.set_palette(colors_24bit_top)
-
 # FIXME: this needs adjusting when scaling to 640x480!!
 bitmap_data = []
+
+scaled_pxarray = pygame.PixelArray(scaled_surface)
 for screen_y in range(screen_height*scale):
 
     for screen_x in range(screen_width*scale):
@@ -458,12 +457,11 @@ for screen_y in range(screen_height*scale):
         if (screen_x < start_x or screen_x >= end_x):
             pixel_color_index = 0
         else:
-            pixel_color = scaled_surface.get_at((screen_x-start_x, screen_y))
-            # TODO: is there a better way to do this? We now use the top color palette, will this reverse-lookup work?
-            pixel_color_index = scaled_surface.map_rgb(pixel_color)
+            pixel_color_index = scaled_pxarray[screen_x-start_x, screen_y]
         
         bitmap_data.append(pixel_color_index)
-    
+scaled_pxarray.close()
+
 tableFile = open(bitmap_filename, "wb")
 tableFile.write(bytearray(bitmap_data))
 tableFile.close()
