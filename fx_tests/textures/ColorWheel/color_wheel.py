@@ -432,14 +432,28 @@ for polygon_info in all_polygons:
 
     pygame.draw.polygon(frame_buffer, clr_idx_256, diamond_polygon)
     
+
+# Scaling to the size we want to draw on the X16    
+# FIXME: we should have TWO kinds of scales: one for the scale on the X16 and one scale for pygame!
+scaled_surface = pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale))
     
+    
+# We want to draw in the middle of the screen
+start_x = (screen_width-screen_height)//2*scale
+end_x = screen_width-start_x
+
 # FIXME: this needs adjusting when scaling to 640x480!!
 bitmap_data = []
-for screen_y in range(screen_height):
+for screen_y in range(screen_height*scale):
 
-    for screen_x in range(screen_width):
+    for screen_x in range(screen_width*scale):
 
-        pixel_color_index = frame_buffer.get_at((screen_x, screen_y))
+        if (screen_x < start_x or screen_x >= end_x):
+            pixel_color_index = 0
+        else:
+            pixel_color = scaled_surface.get_at((screen_x-start_x, screen_y))\
+            # TODO: is there a better way to do this? We now have a default color palette, will this reverse-lookup work?
+            pixel_color_index = scaled_surface.map_rgb(pixel_color)
         
         bitmap_data.append(pixel_color_index)
     
@@ -450,7 +464,7 @@ print("bitmap written to file: " + bitmap_filename)
 
 
     
-        
+'''
 if (DRAW_STRUCTURAL_POINTS):
     # Draw structural points
     for brightness_index in range(0, 13):
@@ -463,20 +477,17 @@ if (DRAW_STRUCTURAL_POINTS):
             
             mark_structural_point_color = (0x00, 0xFF, 0xFF)
             pygame.draw.rect(frame_buffer, mark_structural_point_color, pygame.Rect(structural_point_x, structural_point_y, 4, 4))
-
+'''
 
 
 screen.fill((0,0,0))
 
 
-# We want to draw in the middle of the screen
-start_x = (screen_width-screen_height)//2*scale
-
-frame_buffer.set_palette(colors_24bit_top)
+scaled_surface.set_palette(colors_24bit_top)
 # IMPORANT: we scale to a SQUARE here so we use screen_height for the destination width as well!
-screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), dest=(start_x, 0), area=pygame.Rect(0,0,screen_height*scale, screen_height*scale//2))
-frame_buffer.set_palette(colors_24bit_bottom)
-screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), dest=(start_x, screen_height*scale//2), area=pygame.Rect(0,screen_height*scale//2,screen_height*scale, screen_height*scale//2))
+screen.blit(scaled_surface, dest=(start_x, 0), area=pygame.Rect(0,0,screen_height*scale, screen_height*scale//2))
+scaled_surface.set_palette(colors_24bit_bottom)
+screen.blit(scaled_surface, dest=(start_x, screen_height*scale//2), area=pygame.Rect(0,screen_height*scale//2,screen_height*scale, screen_height*scale//2))
 
 
 
