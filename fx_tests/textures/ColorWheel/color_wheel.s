@@ -360,6 +360,7 @@ bitmap_loaded:
 
 
 ; ==== DATA ====
+
 top_palette:
   .byte $00, $00
   .byte $20, $01
@@ -375,21 +376,21 @@ top_palette:
   .byte $50, $05
   .byte $70, $05
   .byte $70, $06
-  .byte $20, $00
-  .byte $20, $02
   .byte $70, $04
   .byte $70, $07
+  .byte $20, $00
+  .byte $20, $02
   .byte $40, $01
   .byte $40, $05
+  .byte $90, $09
   .byte $60, $03
   .byte $60, $07
-  .byte $90, $09
   .byte $90, $07
   .byte $90, $0a
-  .byte $30, $00
-  .byte $30, $05
   .byte $90, $06
   .byte $80, $0a
+  .byte $30, $00
+  .byte $30, $05
   .byte $60, $02
   .byte $50, $08
   .byte $20, $00
@@ -400,162 +401,160 @@ top_palette:
   .byte $60, $0a
   .byte $b0, $09
   .byte $a0, $0c
-  .byte $50, $00
-  .byte $40, $08
   .byte $b0, $07
   .byte $80, $0d
+  .byte $e0, $0f
+  .byte $50, $00
+  .byte $40, $08
+  .byte $e0, $0d
+  .byte $c0, $0f
   .byte $80, $02
   .byte $50, $0a
   .byte $31, $00
   .byte $30, $05
-  .byte $e0, $0f
-  .byte $e0, $0d
-  .byte $c0, $0f
+  .byte $d0, $0b
+  .byte $a0, $0f
   .byte $a0, $05
   .byte $60, $0d
   .byte $21, $00
   .byte $10, $02
-  .byte $d0, $0b
-  .byte $a0, $0f
-  .byte $70, $00
-  .byte $30, $0a
   .byte $d0, $09
   .byte $80, $0f
+  .byte $e2, $0f
+  .byte $c2, $0f
+  .byte $70, $00
+  .byte $30, $0a
+  .byte $e3, $0d
+  .byte $b3, $0f
   .byte $90, $03
   .byte $40, $0c
   .byte $51, $00
   .byte $20, $07
-  .byte $e2, $0f
-  .byte $c2, $0f
-  .byte $e3, $0d
-  .byte $b3, $0f
+  .byte $e3, $0c
+  .byte $92, $0f
   .byte $c0, $06
   .byte $50, $0f
   .byte $32, $00
   .byte $20, $05
-  .byte $e3, $0c
-  .byte $92, $0f
-  .byte $90, $00
-  .byte $20, $0c
   .byte $e3, $0a
   .byte $72, $0f
   .byte $21, $00
   .byte $10, $02
+  .byte $d5, $0f
+  .byte $e5, $0f
+  .byte $c5, $0f
+  .byte $90, $00
+  .byte $20, $0c
+  .byte $e5, $0e
+  .byte $a5, $0f
   .byte $b0, $03
   .byte $30, $0f
   .byte $72, $00
   .byte $20, $0a
-  .byte $d5, $0f
-  .byte $e5, $0f
-  .byte $c5, $0f
-  .byte $e5, $0e
-  .byte $a5, $0f
   .byte $d2, $07
   .byte $53, $0f
   .byte $53, $00
   .byte $10, $07
   .byte $e5, $0c
   .byte $85, $0f
-  .byte $a0, $00
-  .byte $00, $0f
   .byte $e5, $0b
   .byte $75, $0f
   .byte $33, $00
   .byte $10, $05
-  .byte $c2, $05
-  .byte $22, $0f
-  .byte $82, $00
-  .byte $00, $0c
   .byte $e8, $0f
   .byte $c7, $0f
   .byte $f7, $0f
   .byte $b7, $0f
+  .byte $a0, $00
+  .byte $00, $0f
+  .byte $c2, $05
+  .byte $22, $0f
+  .byte $82, $00
+  .byte $00, $0c
+  .byte $e7, $0e
+  .byte $a7, $0f
   .byte $d5, $09
   .byte $55, $0f
   .byte $73, $00
   .byte $00, $0a
-  .byte $e7, $0e
-  .byte $a7, $0f
-  .byte $b2, $02
-  .byte $24, $0f
   .byte $e8, $0d
   .byte $98, $0f
   .byte $22, $00
   .byte $00, $03
-  .byte $c5, $07
-  .byte $56, $0f
-  .byte $a2, $00
-  .byte $02, $0f
   .byte $e7, $0c
   .byte $78, $0f
   .byte $54, $00
   .byte $00, $07
-  .byte $e7, $0a
-  .byte $88, $0f
-  .byte $84, $00
-  .byte $01, $0c
-  .byte $c5, $05
-  .byte $57, $0f
+  .byte $b2, $02
+  .byte $24, $0f
   .byte $da, $0f
   .byte $ea, $0f
   .byte $da, $0f
+  .byte $c5, $07
+  .byte $56, $0f
+  .byte $a2, $00
+  .byte $02, $0f
   .byte $fa, $0f
   .byte $ca, $0f
   .byte $ea, $0e
   .byte $ba, $0f
+  .byte $e7, $0a
+  .byte $88, $0f
+  .byte $84, $00
+  .byte $01, $0c
+  .byte $fa, $0e
+  .byte $aa, $0f
+  .byte $33, $00
+  .byte $00, $05
+  .byte $c5, $05
+  .byte $57, $0f
+  .byte $ea, $0d
+  .byte $aa, $0f
+  .byte $75, $00
+  .byte $01, $0a
   .byte $d7, $09
   .byte $89, $0f
   .byte $b5, $02
   .byte $25, $0f
-  .byte $fa, $0e
-  .byte $aa, $0f
-  .byte $33, $00
-  .byte $00, $05
-  .byte $ea, $0d
-  .byte $aa, $0f
-  .byte $75, $00
-  .byte $01, $0a
-  .byte $d7, $07
-  .byte $7a, $0f
   .byte $ea, $0c
   .byte $ab, $0f
   .byte $a5, $00
   .byte $03, $0f
+  .byte $ec, $0f
+  .byte $ed, $0f
+  .byte $ed, $0f
+  .byte $dd, $0f
+  .byte $fd, $0f
+  .byte $dc, $0f
+  .byte $fc, $0f
+  .byte $cd, $0f
+  .byte $22, $00
+  .byte $00, $02
+  .byte $d7, $07
+  .byte $7a, $0f
+  .byte $fd, $0e
+  .byte $dd, $0f
+  .byte $55, $00
+  .byte $01, $07
   .byte $ea, $0b
   .byte $ac, $0f
   .byte $c7, $05
   .byte $58, $0f
-  .byte $da, $0a
-  .byte $ac, $0f
-  .byte $ec, $0f
-  .byte $ed, $0f
-  .byte $fd, $0f
-  .byte $fc, $0f
-  .byte $fd, $0e
   .byte $fc, $0e
-  .byte $fd, $0d
-  .byte $ed, $0d
-  .byte $ec, $0d
-  .byte $de, $0f
-  .byte $ce, $0f
-  .byte $dd, $0f
   .byte $cd, $0f
-  .byte $dd, $0f
-  .byte $cd, $0f
-  .byte $dc, $0f
-  .byte $dd, $0f
-  .byte $ed, $0f
-  .byte $d9, $08
-  .byte $8a, $0f
-  .byte $b7, $02
-  .byte $36, $0f
   .byte $86, $00
   .byte $03, $0c
-  .byte $55, $00
-  .byte $01, $07
-  .byte $22, $00
-  .byte $00, $02
+  .byte $fd, $0d
+  .byte $dd, $0f
+  .byte $b7, $02
+  .byte $36, $0f
+  .byte $da, $0a
+  .byte $ac, $0f
   .byte $ed, $0d
+  .byte $ce, $0f
+  .byte $d9, $08
+  .byte $8a, $0f
+  .byte $ec, $0d
   .byte $de, $0f
   .byte $db, $0a
   .byte $ad, $0f
@@ -563,257 +562,257 @@ top_palette:
   .byte $59, $0f
   .byte $a8, $00
   .byte $05, $0f
-  .byte $ee, $0d
-  .byte $de, $0f
-  .byte $dc, $0a
-  .byte $ad, $0f
-  .byte $da, $08
-  .byte $8b, $0f
   .byte $67, $00
   .byte $02, $0a
   .byte $34, $00
   .byte $00, $05
+  .byte $de, $0f
   .byte $ee, $0d
-  .byte $de, $0e
-  .byte $b9, $02
-  .byte $28, $0e
-  .byte $dc, $0a
-  .byte $ad, $0e
+  .byte $8a, $0f
   .byte $cb, $07
-  .byte $8c, $0e
-  .byte $ca, $05
-  .byte $5a, $0f
+  .byte $de, $0f
   .byte $ee, $0d
-  .byte $de, $0e
-  .byte $88, $00
-  .byte $04, $0c
-  .byte $ef, $0d
-  .byte $de, $0d
-  .byte $56, $00
-  .byte $01, $07
-  .byte $dd, $0a
-  .byte $ad, $0d
-  .byte $aa, $00
-  .byte $06, $0e
-  .byte $ef, $0d
-  .byte $de, $0d
-  .byte $22, $00
-  .byte $00, $02
-  .byte $cd, $07
-  .byte $8c, $0d
-  .byte $bc, $05
-  .byte $5b, $0e
+  .byte $ad, $0f
+  .byte $dc, $0a
+  .byte $36, $0f
   .byte $bb, $02
-  .byte $29, $0e
+  .byte $de, $0f
+  .byte $ee, $0d
+  .byte $03, $0c
+  .byte $8b, $00
+  .byte $de, $0e
+  .byte $ef, $0d
+  .byte $59, $0f
+  .byte $bc, $05
+  .byte $ad, $0f
+  .byte $dd, $0a
+  .byte $01, $07
+  .byte $57, $00
+  .byte $de, $0e
+  .byte $ef, $0d
+  .byte $8b, $0f
+  .byte $cd, $07
+  .byte $00, $02
+  .byte $12, $00
+  .byte $de, $0d
   .byte $ef, $0d
   .byte $de, $0d
-  .byte $de, $0a
-  .byte $bd, $0d
-  .byte $68, $00
-  .byte $03, $0a
   .byte $ef, $0d
   .byte $de, $0d
   .byte $ee, $0d
   .byte $de, $0d
+  .byte $de, $0d
+  .byte $05, $0f
+  .byte $ad, $00
+  .byte $ad, $0e
+  .byte $de, $0a
+  .byte $28, $0e
+  .byte $ad, $02
+  .byte $8c, $0e
   .byte $ce, $07
+  .byte $02, $0a
+  .byte $6a, $00
+  .byte $ad, $0d
+  .byte $df, $0a
+  .byte $5a, $0f
+  .byte $bd, $05
+  .byte $00, $05
   .byte $ff, $0f
 
 bottom_palette:
   .byte $00, $00
-  .byte $05, $0c
-  .byte $8b, $00
-  .byte $8c, $0d
-  .byte $ce, $07
-  .byte $01, $05
-  .byte $35, $00
-  .byte $bd, $0c
-  .byte $df, $0a
-  .byte $08, $0e
-  .byte $ad, $00
-  .byte $3a, $0e
-  .byte $ad, $02
-  .byte $5b, $0d
-  .byte $bd, $05
-  .byte $bd, $0b
-  .byte $df, $0a
+  .byte $02, $01
+  .byte $02, $02
+  .byte $02, $01
+  .byte $02, $02
+  .byte $13, $03
+  .byte $13, $02
+  .byte $03, $03
+  .byte $12, $01
+  .byte $02, $02
+  .byte $13, $01
+  .byte $03, $04
+  .byte $15, $03
+  .byte $15, $04
+  .byte $25, $02
+  .byte $15, $05
+  .byte $12, $00
+  .byte $01, $02
+  .byte $13, $01
+  .byte $03, $05
+  .byte $26, $04
+  .byte $25, $01
+  .byte $05, $06
+  .byte $26, $03
+  .byte $16, $05
+  .byte $36, $01
+  .byte $16, $07
+  .byte $13, $01
+  .byte $03, $05
+  .byte $25, $01
+  .byte $05, $07
+  .byte $12, $00
+  .byte $01, $02
+  .byte $38, $03
+  .byte $28, $05
+  .byte $37, $01
+  .byte $06, $08
+  .byte $38, $02
+  .byte $28, $07
+  .byte $49, $01
+  .byte $18, $08
+  .byte $39, $04
+  .byte $36, $01
+  .byte $04, $07
+  .byte $49, $02
+  .byte $39, $06
+  .byte $47, $01
+  .byte $06, $09
+  .byte $24, $00
+  .byte $02, $05
+  .byte $5a, $02
+  .byte $29, $08
+  .byte $59, $01
+  .byte $18, $0a
+  .byte $12, $00
+  .byte $01, $02
+  .byte $6b, $01
+  .byte $1a, $0a
+  .byte $6a, $04
+  .byte $5a, $06
+  .byte $48, $01
+  .byte $05, $0a
+  .byte $6b, $04
+  .byte $5a, $07
+  .byte $6a, $01
+  .byte $08, $0c
+  .byte $36, $00
+  .byte $03, $07
+  .byte $7c, $04
+  .byte $4a, $09
+  .byte $7c, $01
+  .byte $19, $0c
+  .byte $24, $00
+  .byte $02, $05
+  .byte $8d, $03
+  .byte $3a, $0b
+  .byte $12, $00
+  .byte $00, $02
+  .byte $8b, $06
+  .byte $8c, $06
+  .byte $7b, $08
+  .byte $6b, $01
+  .byte $06, $0c
+  .byte $9d, $06
+  .byte $7b, $09
+  .byte $8d, $01
+  .byte $09, $0e
+  .byte $59, $00
+  .byte $04, $0a
+  .byte $9d, $03
+  .byte $3a, $0d
+  .byte $47, $00
   .byte $02, $07
-  .byte $57, $00
+  .byte $9d, $06
+  .byte $6b, $0a
+  .byte $ae, $05
+  .byte $6b, $0c
+  .byte $34, $00
+  .byte $01, $05
+  .byte $ad, $08
+  .byte $9c, $08
+  .byte $ad, $08
+  .byte $9c, $09
+  .byte $8e, $00
+  .byte $08, $0e
+  .byte $ae, $03
+  .byte $3a, $0e
+  .byte $7c, $00
+  .byte $05, $0c
+  .byte $be, $08
+  .byte $9c, $0b
+  .byte $be, $05
+  .byte $5b, $0d
+  .byte $69, $00
+  .byte $03, $0a
+  .byte $be, $08
   .byte $9c, $0c
+  .byte $12, $00
+  .byte $00, $02
   .byte $cf, $08
-  .byte $bd, $0b
-  .byte $de, $0a
+  .byte $8c, $0d
+  .byte $47, $00
+  .byte $01, $07
+  .byte $af, $03
+  .byte $29, $0e
   .byte $ce, $0b
   .byte $ce, $0a
-  .byte $ce, $0a
-  .byte $04, $0a
-  .byte $6a, $00
-  .byte $6b, $0c
+  .byte $bd, $0b
   .byte $bf, $05
-  .byte $00, $02
-  .byte $12, $00
-  .byte $9c, $0b
-  .byte $cf, $08
-  .byte $06, $0c
-  .byte $8d, $00
-  .byte $09, $0e
+  .byte $5b, $0e
   .byte $9f, $00
-  .byte $3a, $0d
-  .byte $af, $03
-  .byte $9c, $09
-  .byte $be, $08
-  .byte $02, $05
+  .byte $06, $0e
+  .byte $ce, $0a
+  .byte $bd, $0b
+  .byte $de, $0a
+  .byte $bd, $0c
+  .byte $cf, $08
+  .byte $8c, $0d
+  .byte $8d, $00
+  .byte $04, $0c
+  .byte $df, $0a
+  .byte $bd, $0d
   .byte $35, $00
-  .byte $6b, $0a
-  .byte $be, $05
-  .byte $9c, $08
-  .byte $be, $08
-  .byte $ad, $08
-  .byte $ad, $08
-  .byte $03, $07
-  .byte $47, $00
-  .byte $3a, $0b
-  .byte $ae, $03
-  .byte $7b, $09
-  .byte $ae, $05
-  .byte $05, $0a
-  .byte $69, $00
-  .byte $08, $0c
-  .byte $7c, $00
-  .byte $19, $0c
-  .byte $8e, $00
-  .byte $7b, $08
-  .byte $9d, $06
-  .byte $01, $02
-  .byte $12, $00
-  .byte $4a, $09
-  .byte $9d, $03
-  .byte $8b, $06
-  .byte $9d, $06
-  .byte $8c, $06
-  .byte $02, $05
-  .byte $34, $00
-  .byte $1a, $0a
-  .byte $8d, $01
-  .byte $5a, $07
-  .byte $8d, $03
-  .byte $04, $07
-  .byte $47, $00
-  .byte $06, $09
-  .byte $59, $00
-  .byte $18, $0a
-  .byte $6b, $01
-  .byte $5a, $06
-  .byte $7c, $04
-  .byte $29, $08
-  .byte $7c, $01
-  .byte $6a, $04
-  .byte $6b, $04
-  .byte $01, $02
-  .byte $12, $00
-  .byte $18, $08
-  .byte $6a, $01
-  .byte $39, $06
-  .byte $6b, $01
-  .byte $03, $05
-  .byte $24, $00
-  .byte $05, $07
-  .byte $36, $00
-  .byte $06, $08
-  .byte $48, $01
-  .byte $39, $04
-  .byte $5a, $02
-  .byte $49, $02
-  .byte $28, $07
-  .byte $59, $01
-  .byte $16, $07
-  .byte $47, $01
-  .byte $28, $05
-  .byte $49, $01
-  .byte $01, $02
-  .byte $12, $00
-  .byte $03, $05
-  .byte $24, $00
-  .byte $05, $06
-  .byte $36, $01
-  .byte $38, $03
-  .byte $38, $02
-  .byte $16, $05
-  .byte $37, $01
-  .byte $15, $05
-  .byte $25, $01
-  .byte $26, $04
-  .byte $36, $01
-  .byte $26, $03
-  .byte $02, $02
-  .byte $12, $00
-  .byte $03, $04
-  .byte $13, $01
-  .byte $15, $04
-  .byte $25, $01
-  .byte $15, $03
-  .byte $25, $02
-  .byte $03, $03
-  .byte $13, $01
-  .byte $02, $02
-  .byte $12, $00
-  .byte $13, $03
-  .byte $13, $01
-  .byte $13, $02
-  .byte $02, $02
-  .byte $12, $01
-  .byte $02, $01
-  .byte $02, $01
-  .byte $b5, $02
-  .byte $25, $0f
-  .byte $fa, $0e
-  .byte $aa, $0f
-  .byte $33, $00
   .byte $00, $05
+  .byte $c5, $05
+  .byte $57, $0f
   .byte $ea, $0d
   .byte $aa, $0f
   .byte $75, $00
   .byte $01, $0a
-  .byte $d7, $07
-  .byte $7a, $0f
+  .byte $d7, $09
+  .byte $89, $0f
+  .byte $b5, $02
+  .byte $25, $0f
   .byte $ea, $0c
   .byte $ab, $0f
   .byte $a5, $00
   .byte $03, $0f
+  .byte $ec, $0f
+  .byte $ed, $0f
+  .byte $ed, $0f
+  .byte $dd, $0f
+  .byte $fd, $0f
+  .byte $dc, $0f
+  .byte $fc, $0f
+  .byte $cd, $0f
+  .byte $22, $00
+  .byte $00, $02
+  .byte $d7, $07
+  .byte $7a, $0f
+  .byte $fd, $0e
+  .byte $dd, $0f
+  .byte $55, $00
+  .byte $01, $07
   .byte $ea, $0b
   .byte $ac, $0f
   .byte $c7, $05
   .byte $58, $0f
-  .byte $da, $0a
-  .byte $ac, $0f
-  .byte $ec, $0f
-  .byte $ed, $0f
-  .byte $fd, $0f
-  .byte $fc, $0f
-  .byte $fd, $0e
   .byte $fc, $0e
-  .byte $fd, $0d
-  .byte $ed, $0d
-  .byte $ec, $0d
-  .byte $de, $0f
-  .byte $ce, $0f
-  .byte $dd, $0f
   .byte $cd, $0f
-  .byte $dd, $0f
-  .byte $cd, $0f
-  .byte $dc, $0f
-  .byte $dd, $0f
-  .byte $ed, $0f
-  .byte $d9, $08
-  .byte $8a, $0f
-  .byte $b7, $02
-  .byte $36, $0f
   .byte $86, $00
   .byte $03, $0c
-  .byte $55, $00
-  .byte $01, $07
-  .byte $22, $00
-  .byte $00, $02
+  .byte $fd, $0d
+  .byte $dd, $0f
+  .byte $b7, $02
+  .byte $36, $0f
+  .byte $da, $0a
+  .byte $ac, $0f
   .byte $ed, $0d
+  .byte $ce, $0f
+  .byte $d9, $08
+  .byte $8a, $0f
+  .byte $ec, $0d
   .byte $de, $0f
   .byte $db, $0a
   .byte $ad, $0f
@@ -821,57 +820,58 @@ bottom_palette:
   .byte $59, $0f
   .byte $a8, $00
   .byte $05, $0f
-  .byte $ee, $0d
-  .byte $de, $0f
-  .byte $dc, $0a
-  .byte $ad, $0f
-  .byte $da, $08
-  .byte $8b, $0f
   .byte $67, $00
   .byte $02, $0a
   .byte $34, $00
   .byte $00, $05
+  .byte $de, $0f
   .byte $ee, $0d
-  .byte $de, $0e
-  .byte $b9, $02
-  .byte $28, $0e
-  .byte $dc, $0a
-  .byte $ad, $0e
+  .byte $8a, $0f
   .byte $cb, $07
-  .byte $8c, $0e
-  .byte $ca, $05
-  .byte $5a, $0f
-  .byte $ee, $0d
-  .byte $de, $0e
-  .byte $88, $00
-  .byte $04, $0c
-  .byte $ef, $0d
-  .byte $de, $0d
-  .byte $56, $00
-  .byte $01, $07
-  .byte $dd, $0a
-  .byte $ad, $0d
-  .byte $aa, $00
-  .byte $06, $0e
-  .byte $ef, $0d
-  .byte $de, $0d
-  .byte $22, $00
-  .byte $00, $02
-  .byte $cd, $07
-  .byte $8c, $0d
-  .byte $bc, $05
-  .byte $5b, $0e
+  .byte $de, $0f
+  .byte $dc, $0a
+  .byte $36, $0f
   .byte $bb, $02
-  .byte $29, $0e
+  .byte $de, $0f
+  .byte $ee, $0d
+  .byte $03, $0c
+  .byte $8b, $00
+  .byte $de, $0e
+  .byte $ef, $0d
+  .byte $59, $0f
+  .byte $bc, $05
+  .byte $ad, $0f
+  .byte $dd, $0a
+  .byte $01, $07
+  .byte $57, $00
+  .byte $de, $0e
+  .byte $ef, $0d
+  .byte $8b, $0f
+  .byte $cd, $07
+  .byte $00, $02
+  .byte $12, $00
+  .byte $de, $0d
   .byte $ef, $0d
   .byte $de, $0d
-  .byte $de, $0a
-  .byte $bd, $0d
-  .byte $68, $00
-  .byte $03, $0a
   .byte $ef, $0d
   .byte $de, $0d
   .byte $ee, $0d
   .byte $de, $0d
+  .byte $de, $0d
+  .byte $05, $0f
+  .byte $ad, $00
+  .byte $ad, $0e
+  .byte $de, $0a
+  .byte $28, $0e
+  .byte $ad, $02
+  .byte $8c, $0e
   .byte $ce, $07
+  .byte $02, $0a
+  .byte $6a, $00
+  .byte $ad, $0d
+  .byte $df, $0a
+  .byte $5a, $0f
+  .byte $bd, $05
+  .byte $00, $05
   .byte $ff, $0f
+  
