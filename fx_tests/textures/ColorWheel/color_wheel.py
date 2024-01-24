@@ -103,67 +103,6 @@ for brightness_index in range(2, 13):
 
 
 
-'''
-img8bpp = im_org.convert(mode='P', dither=Image.Dither.FLOYDSTEINBERG, palette=Image.Palette.ADAPTIVE, colors=256)
-px = img8bpp.load()
-
-palette_bytes = img8bpp.getpalette()
-
-# We first convert to 12-bit COLORS
-colors_12bit = []
-
-byte_index = 0
-nr_of_palette_bytes = 3*256
-while (byte_index < nr_of_palette_bytes):
-    try:
-        r = palette_bytes[byte_index]
-    except:
-        r = 0
-
-    byte_index += 1
-
-    try:
-        g = palette_bytes[byte_index]
-    except:
-        g = 0
-
-    byte_index += 1
-
-    try:
-        b = palette_bytes[byte_index]
-    except:
-        b = 0
-
-    byte_index += 1
-
-    # 8 bit to 4 bit conversion (for each channel)
-    r = (r * 15 + 135) >> 8
-    g = (g * 15 + 135) >> 8
-    b = (b * 15 + 135) >> 8
-    
-    new_12bit_color = (r,g,b)
-    colors_12bit.append(new_12bit_color)
-    
-    
-
-
-# Printing out asm for palette:
-palette_string = ""
-for new_color in colors_12bit:
-    red = new_color[0]
-    green = new_color[1]
-    blue = new_color[2]
-
-    red = red >> 4
-    blue = blue >> 4
-    
-    palette_string += "  .byte "
-    palette_string += "$" + format(green | blue,"02x") + ", "
-    palette_string += "$" + format(red,"02x")
-    palette_string += "\n"
-
-print(palette_string)
-'''
 
 background_color = (0,0,0)
 
@@ -245,7 +184,7 @@ for brightness_index in range(11):
 
 
 
-def get_color_by_org_index(clr_idx):
+def get_color_24bit_by_org_index(clr_idx):
     color_24bit = colors_24bit[clr_idx] 
     
     if (SHOW_12BIT_COLORS):
@@ -269,6 +208,22 @@ def get_color_by_org_index(clr_idx):
         
     return color_24bit
 
+def get_color_12bit_by_org_index(clr_idx):
+
+    color_24bit = colors_24bit[clr_idx] 
+    
+    r = color_24bit[0]
+    g = color_24bit[1]
+    b = color_24bit[2]
+
+    # 8 bit to 4 bit conversion (for each channel)
+    r = int((r * 15 + 135)) >> 8
+    g = int((g * 15 + 135)) >> 8
+    b = int((b * 15 + 135)) >> 8
+    
+    color_12bit = (r,g,b)
+    
+    return color_12bit
 
 def get_max_and_min_y_for_polygon(diamond_polygon):
 
@@ -381,10 +336,14 @@ if (not SHOW_ORG_PICTURE):
 # These are two 256-color palettes
 colors_12bit_top = []
 colors_12bit_bottom = []
+colors_24bit_top = []
+colors_24bit_bottom = []
 
 # We add BLACK as color #0
 colors_12bit_top.append((0,0,0))
 colors_12bit_bottom.append((0,0,0))
+colors_24bit_top.append((0,0,0))
+colors_24bit_bottom.append((0,0,0))
 
 all_polygons = []
 for top_to_bottom_sorted_idx, top_polygon_info in enumerate(top_to_bottom_sorted_polygons):
@@ -413,39 +372,110 @@ for top_to_bottom_sorted_idx, top_polygon_info in enumerate(top_to_bottom_sorted
         bottom_polygon_info = bottom_to_top_sorted_polygons[bottom_to_top_sorted_idx]
         (bottom_clr_idx, bottom_min_y, bottom_max_y, bottom_diamond_polygon) = bottom_polygon_info
         
-        top_color_24bit = get_color_by_org_index(top_clr_idx)
-        bottom_color_24bit = get_color_by_org_index(bottom_clr_idx)
+        top_color_12bit = get_color_12bit_by_org_index(top_clr_idx)
+        bottom_color_12bit = get_color_12bit_by_org_index(bottom_clr_idx)
+        top_color_24bit = get_color_24bit_by_org_index(top_clr_idx)
+        bottom_color_24bit = get_color_24bit_by_org_index(bottom_clr_idx)
         
         # Note: the top and bottom polygons share the same color 142 indexes!
         new_clr_idx = top_to_bottom_sorted_idx+1
         
         new_polygon_info = (new_clr_idx, top_diamond_polygon)
         all_polygons.append(new_polygon_info)
-        colors_12bit_top.append(top_color_24bit)
+        colors_12bit_top.append(top_color_12bit)
+        colors_24bit_top.append(top_color_24bit)
 
         # TODO: we probably shouldnt draw this polygon this early, but drawing order doesnt really matter (only color order)
         new_polygon_info = (new_clr_idx, bottom_diamond_polygon)
         all_polygons.append(new_polygon_info)
-        colors_12bit_bottom.append(bottom_color_24bit)
+        colors_12bit_bottom.append(bottom_color_12bit)
+        colors_24bit_bottom.append(bottom_color_24bit)
     else:
         new_clr_idx = top_to_bottom_sorted_idx+1
 
         # We use the top colors/polygons for the middle polygons
-        color_24bit = get_color_by_org_index(top_clr_idx)
+        color_12bit = get_color_12bit_by_org_index(top_clr_idx)
+        color_24bit = get_color_24bit_by_org_index(top_clr_idx)
         
         new_polygon_info = (new_clr_idx, top_diamond_polygon)
         all_polygons.append(new_polygon_info)
     
-        colors_12bit_top.append(color_24bit)
-        colors_12bit_bottom.append(color_24bit)
+        colors_12bit_top.append(color_12bit)
+        colors_12bit_bottom.append(color_12bit)
+        colors_24bit_top.append(color_24bit)
+        colors_24bit_bottom.append(color_24bit)
     
-#        color_24bit = (0xFF, 0xFF, 0x00)
-#        color_24bit = (0x00, 0xFF, 0xFF)
 
 
 # We add WHITE as color #255
-colors_12bit_top.append((255,255,255))
-colors_12bit_bottom.append((255,255,255))
+colors_12bit_top.append((15,15,15))
+colors_12bit_bottom.append((15,15,15))
+colors_24bit_top.append((255,255,255))
+colors_24bit_bottom.append((255,255,255))
+
+
+
+'''
+img8bpp = im_org.convert(mode='P', dither=Image.Dither.FLOYDSTEINBERG, palette=Image.Palette.ADAPTIVE, colors=256)
+px = img8bpp.load()
+
+palette_bytes = img8bpp.getpalette()
+
+# We first convert to 12-bit COLORS
+colors_12bit = []
+
+byte_index = 0
+nr_of_palette_bytes = 3*256
+while (byte_index < nr_of_palette_bytes):
+    try:
+        r = palette_bytes[byte_index]
+    except:
+        r = 0
+
+    byte_index += 1
+
+    try:
+        g = palette_bytes[byte_index]
+    except:
+        g = 0
+
+    byte_index += 1
+
+    try:
+        b = palette_bytes[byte_index]
+    except:
+        b = 0
+
+    byte_index += 1
+
+    # 8 bit to 4 bit conversion (for each channel)
+    r = (r * 15 + 135) >> 8
+    g = (g * 15 + 135) >> 8
+    b = (b * 15 + 135) >> 8
+    
+    new_12bit_color = (r,g,b)
+    colors_12bit.append(new_12bit_color)
+    
+    
+
+
+# Printing out asm for palette:
+palette_string = ""
+for new_color in colors_12bit:
+    red = new_color[0]
+    green = new_color[1]
+    blue = new_color[2]
+
+    red = red >> 4
+    blue = blue >> 4
+    
+    palette_string += "  .byte "
+    palette_string += "$" + format(green | blue,"02x") + ", "
+    palette_string += "$" + format(red,"02x")
+    palette_string += "\n"
+
+print(palette_string)
+'''
 
 
 for polygon_info in all_polygons:
@@ -476,10 +506,10 @@ screen.fill((0,0,0))
 # We want to draw in the middle of the screen
 start_x = (screen_width-screen_height)//2*scale
 
-frame_buffer.set_palette(colors_12bit_top)
+frame_buffer.set_palette(colors_24bit_top)
 # IMPORANT: we scale to a SQUARE here so we use screen_height for the destination width as well!
 screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), dest=(start_x, 0), area=pygame.Rect(0,0,screen_height*scale, screen_height*scale//2))
-frame_buffer.set_palette(colors_12bit_bottom)
+frame_buffer.set_palette(colors_24bit_bottom)
 screen.blit(pygame.transform.scale(frame_buffer, (screen_height*scale, screen_height*scale)), dest=(start_x, screen_height*scale//2), area=pygame.Rect(0,screen_height*scale//2,screen_height*scale, screen_height*scale//2))
 
 
