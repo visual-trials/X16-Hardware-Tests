@@ -37,7 +37,7 @@ READ_WRITE_ROW_CODE    = $7800
 BACKGROUND_COLOR       = 0
 
 
-ALLOW_INTERRUPTS       = 0
+ALLOW_INTERRUPTS       = 1
 
 start:
 
