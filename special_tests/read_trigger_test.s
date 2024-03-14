@@ -37,9 +37,15 @@ READ_WRITE_ROW_CODE    = $7800
 BACKGROUND_COLOR       = 0
 
 
+ALLOW_INTERRUPTS       = 0
 
 start:
 
+    ; Testing with or without interrupts
+    .if(!ALLOW_INTERRUPTS)
+        sei
+    .endif
+    
     jsr setup_vera_for_layer0_bitmap
 
     jsr generate_read_write_row_code
