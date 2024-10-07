@@ -194,9 +194,6 @@ reset:
     txs
 
     jsr setup_vera_for_bitmap_and_tile_map
-    jsr copy_petscii_charset
-    jsr clear_tilemap_screen
-    jsr init_cursor
     jsr init_keyboard
     
     jsr clear_screen_slow
@@ -1532,6 +1529,79 @@ draw_all_bitmap_texts:
     
     
     
+    
+; This sets up VERA for a bitmap (320x240) in layer 0 and a tile map (8x8) in layer 1
+
+setup_vera_for_bitmap_and_tile_map:
+
+    ; lda #%00010001           ; Enable Layer 0, Enable VGA
+    ; lda #%00100001           ; Enable Layer 1, Enable VGA
+    ; lda #%00110001           ; Enable Layer 0 and 1, Enable VGA
+    ; lda #%01000001           ; Enable sprites, Enable VGA
+    
+    lda VERA_DC_VIDEO
+    and #%00000011
+    bne output_mode_is_set
+    
+    ; If no output mode is, we turn on VGA
+    lda VERA_DC_VIDEO
+    ora #%00000001             ; Enable VGA
+    sta VERA_DC_VIDEO
+    
+output_mode_is_set:
+    lda VERA_DC_VIDEO
+    ora #%01010000           ; Enable Layer 0 and sprites
+    and #%11011111           ; Disable layer 1
+    sta VERA_DC_VIDEO
+
+    lda #0                   ; Set Horizontal and vertical scoll to 0
+    sta VERA_L0_HSCROLL_L
+    sta VERA_L0_HSCROLL_H
+    sta VERA_L0_VSCROLL_L
+    sta VERA_L0_VSCROLL_H
+    
+    sta VERA_L1_HSCROLL_L
+    sta VERA_L1_HSCROLL_H
+    sta VERA_L1_VSCROLL_L
+    sta VERA_L1_VSCROLL_H
+
+    lda #$40                 ; 2:1 scale (320 x 240 pixels on screen)
+    sta VERA_DC_HSCALE
+    sta VERA_DC_VSCALE
+    
+    ; -- Layer 0 --
+    
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; VERA.layer0.config = (4 + 3) ; enable bitmap mode and color depth = 8bpp on layer 0
+    lda #(4+3)
+    sta VERA_L0_CONFIG
+
+    ; VERA.layer0.tilebase = ; set new tilebase for layer 0 (0x00000)
+    ; NOTE: this also sets the TILE WIDTH to 320 px!!
+    lda #($000 >> 1)
+    sta VERA_L0_TILEBASE
+    
+    ; -- Layer 1 --
+    
+    lda #%00000000           ; DCSEL=0, ADDRSEL=0
+    sta VERA_CTRL
+    
+    ; TODO: use TILE_MAP_HEIGHT and TILE_MAP_WIDTH to determine this value!
+    lda #%10100000           ; Set map height/width to 64/128, and Tile mode 1 bpp (16 color text mode)
+    sta VERA_L1_CONFIG
+    
+    lda #($1B0 >> 1)         ; Set mapbase for layer 1 to 0x1B000. This also sets the tile width and height to 8 px
+    sta VERA_L1_MAPBASE
+    
+    lda #($1F0 >> 1)         ; Set tilebase for layer 1 to 0x1F000. This also sets the tile width and height to 8 px
+    sta VERA_L1_TILEBASE
+
+    rts
+
+    
+    
 ; Python script to generate sine and cosine bytes: for CAMERA displacement (and also for directional movement)
 ;   import math
 ;   cycle=256
@@ -1549,6 +1619,102 @@ cosine_values_low:
     .byte 72, 71, 71, 71, 71, 71, 71, 70, 70, 70, 69, 69, 68, 68, 67, 67, 66, 65, 65, 64, 63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 50, 49, 48, 47, 45, 44, 42, 41, 40, 38, 37, 35, 33, 32, 30, 29, 27, 25, 24, 22, 20, 19, 17, 15, 14, 12, 10, 8, 7, 5, 3, 1, 0, 255, 253, 251, 249, 248, 246, 244, 242, 241, 239, 237, 236, 234, 232, 231, 229, 227, 226, 224, 223, 221, 219, 218, 216, 215, 214, 212, 211, 209, 208, 207, 206, 204, 203, 202, 201, 200, 199, 198, 197, 196, 195, 194, 193, 192, 191, 191, 190, 189, 189, 188, 188, 187, 187, 186, 186, 186, 185, 185, 185, 185, 185, 185, 184, 185, 185, 185, 185, 185, 185, 186, 186, 186, 187, 187, 188, 188, 189, 189, 190, 191, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 206, 207, 208, 209, 211, 212, 214, 215, 216, 218, 219, 221, 223, 224, 226, 227, 229, 231, 232, 234, 236, 237, 239, 241, 242, 244, 246, 248, 249, 251, 253, 255, 0, 1, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 20, 22, 24, 25, 27, 29, 30, 32, 33, 35, 37, 38, 40, 41, 42, 44, 45, 47, 48, 49, 50, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 65, 66, 67, 67, 68, 68, 69, 69, 70, 70, 70, 71, 71, 71, 71, 71, 71
 cosine_values_high:
     .byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+
+    
+    
+    
+; -- FIXME: SLOW HACK! --
+MULTIPLIER_XOR_MULTIPLICAND_NEGATED = TMP2
+multiply_16bits_signed:
+    stz MULTIPLIER_XOR_MULTIPLICAND_NEGATED
+    
+    lda MULTIPLIER+1
+    bpl multiplier_is_positive
+    
+    ; We negate the multiplier
+    sec
+    lda #0
+    sbc MULTIPLIER
+    sta MULTIPLIER
+    lda #0
+    sbc MULTIPLIER+1
+    sta MULTIPLIER+1
+    
+    lda #1
+    sta MULTIPLIER_XOR_MULTIPLICAND_NEGATED
+multiplier_is_positive:
+
+    lda MULTIPLICAND+1
+    bpl multiplcand_is_positive
+
+    ; We negate the multiplicand
+    sec
+    lda #0
+    sbc MULTIPLICAND
+    sta MULTIPLICAND
+    lda #0
+    sbc MULTIPLICAND+1
+    sta MULTIPLICAND+1
+    
+    lda MULTIPLIER_XOR_MULTIPLICAND_NEGATED
+    eor #1
+    sta MULTIPLIER_XOR_MULTIPLICAND_NEGATED
+    
+multiplcand_is_positive:
+
+    jsr multiply_16bits
+    
+    lda MULTIPLIER_XOR_MULTIPLICAND_NEGATED
+    beq signed_product_is_valid
+    
+    ;We negate the product
+    sec
+    lda #0
+    sbc PRODUCT
+    sta PRODUCT
+    lda #0
+    sbc PRODUCT+1
+    sta PRODUCT+1
+    lda #0
+    sbc PRODUCT+2
+    sta PRODUCT+2
+    lda #0
+    sbc PRODUCT+3
+    sta PRODUCT+3
+    
+signed_product_is_valid:
+
+    rts
+    
+; https://codebase64.org/doku.php?id=base:16bit_multiplication_32-bit_product
+multiply_16bits:
+    phx
+    lda    #$00
+    sta    PRODUCT+2    ; clear upper bits of PRODUCT
+    sta    PRODUCT+3
+    ldx    #$10         ; set binary count to 16
+shift_r:
+    lsr    MULTIPLIER+1 ; divide MULTIPLIER by 2
+    ror    MULTIPLIER
+    bcc    rotate_r
+    lda    PRODUCT+2    ; get upper half of PRODUCT and add MULTIPLICAND
+    clc
+    adc    MULTIPLICAND
+    sta    PRODUCT+2
+    lda    PRODUCT+3
+    adc    MULTIPLICAND+1
+rotate_r:
+    ror                 ; rotate partial PRODUCT
+    sta    PRODUCT+3
+    ror    PRODUCT+2
+    ror    PRODUCT+1
+    ror    PRODUCT
+    dex
+    bne    shift_r
+    plx
+
+    rts
+    
 
     
 ; FIXME! Put this somewhere else!
@@ -1635,11 +1801,8 @@ left_down_right_keys_data:
     ; === Included files ===
     
     .include utils/x16.s
-    .include utils/utils.s
     .include utils/i2c.s
     .include utils/keyboard.s
-    .include utils/setup_vera_for_bitmap_and_tilemap.s
-    .include fx_tests/utils/math.s
     .include fx_tests/utils/demo.s
 
 ; FIXME: REMOVE this is the OLD name!
